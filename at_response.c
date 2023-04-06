@@ -1001,16 +1001,35 @@ static int at_response_cend (struct pvt * pvt, const char* str)
  */
 static int at_response_csca (struct pvt* pvt, char* str)
 {
-	char * csca;
+	char*   csca;
+	char    csca_utf8_str[20];
+	ssize_t res;
 
 	if(at_parse_csca(str, &csca))
 	{
-		ast_debug (1, "[%s] Could not parse CSCA response '%s'\n", PVT_ID(pvt), str);
+		ast_debug(1, "[%s] Could not parse CSCA response '%s'\n", PVT_ID(pvt), str);
 		return -1;
 	}
-	ast_copy_string (pvt->sms_scenter, csca, sizeof (pvt->sms_scenter));
 
-	ast_debug (1, "[%s] CSCA: %s\n", PVT_ID(pvt), pvt->sms_scenter);
+	if (pvt->use_ucs2_encoding) {
+		int csca_nibbles = unhex(csca, csca);
+		res = ucs2_to_utf8(csca, (csca_nibbles + 1) / 4, csca_utf8_str, sizeof(csca_utf8_str) - 1);
+	} else { // ASCII
+		ast_log(LOG_NOTICE, "[%s] CSCA ASCII\n", PVT_ID(pvt));
+		res = strlen(csca);
+		if (res > sizeof(csca_utf8_str) - 1) {
+			res = -1;
+		} else {
+			memcpy(csca_utf8_str, csca, res);
+		}
+	}
+
+	if (res < 0) {
+		return -1;
+	}
+	csca_utf8_str[res] = '\0';
+	ast_copy_string(pvt->sms_scenter, csca_utf8_str, sizeof(pvt->sms_scenter));
+	ast_debug(2, "[%s] CSCA: %s\n", PVT_ID(pvt), pvt->sms_scenter);
 	return 0;
 }
 
