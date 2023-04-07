@@ -176,7 +176,6 @@ typedef struct pvt
 	int			gsm_reg_status;
 	int			rssi;
 	int			linkmode;
-	int			linksubmode;
 	char			provider_name[32];
 	char			manufacturer[32];
 	char			model[32];
@@ -263,8 +262,7 @@ EXPORT_DECL int is_dial_possible(const struct pvt * pvt, int opts);
 EXPORT_DECL const char * pvt_str_state(const struct pvt* pvt);
 EXPORT_DECL struct ast_str * pvt_str_state_ex(const struct pvt* pvt);
 EXPORT_DECL const char * GSM_regstate2str(int gsm_reg_status);
-EXPORT_DECL const char * sys_mode2str(int sys_mode);
-EXPORT_DECL const char * sys_submode2str(int sys_submode);
+EXPORT_DECL const char * sys_act2str(int sys_submode);
 EXPORT_DECL char* rssi2dBm(int rssi, char* buf, unsigned len);
 
 EXPORT_DECL void pvt_on_create_1st_channel(struct pvt* pvt);

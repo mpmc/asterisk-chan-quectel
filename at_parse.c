@@ -145,6 +145,7 @@ EXPORT_DEF int at_parse_creg (char* str, unsigned len, int* gsm_reg, int* gsm_re
 	char*	p2 = NULL;
 	char*	p3 = NULL;
 	char*	p4 = NULL;
+	char* gsm_reg_str = NULL;
 
 	*gsm_reg = 0;
 	*gsm_reg_status = -1;
@@ -152,11 +153,12 @@ EXPORT_DEF int at_parse_creg (char* str, unsigned len, int* gsm_reg, int* gsm_re
 	*ci  = NULL;
 
 	/*
-	 * parse CREG response in the following format:
-	 * +CREG: [<p1>,]<p2>[,<p3>,<p4>]
+	 * parse CREG response in the following formats:
+	 * +CREG: <n>,<stat>[,<LAC>,<ci>[,<Act>]] - response to AT+CREG?
+	 * +CREG: <stat>[,<LAC>,<ci>[,<Act>]] - URC after AT-CREG=2
 	 */
 
-	for (i = 0, state = 0; i < len && state < 9; i++)
+	for (i = 0, state = 0; i < len && state < 11; i++)
 	{
 		switch (state)
 		{
@@ -181,7 +183,7 @@ EXPORT_DEF int at_parse_creg (char* str, unsigned len, int* gsm_reg, int* gsm_re
 					str[i] = '\0';
 					state++;
 				}
-				break;
+				break; // p1
 
 			case 3:
 				if (str[i] != ' ' && str[i] != '"')
@@ -194,7 +196,7 @@ EXPORT_DEF int at_parse_creg (char* str, unsigned len, int* gsm_reg, int* gsm_re
 				if (str[i] == '"')
 				{
 					str[i] = '\0';
-				        break;
+				    break;
 				}
 
 				if (str[i] == ',')
@@ -202,7 +204,7 @@ EXPORT_DEF int at_parse_creg (char* str, unsigned len, int* gsm_reg, int* gsm_re
 					str[i] = '\0';
 					state++;
 				}
-				break;
+				break; // "p2"
 
 			case 5:
 				if (str[i] != ' ' && str[i] != '"')
@@ -216,7 +218,7 @@ EXPORT_DEF int at_parse_creg (char* str, unsigned len, int* gsm_reg, int* gsm_re
 				if (str[i] == '"')
 				{
 					str[i] = '\0';
-				        break;
+				    break;
 				}
 
 				if (str[i] == ',')
@@ -224,7 +226,7 @@ EXPORT_DEF int at_parse_creg (char* str, unsigned len, int* gsm_reg, int* gsm_re
 					str[i] = '\0';
 					state++;
 				}
-				break;
+				break; // "p3"
 
 			case 7:
 				if (str[i] != ' ' && str[i] != '"')
@@ -237,9 +239,33 @@ EXPORT_DEF int at_parse_creg (char* str, unsigned len, int* gsm_reg, int* gsm_re
 				if (str[i] == '"')
 				{
 					str[i] = '\0';
+					break;
+				}
+
+				if (str[i] == ',')
+				{
+					str[i] = '\0';
+					state++;
+				}
+				break; // "p4"
+
+			case 9:
+				if (str[i] != ' ' && str[i] != '"')
+				{
 					state++;
 				}
 				break;
+			case 10:
+				if (str[i] == '"')
+				{
+					break;
+				}
+
+				if (str[i] == ',')
+				{
+					state++;
+				}
+				break; // "p5"
 		}
 	}
 
@@ -248,25 +274,34 @@ EXPORT_DEF int at_parse_creg (char* str, unsigned len, int* gsm_reg, int* gsm_re
 		return -1;
 	}
 
-	if ((p2 && !p3 && !p4) || (p2 && p3 && p4))
+	switch (state)
 	{
-           if ((int) strtol (p2, (char**) NULL, 10) == 1 || (int) strtol (p2, (char**) NULL, 10) == 5) {
-		p1 = p2;
-                if (p3 && p4) {
+		case 11: // five elements
+		case 10:
+		gsm_reg_str = p2;
 		*lac = p3;
-		*ci  = p4;
-                              }
-                                                                                                        }
-	}
-         else if (p2 && p3) {
-		*lac = p2;
-		*ci  = p3;
-                            }
+		*ci = p4;
+		break;
 
-	if (p1)
+		case 8: // four elements
+		gsm_reg_str = p1;
+		*lac = p2;
+		*ci = p3;
+		break;
+
+		case 4: // two elements
+		gsm_reg_str = p2;
+		break;
+
+		case 2: // one element
+		gsm_reg_str = p1;
+		break;
+	}
+
+	if (gsm_reg_str)
 	{
 		errno = 0;
-		*gsm_reg_status = (int) strtol (p1, (char**) NULL, 10);
+		*gsm_reg_status = (int)strtol (gsm_reg_str, (char**) NULL, 10);
 		if (*gsm_reg_status == 0 && errno == EINVAL)
 		{
 			*gsm_reg_status = -1;
@@ -278,7 +313,6 @@ EXPORT_DEF int at_parse_creg (char* str, unsigned len, int* gsm_reg, int* gsm_re
 			*gsm_reg = 1;
 		}
 	}
-
 
 	return 0;
 }
@@ -585,20 +619,69 @@ EXPORT_DEF int at_parse_rssi (const char* str)
 }
 
 /*!
- * \brief Parse a ^MODE notification (link mode)
+ * \brief Parse a +QIND notification (CSQ)
  * \param str -- string to parse (null terminated)
- * \param len -- string lenght
+ * \param ind -- notification subject
  * \return -1 on error (parse error) or the the link mode value
  */
 
-EXPORT_DEF int at_parse_mode (char * str, int * mode, int * submode)
+EXPORT_DEF int at_parse_qind_csq (const char * str, int* rssi)
 {
 	/*
-	 * parse RSSI info in the following format:
-	 * ^MODE:<mode>,<submode>
+	 * parse notification in the following format:
+	 * +QIND: "csq",<RSSI>,<BER>
 	 */
 
-	return sscanf (str, "^MODE:%d,%d", mode, submode) == 2 ? 0 : -1;
+	return sscanf(str, "+QIND: \"csq\",%d", rssi) == 1 ? 0 : -1;
+}
+
+EXPORT_DEF int at_parse_qind_act(const char * str, int* act)
+{
+	/*
+	 * parse notification in the following format:
+	 * +QIND: "act","<val>"
+	 */
+
+	static const struct {
+		const char *act;
+		int val;
+	} ACTS[] = {
+		{ "GSM", 1 },
+		{ "EGPRS", 3 },
+		{ "WCDMA", 4 },
+		{ "HSDPA", 5 },
+		{ "HSUPA", 6 },
+	 	{ "HSDPA&HSUPA", 7 },
+		{ "LTE", 8 },
+	 	{ "TD-SCDMA", 9 },
+		{ "CDMA", 13 },
+		{ "HDR", 16 },
+		{ "EVDO", 14 },
+		{ "UNKNOWN", 0 },
+	};
+
+	char act_str[20];
+	if (sscanf(str, "+QIND: \"act\",\"%s\"", act_str) != 1)
+	{
+		return -1;
+	}
+
+	unsigned idx;
+	const size_t len = strlen(act_str) - 1;
+	for(idx = 0; idx < ITEMS_OF(ACTS); idx++)
+	{
+		size_t alen = strlen(ACTS[idx].act);
+		if (alen != len) continue;
+
+		if (!strncmp(ACTS[idx].act, act_str, alen))
+		{
+			*act = ACTS[idx].val;
+			return 0;
+		}
+	}
+
+    *act = 0;
+	return 0;
 }
 
 #/* */

@@ -83,8 +83,7 @@ static int manager_show_devices (struct mansession* s, const struct message* m)
 			astman_append (s, "IMSIState: %s\r\n", pvt->imsi);
 			astman_append (s, "GSMRegistrationStatus: %s\r\n", GSM_regstate2str(pvt->gsm_reg_status));
 			astman_append (s, "RSSI: %d, %s\r\n", pvt->rssi, rssi2dBm(pvt->rssi, buf, sizeof(buf)));
-			astman_append (s, "Mode: %s\r\n", sys_mode2str(pvt->linkmode));
-			astman_append (s, "Submode: %s\r\n", sys_submode2str(pvt->linksubmode));
+			astman_append (s, "Mode: %s\r\n", sys_act2str(pvt->linkmode));
 			astman_append (s, "ProviderName: %s\r\n", pvt->provider_name);
 			astman_append (s, "LocationAreaCode: %s\r\n", pvt->location_area_code);
 			astman_append (s, "CellID: %s\r\n", pvt->cell_id);

@@ -447,7 +447,6 @@ static void disconnect_quectel (struct pvt* pvt)
 		pvt->gsm_reg_status = -1;
 		pvt->rssi = 0;
 		pvt->linkmode = 0;
-		pvt->linksubmode = 0;
 		ast_copy_string (pvt->provider_name, "NONE", sizeof (pvt->provider_name));
 		pvt->manufacturer[0] = '\0';
 		pvt->model[0] = '\0';
@@ -1530,25 +1529,9 @@ EXPORT_DEF const char* GSM_regstate2str(int gsm_reg_status)
 }
 
 #/* */
-EXPORT_DEF const char* sys_mode2str(int sys_mode)
+EXPORT_DEF const char * sys_act2str(int act)
 {
-	static const char * const sys_modes[] = {
-		"No Service",
-		"AMPS",
-		"CDMA",
-		"GSM/GPRS",
-		"HDR",
-		"WCDMA",
-		"GPS",
-		};
-
-	return enum2str_def(sys_mode, sys_modes, ITEMS_OF (sys_modes), "Unknown");
-}
-
-#/* */
-EXPORT_DEF const char * sys_submode2str(int sys_submode)
-{
-	static const char * const sys_submodes[] = {
+	static const char * const sys_acts[] = {
 		"No service",
 		"GSM",
 		"GPRS",
@@ -1557,32 +1540,25 @@ EXPORT_DEF const char * sys_submode2str(int sys_submode)
 		"HSDPA",
 		"HSUPA",
 		"HSDPA and HSUPA",
-		};
+		"LTE",
+		"TDS-CDMA",
+		"TDS-HSDPA only",
+		"TDS-HSUPA only",
+		"TDS-HSPA (HSDPA and HSUPA)",
+		"CDMA",
+		"EVDO",
+		"CDMA and EVDO",
+		"CDMA and LTE",
+		"Ehrpd",
+		"CDMA and Ehrpd",
+	};
 
-	return enum2str_def(sys_submode, sys_submodes, ITEMS_OF (sys_submodes), "Unknown");
+	return enum2str_def(act, sys_acts, ITEMS_OF (sys_acts), "Unknown");
 }
 
 #/* BUGFIX of https://code.google.com/p/asterisk-chan-quectel/issues/detail?id=118 */
 EXPORT_DEF char* rssi2dBm(int rssi, char * buf, unsigned len)
 {
-#if 0 /* old code */
-	if(rssi <= 0)
-	{
-		snprintf(buf, len, "<= -125 dBm");
-	}
-	else if(rssi <= 30)
-	{
-		snprintf(buf, len, "%d dBm", 31 * rssi / 50 - 125);
-	}
-	else if(rssi == 31)
-	{
-		snprintf(buf, len, ">= -75 dBm");
-	}
-	else
-	{
-		snprintf(buf, len, "unknown");
-	}
-#else
 	if(rssi <= 0)
 	{
 		snprintf(buf, len, "<= -113 dBm");
@@ -1599,7 +1575,6 @@ EXPORT_DEF char* rssi2dBm(int rssi, char * buf, unsigned len)
 	{
 		snprintf(buf, len, "unknown or unmeasurable");
 	}
-#endif
 	return buf;
 }
 

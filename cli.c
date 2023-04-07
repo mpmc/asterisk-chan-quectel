@@ -49,8 +49,8 @@ static char* cli_show_devices (struct ast_cli_entry* e, int cmd, struct ast_cli_
 {
 	struct pvt* pvt;
 
-#define FORMAT1 "%-12.12s %-5.5s %-10.10s %-4.4s %-4.4s %-7.7s %-14.14s %-10.10s %-17.17s %-16.16s %-16.16s %-14.14s\n"
-#define FORMAT2 "%-12.12s %-5d %-10.10s %-4d %-4d %-7d %-14.14s %-10.10s %-17.17s %-16.16s %-16.16s %-14.14s\n"
+#define FORMAT1 "%-12.12s %-5.5s %-10.10s %-4.4s %-4.4s %-7.7s %-14.14s %-17.17s %-16.16s %-16.16s %-14.14s\n"
+#define FORMAT2 "%-12.12s %-5d %-10.10s %-4d %-4d %-7d %-14.14s %-17.17s %-16.16s %-16.16s %-14.14s\n"
 
 	switch (cmd)
 	{
@@ -69,7 +69,7 @@ static char* cli_show_devices (struct ast_cli_entry* e, int cmd, struct ast_cli_
 		return CLI_SHOWUSAGE;
 	}
 
-	ast_cli (a->fd, FORMAT1, "ID", "Group", "State", "RSSI", "Mode", "Submode", "Provider Name", "Model", "Firmware", "IMEI", "IMSI", "Number");
+	ast_cli (a->fd, FORMAT1, "ID", "Group", "State", "RSSI", "Mode", "Provider Name", "Model", "Firmware", "IMEI", "IMSI", "Number");
 
 	AST_RWLIST_RDLOCK (&gpublic->devices);
 	AST_RWLIST_TRAVERSE (&gpublic->devices, pvt, entry)
@@ -81,7 +81,6 @@ static char* cli_show_devices (struct ast_cli_entry* e, int cmd, struct ast_cli_
 			pvt_str_state(pvt),
 			pvt->rssi,
 			pvt->linkmode,
-			pvt->linksubmode,
 			pvt->provider_name,
 			pvt->model,
 			pvt->firmware,
@@ -210,8 +209,7 @@ static char* cli_show_device_state (struct ast_cli_entry* e, int cmd, struct ast
 		ast_cli (a->fd, "  IMSI                    : %s\n", pvt->imsi);
 		ast_cli (a->fd, "  GSM Registration Status : %s\n", GSM_regstate2str(pvt->gsm_reg_status));
 		ast_cli (a->fd, "  RSSI                    : %d, %s\n", pvt->rssi, rssi2dBm(pvt->rssi, buf, sizeof(buf)));
-		ast_cli (a->fd, "  Mode                    : %s\n", sys_mode2str(pvt->linkmode));
-		ast_cli (a->fd, "  Submode                 : %s\n", sys_submode2str(pvt->linksubmode));
+		ast_cli (a->fd, "  Mode                    : %s\n", sys_act2str(pvt->linkmode));
 		ast_cli (a->fd, "  Provider Name           : %s\n", pvt->provider_name);
 		ast_cli (a->fd, "  Location area code      : %s\n", pvt->location_area_code);
 		ast_cli (a->fd, "  Cell ID                 : %s\n", pvt->cell_id);

@@ -199,6 +199,8 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 			case CMD_AT_CSCA:
 			case CMD_AT_CLCC:
 			case CMD_AT_CLIR:
+			case CMD_AT_QINDCFG_CSQ:
+			case CMD_AT_QINDCFG_ACT:
 				ast_debug (3, "[%s] %s sent successfully\n", PVT_ID(pvt), at_cmd2str (ecmd->cmd));
 				break;
 
@@ -485,6 +487,11 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 				ast_debug (1, "[%s] Error getting registration info\n", PVT_ID(pvt));
 				break;
 
+			case CMD_AT_QINDCFG_CSQ:
+			case CMD_AT_QINDCFG_ACT:
+				ast_debug (1, "[%s] Error enabling indications\n", PVT_ID(pvt));
+				break;
+
 			case CMD_AT_CVOICE:
 				ast_debug (1, "[%s] No Quectel voice support\n", PVT_ID(pvt));
 				pvt->has_voice = 0;
@@ -692,7 +699,7 @@ e_return:
 }
 
 /*!
- * \brief Handle ^RSSI response Here we get the signal strength.
+ * \brief Handle +QIND response.
  * \param pvt -- pvt structure
  * \param str -- string containing response (null terminated)
  * \param len -- string lenght
@@ -700,45 +707,26 @@ e_return:
  * \retval -1 error
  */
 
-static int at_response_rssi (struct pvt* pvt, const char* str)
+static int at_response_qind (struct pvt* pvt, char* str, size_t len)
 {
-	int rssi = at_parse_rssi (str);
+	int val;
+	int res;
 
-	if (rssi == -1)
+	res = at_parse_qind_csq(str, &val);
+	if (res >= 0)
 	{
-		ast_debug (2, "[%s] Error parsing RSSI event '%s'\n", PVT_ID(pvt), str);
-		return -1;
+		pvt->rssi = val;
+		return 0;
 	}
 
-	pvt->rssi = rssi;
+	res = at_parse_qind_act(str, &val);
+	if (res >= 0)
+	{
+		pvt->linkmode = val;
+		return 0;
+	}
+
 	return 0;
-}
-
-/*!
- * \brief Handle ^MODE response Here we get the link mode (GSM, UMTS, EDGE...).
- * \param pvt -- pvt structure
- * \param str -- string containing response (null terminated)
- * \param len -- string lenght
- * \retval  0 success
- * \retval -1 error
- */
-
-static int at_response_mode (struct pvt* pvt, char* str, size_t len)
-{
-	int mode;
-	int submode;
-
-	int rv = at_parse_mode (str, &mode, &submode);
-	if(rv)
-	{
-		ast_debug (2, "[%s] Error parsing MODE event '%.*s'\n", PVT_ID(pvt), (int) len, str);
-	}
-	else
-	{
-		pvt->linkmode = mode;
-		pvt->linksubmode = submode;
-	}
-	return rv;
 }
 /*
 static void request_clcc(struct pvt* pvt)
@@ -1891,8 +1879,8 @@ static int at_response_cops (struct pvt* pvt, char* str)
 static int at_response_creg (struct pvt* pvt, char* str, size_t len)
 {
 	int	d;
-	char*	lac;
-	char*	ci;
+	char* lac;
+	char* ci;
 
 	if (at_enqueue_cops(&pvt->sys_chan))
 	{
@@ -2111,13 +2099,9 @@ int at_response (struct pvt* pvt, const struct iovec iov[2], int iovcnt, at_res_
 				at_response_ok (pvt, at_res);
 				return 0;
 
-			case RES_RSSI:
+			case RES_QIND:
 				/* An error here is not fatal. Just keep going. */
-				at_response_rssi (pvt, str);
-				break;
-			case RES_MODE:
-				/* An error here is not fatal. Just keep going. */
-				at_response_mode (pvt, str, len);
+				at_response_qind (pvt, str, len);
 				return 0;
 
 			case RES_ORIG:

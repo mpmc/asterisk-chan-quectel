@@ -43,7 +43,7 @@ struct iovec;
 	_( ERROR,       "ERROR",        "ERROR\r") \
 		/* and "COMMAND NOT SUPPORT\r", hacked later on */ \
 \
-	_( MODE,        "^MODE",        "^MODE:") \
+	_( QIND,        "+QIND",        "+QIND:") \
 	_( NO_CARRIER,  "NO CARRIER",   "NO CARRIER\r") \
 \
 	_( NO_DIALTONE, "NO DIALTONE",  "NO DIALTONE\r") \
@@ -51,7 +51,6 @@ struct iovec;
 	_( CONF,        "^CONF",        "MISSED_CALL:") \
 	_( RING,        "RING",         "RING\r") \
 \
-	_( RSSI,        "^RSSI",        "^RSSI:") \
 	_( SMMEMFULL,   "^SMMEMFULL",   "^SMMEMFULL:") \
 	_( SMS_PROMPT,  "> ",           "> ") \
 	_( SRVST,       "^SRVST",       "^SRVST:") \
