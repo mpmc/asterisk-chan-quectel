@@ -184,7 +184,6 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 			case CMD_AT:
 			case CMD_AT_Z:
 			case CMD_AT_E:
-			case CMD_AT_U2DIAG:
 			case CMD_AT_CGMI:
 			case CMD_AT_CGMM:
 			case CMD_AT_CGMR:
@@ -439,7 +438,6 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 				goto e_return;
 
 			/* not critical errors */
-			case CMD_AT_U2DIAG:
 			case CMD_AT_CCWA_SET:
 			case CMD_AT_CCWA_STATUS:
 			case CMD_AT_CNUM:

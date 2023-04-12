@@ -91,16 +91,15 @@ EXPORT_DEF void dc_sconfig_fill_defaults(struct dc_sconfig * config)
 	ast_copy_string (config->exten, "", sizeof (config->exten));
 	ast_copy_string (config->language, DEFAULT_LANGUAGE, sizeof (config->language));
 
-	config->u2diag			= -1;
-	config->resetquectel		=  1;
+	config->resetquectel	=  1;
 	config->callingpres		= -1;
 	config->initstate		= DEV_STATE_STARTED;
-	config->callwaiting 		= CALL_WAITING_AUTO;
+	config->callwaiting 	= CALL_WAITING_AUTO;
 	config->dtmf			= DC_DTMF_SETTING_RELAX;
 
 	config->mindtmfgap		= DEFAULT_MINDTMFGAP;
-	config->mindtmfduration		= DEFAULT_MINDTMFDURATION;
-	config->mindtmfinterval		= DEFAULT_MINDTMFINTERVAL;
+	config->mindtmfduration	= DEFAULT_MINDTMFDURATION;
+	config->mindtmfinterval	= DEFAULT_MINDTMFINTERVAL;
 }
 
 #/* */
@@ -134,15 +133,6 @@ EXPORT_DEF void dc_sconfig_fill(struct ast_config * cfg, const char * cat, struc
 		else if (!strcasecmp (v->name, "txgain"))
 		{
 			config->txgain = (int) strtol (v->value, (char**) NULL, 10);		/* txgain is set to 0 if invalid */
-		}
-		else if (!strcasecmp (v->name, "u2diag"))
-		{
-			errno = 0;
-			config->u2diag = (int) strtol (v->value, (char**) NULL, 10);		/* u2diag is set to -1 if invalid */
-			if (config->u2diag == 0 && errno == EINVAL)
-			{
-				config->u2diag = -1;
-			}
 		}
 		else if (!strcasecmp (v->name, "callingpres"))
 		{

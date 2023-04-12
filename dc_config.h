@@ -70,7 +70,6 @@ typedef struct dc_sconfig
 	int			group;				/*!< group number for group dialling 0 */
 	int			rxgain;				/*!< increase the incoming volume 0 */
 	int			txgain;				/*!< increase the outgoint volume 0 */
-	int			u2diag;				/*!< -1 */
 	int			callingpres;			/*!< calling presentation */
 
 	unsigned int		usecallingpres:1;		/*! -1 */

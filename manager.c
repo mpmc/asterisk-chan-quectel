@@ -58,7 +58,6 @@ static int manager_show_devices (struct mansession* s, const struct message* m)
 			astman_append (s, "Group: %d\r\n", CONF_SHARED(pvt, group));
 			astman_append (s, "RXGain: %d\r\n", CONF_SHARED(pvt, rxgain));
 			astman_append (s, "TXGain: %d\r\n", CONF_SHARED(pvt, txgain));
-			astman_append (s, "U2DIAG: %d\r\n", CONF_SHARED(pvt, u2diag));
 			astman_append (s, "UseCallingPres: %s\r\n", CONF_SHARED(pvt, usecallingpres) ? "Yes" : "No");
 			astman_append (s, "DefaultCallingPres: %s\r\n", CONF_SHARED(pvt, callingpres) < 0 ? "<Not set>" : ast_describe_caller_presentation (CONF_SHARED(pvt, callingpres)));
 			astman_append (s, "AutoDeleteSMS: %s\r\n", CONF_SHARED(pvt, autodeletesms) ? "Yes" : "No");

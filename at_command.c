@@ -33,7 +33,6 @@ static const char cmd_at[] 	 = "AT\r";
 static const char cmd_chld1x[]   = "AT+CHLD=1%d\r";
 static const char cmd_chld2[]    = "AT+CHLD=2\r";
 static const char cmd_clcc[]     = "AT+CLCC\r";
-static const char cmd_ddsetex2[] = "AT\r";
 
 /*!
  * \brief Format and fill generic command
@@ -144,9 +143,8 @@ EXPORT_DEF int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_comman
 
 	static const at_queue_cmd_t st_cmds[] = {
 		ATQ_CMD_DECLARE_ST(CMD_AT, cmd_at),
-		ATQ_CMD_DECLARE_ST(CMD_AT_Z, cmd2),		/* optional,  reload configuration */
-		ATQ_CMD_DECLARE_ST(CMD_AT_E, cmd3),		/* disable echo */
-		ATQ_CMD_DECLARE_DYN(CMD_AT_U2DIAG),		/* optional, Enable or disable some devices */
+		ATQ_CMD_DECLARE_ST(CMD_AT_E, cmd3),			/* Disable echo */
+		ATQ_CMD_DECLARE_ST(CMD_AT_Z, cmd2),			/* Enable call status notifications */
 		ATQ_CMD_DECLARE_ST(CMD_AT_CGMI, cmd5),		/* Getting manufacturer info */
 
 		ATQ_CMD_DECLARE_ST(CMD_AT_CGMM, cmd7),		/* Get Product name */
@@ -156,15 +154,15 @@ EXPORT_DEF int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_comman
 		ATQ_CMD_DECLARE_ST(CMD_AT_CGSN, cmd10),		/* IMEI Read */
 		ATQ_CMD_DECLARE_ST(CMD_AT_CIMI, cmd11),		/* IMSI Read */
 		ATQ_CMD_DECLARE_ST(CMD_AT_CPIN, cmd12),		/* check is password authentication requirement and the remainder validation times */
-		ATQ_CMD_DECLARE_ST(CMD_AT_COPS_INIT, cmd13),	/* Read operator name */
+		ATQ_CMD_DECLARE_ST(CMD_AT_COPS_INIT, cmd13),/* Read operator name */
 
-		ATQ_CMD_DECLARE_STI(CMD_AT_CREG_INIT,cmd14),	/* GSM registration status setting */
+		ATQ_CMD_DECLARE_STI(CMD_AT_CREG_INIT,cmd14),/* GSM registration status setting */
 		ATQ_CMD_DECLARE_ST(CMD_AT_CREG, cmd15),		/* GSM registration status */
 
 		ATQ_CMD_DECLARE_STI(CMD_AT_QINDCFG_CSQ, cmd_at_qindcfg_csq),
 		ATQ_CMD_DECLARE_STI(CMD_AT_QINDCFG_ACT, cmd_at_qindcfg_act),
 
-		ATQ_CMD_DECLARE_STI(CMD_AT_CNUM, cmd16),		/* Get Subscriber number */
+		ATQ_CMD_DECLARE_STI(CMD_AT_CNUM, cmd16),	/* Get Subscriber number */
 		ATQ_CMD_DECLARE_STI(CMD_AT_CVOICE, cmd17),	/* read the current voice mode, and return sampling rate、data bit、frame period */
 		ATQ_CMD_DECLARE_STI(CMD_AT_CVOICE2, cmd17a),
 
@@ -176,7 +174,8 @@ EXPORT_DEF int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_comman
 		ATQ_CMD_DECLARE_ST(CMD_AT_CMGF, cmd20),		/* Set Message Format */
 
 		ATQ_CMD_DECLARE_ST(CMD_AT_CPMS, cmd22),		/* SMS Storage Selection */
-			/* pvt->initialized = 1 after successful of CMD_AT_CNMI */
+
+		/* pvt->initialized = 1 after successful of CMD_AT_CNMI */
 		ATQ_CMD_DECLARE_ST(CMD_AT_CNMI, cmd23),		/* New SMS Notification Setting +CNMI=[<mode>[,<mt>[,<bm>[,<ds>[,<bfr>]]]]] */
 		ATQ_CMD_DECLARE_ST(CMD_AT_CSQ, cmd24),		/* Query Signal quality */
 	};
@@ -200,18 +199,9 @@ EXPORT_DEF int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_comman
 
 		if(st_cmds[in].cmd == CMD_AT_Z && !CONF_SHARED(pvt, resetquectel))
 			continue;
-		if(st_cmds[in].cmd == CMD_AT_U2DIAG && CONF_SHARED(pvt, u2diag) == -1)
-			continue;
 
 		memcpy(&cmds[out], &st_cmds[in], sizeof(st_cmds[in]));
 
-		if(cmds[out].cmd == CMD_AT_U2DIAG)
-		{
-			err = at_fill_generic_cmd(&cmds[out], "AT^U2DIAG=%d\r", CONF_SHARED(pvt, u2diag));
-			if(err)
-				goto failure;
-			ptmp1 = cmds[out].data;
-		}
 		if(cmds[out].cmd == from_command)
 			begin = out;
 		out++;
@@ -552,10 +542,6 @@ EXPORT_DEF int at_enqueue_dial(struct cpvt *cpvt, const char *number, int clir)
 	ATQ_CMD_INIT_ST(cmds[cmdsno], CMD_AT_CLCC, cmd_clcc);
 	cmdsno++;
 
-/*	ATQ_CMD_INIT_ST(cmds[cmdsno], CMD_AT_DDSETEX, cmd_ddsetex2);
-	cmdsno++; */
-
-
 	if (at_queue_insert(cpvt, cmds, cmdsno, 1) != 0) {
 		chan_quectel_err = E_QUEUE;
 		return -1;
@@ -575,8 +561,7 @@ EXPORT_DEF int at_enqueue_answer(struct cpvt *cpvt)
 	pvt_t* pvt = cpvt->pvt;
 	at_queue_cmd_t cmds[] = {
 		ATQ_CMD_DECLARE_DYN(CMD_AT_A),
-//		ATQ_CMD_DECLARE_ST(CMD_AT_DDSETEX, cmd_ddsetex2),
-		};\
+	};
 	int count = ITEMS_OF(cmds);
 	const char * cmd1;
 

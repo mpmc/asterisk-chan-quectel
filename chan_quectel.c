@@ -1698,7 +1698,6 @@ static int pvt_reconfigure(struct pvt * pvt, const pvt_config_t * settings, rest
 			|| strcmp(UCONFIG(settings, data_tty), CONF_UNIQ(pvt, data_tty))
 			|| strcmp(UCONFIG(settings, imei), CONF_UNIQ(pvt, imei))
 			|| strcmp(UCONFIG(settings, imsi), CONF_UNIQ(pvt, imsi))
-			|| SCONFIG(settings, u2diag) != CONF_SHARED(pvt, u2diag)
 			|| SCONFIG(settings, resetquectel) != CONF_SHARED(pvt, resetquectel)
 			|| SCONFIG(settings, callwaiting) != CONF_SHARED(pvt, callwaiting))
 		{
