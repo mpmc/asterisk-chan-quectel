@@ -315,7 +315,7 @@ static void disactivate_call(struct cpvt* cpvt)
 
 	if(cpvt->channel && CPVT_TEST_FLAG(cpvt, CALL_FLAG_ACTIVATED))
 	{
-                if (strcmp(CONF_UNIQ(pvt, quec_uac),"1") == 0) snd_pcm_drop(pvt->icard);
+                if (CONF_UNIQ(pvt, uac)) snd_pcm_drop(pvt->icard);
 		else mixb_detach(&cpvt->pvt->a_write_mixb, &cpvt->mixstream);
 		ast_channel_set_fd (cpvt->channel, 1, -1);
 		ast_channel_set_fd (cpvt->channel, 0, -1);
@@ -350,7 +350,7 @@ static void activate_call(struct cpvt* cpvt)
 			if(cpvt2->channel)
 			{
 				ast_channel_set_fd (cpvt2->channel, 1, -1);
-				if(CPVT_TEST_FLAG(cpvt, CALL_FLAG_ACTIVATED) && strcmp(CONF_UNIQ(pvt, quec_uac),"1") != 0)
+				if(CPVT_TEST_FLAG(cpvt, CALL_FLAG_ACTIVATED) && !CONF_UNIQ(pvt, uac))
 				{
 					ast_channel_set_fd (cpvt2->channel, 0, cpvt2->rd_pipe[PIPE_READ]);
 					ast_debug (6, "[%s] call idx %d still active fd %d\n", PVT_ID(pvt), cpvt2->call_idx, cpvt2->rd_pipe[PIPE_READ]);
@@ -363,7 +363,7 @@ static void activate_call(struct cpvt* cpvt)
 	if(!CPVT_TEST_FLAG(cpvt, CALL_FLAG_ACTIVATED))
 	{
 		// FIXME: reset possition?
-		if (strcmp(CONF_UNIQ(pvt, quec_uac),"1") != 0) mixb_attach(&pvt->a_write_mixb, &cpvt->mixstream);
+		if (!CONF_UNIQ(pvt, uac)) mixb_attach(&pvt->a_write_mixb, &cpvt->mixstream);
                 else {
 	        snd_pcm_state_t state;
 	        state = snd_pcm_state(pvt->icard);
@@ -383,7 +383,7 @@ static void activate_call(struct cpvt* cpvt)
 		if(cpvt->channel)
 		{
 			ast_channel_set_fd (cpvt->channel, 0, pvt->audio_fd);
-			if (pvt->a_timer && strcmp(CONF_UNIQ(pvt, quec_uac),"1") != 0)
+			if (pvt->a_timer && !CONF_UNIQ(pvt, uac))
 			{
 				ast_channel_set_fd (cpvt->channel, 1, ast_timer_fd (pvt->a_timer));
 				ast_timer_set_rate (pvt->a_timer, 50);
@@ -696,7 +696,7 @@ static struct ast_frame* channel_read (struct ast_channel* channel)
 		goto e_return;
 	}
 
-        if (strcmp(CONF_UNIQ(pvt, quec_uac),"1") != 0) {
+        if (!CONF_UNIQ(pvt, uac)) {
 
 	if (pvt->a_timer && ast_channel_fdno(channel) == 1)
 	{
@@ -987,7 +987,7 @@ static int channel_write (struct ast_channel* channel, struct ast_frame* f)
 
 	ast_debug (7, "[%s] write call idx %d state %d\n", PVT_ID(pvt), cpvt->call_idx, cpvt->state);
 
-        if (strcmp(CONF_UNIQ(pvt, quec_uac),"1") != 0) {
+        if (!CONF_UNIQ(pvt, uac)) {
 	size_t count;
 	int gains[2];
 

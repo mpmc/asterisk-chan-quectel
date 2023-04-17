@@ -114,9 +114,11 @@ typedef struct dc_uconfig
 	char			data_tty[DEVPATHLEN];		/*!< tty for AT commands */
 	char			imei[IMEI_SIZE+1];		/*!< search device by imei */
 	char			imsi[IMSI_SIZE+1];		/*!< search device by imsi */
-        char                    quec_uac[2];
-        char			alsadev[DEVNAMELEN];
+	unsigned int	uac:1;					/*!< handle audio by audio device (UAC) */
+    char			alsadev[DEVNAMELEN];	/*!< ALSA audio device name */
 } dc_uconfig_t;
+
+#define DEFAULT_ALSADEV "hw:Android"
 
 /* all Config settings join in one place */
 typedef struct pvt_config

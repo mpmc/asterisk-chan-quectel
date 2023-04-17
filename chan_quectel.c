@@ -420,7 +420,7 @@ static void disconnect_quectel (struct pvt* pvt)
 	}
 	at_queue_flush(pvt);
 	pvt->last_dialed_cpvt = NULL;
-        if (strcmp(CONF_UNIQ(pvt, quec_uac),"1") == 0) {
+        if (CONF_UNIQ(pvt, uac)) {
 	if (pvt->icard) snd_pcm_close(pvt->icard);
 	if (pvt->ocard)	snd_pcm_close(pvt->ocard);
                                                        }
@@ -637,7 +637,7 @@ static void* do_monitor_phone (void* data)
 			goto e_cleanup;
 		}
 
-               if (strcmp(CONF_UNIQ(pvt, quec_uac),"1") != 0) {
+               if (!CONF_UNIQ(pvt, uac)) {
 
 
 
@@ -835,7 +835,7 @@ static void pvt_start(struct pvt * pvt)
 	if (pvt->data_fd < 0) {
 		return;
 	}
-        if (strcmp(CONF_UNIQ(pvt, quec_uac),"1") == 0) {
+        if (CONF_UNIQ(pvt, uac)) {
              if (pvt->audio_fd < 0) if (soundcard_init(pvt) < 0) disconnect_quectel (pvt);
                                                         }
         else {
@@ -849,7 +849,7 @@ static void pvt_start(struct pvt * pvt)
         }
 
 	if (!start_monitor(pvt)) {
-              if (strcmp(CONF_UNIQ(pvt, quec_uac),"1") == 0) goto cleanup_datafd;
+              if (CONF_UNIQ(pvt, uac)) goto cleanup_datafd;
               else goto cleanup_audiofd;
 	}
 
@@ -860,7 +860,7 @@ static void pvt_start(struct pvt * pvt)
 	 * read(). */
 	flags = fcntl(pvt->data_fd, F_GETFL);
 	fcntl(pvt->data_fd, F_SETFL, flags | O_NONBLOCK);
-        if (strcmp(CONF_UNIQ(pvt, quec_uac),"1") != 0) {
+        if (!CONF_UNIQ(pvt, uac)) {
 	flags = fcntl(pvt->audio_fd, F_GETFL);
 	fcntl(pvt->audio_fd, F_SETFL, flags | O_NONBLOCK);
                                                         }
@@ -1007,7 +1007,7 @@ static void discovery_stop(public_state_t * state)
 #/* */
 EXPORT_DEF void pvt_on_create_1st_channel(struct pvt* pvt)
 {
-        if (strcmp(CONF_UNIQ(pvt, quec_uac),"1") != 0) {
+        if (!CONF_UNIQ(pvt, uac)) {
 	mixb_init (&pvt->a_write_mixb, pvt->a_write_buf, sizeof (pvt->a_write_buf));
 //	rb_init (&pvt->a_write_rb, pvt->a_write_buf, sizeof (pvt->a_write_buf));
 
