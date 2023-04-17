@@ -776,7 +776,7 @@ static int at_response_dsci(struct pvt* pvt, const char* str)
 		1 CALL_HOLD
 		2 CALL_ORIGINAL (*)
 		3 CALL_CONNECT (*)
-		4 CALL_INCOMING
+		4 CALL_INCOMING (*)
 		5 CALL_WAITING
 		6 CALL_END (*)
 		7 CALL_ALERTING
@@ -808,6 +808,19 @@ static int at_response_dsci(struct pvt* pvt, const char* str)
 			}
 			break;
 		}
+
+		case 4: // CALL_INCOMMING
+		{
+			pvt->ring = 1;
+			pvt->dialing = 0;
+			pvt->cwaiting = 0;
+
+			pvt->rings++;
+
+			request_clcc(pvt);
+			break;
+		}
+
 
 		case 6: // CALL END
 		{
@@ -927,62 +940,6 @@ static int at_response_csca (struct pvt* pvt, char* str)
 	ast_debug(2, "[%s] CSCA: %s\n", PVT_ID(pvt), pvt->sms_scenter);
 	return 0;
 }
-
-/*!
- * \brief Handle ^CONN response
- * \param pvt -- pvt structure
- * \retval  0 success
- * \retval -1 error
- */
-
-static int at_response_conn (struct pvt* pvt, const char* str)
-{
-	int call_index;
-	int call_type;
-	struct cpvt * cpvt;
-
-	request_clcc(pvt);
-
-	/*
-	 * parse CONN info in the following format:
-	 * ^CONN:<call_index>,<call_type>
-	 */
-	if (sscanf (str, "^DSCI:%d,%*d,3,%d,%*s", &call_index, &call_type) != 2)
-	{
-		ast_log (LOG_ERROR, "[%s] Error parsing CONN event '%s'\n", PVT_ID(pvt), str);
-		return 0;
-	}
-
-	pvt->ring = 0;
-	pvt->dialing = 0;
-	pvt->cwaiting = 0;
-
-
-	ast_debug (1, "[%s] CONN Received call_index %d call_type %d\n", PVT_ID(pvt), call_index, call_type);
-
-	if (call_type == CLCC_CALL_TYPE_VOICE)
-	{
-		cpvt = pvt_find_cpvt(pvt, call_index);
-		if(cpvt)
-		{
-/* FIXME: delay until CLCC handle?
-*/
-			PVT_STAT(pvt, calls_answered[cpvt->dir]) ++;
-			change_channel_state(cpvt, CALL_STATE_ACTIVE, 0);
-			if(CPVT_TEST_FLAG(cpvt, CALL_FLAG_CONFERENCE))
-				at_enqueue_conference(cpvt);
-		}
-		else
-		{
-			at_enqueue_hangup(&pvt->sys_chan, call_index);
-			ast_log (LOG_ERROR, "[%s] answered incoming call with not exists call idx %d, hanging up!\n", PVT_ID(pvt), call_index);
-		}
-	}
-	else
-		ast_log (LOG_ERROR, "[%s] answered not voice incoming call type '%d' idx %d, skipped\n", PVT_ID(pvt), call_type, call_index);
-	return 0;
-}
-
 
 static int start_pbx(struct pvt* pvt, const char * number, int call_idx, call_state_t state)
 {
@@ -1249,42 +1206,6 @@ static int at_response_ccwa(struct pvt* pvt, char* str)
 		else
 			ast_log (LOG_ERROR, "[%s] can't parse CCWA line '%s'\n", PVT_ID(pvt), str);
 	}
-	return 0;
-}
-
-/*!
- * \brief Handle RING response
- * \param pvt -- pvt structure
- * \retval  0 success
- * \retval -1 error
- */
-
-static int at_response_ring (struct pvt* pvt)
-{
-
-	if (pvt->initialized)
-	{
-		pvt->ring = 1;
-		pvt->dialing = 0;
-		pvt->cwaiting = 0;
-
-		pvt->rings++;
-
-		request_clcc(pvt);
-
-		/* We only want to syncronize volume on the first ring and if no channels yes */
-/*		if (pvt->volume_sync_step == VOLUME_SYNC_BEGIN && PVT_NO_CHANS(pvt))
-		{
-			if (at_enqueue_volsync(&pvt->sys_chan))
-			{
-				ast_log (LOG_ERROR, "[%s] Error synchronize audio level\n", PVT_ID(pvt));
-			}
-			else
-				pvt->volume_sync_step++;
-		}
-*/
-	}
-
 	return 0;
 }
 
@@ -1975,7 +1896,7 @@ int at_response (struct pvt* pvt, const struct iovec iov[2], int iovcnt, at_res_
 			case RES_CVOICE:
 			case RES_CPMS:
 			case RES_CONF: 
-                                      return 0;
+			return 0;
 
 			case RES_CMGS:
 				{
@@ -2020,9 +1941,6 @@ int at_response (struct pvt* pvt, const struct iovec iov[2], int iovcnt, at_res_
 			case RES_RCEND:
 				return at_response_rcend (pvt, str);
 
-			case RES_CONN:
-				return at_response_conn (pvt, str);
-
 			case RES_CREG:
 				/* An error here is not fatal. Just keep going. */
 				at_response_creg (pvt, str, len);
@@ -2043,7 +1961,8 @@ int at_response (struct pvt* pvt, const struct iovec iov[2], int iovcnt, at_res_
 				return at_response_error (pvt, at_res);
 
 			case RES_RING:
-				return at_response_ring (pvt);
+				ast_log(LOG_NOTICE, "[%s] Receive RING\n", PVT_ID(pvt) );
+				break;
 
 			case RES_SMMEMFULL:
 				return at_response_smmemfull (pvt);
@@ -2080,10 +1999,10 @@ int at_response (struct pvt* pvt, const struct iovec iov[2], int iovcnt, at_res_
 				ast_log (LOG_ERROR, "[%s] Receive NO DIALTONE\n", PVT_ID(pvt));
 				at_response_busy(pvt, AST_CONTROL_CONGESTION);
 				break;
-			case RES_NO_CARRIER:
-				ast_log (LOG_WARNING, "[%s] Receive NO CARRIER\n", PVT_ID(pvt));
 
-                               return 0;
+			case RES_NO_CARRIER:
+				ast_log (LOG_NOTICE, "[%s] Receive NO CARRIER\n", PVT_ID(pvt));
+				return 0;
 
 			case RES_CPIN:
 				/* fatal */
@@ -2104,8 +2023,7 @@ int at_response (struct pvt* pvt, const struct iovec iov[2], int iovcnt, at_res_
 				return -1;
 
 			case RES_UNKNOWN:
-				if (ecmd)
-				{
+				if (ecmd) {
 					switch (ecmd->cmd)
 					{
 						case CMD_AT_CGMI:
@@ -2132,7 +2050,6 @@ int at_response (struct pvt* pvt, const struct iovec iov[2], int iovcnt, at_res_
 					}
 				}
 				ast_debug (1, "[%s] Ignoring unknown result: '%.*s'\n", PVT_ID(pvt), (int) len, str);
-
 				break;
 		}
 	}

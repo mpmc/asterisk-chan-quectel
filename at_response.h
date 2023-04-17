@@ -47,6 +47,7 @@ struct iovec;
 	_( NO_CARRIER,  "NO CARRIER",   "NO CARRIER\r") \
 \
 	_( NO_DIALTONE, "NO DIALTONE",  "NO DIALTONE\r") \
+	_( NO_ANSWER,   "NO ANSWER",    "NO ANSWER\r") \
 	_( OK,          "OK",           "OK\r") \
 	_( CONF,        "^CONF",        "MISSED_CALL:") \
 	_( RING,        "RING",         "RING\r") \
