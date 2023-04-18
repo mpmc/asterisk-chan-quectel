@@ -109,76 +109,77 @@ static int __attribute__ ((format(printf, 4, 5))) at_enqueue_generic(struct cpvt
  */
 EXPORT_DEF int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_command)
 {
-	static const char cmd2[] = "AT^DSCI=1\r";
-	static const char cmd3[] = "ATE0\r";
+	static const char cmd_z[] = "ATZ\r";
+	static const char cmd_ate0[] = "ATE0\r";
 
-	static const char cmd5[] = "AT+CGMI\r";
-	static const char cmd6[] = "AT+CSCA?\r";
-	static const char cmd7[] = "AT+CGMM\r";
-	static const char cmd8[] = "AT+CGMR\r";
+	static const char cmd_cgmi[] = "AT+CGMI\r";
+	static const char cmd_csca[] = "AT+CSCA?\r";
+	static const char cmd_cgmm[] = "AT+CGMM\r";
+	static const char cmd_cgmr[] = "AT+CGMR\r";
 
-	static const char cmd9[] = "AT+CMEE=0\r";
-	static const char cmd10[] = "AT+CGSN\r";
-	static const char cmd11[] = "AT+CIMI\r";
-	static const char cmd12[] = "AT+CPIN?\r";
+	static const char cmd_cmee[] = "AT+CMEE=0\r";
+	static const char cmd_cgsn[] = "AT+CGSN\r";
+	static const char cmd_cimi[] = "AT+CIMI\r";
+	static const char cmd_cpin[] = "AT+CPIN?\r";
 
-	static const char cmd13[] = "AT+COPS=0,0\r";
-	static const char cmd14[] = "AT+CREG=2\r";
-	static const char cmd15[] = "AT+CREG?\r";
-	static const char cmd16[] = "AT+CNUM\r";
+	static const char cmd_cops[] = "AT+COPS=0,0\r";
+	static const char cmd_creg_2[] = "AT+CREG=2\r";
+	static const char cmd_creg[] = "AT+CREG?\r";
+	static const char cmd_cnum[] = "AT+CNUM\r";
 
-	static const char cmd17[] = "AT+QPCMV?\r";
-	static const char cmd17a[] = "AT+CPCMREG?\r";
-//	static const char cmd18[] = "AT+CLIP=0\r";
-	static const char cmd19[] = "AT+CSSN=1,1\r";
-	static const char cmd20[] = "AT+CMGF=0\r";
-	static const char cmd21[] = "AT+CSCS=\"UCS2\"\r";
+	static const char cmd_qpcmv[] = "AT+QPCMV?\r";
+	static const char cmd_cpcmreg[] = "AT+CPCMREG?\r";
+//	static const char cmd_clip[] = "AT+CLIP=0\r";
+	static const char cmd_cssn[] = "AT+CSSN=1,1\r";
+	static const char cmd_cmgf[] = "AT+CMGF=0\r";
+	static const char cmd_cscs[] = "AT+CSCS=\"UCS2\"\r";
 
-	static const char cmd22[] = "AT+CPMS=\"SM\",\"SM\",\"SM\"\r";
-	static const char cmd23[] = "AT+CNMI=2,1,0,2,0\r";
-	static const char cmd24[] = "AT+CSQ\r";
+	static const char cmd_cpms[] = "AT+CPMS=\"SM\",\"SM\",\"SM\"\r";
+	static const char cmd_cnmi[] = "AT+CNMI=2,1,0,2,0\r";
 
 	static const char cmd_at_qindcfg_csq[] = "AT+QINDCFG=\"csq\",1,0\r";
 	static const char cmd_at_qindcfg_act[] = "AT+QINDCFG=\"act\",1,0\r";
+	static const char cmd_dsci[] = "AT^DSCI=1\r";
 
 	static const at_queue_cmd_t st_cmds[] = {
 		ATQ_CMD_DECLARE_ST(CMD_AT, cmd_at),
-		ATQ_CMD_DECLARE_ST(CMD_AT_E, cmd3),			/* Disable echo */
-		ATQ_CMD_DECLARE_ST(CMD_AT_Z, cmd2),			/* Enable call status notifications */
-		ATQ_CMD_DECLARE_ST(CMD_AT_CGMI, cmd5),		/* Getting manufacturer info */
+		ATQ_CMD_DECLARE_ST(CMD_AT_E, cmd_ate0),			/* Disable echo */
 
-		ATQ_CMD_DECLARE_ST(CMD_AT_CGMM, cmd7),		/* Get Product name */
-		ATQ_CMD_DECLARE_ST(CMD_AT_CGMR, cmd8),		/* Get software version */
-		ATQ_CMD_DECLARE_ST(CMD_AT_CMEE, cmd9),		/* set MS Error Report to 'ERROR' only  TODO: change to 1 or 2 and add support in response handlers */
+		ATQ_CMD_DECLARE_ST(CMD_AT_Z, cmd_z),			/* Restore default settings */
 
-		ATQ_CMD_DECLARE_ST(CMD_AT_CGSN, cmd10),		/* IMEI Read */
-		ATQ_CMD_DECLARE_ST(CMD_AT_CIMI, cmd11),		/* IMSI Read */
-		ATQ_CMD_DECLARE_ST(CMD_AT_CPIN, cmd12),		/* check is password authentication requirement and the remainder validation times */
-		ATQ_CMD_DECLARE_ST(CMD_AT_COPS_INIT, cmd13),/* Read operator name */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CGMI, cmd_cgmi),		/* Getting manufacturer info */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CGMM, cmd_cgmm),		/* Get Product name */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CGMR, cmd_cgmr),		/* Get software version */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CMEE, cmd_cmee),		/* set MS Error Report to 'ERROR' only  TODO: change to 1 or 2 and add support in response handlers */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CGSN, cmd_cgsn),		/* IMEI Read */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CIMI, cmd_cimi),		/* IMSI Read */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CPIN, cmd_cpin),		/* check is password authentication requirement and the remainder validation times */
+		ATQ_CMD_DECLARE_ST(CMD_AT_COPS_INIT, cmd_cops),/* Read operator name */
 
-		ATQ_CMD_DECLARE_STI(CMD_AT_CREG_INIT,cmd14),/* GSM registration status setting */
-		ATQ_CMD_DECLARE_ST(CMD_AT_CREG, cmd15),		/* GSM registration status */
+		ATQ_CMD_DECLARE_STI(CMD_AT_CREG_INIT,cmd_creg_2),/* GSM registration status setting */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CREG, cmd_creg),		/* GSM registration status */
 
+		ATQ_CMD_DECLARE_STI(CMD_AT_CNUM, cmd_cnum),	/* Get Subscriber number */
+		ATQ_CMD_DECLARE_STI(CMD_AT_CVOICE, cmd_qpcmv),	/* read the current voice mode, and return sampling rate、data bit、frame period */
+		ATQ_CMD_DECLARE_STI(CMD_AT_CVOICE2, cmd_cpcmreg),
+
+		ATQ_CMD_DECLARE_STI(CMD_AT_CSCS, cmd_cscs),	/* UCS-2 text encoding */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CSCA, cmd_csca),		/* Get SMS Service center address */
+
+//		ATQ_CMD_DECLARE_ST(CMD_AT_CLIP, cmd_clip),		/* disable  Calling line identification presentation in unsolicited response +CLIP: <number>,<type>[,<subaddr>,<satype>[,[<alpha>][,<CLI validitity>]] */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CSSN, cmd_cssn),		/* activate Supplementary Service Notification with CSSI and CSSU */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CMGF, cmd_cmgf),		/* Set Message Format */
+
+		ATQ_CMD_DECLARE_ST(CMD_AT_CPMS, cmd_cpms),		/* SMS Storage Selection */
+
+		/* pvt->initialized = 1 after successful of CMD_AT_CNMI */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CNMI, cmd_cnmi),		/* New SMS Notification Setting +CNMI=[<mode>[,<mt>[,<bm>[,<ds>[,<bfr>]]]]] */
+		ATQ_CMD_DECLARE_ST(CMD_AT_DSCI, cmd_dsci),		/* Enable call status notifications */
 		ATQ_CMD_DECLARE_STI(CMD_AT_QINDCFG_CSQ, cmd_at_qindcfg_csq),
 		ATQ_CMD_DECLARE_STI(CMD_AT_QINDCFG_ACT, cmd_at_qindcfg_act),
 
-		ATQ_CMD_DECLARE_STI(CMD_AT_CNUM, cmd16),	/* Get Subscriber number */
-		ATQ_CMD_DECLARE_STI(CMD_AT_CVOICE, cmd17),	/* read the current voice mode, and return sampling rate、data bit、frame period */
-		ATQ_CMD_DECLARE_STI(CMD_AT_CVOICE2, cmd17a),
-
- 		ATQ_CMD_DECLARE_STI(CMD_AT_CSCS, cmd21),	/* UCS-2 text encoding */
-		ATQ_CMD_DECLARE_ST(CMD_AT_CSCA, cmd6),		/* Get SMS Service center address */
-
-//		ATQ_CMD_DECLARE_ST(CMD_AT_CLIP, cmd18),		/* disable  Calling line identification presentation in unsolicited response +CLIP: <number>,<type>[,<subaddr>,<satype>[,[<alpha>][,<CLI validitity>]] */
-		ATQ_CMD_DECLARE_ST(CMD_AT_CSSN, cmd19),		/* activate Supplementary Service Notification with CSSI and CSSU */
-		ATQ_CMD_DECLARE_ST(CMD_AT_CMGF, cmd20),		/* Set Message Format */
-
-		ATQ_CMD_DECLARE_ST(CMD_AT_CPMS, cmd22),		/* SMS Storage Selection */
-
-		/* pvt->initialized = 1 after successful of CMD_AT_CNMI */
-		ATQ_CMD_DECLARE_ST(CMD_AT_CNMI, cmd23),		/* New SMS Notification Setting +CNMI=[<mode>[,<mt>[,<bm>[,<ds>[,<bfr>]]]]] */
-		ATQ_CMD_DECLARE_ST(CMD_AT_CSQ, cmd24),		/* Query Signal quality */
 	};
+
 	unsigned in, out;
 	int begin = -1;
 	int err;
@@ -187,10 +188,8 @@ EXPORT_DEF int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_comman
 	at_queue_cmd_t cmds[ITEMS_OF(st_cmds)];
 
 	/* customize list */
-	for(in = out = 0; in < ITEMS_OF(st_cmds); in++)
-	{
-		if(begin == -1)
-		{
+	for(in = out = 0; in < ITEMS_OF(st_cmds); ++in) {
+		if(begin == -1) {
 			if(st_cmds[in].cmd == from_command)
 				begin = in;
 			else
@@ -201,18 +200,15 @@ EXPORT_DEF int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_comman
 			continue;
 
 		memcpy(&cmds[out], &st_cmds[in], sizeof(st_cmds[in]));
-
-		if(cmds[out].cmd == from_command)
-			begin = out;
+		if(cmds[out].cmd == from_command) begin = out;
 		out++;
 	}
 
-	if(out > 0)
-		return at_queue_insert(cpvt, cmds, out, 0);
+	if(out > 0) return at_queue_insert(cpvt, cmds, out, 0);
 	return 0;
+
 failure:
-	if(ptmp1)
-		ast_free(ptmp1);
+	if(ptmp1) ast_free(ptmp1);
 	return err;
 }
 

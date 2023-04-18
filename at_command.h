@@ -61,7 +61,7 @@
 	_( AT_D,            "AT+CPCMREG=0;D") \
 \
 	_( AT_DDSETEX,      "AT+CPCMREG=1") \
-        _( AT_DDSETEX0,     "AT+CPCMREG=0") \
+	_( AT_DDSETEX0,     "AT+CPCMREG=0") \
 	_( AT_DTMF,         "AT^DTMF") \
 	_( AT_E,            "ATE") \
 \
@@ -76,6 +76,7 @@
 	_( AT_CLCC,         "AT+CLCC") \
 	_( AT_QINDCFG_CSQ, 	"AT+QINDCFG=\"csq\",1,0") \
 	_( AT_QINDCFG_ACT, 	"AT+QINDCFG=\"act\",1,0") \
+	_( AT_DSCI,			"AT+^DSCI=1") \
 /* AT_COMMANDS_TABLE */
 
 typedef enum {
