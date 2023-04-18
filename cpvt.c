@@ -142,23 +142,20 @@ EXPORT_DEF struct cpvt * active_cpvt(struct pvt * pvt)
 
 EXPORT_DEF void voice_enable(struct pvt * pvt)
 {
-                                static const char cmd_atvoice[] = "AT+CPCMREG=1\r";
-                                static const at_queue_cmd_t cmds1[] = {
-		                ATQ_CMD_DECLARE_STIT(CMD_AT_DDSETEX, cmd_atvoice, ATQ_CMD_TIMEOUT_MEDIUM, 0),
-		                                                       }; 
-	                        at_queue_insert_const(&pvt->sys_chan, cmds1, ITEMS_OF(cmds1), 1);  
-
+	static const char cmd_atcpcmreg1[] = "AT+CPCMREG=1\r";
+	static const at_queue_cmd_t cmds1[] = {
+		ATQ_CMD_DECLARE_STIT(CMD_AT_CPCMREG1, cmd_atcpcmreg1, ATQ_CMD_TIMEOUT_MEDIUM, 0),
+	};
+	at_queue_insert_const(&pvt->sys_chan, cmds1, ITEMS_OF(cmds1), 1);
 }
 
 EXPORT_DEF void voice_disable(struct pvt * pvt)
 {
-
-                                static const char cmd_atvoice[] = "AT+CPCMREG=0\r";
-                                static const at_queue_cmd_t cmds1[] = {
-		                ATQ_CMD_DECLARE_STIT(CMD_AT_DDSETEX0, cmd_atvoice, ATQ_CMD_TIMEOUT_MEDIUM, 0),
-		                                                       };
-	                        at_queue_insert_const(&pvt->sys_chan, cmds1, ITEMS_OF(cmds1), 1);  
-
+	static const char cmd_atcpcmreg0[] = "AT+CPCMREG=0\r";
+	static const at_queue_cmd_t cmds1[] = {
+		ATQ_CMD_DECLARE_STIT(CMD_AT_CPCMREG0, cmd_atcpcmreg0, ATQ_CMD_TIMEOUT_MEDIUM, 0),
+	};
+	at_queue_insert_const(&pvt->sys_chan, cmds1, ITEMS_OF(cmds1), 1);
 }
 
 #/* */

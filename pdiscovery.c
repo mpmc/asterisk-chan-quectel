@@ -421,43 +421,41 @@ static const struct pdiscovery_device * pdiscovery_lookup_ids(const char * devna
 }
 
 #/* 0D 0A IMEI: <15 digits> 0D 0A */
-static char * pdiscovery_handle_ati(const char * devname, char * str)
+static char* pdiscovery_handle_ati(const char * str)
 {
-	char * imei = NULL;
-        char imei2[15];
+	char imei[16];
+	imei[15] = '\000';
 
-        if (sscanf (str, "AT+GSN %s OK", &imei2) == 1) {
-        imei = ast_strdup(imei2);
-        return imei;
-        }
-        if (sscanf (str, " %s OK", &imei2) == 1) {
-        imei = ast_strdup(imei2);
-        return imei;
-        }
+	if (sscanf(str, "AT+GSN %15c OK", imei) == 1) {
+		return ast_strdup(imei);
+	}
+
+	if (sscanf(str, " %15c OK", imei) == 1) {
+		return ast_strdup(imei);
+	}
 
 	return NULL;
 }
 
 #/* 0D 0A 15 digits 0D 0A */
-static char * pdiscovery_handle_cimi(const char * devname, char * str)
+static char* pdiscovery_handle_cimi(const char * str)
 {
-	char * imsi = NULL;
-        char imsi2[15];
+	char imsi[16];
+	imsi[15] = '\000';
 
-        if (sscanf (str, "AT+CIMI %s OK", &imsi2) == 1) {
-        imsi = ast_strdup(imsi2);
-        return imsi;
-        }
-        if (sscanf (str, " %s OK", &imsi2) == 1) {
-        imsi = ast_strdup(imsi2);
-        return imsi;
-        }
+	if (sscanf(str, "AT+CIMI %15c OK", imsi) == 1) {
+		return ast_strdup(imsi);
+	}
+
+	if (sscanf(str, " %15c OK", imsi) == 1) {
+		return ast_strdup(imsi);
+	}
 
 	return NULL;
 }
 
 #/* return non-zero on done with command */
-static int pdiscovery_handle_response(const struct pdiscovery_request * req, const struct iovec iov[2], int iovcnt, struct pdiscovery_result * res)
+static int pdiscovery_handle_response(const struct pdiscovery_request * req, const struct iovec* iov, int iovcnt, struct pdiscovery_result * res)
 {
 	int done = 0;
 	char * str;
@@ -478,9 +476,9 @@ static int pdiscovery_handle_response(const struct pdiscovery_request * req, con
 		ast_debug(4, "[%s discovery] < %s\n", req->name, str);
 		done = strstr(str, "OK") != NULL || strstr(str, "ERROR") != NULL;
 		if(done && req->imei && res->imei == NULL)
-			res->imei = pdiscovery_handle_ati(req->name, str);
+			res->imei = pdiscovery_handle_ati(str);
 		if(done && req->imsi && res->imsi == NULL)
-			res->imsi = pdiscovery_handle_cimi(req->name, str);
+			res->imsi = pdiscovery_handle_cimi(str);
 		/* restore tail of string for collect data in buffer */
 		str[len] = sym;
 	}

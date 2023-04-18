@@ -35,16 +35,11 @@
 #include <sys/ioctl.h>
 #include <sys/time.h>
 #if __BYTE_ORDER == __LITTLE_ENDIAN
-static snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
+static const snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
 #else
-static snd_pcm_format_t format = SND_PCM_FORMAT_S16_BE;
+static const snd_pcm_format_t format = SND_PCM_FORMAT_S16_BE;
 #endif
-static int silencesuppression = 0;
-static int silencethreshold = 1000;
 #define MAX_BUFFER_SIZE 100
-
-static int writedev = -1;
-
 #define MODULE_DESCRIPTION	"Channel Driver for Mobile Telephony"
 #define MAXQUECTELDEVICES	128
 
@@ -140,11 +135,13 @@ typedef struct pvt
 
 	pthread_t		monitor_thread;			/*!< monitor (at commands reader) thread handle */
 
-        snd_pcm_t               *icard, *ocard;
 	int			audio_fd;			/*!< audio descriptor */
+    snd_pcm_t 	*icard;
+	snd_pcm_t 	*ocard;
+		
 	int			data_fd;			/*!< data descriptor */
-	char			* alock;			/*!< name of lockfile for audio */
-	char			* dlock;			/*!< name of lockfile for data */
+	char		* alock;			/*!< name of lockfile for audio */
+	char		* dlock;			/*!< name of lockfile for data */
 
 	struct ast_dsp*		dsp;				/*!< silence/DTMF detector - FIXME: must be in cpvt */
 	dc_dtmf_setting_t	real_dtmf;			/*!< real DTMF setting */
@@ -153,11 +150,6 @@ typedef struct pvt
 
 	char			a_write_buf[FRAME_SIZE * 5];	/*!< audio write buffer */
 	struct mixbuffer	a_write_mixb;			/*!< audio mix buffer */
-//	struct ringbuffer	a_write_rb;			/*!< audio ring buffer */
-
-//	char			a_read_buf[FRAME_SIZE + AST_FRIENDLY_OFFSET];	/*!< audio read buffer */
-//	struct ast_frame	a_read_frame;			/*!< read frame buffer */
-
 
 	char			dtmf_digit;			/*!< last DTMF digit */
 	struct timeval		dtmf_begin_time;		/*!< time of begin of last DTMF digit */
@@ -176,35 +168,35 @@ typedef struct pvt
 	int			gsm_reg_status;
 	int			rssi;
 	int			linkmode;
-	char			provider_name[32];
-	char			manufacturer[32];
-	char			model[32];
-	char			firmware[32];
-	char			imei[17];
-	char			imsi[17];
-	char			subscriber_number[128];
-	char			location_area_code[8];
-	char			cell_id[8];
-	char			sms_scenter[20];
+	char		provider_name[32];
+	char		manufacturer[32];
+	char		model[32];
+	char		firmware[32];
+	char		imei[17];
+	char		imsi[17];
+	char		subscriber_number[128];
+	char		location_area_code[8];
+	char		cell_id[8];
+	char		sms_scenter[20];
 
 	unsigned int		incoming_sms_index;
 	sms_inbox_item_type	incoming_sms_inbox[SMS_INBOX_ARRAY_SIZE];
 
 	volatile unsigned int	connected:1;			/*!< do we have an connection to a device */
-	unsigned int		initialized:1;			/*!< whether a service level connection exists or not */
-	unsigned int		gsm_registered:1;		/*!< do we have an registration to a GSM */
-	unsigned int		dialing;			/*!< HW state; true from ATD response OK until CEND or CONN for this call idx */
-	unsigned int		ring:1;				/*!< HW state; true if has incoming call from first RING until CEND or CONN */
-	unsigned int		cwaiting:1;			/*!< HW state; true if has incoming call waiting from first CCWA until CEND or CONN for */
-	unsigned int		outgoing_sms:1;			/*!< outgoing sms */
-	unsigned int		volume_sync_step:2;		/*!< volume synchronized stage */
+	unsigned int			initialized:1;			/*!< whether a service level connection exists or not */
+	unsigned int			gsm_registered:1;		/*!< do we have an registration to a GSM */
+	unsigned int			dialing;				/*!< HW state; true from ATD response OK until CEND or CONN for this call idx */
+	unsigned int			ring:1;					/*!< HW state; true if has incoming call from first RING until CEND or CONN */
+	unsigned int			cwaiting:1;				/*!< HW state; true if has incoming call waiting from first CCWA until CEND or CONN for */
+	unsigned int			outgoing_sms:1;			/*!< outgoing sms */
+	unsigned int			volume_sync_step:2;		/*!< volume synchronized stage */
 #define VOLUME_SYNC_BEGIN	0
 #define VOLUME_SYNC_DONE	3
 
-	unsigned int		has_sms:1;			/*!< device has SMS support */
+	unsigned int		has_sms:1;				/*!< device has SMS support */
 	unsigned int		has_voice:1;			/*!< device has voice call support */
 	unsigned int		is_simcom:1;			/*!< device is a simcom module */
-        long                    t0;
+	long				t0;
 	unsigned int		call_estb:1;
 	unsigned int		has_call_waiting:1;		/*!< call waiting enabled on device */
 
@@ -213,18 +205,14 @@ typedef struct pvt
 	unsigned int		sim_last_used:1;		/*!< mark the last used device */
 
 	unsigned int		terminate_monitor:1;		/*!< non-zero if we want terminate monitor thread i.e. restart, stop, remove */
-//	unsigned int		off:1;				/*!< device not used */
-//	unsigned int		prevent_new:1;			/*!< prevent new usage */
-
 	unsigned int		has_subscriber_number:1;	/*!< subscriber_number field is valid */
-//	unsigned int		monitor_running:1;		/*!< true if monitor thread is running */
-	unsigned int		must_remove:1;			/*!< mean must removed from list: NOT FULLY THREADSAFE */
+	unsigned int		must_remove:1;				/*!< mean must removed from list: NOT FULLY THREADSAFE */
 
 	volatile dev_state_t	desired_state;			/*!< desired state */
 	volatile restate_time_t	restart_time;			/*!< time when change state */
 	volatile dev_state_t	current_state;			/*!< current state */
 
-	pvt_config_t		settings;			/*!< all device settings from config file */
+	pvt_config_t	settings;			/*!< all device settings from config file */
 	pvt_state_t		state;				/*!< state */
 	pvt_stat_t		stat;				/*!< various statistics */
 } pvt_t;
@@ -242,8 +230,8 @@ typedef struct pvt
 typedef struct public_state
 {
 	AST_RWLIST_HEAD(devices, pvt)	devices;
-	ast_mutex_t			discovery_lock;
-	pthread_t			discovery_thread;		/* The discovery thread handler */
+	ast_mutex_t				discovery_lock;
+	pthread_t				discovery_thread;		/* The discovery thread handler */
 	volatile int			unloading_flag;			/* no need mutex or other locking for protect this variable because no concurent r/w and set non-0 atomically */
 	struct dc_gconfig		global_settings;
 } public_state_t;

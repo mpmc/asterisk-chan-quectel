@@ -47,19 +47,19 @@ INLINE_DECL size_t rb_free (const struct ringbuffer* rb)
 EXPORT_DECL int rb_memcmp (const struct ringbuffer*, const char*, size_t);
 
 /*!< fill io vectors array with read data (situable for writev()) and return number of io vectors updated  */
-EXPORT_DECL int rb_read_all_iov (const struct ringbuffer* rb, struct iovec iov[2]);
+EXPORT_DECL int rb_read_all_iov (const struct ringbuffer* rb, struct iovec* iov);
 
 /*!< fill io vectors array and return number of io vectors updated for reading len bytes */
 EXPORT_DECL int rb_read_n_iov (const struct ringbuffer* rb, struct iovec* iov, size_t len);
 
-EXPORT_DECL int rb_read_until_char_iov (const struct ringbuffer*, struct iovec iov[2], char);
-EXPORT_DECL int rb_read_until_mem_iov (const struct ringbuffer*, struct iovec iov[2], const void*, size_t);
+EXPORT_DECL int rb_read_until_char_iov (const struct ringbuffer*, struct iovec* iov, char);
+EXPORT_DECL int rb_read_until_mem_iov (const struct ringbuffer*, struct iovec* iov, const void*, size_t);
 
 /*!< advice read position to len bytes */
 EXPORT_DECL size_t rb_read_upd (struct ringbuffer* rb, size_t len);
 
 /*!< fill io vectors array with free data (situable for readv()) and return number of io vectors updated  */
-EXPORT_DECL int rb_write_iov (const struct ringbuffer*, struct iovec iov[2]);
+EXPORT_DECL int rb_write_iov (const struct ringbuffer*, struct iovec* iov);
 
 /*!< advice write position to len bytes */
 EXPORT_DECL size_t rb_write_upd (struct ringbuffer*, size_t);

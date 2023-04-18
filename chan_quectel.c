@@ -84,7 +84,7 @@ EXPORT_DEF struct ast_format chan_quectel_format;
 EXPORT_DEF struct ast_format_cap * chan_quectel_format_cap;
 #endif /* ^10-13 */
 
-static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream,struct pvt * pvt)
+static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 {
 	int err;
 	int direction;
@@ -183,35 +183,29 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream,struct pvt *
 	snd_pcm_poll_descriptors(handle, &pfd, err);
 	ast_debug(1, "Acquired fd %d from the poll descriptor\n", pfd.fd);
 
-	if (stream == SND_PCM_STREAM_CAPTURE)
-		pvt->audio_fd = pfd.fd;
-	else
-		writedev = pfd.fd;
-
-
 	return handle;
 }
 
 static int soundcard_init(struct pvt * pvt)
 {
-
-       pvt->icard = alsa_card_init(CONF_UNIQ(pvt, alsadev), SND_PCM_STREAM_CAPTURE,pvt);
+	pvt->icard = alsa_card_init(CONF_UNIQ(pvt, alsadev), SND_PCM_STREAM_CAPTURE);
 	if (!pvt->icard) {
-			ast_log(LOG_ERROR, "Problem opening ALSA capture device %s \n",CONF_UNIQ(pvt, alsadev));
-			return -1;
-        }
-	pvt->ocard = alsa_card_init(CONF_UNIQ(pvt, alsadev), SND_PCM_STREAM_PLAYBACK,pvt);
+		ast_log(LOG_ERROR, "Problem opening ALSA capture device %s \n",CONF_UNIQ(pvt, alsadev));
+		return -1;
+	}
 
+	pvt->ocard = alsa_card_init(CONF_UNIQ(pvt, alsadev), SND_PCM_STREAM_PLAYBACK);
 	if (!pvt->ocard) {
 		ast_log(LOG_ERROR, "Problem opening ALSA playback device %s \n",CONF_UNIQ(pvt, alsadev));
 		return -1;
 	}
-	ast_verb (2, "Sound Card %s Initialized\n", CONF_UNIQ(pvt, alsadev));
-        snd_pcm_prepare(pvt->icard);
-        snd_pcm_drop(pvt->icard);
 
-	return writedev;}
+	ast_verb(2, "Sound Card %s Initialized\n", CONF_UNIQ(pvt, alsadev));
+	snd_pcm_prepare(pvt->icard);
+	snd_pcm_drop(pvt->icard);
 
+	return 0;
+}
 
 static int public_state_init(struct public_state * state);
 
@@ -336,32 +330,30 @@ EXPORT_DEF void closetty(int fd, char ** lockfname)
 	*lockfname = NULL;
 }
 
-EXPORT_DEF int opentty (const char* dev, char ** lockfile, int typ)
+EXPORT_DEF int opentty(const char* dev, char ** lockfile, int typ)
 {
-	int		flags;
-	int		pid;
-	int		fd;
-	struct termios	term_attr;
-	char		buf[40];
-
+	int flags;
+	int pid;
+	int fd;
+	struct termios term_attr;
+	char buf[40];
 
 	pid = lock_try(dev, lockfile);
-	if(pid != 0)
-	{
-		ast_log (LOG_WARNING, "%s already used by process %d\n", dev, pid);
+	if(pid != 0) {
+		ast_log(LOG_WARNING, "%s already used by process %d\n", dev, pid);
 		return -1;
 	}
 
 	fd = open(dev, O_RDWR | O_NOCTTY);
-	if (fd < 0)
-	{
+	if (fd < 0) {
 		flags = errno;
 		closetty(fd, lockfile);
 		snprintf(buf, sizeof(buf), "Open Failed\r\nErrorCode: %d", flags);
 		manager_event_message_raw("QuectelPortFail", dev, buf);
-		ast_log (LOG_WARNING, "unable to open %s: %s\n", dev, strerror(flags));
+		ast_log(LOG_WARNING, "unable to open %s: %s\n", dev, strerror(flags));
 		return -1;
 	}
+
 	/* Put the terminal into exclusive mode. All other open(2)s by
 	 * non-root will fail with EBUSY. */
 	if (ioctl(fd, TIOCEXCL) != 0) {
@@ -369,32 +361,32 @@ EXPORT_DEF int opentty (const char* dev, char ** lockfile, int typ)
 	}
 
 	flags = fcntl(fd, F_GETFD);
-	if (flags == -1 || fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1)
-	{
+	if (flags == -1 || fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1) {
 		flags = errno;
 		closetty(fd, lockfile);
-		ast_log (LOG_WARNING, "fcntl(F_GETFD/F_SETFD) failed for %s: %s\n", dev, strerror(flags));
+		ast_log(LOG_WARNING, "fcntl(F_GETFD/F_SETFD) failed for %s: %s\n", dev, strerror(flags));
 		return -1;
 	}
 
-	if (tcgetattr (fd, &term_attr) != 0)
-	{
+	if (tcgetattr(fd, &term_attr) != 0) {
 		flags = errno;
 		closetty(fd, lockfile);
 		ast_log (LOG_WARNING, "tcgetattr() failed for %s: %s\n", dev, strerror(flags));
 		return -1;
 	}
 
-        if (typ = 1) term_attr.c_cflag = B115200 | CS8 | CREAD | CRTSCTS | CLOCAL;
-	else term_attr.c_cflag = B115200 | CS8 | CREAD | CRTSCTS;
+	if (typ == 1)
+		term_attr.c_cflag = B115200 | CS8 | CREAD | CRTSCTS | CLOCAL;
+	else
+		term_attr.c_cflag = B115200 | CS8 | CREAD | CRTSCTS;
+
 	term_attr.c_iflag = 0;
 	term_attr.c_oflag = 0;
 	term_attr.c_lflag = 0;
 	term_attr.c_cc[VMIN] = 1;
 	term_attr.c_cc[VTIME] = 0;
 
-	if (tcsetattr (fd, TCSAFLUSH, &term_attr) != 0)
-	{
+	if (tcsetattr(fd, TCSAFLUSH, &term_attr) != 0) {
 		ast_log (LOG_WARNING, "tcsetattr(TCSAFLUSH) failed for %s: %s\n", dev, strerror(errno));
 	}
 
@@ -402,12 +394,11 @@ EXPORT_DEF int opentty (const char* dev, char ** lockfile, int typ)
 }
 
 #/* phone monitor thread pvt cleanup */
-static void disconnect_quectel (struct pvt* pvt)
+static void disconnect_quectel(struct pvt* pvt)
 {
 	struct cpvt * cpvt, * next;
 
-	if (!PVT_NO_CHANS(pvt))
-	{
+	if (!PVT_NO_CHANS(pvt)) {
 		ast_debug (1, "[%s] Quectel disconnecting, hanging up channels\n", PVT_ID(pvt));
 
 		for(cpvt = pvt->chans.first; cpvt; cpvt = next)
@@ -418,24 +409,26 @@ static void disconnect_quectel (struct pvt* pvt)
 			change_channel_state(cpvt, CALL_STATE_RELEASED, 0);
 		}
 	}
+
 	at_queue_flush(pvt);
 	pvt->last_dialed_cpvt = NULL;
-        if (CONF_UNIQ(pvt, uac)) {
-	if (pvt->icard) snd_pcm_close(pvt->icard);
-	if (pvt->ocard)	snd_pcm_close(pvt->ocard);
-                                                       }
-	else closetty (pvt->audio_fd, &pvt->alock);
+    if (CONF_UNIQ(pvt, uac)) {
+		if (pvt->icard) snd_pcm_close(pvt->icard);
+		if (pvt->ocard)	snd_pcm_close(pvt->ocard);
+    }
+	else {
+		closetty(pvt->audio_fd, &pvt->alock);
+	}
 
-	closetty (pvt->data_fd, &pvt->dlock);
+	closetty(pvt->data_fd, &pvt->dlock);
 
 	pvt->data_fd = -1;
 	pvt->audio_fd = -1;
 
-	if(pvt->dsp)
+	if(pvt->dsp) {
 		ast_dsp_digitreset(pvt->dsp);
+	}
 	pvt_on_remove_last_channel(pvt);
-
-/*	pvt->a_write_rb */
 
 	pvt->dtmf_digit = 0;
 	pvt->rings = 0;
@@ -600,9 +593,9 @@ static void* do_monitor_phone (void* data)
 	int		read_result = 0;
 
 	pvt->timeout = DATA_READ_TIMEOUT;
-	rb_init (&rb, buf, sizeof (buf));
+	rb_init(&rb, buf, sizeof (buf));
 
-	ast_mutex_lock (&pvt->lock);
+	ast_mutex_lock(&pvt->lock);
 
 	/* 4 reduce locking time make copy of this readonly fields */
 	fd = pvt->data_fd;
@@ -611,62 +604,50 @@ static void* do_monitor_phone (void* data)
 	clean_read_data(dev, fd);
 
 	/* schedule quectel initilization  */
-	if (at_enqueue_initialization(&pvt->sys_chan, CMD_AT))
-	{
+	if (at_enqueue_initialization(&pvt->sys_chan, CMD_AT)) {
 		ast_log (LOG_ERROR, "[%s] Error adding initialization commands to queue\n", dev);
 		goto e_cleanup;
 	}
 
 	/* Poll first SMS, if any */
-	if (at_poll_sms(pvt) == 0)
-	{
+	if (at_poll_sms(pvt) == 0) {
 		ast_debug (1, "[%s] Polling first SMS message\n", PVT_ID(pvt));
 	}
 
 	ast_mutex_unlock (&pvt->lock);
-
 
 	while (1)
 	{
 		ast_mutex_lock (&pvt->lock);
 
 		handle_expired_reports(pvt);
-		if (port_status (pvt->data_fd))
-		{
-			ast_log (LOG_ERROR, "[%s] Lost connection to Quectel\n", dev);
+		if (port_status(pvt->data_fd)) {
+			ast_log(LOG_ERROR, "[%s] Lost connection to Quectel\n", dev);
 			goto e_cleanup;
 		}
 
-               if (!CONF_UNIQ(pvt, uac)) {
-
-
-
-                                                              
-		if (port_status (pvt->audio_fd))
-		{
-			ast_log (LOG_ERROR, "[%s] Lost connection to Quectel\n", dev);
-			goto e_cleanup;
+		if (!CONF_UNIQ(pvt, uac)) {
+			if (port_status(pvt->audio_fd)) {
+				ast_log(LOG_ERROR, "[%s] Lost connection to Quectel\n", dev);
+				goto e_cleanup;
+			}
 		}
-                                                               }
-		if(pvt->terminate_monitor)
-		{
-			ast_log (LOG_NOTICE, "[%s] stopping by %s request\n", dev, dev_state2str(pvt->desired_state));
+
+		if(pvt->terminate_monitor) {
+			ast_log(LOG_NOTICE, "[%s] stopping by %s request\n", dev, dev_state2str(pvt->desired_state));
 			goto e_restart;
 		}
 
 		t = at_queue_timeout(pvt);
-		if(t < 0)
-			t = pvt->timeout;
+		if(t < 0) t = pvt->timeout;
 
-		ast_mutex_unlock (&pvt->lock);
+		ast_mutex_unlock(&pvt->lock);
 
-		if (!at_wait (fd, &t))
-		{
-			ast_mutex_lock (&pvt->lock);
-			ecmd = at_queue_head_cmd (pvt);
-			if(ecmd)
-			{
-				ast_log (LOG_ERROR, "[%s] timedout while waiting '%s' in response to '%s'\n", dev, at_res2str (ecmd->res), at_cmd2str (ecmd->cmd));
+		if (!at_wait(fd, &t)) {
+			ast_mutex_lock(&pvt->lock);
+			ecmd = at_queue_head_cmd(pvt);
+			if(ecmd) {
+				ast_log(LOG_ERROR, "[%s] timedout while waiting '%s' in response to '%s'\n", dev, at_res2str (ecmd->res), at_cmd2str (ecmd->cmd));
 				goto e_cleanup;
 			}
 			at_enqueue_ping(&pvt->sys_chan);
@@ -675,9 +656,8 @@ static void* do_monitor_phone (void* data)
 		}
 
 		/* FIXME: access to device not locked */
-		iovcnt = at_read (fd, dev, &rb);
-		if (iovcnt < 0)
-		{
+		iovcnt = at_read(fd, dev, &rb);
+		if (iovcnt < 0) {
 			break;
 		}
 
@@ -685,14 +665,13 @@ static void* do_monitor_phone (void* data)
 		PVT_STAT(pvt, d_read_bytes) += iovcnt;
 		ast_mutex_unlock (&pvt->lock);
 
-		while ((iovcnt = at_read_result_iov (dev, &read_result, &rb, iov)) > 0)
+		while ((iovcnt = at_read_result_iov(dev, &read_result, &rb, iov)) > 0)
 		{
-			at_res = at_read_result_classification (&rb, iov[0].iov_len + iov[1].iov_len);
+			at_res = at_read_result_classification(&rb, iov[0].iov_len + iov[1].iov_len);
 
 			ast_mutex_lock (&pvt->lock);
 			PVT_STAT(pvt, at_responses) ++;
-			if (at_response (pvt, iov, iovcnt, at_res) || at_queue_run(pvt))
-			{
+			if (at_response (pvt, iov, iovcnt, at_res) || at_queue_run(pvt)) {
 				goto e_cleanup;
 			}
 			ast_mutex_unlock (&pvt->lock);
@@ -701,18 +680,17 @@ static void* do_monitor_phone (void* data)
 	ast_mutex_lock (&pvt->lock);
 
 e_cleanup:
-	if (!pvt->initialized)
-	{
+	if (!pvt->initialized) {
 		// TODO: send monitor event
-		ast_verb (3, "[%s] Error initializing Quectel\n", dev);
+		ast_verb(3, "[%s] Error initializing Quectel\n", dev);
 	}
 	/* it real, unsolicited disconnect */
 	pvt->terminate_monitor = 0;
 
 e_restart:
-	disconnect_quectel (pvt);
+	disconnect_quectel(pvt);
 //	pvt->monitor_running = 0;
-	ast_mutex_unlock (&pvt->lock);
+	ast_mutex_unlock(&pvt->lock);
 
 	/* TODO: wakeup discovery thread after some delay */
 	return NULL;
@@ -830,27 +808,29 @@ static void pvt_start(struct pvt * pvt)
 
 	ast_verb(3, "[%s] Trying to connect on %s...\n", PVT_ID(pvt), PVT_STATE(pvt, data_tty));
 
-
 	pvt->data_fd = opentty(PVT_STATE(pvt, data_tty), &pvt->dlock, 0);
 	if (pvt->data_fd < 0) {
 		return;
 	}
-        if (CONF_UNIQ(pvt, uac)) {
-             if (pvt->audio_fd < 0) if (soundcard_init(pvt) < 0) disconnect_quectel (pvt);
-                                                        }
-        else {
-	// TODO: delay until device activate voice call or at pvt_on_create_1st_channel()
-       
-	pvt->audio_fd = opentty(PVT_STATE(pvt, audio_tty), &pvt->alock, pvt->is_simcom);
-
-	if (pvt->audio_fd < 0) {
-		goto cleanup_datafd;
-	                       }
-        }
+	if (CONF_UNIQ(pvt, uac)) {
+		if (soundcard_init(pvt) < 0) {
+			disconnect_quectel(pvt);
+			goto cleanup_datafd;
+		}
+	}
+	else {
+		// TODO: delay until device activate voice call or at pvt_on_create_1st_channel()
+		pvt->audio_fd = opentty(PVT_STATE(pvt, audio_tty), &pvt->alock, pvt->is_simcom);
+		if (pvt->audio_fd < 0) {
+			goto cleanup_datafd;
+		}
+    }
 
 	if (!start_monitor(pvt)) {
-              if (CONF_UNIQ(pvt, uac)) goto cleanup_datafd;
-              else goto cleanup_audiofd;
+		if (CONF_UNIQ(pvt, uac))
+			goto cleanup_datafd;
+		else
+			goto cleanup_audiofd;
 	}
 
 	/* Set data_fd and audio_fd to non-blocking. This appears to fix
@@ -860,10 +840,10 @@ static void pvt_start(struct pvt * pvt)
 	 * read(). */
 	flags = fcntl(pvt->data_fd, F_GETFL);
 	fcntl(pvt->data_fd, F_SETFL, flags | O_NONBLOCK);
-        if (!CONF_UNIQ(pvt, uac)) {
-	flags = fcntl(pvt->audio_fd, F_GETFL);
-	fcntl(pvt->audio_fd, F_SETFL, flags | O_NONBLOCK);
-                                                        }
+	if (!CONF_UNIQ(pvt, uac)) {
+		flags = fcntl(pvt->audio_fd, F_GETFL);
+		fcntl(pvt->audio_fd, F_SETFL, flags | O_NONBLOCK);
+	}
 
 	pvt->connected = 1;
 	pvt->current_state = DEV_STATE_STARTED;
@@ -872,7 +852,8 @@ static void pvt_start(struct pvt * pvt)
 	return;
 
 cleanup_audiofd:
-	closetty(pvt->audio_fd, &pvt->alock);
+	if (pvt->audio_fd > 0) closetty(pvt->audio_fd, &pvt->alock);
+
 cleanup_datafd:
 	closetty(pvt->data_fd, &pvt->dlock);
 }
@@ -895,7 +876,6 @@ static void pvt_destroy(struct pvt * pvt)
 	ast_mutex_lock(&pvt->lock);
 	pvt_stop(pvt);
 	pvt_free(pvt);
-
 }
 
 static void * do_discovery(void * arg)
@@ -1628,10 +1608,12 @@ static struct pvt * pvt_create(const pvt_config_t * settings)
 
 		pvt->monitor_thread		= AST_PTHREADT_NULL;
 		pvt->audio_fd			= -1;
+		pvt->icard				= NULL;
+		pvt->ocard				= NULL;
 		pvt->data_fd			= -1;
 		pvt->timeout			= DATA_READ_TIMEOUT;
 		pvt->gsm_reg_status		= -1;
-		pvt->incoming_sms_index		= -1U;
+		pvt->incoming_sms_index	= -1U;
 
 		ast_copy_string (pvt->provider_name, "NONE", sizeof (pvt->provider_name));
 		ast_copy_string (pvt->subscriber_number, "Unknown", sizeof (pvt->subscriber_number));

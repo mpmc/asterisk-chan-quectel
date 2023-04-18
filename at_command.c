@@ -159,11 +159,11 @@ EXPORT_DEF int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_comman
 		ATQ_CMD_DECLARE_STI(CMD_AT_CREG_INIT,cmd_creg_2),/* GSM registration status setting */
 		ATQ_CMD_DECLARE_ST(CMD_AT_CREG, cmd_creg),		/* GSM registration status */
 
-		ATQ_CMD_DECLARE_STI(CMD_AT_CNUM, cmd_cnum),	/* Get Subscriber number */
+		ATQ_CMD_DECLARE_STI(CMD_AT_CNUM, cmd_cnum),		/* Get Subscriber number */
 		ATQ_CMD_DECLARE_STI(CMD_AT_CVOICE, cmd_qpcmv),	/* read the current voice mode, and return sampling rate、data bit、frame period */
 		ATQ_CMD_DECLARE_STI(CMD_AT_CVOICE2, cmd_cpcmreg),
 
-		ATQ_CMD_DECLARE_STI(CMD_AT_CSCS, cmd_cscs),	/* UCS-2 text encoding */
+		ATQ_CMD_DECLARE_STI(CMD_AT_CSCS, cmd_cscs),		/* UCS-2 text encoding */
 		ATQ_CMD_DECLARE_ST(CMD_AT_CSCA, cmd_csca),		/* Get SMS Service center address */
 
 //		ATQ_CMD_DECLARE_ST(CMD_AT_CLIP, cmd_clip),		/* disable  Calling line identification presentation in unsolicited response +CLIP: <number>,<type>[,<subaddr>,<satype>[,[<alpha>][,<CLI validitity>]] */
@@ -182,8 +182,6 @@ EXPORT_DEF int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_comman
 
 	unsigned in, out;
 	int begin = -1;
-	int err;
-	char * ptmp1 = NULL;
 	pvt_t * pvt = cpvt->pvt;
 	at_queue_cmd_t cmds[ITEMS_OF(st_cmds)];
 
@@ -206,10 +204,6 @@ EXPORT_DEF int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_comman
 
 	if(out > 0) return at_queue_insert(cpvt, cmds, out, 0);
 	return 0;
-
-failure:
-	if(ptmp1) ast_free(ptmp1);
-	return err;
 }
 
 /*!
@@ -350,7 +344,7 @@ EXPORT_DEF int at_enqueue_ussd(struct cpvt *cpvt, const char *code)
 		chan_quectel_err = E_ENCODE_GSM7;
 		return -1;
 	}
-	res = gsm7_pack(code16, res, code_packed, sizeof(code_packed), 0);
+	res = gsm7_pack(code16, res, (char*)code_packed, sizeof(code_packed), 0);
 	if (res < 0) {
 		chan_quectel_err = E_PACK_GSM7;
 		return -1;
@@ -804,82 +798,6 @@ EXPORT_DEF int at_enqueue_delete_sms(struct cpvt *cpvt, int index)
 
 EXPORT_DEF int at_enqueue_hangup(struct cpvt *cpvt, int call_idx)
 {
-
-/*
-	this try of hangup non-active (held) channel as workaround for HW BUG 2
-
-	int err;
-	at_queue_cmd_t cmds[] = {
-		ATQ_CMD_DECLARE_ST(CMD_AT_CHLD_2, cmd_chld2),
-		ATQ_CMD_DECLARE_DYN(CMD_AT_CHLD_1x),
-		};
-	at_queue_cmd_t * pcmds = cmds;
-	unsigned count = ITEMS_OF(cmds);
-
-	err = at_fill_generic_cmd(&cmds[1], "AT+CHLD=1%d\r", call_idx);
-	if(err)
-		return err;
-
-	if(cpvt->state != CALL_STATE_ACTIVE)
-	{
-		pcmds++;
-		count--;
-	}
-	return at_queue_insert(cpvt, pcmds, count, 1);
-*/
-
-/*
-	HW BUG 1:
-	    Sequence
-		ATDnum;
-		    OK
-		    ^ORIG:1,0
-		AT+CHLD=11		if this command write to modem E1550 before ^CONF: for ATD device no more write responses to any entered command at all
-		    ^CONF:1
-	Workaround
-		a) send AT+CHUP if possible (single call)
-		b) insert fake empty command after ATD expected ^CONF: response if CONF not received yet
-	HW BUG 2:
-	    Sequence
-		ATDnum1;
-		    OK
-		    ^ORIG:1,0
-		    ^CONF:1
-		    ^CONN:1,0
-		AT+CHLD=2
-		    OK
-		ATDnum2;
-		    OK
-		    ^ORIG:2,0
-		    ^CONF:2
-		    ^CONN:2,0
-		AT+CHLD=11		after this command call 1 terminated, but call 2 no voice data and any other new calls created
-		    OK
-		    ^CEND:1,...
-					same result if active call terminated with AT+CHLD=12
-					same result if active call terminated by peer side1
-	Workaround
-		not found yes
-*/
-/*
-	static const struct
-	{
-		at_cmd_t	cmd;
-		const char	*data;
-	} commands[] =
-	{
-		{ CMD_AT_CHUP, "AT+CHUP\r" },
-		{ CMD_AT_CHLD_1x, "AT+CHLD=1%d\r" }
-	};
-	int idx = 0;
-	if(cpvt == &cpvt->pvt->sys_chan || CPVT_TEST_FLAGS(cpvt, CALL_FLAG_CONF_DONE|CALL_FLAG_IDX_VALID))
-	{
-		if(cpvt->pvt->chansno > 1)
-			idx = 1;
-	}
-
-	return at_enqueue_generic(cpvt, commands[idx].cmd, 1, commands[idx].data, call_idx);
-*/
 	static const char cmd_chup[] = "AT+CHUP\r";
 
 	struct pvt* pvt = cpvt->pvt;

@@ -377,10 +377,10 @@ static int pdu_store_number(uint8_t* buffer, int toa, const char *number, unsign
 	int i = 0;
 	buffer[i++] = toa;
 
-	int j;
+	unsigned j;
 	for (j = 0; j + 1 < length; j += 2) {
-		uint8_t a = pdu_digit2code(number[j]);
-		uint8_t b = pdu_digit2code(number[j + 1]);
+		const uint8_t a = pdu_digit2code(number[j]);
+		const uint8_t b = pdu_digit2code(number[j + 1]);
 		if (a == 255 || b == 255) {
 			return -1;
 		}
@@ -388,7 +388,7 @@ static int pdu_store_number(uint8_t* buffer, int toa, const char *number, unsign
 	}
 
 	if (j != length) {
-		uint8_t a = pdu_digit2code(number[j]);
+		const uint8_t a = pdu_digit2code(number[j]);
 		if (a == 255) {
 			return -1;
 		}
@@ -414,7 +414,7 @@ static int pdu_parse_number(uint8_t *pdu, size_t pdu_length, unsigned digits, ch
 
 	if ((toa & TP_A_TON) == TP_A_TON_ALPHANUMERIC) {
 		uint16_t number16tmp[num_len];
-		res = gsm7_unpack_decode(pdu + i, syms, number16tmp, num_len, 0, 0, 0);
+		res = gsm7_unpack_decode((const char*)(pdu + i), syms, number16tmp, num_len, 0, 0, 0);
 		if (res < 0) return -EINVAL;
 		res = ucs2_to_utf8(number16tmp, res, number, num_len);
 		i += syms / 2;
@@ -423,7 +423,7 @@ static int pdu_parse_number(uint8_t *pdu, size_t pdu_length, unsigned digits, ch
 		if ((toa & TP_A_TON) == TP_A_TON_INTERNATIONAL) {
 			*number++ = '+';
 		}
-		for (int j = 0; j < syms / 2; ++j) {
+		for (unsigned j = 0; j < syms / 2; ++j) {
 			int c = pdu[i];
 			*number++ = pdu_code2digit(c & 0xf);
 			char o = c >> 4;
@@ -636,7 +636,7 @@ EXPORT_DEF ssize_t pdu_build(uint8_t *buffer, size_t length, size_t *tpdulen, co
 		memcpy(buffer + len, (const char*)msg, msg_len);
 		len += msg_len;
 	} else {
-		len += (gsm7_pack(msg, msg_reallen, buffer + len, length - len - 1, msg_padding) + 1) / 2;
+		len += (gsm7_pack(msg, msg_reallen, (char*)(buffer + len), length - len - 1, msg_padding) + 1) / 2;
 	}
 
 	/* also check message limit in 176 octets of TPDU */
@@ -683,21 +683,23 @@ EXPORT_DEF int tpdu_parse_type(uint8_t *pdu, size_t pdu_length, int *type)
 }
 EXPORT_DEF int tpdu_parse_status_report(uint8_t *pdu, size_t pdu_length, int *mr, char *ra, size_t ra_len, char *scts, char *dt, int *st)
 {
-	int i = 0, field_len;
-	if (i + 2 > pdu_length) {
+	int i = 0;
+
+	if ((size_t)(i + 2) > pdu_length) {
 		chan_quectel_err = E_UNKNOWN;
 		return -1;
 	}
+
 	*mr = pdu[i++];
 	int ra_digits = pdu[i++];
-	field_len = pdu_parse_number(pdu + i, pdu_length - i, ra_digits, ra, ra_len);
+	int field_len = pdu_parse_number(pdu + i, pdu_length - i, ra_digits, ra, ra_len);
 	if (field_len < 0) {
 		chan_quectel_err = E_INVALID_PHONE_NUMBER;
 		return -1;
 	}
 	i += field_len;
 
-	if (i + 14 + 1 > pdu_length) {
+	if ((size_t)(i + 14 + 1) > pdu_length) {
 		chan_quectel_err = E_INVALID_TIMESTAMP;
 		return -1;
 	}
@@ -710,7 +712,7 @@ EXPORT_DEF int tpdu_parse_deliver(uint8_t *pdu, size_t pdu_length, int tpdu_type
 {
 	int i = 0, field_len, oa_digits, pid, dcs, alphabet, udl, udhl, msg_padding = 0;
 
-	if (i + 1 > pdu_length) {
+	if ((size_t)(i + 1) > pdu_length) {
 		chan_quectel_err = E_UNKNOWN;
 		return -1;
 	}
@@ -723,7 +725,7 @@ EXPORT_DEF int tpdu_parse_deliver(uint8_t *pdu, size_t pdu_length, int tpdu_type
 	}
 	i += field_len;
 
-	if (i + 2 + 7 + 1 > pdu_length) {
+	if ((size_t)(i + 2 + 7 + 1) > pdu_length) {
 		chan_quectel_err = E_UNKNOWN;
 		return -1;
 	}
@@ -822,19 +824,19 @@ EXPORT_DEF int tpdu_parse_deliver(uint8_t *pdu, size_t pdu_length, int tpdu_type
 	}
 
 	/* calculate number of octets in UD */
-	int udl_nibbles;
+	int udl_nibbles = -1;
 	int udl_bytes = udl;
 	if (alphabet == PDU_DCS_ALPHABET_7BIT) {
 		udl_nibbles = (udl * 7 + 3) / 4;
 		udl_bytes = (udl_nibbles + 1) / 2;
 	}
-	if (udl_bytes != pdu_length - i) {
+	if ((size_t)udl_bytes != pdu_length - i) {
 		chan_quectel_err = E_UNKNOWN;
 		return -1;
 	}
 
 	if (PDUTYPE_UDHI(tpdu_type) == PDUTYPE_UDHI_HAS_HEADER) {
-		if (i + 1 > pdu_length) {
+		if ((size_t)(i + 1) > pdu_length) {
 			chan_quectel_err = E_UNKNOWN;
 			return -1;
 		}
@@ -918,7 +920,7 @@ EXPORT_DEF int tpdu_parse_deliver(uint8_t *pdu, size_t pdu_length, int tpdu_type
 
 	int msg_len = pdu_length - i, out_len;
 	if (alphabet == PDU_DCS_ALPHABET_7BIT) {
-		out_len = gsm7_unpack_decode(pdu + i, udl_nibbles, msg, 1024 /* assume enough memory, as SMS messages are limited in size */, msg_padding, udh->ls, udh->ss);
+		out_len = gsm7_unpack_decode((const char*)(pdu + i), udl_nibbles, msg, 1024 /* assume enough memory, as SMS messages are limited in size */, msg_padding, udh->ls, udh->ss);
 		if (out_len < 0) {
 			chan_quectel_err = E_DECODE_GSM7;
 			return -1;

@@ -290,14 +290,6 @@ static int smsdb_commit_transaction(void)
 	return res;
 }
 
-static int smsdb_rollback_transaction(void)
-{
-	int res = db_execute_sql("ROLLBACK", NULL, NULL);
-	ast_mutex_unlock(&dblock);
-	return res;
-}
-
-
 /*!
  * \brief Adds a message part into the DB and returns the whole message into 'out' when the message is complete.
  * \param id -- Some ID for the device or so, e.g. the IMSI
@@ -384,18 +376,6 @@ EXPORT_DEF int smsdb_put(const char *id, const char *addr, int ref, int parts, i
 	}
 
 	smsdb_commit_transaction();
-
-	return res;
-}
-
-static int smsdb_purge()
-{
-	int res = 0;
-
-	if (sqlite3_step(purge_messages_stmt) != SQLITE_DONE) {
-		res = -1;
-	}
-	sqlite3_reset(purge_messages_stmt);
 
 	return res;
 }
@@ -536,7 +516,7 @@ EXPORT_DEF ssize_t smsdb_outgoing_part_put(int uid, int refid, char *dst, char *
 	int res = 0;
 	char fullkey[MAX_DB_FIELD + 1];
 	int fullkey_len;
-	int srr = 0, cnt, cur;
+	int srr = 0;
 
 	smsdb_begin_transaction();
 
@@ -583,14 +563,11 @@ EXPORT_DEF ssize_t smsdb_outgoing_part_put(int uid, int refid, char *dst, char *
 		} else if (sqlite3_step(cnt_all_outgoingpart_stmt) != SQLITE_ROW) {
 			res = -1;
 		} else {
-			cur = sqlite3_column_int(cnt_all_outgoingpart_stmt, 0);
-			cnt = sqlite3_column_int(cnt_all_outgoingpart_stmt, 1);
+			const int cur = sqlite3_column_int(cnt_all_outgoingpart_stmt, 0);
+			const int cnt = sqlite3_column_int(cnt_all_outgoingpart_stmt, 1);
+			if (cur != cnt) res = -2;
 		}
 		sqlite3_reset(cnt_all_outgoingpart_stmt);
-	}
-
-	if (res >= 0 && cur != cnt) {
-		res = -2;
 	}
 
 	// get payload
@@ -614,7 +591,6 @@ EXPORT_DEF ssize_t smsdb_outgoing_part_put(int uid, int refid, char *dst, char *
 		res = -1;
 	}
 
-
 	smsdb_commit_transaction();
 
 	return res;
@@ -624,7 +600,7 @@ EXPORT_DEF ssize_t smsdb_outgoing_part_status(const char *id, const char *addr, 
 {
 	char fullkey[MAX_DB_FIELD + 1];
 	int fullkey_len;
-	int res = 0, partid, uid, cur, cnt;
+	int res = 0, partid, uid;
 
 	fullkey_len = snprintf(fullkey, sizeof(fullkey), "%s/%s/%d", id, addr, mr);
 	if (fullkey_len < 0) {
@@ -667,14 +643,11 @@ EXPORT_DEF ssize_t smsdb_outgoing_part_status(const char *id, const char *addr, 
 		} else if (sqlite3_step(cnt_outgoingpart_stmt) != SQLITE_ROW) {
 			res = -1;
 		} else {
-			cur = sqlite3_column_int(cnt_outgoingpart_stmt, 0);
-			cnt = sqlite3_column_int(cnt_outgoingpart_stmt, 1);
+			const int cur = sqlite3_column_int(cnt_outgoingpart_stmt, 0);
+			const int cnt = sqlite3_column_int(cnt_outgoingpart_stmt, 1);
+			if (cur != cnt) res = -2;
 		}
 		sqlite3_reset(cnt_outgoingpart_stmt);
-	}
-
-	if (res != -1 && cur != cnt) {
-		res = -2;
 	}
 
 	// get status array

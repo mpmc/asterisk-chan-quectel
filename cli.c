@@ -49,8 +49,8 @@ static char* cli_show_devices (struct ast_cli_entry* e, int cmd, struct ast_cli_
 {
 	struct pvt* pvt;
 
-#define FORMAT1 "%-12.12s %-5.5s %-10.10s %-4.4s %-4.4s %-7.7s %-14.14s %-17.17s %-16.16s %-16.16s %-14.14s\n"
-#define FORMAT2 "%-12.12s %-5d %-10.10s %-4d %-4d %-7d %-14.14s %-17.17s %-16.16s %-16.16s %-14.14s\n"
+	static const char FORMAT1[] = "%-12.12s %-5.5s %-10.10s %-4.4s %-4.4s %-7.7s %-14.14s %-17.17s %-16.16s %-16.16s %-14.14s\n";
+	static const char FORMAT2[] = "%-12.12s %-5d %-10.10s %-4d %-4d %-7s %-14.14s %-17.17s %-16.16s %-16.16s %-14.14s\n";
 
 	switch (cmd)
 	{
@@ -64,18 +64,17 @@ static char* cli_show_devices (struct ast_cli_entry* e, int cmd, struct ast_cli_
 			return NULL;
 	}
 
-	if (a->argc != 3)
-	{
+	if (a->argc != 3) {
 		return CLI_SHOWUSAGE;
 	}
 
-	ast_cli (a->fd, FORMAT1, "ID", "Group", "State", "RSSI", "Mode", "Provider Name", "Model", "Firmware", "IMEI", "IMSI", "Number");
+	ast_cli(a->fd, FORMAT1, "ID", "Group", "State", "RSSI", "Mode", "Provider Name", "Model", "Firmware", "IMEI", "IMSI", "Number");
 
 	AST_RWLIST_RDLOCK (&gpublic->devices);
 	AST_RWLIST_TRAVERSE (&gpublic->devices, pvt, entry)
 	{
 		ast_mutex_lock (&pvt->lock);
-		ast_cli (a->fd, FORMAT2,
+		ast_cli(a->fd, FORMAT2,
 			PVT_ID(pvt),
 			CONF_SHARED(pvt, group),
 			pvt_str_state(pvt),
@@ -91,9 +90,6 @@ static char* cli_show_devices (struct ast_cli_entry* e, int cmd, struct ast_cli_
 		ast_mutex_unlock (&pvt->lock);
 	}
 	AST_RWLIST_UNLOCK (&gpublic->devices);
-
-#undef FORMAT1
-#undef FORMAT2
 
 	return CLI_SUCCESS;
 }
@@ -366,7 +362,7 @@ static char* cli_show_device_statistics (struct ast_cli_entry* e, int cmd, struc
 }
 
 
-static char* cli_show_version (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
+static char* cli_show_version(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
 	switch (cmd)
 	{
@@ -380,20 +376,17 @@ static char* cli_show_version (struct ast_cli_entry* e, int cmd, struct ast_cli_
 			return NULL;
 	}
 
-	if (a->argc != 3)
-	{
+	if (a->argc != 3) {
 		return CLI_SHOWUSAGE;
 	}
 
-	ast_cli (a->fd, "\n%s: %s, Version %s, Revision %s\nProject Home: %s\nBug Reporting: %s\n\n", AST_MODULE, MODULE_DESCRIPTION, MODULE_VERSION, PACKAGE_REVISION, MODULE_URL, MODULE_BUGREPORT);
+	ast_cli(a->fd, "\n%s: %s, Version %s, Revision %s\nProject Home: %s\nBug Reporting: %s\n\n", AST_MODULE, MODULE_DESCRIPTION, MODULE_VERSION, PACKAGE_REVISION, MODULE_URL, MODULE_BUGREPORT);
 
 	return CLI_SUCCESS;
 }
 
-static char* cli_cmd (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
+static char* cli_cmd(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
-	const char * msg;
-
 	switch (cmd)
 	{
 		case CLI_INIT:
@@ -404,20 +397,18 @@ static char* cli_cmd (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 			return NULL;
 
 		case CLI_GENERATE:
-			if (a->pos == 2)
-			{
-				return complete_device (a->word, a->n);
+			if (a->pos == 2) {
+				return complete_device(a->word, a->n);
 			}
 			return NULL;
 	}
 
-	if (a->argc != 4)
-	{
+	if (a->argc != 4) {
 		return CLI_SHOWUSAGE;
 	}
 
-	int res = send_at_command(a->argv[2], a->argv[3]);
-	ast_cli (a->fd, "[%s] '%s' %s\n", a->argv[2], a->argv[3], res < 0 ? error2str(chan_quectel_err) : "AT command queued");
+	const int res = send_at_command(a->argv[2], a->argv[3]);
+	ast_cli(a->fd, "[%s] '%s' %s\n", a->argv[2], a->argv[3], res < 0 ? error2str(chan_quectel_err) : "AT command queued");
 
 	return CLI_SUCCESS;
 }
