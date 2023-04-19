@@ -725,6 +725,7 @@ static int at_response_qind(struct pvt* pvt, const char* str)
 static int at_response_dsci(struct pvt* pvt, const char* str)
 {
 	int call_index;
+	int call_dir;
 	int call_state;
 	int call_type;
 
@@ -739,13 +740,13 @@ static int at_response_dsci(struct pvt* pvt, const char* str)
 		num_type	type of phone number
 
 	*/
-	if (sscanf(str, "^DSCI: %d,%*d,%d,%d,%*s", &call_index, &call_state, &call_type) != 3) {
+	if (sscanf(str, "^DSCI: %d,%d,%d,%d,%*s", &call_index, &call_dir, &call_state, &call_type) != 4) {
 		ast_log(LOG_ERROR, "[%s] Fail to parse DSCI URC '%s'\n", PVT_ID(pvt), str);
 		return 0;
 	}
 
 	if (call_type != CLCC_CALL_TYPE_VOICE) {
-		ast_debug(1, "[%s] Non-voice DSCI URC '%s'\n", PVT_ID(pvt), str);
+		ast_debug(4, "[%s] Non-voice DSCI URC - idx:%d dir:%d type:%d state:%d\n", PVT_ID(pvt), call_idx, call_dir, call_type, call_state);
 		return 0;
 	}
 
@@ -761,68 +762,6 @@ static int at_response_dsci(struct pvt* pvt, const char* str)
 		7 CALL_ALERTING
 	*/
 	switch (call_state) {
-		case 3: // CALL_CONNECT
-		{
-			request_clcc(pvt);
-
-			pvt->ring = 0;
-			pvt->dialing = 0;
-			pvt->cwaiting = 0;
-
-			struct cpvt* cpvt = pvt_find_cpvt(pvt, call_index);
-
-			ast_debug(1, "[%s] CALL CONNECT - call_index:%d call_type:%d\n", PVT_ID(pvt), call_index, call_type);
-
-			if(cpvt) {
-				/* FIXME: delay until CLCC handle? */
-				if (!pvt->is_simcom) pvt->t0 = uptime();
-				pvt->call_estb = 1;
-				PVT_STAT(pvt, calls_answered[cpvt->dir]) ++;
-				change_channel_state(cpvt, CALL_STATE_ACTIVE, 0);
-				if(CPVT_TEST_FLAG(cpvt, CALL_FLAG_CONFERENCE)) at_enqueue_conference(cpvt);
-			}
-			else {
-				at_enqueue_hangup(&pvt->sys_chan, call_index);
-				ast_log(LOG_ERROR, "[%s] answered incoming call with not exists call idx %d, hanging up!\n", PVT_ID(pvt), call_index);
-			}
-			break;
-		}
-
-		case 4: // CALL_INCOMMING
-		{
-			pvt->rings++;
-			request_clcc(pvt);
-			break;
-		}
-
-
-		case 6: // CALL END
-		{
-			request_clcc(pvt);
-
-			int duration   = 0;
-			int end_status = 0;
-			int cc_cause   = 0;
-
-			struct cpvt *cpvt = pvt_find_cpvt(pvt, call_index);
-
-			ast_debug(1, "[%s] CALL END - call_index:%d duration:%d end_status:%d cc_cause: %d Line disconnected\n"
-						, PVT_ID(pvt), call_index, duration, end_status, cc_cause);
-
-			if (cpvt) {
-				if (pvt->call_estb) duration = uptime() - pvt->t0;
-				pvt->call_estb = 0;
-				CPVT_RESET_FLAGS(cpvt, CALL_FLAG_NEED_HANGUP);
-				PVT_STAT(pvt, calls_duration[cpvt->dir]) += duration;
-				change_channel_state(cpvt, CALL_STATE_RELEASED, cc_cause);
-				manager_event_cend(PVT_ID(pvt), call_index, duration, end_status, cc_cause);
-			}
-			else {
-				ast_log(LOG_ERROR, "[%s] CALL END event for unknown call idx %d\n", PVT_ID(pvt), call_index);
-			}
-			break;
-		}
-
 		case 2: // CALL ORIGINAL
 		{
 			struct cpvt *cpvt = pvt->last_dialed_cpvt;
@@ -833,7 +772,7 @@ static int at_response_dsci(struct pvt* pvt, const char* str)
 				break;
 			}
 
-			ast_debug(1, "[%s] CALL ORIGINAL - call_index:%d call_type:%d\n", PVT_ID(pvt), call_index, call_type);
+			ast_debug(1, "[%s] CALL ORIGINAL - idx:%d\n", PVT_ID(pvt), call_index);
 
 			if (pvt->is_simcom) {
 				sleep(1);
@@ -865,8 +804,71 @@ static int at_response_dsci(struct pvt* pvt, const char* str)
 			break;
 		}
 
+		case 3: // CALL_CONNECT
+		{
+			request_clcc(pvt);
+
+			pvt->ring = 0;
+			pvt->dialing = 0;
+			pvt->cwaiting = 0;
+
+			ast_debug(1, "[%s] CALL CONNECT - idx:%d\n", PVT_ID(pvt), call_index);
+
+			struct cpvt* cpvt = pvt_find_cpvt(pvt, call_index);
+
+			if(cpvt) {
+				/* FIXME: delay until CLCC handle? */
+				if (!pvt->is_simcom) pvt->t0 = uptime();
+				pvt->call_estb = 1;
+				PVT_STAT(pvt, calls_answered[cpvt->dir]) ++;
+				change_channel_state(cpvt, CALL_STATE_ACTIVE, 0);
+				if(CPVT_TEST_FLAG(cpvt, CALL_FLAG_CONFERENCE)) at_enqueue_conference(cpvt);
+			}
+			else {
+				at_enqueue_hangup(&pvt->sys_chan, call_index);
+				ast_log(LOG_ERROR, "[%s] answered incoming call with not exists call idx %d, hanging up!\n", PVT_ID(pvt), call_index);
+			}
+			break;
+		}
+
+		case 4: // CALL_INCOMING
+		{
+			ast_debug(1, "[%s] CALL INCOMING - idx:%d\n", PVT_ID(pvt), call_index);
+
+			pvt->rings++;
+			request_clcc(pvt);
+			break;
+		}
+
+		case 6: // CALL END
+		{
+			request_clcc(pvt);
+
+			int duration   = 0;
+			int end_status = 0;
+			int cc_cause   = 0;
+
+			struct cpvt *cpvt = pvt_find_cpvt(pvt, call_index);
+
+			ast_debug(1, "[%s] CALL END - idx:%d duration:%d end_status:%d cc_cause: %d Line disconnected\n"
+						, PVT_ID(pvt), call_index, duration, end_status, cc_cause);
+
+			if (cpvt) {
+				if (pvt->call_estb) duration = uptime() - pvt->t0;
+				pvt->call_estb = 0;
+				CPVT_RESET_FLAGS(cpvt, CALL_FLAG_NEED_HANGUP);
+				PVT_STAT(pvt, calls_duration[cpvt->dir]) += duration;
+				change_channel_state(cpvt, CALL_STATE_RELEASED, cc_cause);
+				manager_event_cend(PVT_ID(pvt), call_index, duration, end_status, cc_cause);
+			}
+			else {
+				ast_log(LOG_ERROR, "[%s] CALL END event for unknown call idx %d\n", PVT_ID(pvt), call_index);
+			}
+			break;
+		}
+
 		default:
-		ast_log(LOG_NOTICE, "[%s] Unhandled URC '%s'\n", PVT_ID(pvt), str);
+		ast_log(LOG_WARNING, "[%s] Unhandled call state event - idx:%d call_state:%d line:'%s'\n", PVT_ID(pvt), call_state, call_index, str);
 		break;
 	}
 
@@ -996,7 +998,7 @@ static int at_response_clcc(struct pvt* pvt, char* str)
 		if(at_parse_clcc(str, &call_idx, &dir, &state, &mode, &mpty, &number, &type) == 0) {
 			int process_clcc = 1;
 			if (mode != CLCC_CALL_TYPE_VOICE) {
-				ast_log(LOG_NOTICE, "[%s] CLCC - non-voice call, line '%s'\n", PVT_ID(pvt), str);
+				ast_debug(4, "[%s] CLCC - non-voice call, idx:%u dir:%u state:%u nubmer:%s\n", PVT_ID(pvt), call_idx, dir, state, number);
 				process_clcc = 0;
 			}
 
@@ -1017,8 +1019,7 @@ static int at_response_clcc(struct pvt* pvt, char* str)
 						else
 							CPVT_RESET_FLAGS(cpvt, CALL_FLAG_MULTIPARTY);
 
-						if(dir == CALL_DIR_INCOMING && (state == CALL_STATE_INCOMING || state == CALL_STATE_WAITING))
-						{
+						if(dir == CALL_DIR_INCOMING && (state == CALL_STATE_INCOMING || state == CALL_STATE_WAITING)) {
 							if(cpvt->channel) {
 								/* FIXME: unprotected channel access */
 								int rings = ast_channel_rings(cpvt->channel);
@@ -1033,7 +1034,7 @@ static int at_response_clcc(struct pvt* pvt, char* str)
 						}
 					}
 					else {
-						ast_log (LOG_ERROR, "[%s] CLCC call idx %d direction mismatch %d/%d\n", PVT_ID(pvt), cpvt->call_idx, dir, cpvt->dir);
+						ast_log(LOG_ERROR, "[%s] CLCC call idx %d direction mismatch %d/%d\n", PVT_ID(pvt), cpvt->call_idx, dir, cpvt->dir);
 					}
 				}
 				else if (dir == CALL_DIR_INCOMING && (state == CALL_STATE_INCOMING || state == CALL_STATE_WAITING)) {
