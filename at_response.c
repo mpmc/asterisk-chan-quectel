@@ -12,13 +12,14 @@
 */
 #include "ast_config.h"
 
-#include <asterisk/logger.h>			/* ast_debug() */
+#include <asterisk/causes.h>		/* AST_CAUSE_... definitions */
+#include <asterisk/logger.h>		/* ast_debug() */
 #include <asterisk/pbx.h>			/* ast_pbx_start() */
 #include <sys/sysinfo.h>
 #include "ast_compat.h"				/* asterisk compatibility fixes */
 
 #include "at_response.h"
-#include "mutils.h"				/* STRLEN() */
+#include "mutils.h"					/* STRLEN() */
 #include "at_queue.h"
 #include "chan_quectel.h"
 #include "at_parse.h"
@@ -320,6 +321,7 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CHUP:
+			case CMD_AT_QHUP:
      		case CMD_AT_CHLD_1x:
 				CPVT_RESET_FLAGS(task->cpvt, CALL_FLAG_NEED_HANGUP);
 				ast_debug (1, "[%s] Successful hangup for call idx %d\n", PVT_ID(pvt), task->cpvt->call_idx);
@@ -595,6 +597,7 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CHUP:
+			case CMD_AT_QHUP:
 			case CMD_AT_CHLD_1x:
 				log_cmd_response_error(pvt, ecmd, "[%s] Error sending hangup for call idx %d\n", PVT_ID(pvt), task->cpvt->call_idx);
 				break;
@@ -746,7 +749,7 @@ static int at_response_dsci(struct pvt* pvt, const char* str)
 	}
 
 	if (call_type != CLCC_CALL_TYPE_VOICE) {
-		ast_debug(4, "[%s] Non-voice DSCI URC - idx:%d dir:%d type:%d state:%d\n", PVT_ID(pvt), call_idx, call_dir, call_type, call_state);
+		ast_debug(4, "[%s] Non-voice DSCI URC - idx:%d dir:%d type:%d state:%d\n", PVT_ID(pvt), call_index, call_dir, call_type, call_state);
 		return 0;
 	}
 
@@ -825,8 +828,8 @@ static int at_response_dsci(struct pvt* pvt, const char* str)
 				if(CPVT_TEST_FLAG(cpvt, CALL_FLAG_CONFERENCE)) at_enqueue_conference(cpvt);
 			}
 			else {
-				at_enqueue_hangup(&pvt->sys_chan, call_index);
-				ast_log(LOG_ERROR, "[%s] answered incoming call with not exists call idx %d, hanging up!\n", PVT_ID(pvt), call_index);
+				at_enqueue_hangup(&pvt->sys_chan, call_index, AST_CAUSE_CALL_REJECTED);
+				ast_log(LOG_ERROR, "[%s] answered unexisting incoming call - idx:%d, hanging up!\n", PVT_ID(pvt), call_index);
 			}
 			break;
 		}
@@ -933,28 +936,25 @@ static int start_pbx(struct pvt* pvt, const char * number, int call_idx, call_st
 			NULL);
 #endif /* ^12- */
 
-	if (!channel)
-	{
-		ast_log (LOG_ERROR, "[%s] Unable to allocate channel for incoming call\n", PVT_ID(pvt));
+	if (!channel) {
+		ast_log(LOG_ERROR, "[%s] Unable to allocate channel for incoming call\n", PVT_ID(pvt));
 
-		if (at_enqueue_hangup(&pvt->sys_chan, call_idx))
-		{
-			ast_log (LOG_ERROR, "[%s] Error sending AT+CHUP command\n", PVT_ID(pvt));
+		if (at_enqueue_hangup(&pvt->sys_chan, call_idx, AST_CAUSE_DESTINATION_OUT_OF_ORDER)) {
+			ast_log(LOG_ERROR, "[%s] Error sending AT+CHUP command\n", PVT_ID(pvt));
 		}
 
 		return -1;
 	}
 
 	cpvt = ast_channel_tech_pvt(channel);
-// FIXME: not execute if channel_new() failed
+	// FIXME: not execute if channel_new() failed
 	CPVT_SET_FLAGS(cpvt, CALL_FLAG_NEED_HANGUP);
 
 	/* ast_pbx_start() usually failed if asterisk.conf minmemfree
 	 * set too low, try drop buffer cache
 	 * sync && echo 3 >/proc/sys/vm/drop_caches
 	 */
-	if (ast_pbx_start (channel))
-	{
+	if (ast_pbx_start(channel)) {
 		ast_channel_tech_pvt_set(channel, NULL);
 		cpvt_free(cpvt);
 

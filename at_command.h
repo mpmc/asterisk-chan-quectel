@@ -31,6 +31,7 @@
 	_( AT_CGSN,         "AT+CGSN") \
 \
 	_( AT_CHUP,         "AT+CHUP") \
+	_( AT_QHUP,         "AT+QHUP") \
 	_( AT_CIMI,         "AT+CIMI") \
 	_( AT_CVOICE2,      "AT+CPCMREG?") \
 	_( AT_CLIR,         "AT+CLIR") \
@@ -119,7 +120,7 @@ EXPORT_DECL int at_enqueue_user_cmd(struct cpvt *cpvt, const char *input);
 EXPORT_DECL void at_retrieve_next_sms(struct cpvt *cpvt, at_cmd_suppress_error_t suppress_error);
 EXPORT_DECL int at_enqueue_retrieve_sms(struct cpvt *cpvt, int index, at_cmd_suppress_error_t suppress_error);
 EXPORT_DECL int at_enqueue_delete_sms(struct cpvt *cpvt, int index);
-EXPORT_DECL int at_enqueue_hangup(struct cpvt *cpvt, int call_idx);
+EXPORT_DECL int at_enqueue_hangup(struct cpvt *cpvt, int call_idx, int release_cause);
 EXPORT_DECL int at_enqueue_volsync(struct cpvt *cpvt);
 EXPORT_DECL int at_enqueue_clcc(struct cpvt *cpvt);
 EXPORT_DECL int at_enqueue_activate(struct cpvt *cpvt);

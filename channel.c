@@ -394,42 +394,58 @@ static void activate_call(struct cpvt* cpvt)
 	}
 }
 
+static map_hangupcause(int hangup_cause)
+{
+	switch (hangup_cause) {
+		case 1:
+		case 16:
+		case 17:
+		case 18:
+		case 21:
+		case 27:
+		case 31:
+		case 88: // list of supportet cause codes
+		return hangup_cause;
+
+		default: // use default one
+		return AST_CAUSE_NORMAL_CLEARING;
+	}
+}
+
 #/* we has 2 case of call this function, when local side want terminate call and when called for cleanup after remote side alreay terminate call, CEND received and cpvt destroyed */
-static int channel_hangup (struct ast_channel* channel)
+static int channel_hangup(struct ast_channel* channel)
 {
 	struct cpvt* cpvt = ast_channel_tech_pvt(channel);
-	struct pvt* pvt;
 
 	/* its possible call with channel w/o tech_pvt */
-	if(cpvt && cpvt->channel == channel && cpvt->pvt)
-	{
-		pvt = cpvt->pvt;
+	if(cpvt && cpvt->channel == channel && cpvt->pvt) {
+		struct pvt* pvt = cpvt->pvt;
 
-		ast_mutex_lock (&pvt->lock);
+		ast_mutex_lock(&pvt->lock);
 
-		ast_debug (1, "[%s] Hanging up call idx %d need hangup %d\n", PVT_ID(pvt), cpvt->call_idx, CPVT_TEST_FLAG(cpvt, CALL_FLAG_NEED_HANGUP) ? 1 : 0);
+		const int need_hangup = CPVT_TEST_FLAG(cpvt, CALL_FLAG_NEED_HANGUP) ? 1 : 0;
+		const int hangup_cause = ast_channel_hangupcause(channel);
+		ast_debug(1, "[%s] Hanging up call - idx:%d cause:%d needed:%d\n", PVT_ID(pvt), cpvt->call_idx, hangup_cause, need_hangup);
 
-		if (CPVT_TEST_FLAG(cpvt, CALL_FLAG_NEED_HANGUP))
-		{
-			if (at_enqueue_hangup(cpvt, cpvt->call_idx))
-				ast_log (LOG_ERROR, "[%s] Error adding AT+CHUP command to queue, call not terminated!\n", PVT_ID(pvt));
+		if (need_hangup) {
+			if (at_enqueue_hangup(cpvt, cpvt->call_idx, map_hangupcause(hangup_cause)))
+				ast_log(LOG_ERROR, "[%s] Error adding AT+CHUP command to queue, call not terminated!\n", PVT_ID(pvt));
 			else
 				CPVT_RESET_FLAGS(cpvt, CALL_FLAG_NEED_HANGUP);
-
 		}
 
-		disactivate_call (cpvt);
+		disactivate_call(cpvt);
 
 		/* drop cpvt->channel reference */
 		cpvt->channel = NULL;
-		ast_mutex_unlock (&pvt->lock);
+		ast_mutex_unlock(&pvt->lock);
 	}
 
 	/* drop channel -> cpvt reference */
 	ast_channel_tech_pvt_set(channel, NULL);
 
-	ast_module_unref (self_module());
-	ast_setstate (channel, AST_STATE_DOWN);
+	ast_module_unref(self_module());
+	ast_setstate(channel, AST_STATE_DOWN);
 
 	return 0;
 }

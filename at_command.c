@@ -796,38 +796,54 @@ EXPORT_DEF int at_enqueue_delete_sms(struct cpvt *cpvt, int index)
  * \return 0 on success
  */
 
-EXPORT_DEF int at_enqueue_hangup(struct cpvt *cpvt, int call_idx)
+EXPORT_DEF int at_enqueue_hangup(struct cpvt *cpvt, int call_idx, int release_cause)
 {
-	static const char cmd_chup[] = "AT+CHUP\r";
-
 	struct pvt* pvt = cpvt->pvt;
-	int err;
-	at_queue_cmd_t cmds[] = {
-		ATQ_CMD_DECLARE_ST(CMD_AT_CHUP, cmd_chup),
-		ATQ_CMD_DECLARE_ST(CMD_AT_CLCC, cmd_clcc),
-		};
 
-	if(cpvt == &pvt->sys_chan || cpvt->dir == CALL_DIR_INCOMING || (cpvt->state != CALL_STATE_INIT && cpvt->state != CALL_STATE_DIALING))
-	{
-		/* FIXME: other channels may be in RELEASED or INIT state */
-		if(PVT_STATE(pvt, chansno) > 1)
-		{
-			cmds[0].cmd = CMD_AT_CHLD_1x;
-			err = at_fill_generic_cmd(&cmds[0], cmd_chld1x, call_idx);
-			if (err) {
-				chan_quectel_err = E_UNKNOWN;
-				return -1;
+	if (pvt->is_simcom) { // AT+CHUP
+		static const char cmd_chup[] = "AT+CHUP\r";
+
+		at_queue_cmd_t cmds[] = {
+			ATQ_CMD_DECLARE_ST(CMD_AT_CHUP, cmd_chup),
+			ATQ_CMD_DECLARE_ST(CMD_AT_CLCC, cmd_clcc),
+			};
+
+		if(cpvt == &pvt->sys_chan || cpvt->dir == CALL_DIR_INCOMING || (cpvt->state != CALL_STATE_INIT && cpvt->state != CALL_STATE_DIALING)) {
+			/* FIXME: other channels may be in RELEASED or INIT state */
+			if(PVT_STATE(pvt, chansno) > 1) {
+				cmds[0].cmd = CMD_AT_CHLD_1x;
+				const int err = at_fill_generic_cmd(&cmds[0], cmd_chld1x, call_idx);
+				if (err) {
+					chan_quectel_err = E_UNKNOWN;
+					return -1;
+				}
 			}
 		}
+
+		/* early AT+CHUP before ^ORIG for outgoing call may not get ^CEND in future */
+		if(cpvt->state == CALL_STATE_INIT)
+			pvt->last_dialed_cpvt = 0;
+
+		if (at_queue_insert(cpvt, cmds, ITEMS_OF(cmds), 1) != 0) {
+			chan_quectel_err = E_QUEUE;
+			return -1;
+		}
 	}
+	else { // AT+QHUP=<cause>,<idx>
+		at_queue_cmd_t cmds[] = {
+			ATQ_CMD_DECLARE_DYN(CMD_AT_QHUP)
+		};
 
-	/* early AT+CHUP before ^ORIG for outgoing call may not get ^CEND in future */
-	if(cpvt->state == CALL_STATE_INIT)
-		pvt->last_dialed_cpvt = 0;
+		const int err = at_fill_generic_cmd(&cmds[0], "AT+QHUP=%d,%d\r", (int)release_cause, call_idx);
+		if (err) {
+			chan_quectel_err = E_UNKNOWN;
+			return err;
+		}
 
-	if (at_queue_insert(cpvt, cmds, ITEMS_OF(cmds), 1) != 0) {
-		chan_quectel_err = E_QUEUE;
-		return -1;
+		if (at_queue_insert(cpvt, cmds, ITEMS_OF(cmds), 1) != 0) {
+			chan_quectel_err = E_QUEUE;
+			return -1;
+		}
 	}
 	return 0;
 }
