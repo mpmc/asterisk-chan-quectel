@@ -9,7 +9,7 @@
 #include <string.h>
 
 #define ITEMS_OF(x)				(sizeof(x)/sizeof((x)[0]))
-#define STRLEN(string)				(sizeof(string)-1)
+#define STRLEN(string)				(sizeof(string)-1u)
 
 #ifndef MIN
 #define MIN(a,b) (((a) < (b)) ? (a) : (b))

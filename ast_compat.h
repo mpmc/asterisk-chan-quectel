@@ -28,10 +28,6 @@ static inline void ast_channel_tech_set(struct ast_channel *chan, const struct a
 static inline void *ast_channel_tech_pvt(const struct ast_channel *chan) { return chan->tech_pvt; }
 static inline void ast_channel_tech_pvt_set(struct ast_channel *chan, void *value) { chan->tech_pvt = value; }
 
-/* channel->rings */
-static inline int ast_channel_rings(const struct ast_channel *chan) { return chan->rings; }
-static inline void ast_channel_rings_set(struct ast_channel *chan, int value) { chan->rings = value; }
-
 /* ast_string_field_set(channel, language, ...) */
 static inline void ast_channel_language_set(struct ast_channel *chan, const char *value) { ast_string_field_set(chan, language, value); }
 

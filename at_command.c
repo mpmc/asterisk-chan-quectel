@@ -18,6 +18,7 @@
 
 #include "ast_config.h"
 
+#include <asterisk/causes.h>
 #include <asterisk/utils.h>
 
 #include "at_command.h"
@@ -789,6 +790,25 @@ EXPORT_DEF int at_enqueue_delete_sms(struct cpvt *cpvt, int index)
 	return 0;
 }
 
+static int map_hangup_cause(int hangup_cause)
+{
+	switch (hangup_cause) {
+		 // list of supported cause codes
+		case AST_CAUSE_UNALLOCATED:
+		case AST_CAUSE_NORMAL_CLEARING:
+		case AST_CAUSE_USER_BUSY:
+		case AST_CAUSE_NO_USER_RESPONSE:
+		case AST_CAUSE_CALL_REJECTED:
+		case AST_CAUSE_DESTINATION_OUT_OF_ORDER:
+		case AST_CAUSE_NORMAL_UNSPECIFIED:
+		case AST_CAUSE_INCOMPATIBLE_DESTINATION:
+		return hangup_cause;
+
+		default: // use default one
+		return AST_CAUSE_NORMAL_CLEARING;
+	}
+}
+
 /*!
  * \brief Enqueue AT+CHLD1x or AT+CHUP hangup command
  * \param cpvt -- channel_pvt structure
@@ -834,7 +854,7 @@ EXPORT_DEF int at_enqueue_hangup(struct cpvt *cpvt, int call_idx, int release_ca
 			ATQ_CMD_DECLARE_DYN(CMD_AT_QHUP)
 		};
 
-		const int err = at_fill_generic_cmd(&cmds[0], "AT+QHUP=%d,%d\r", (int)release_cause, call_idx);
+		const int err = at_fill_generic_cmd(&cmds[0], "AT+QHUP=%d,%d\r", map_hangup_cause(release_cause), call_idx);
 		if (err) {
 			chan_quectel_err = E_UNKNOWN;
 			return err;

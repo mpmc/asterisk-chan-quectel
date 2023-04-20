@@ -707,7 +707,41 @@ EXPORT_DEF int at_parse_csca(char* str, char ** csca)
 }
 
 #/* */
-EXPORT_DEF int at_parse_clcc(char* str, unsigned * call_idx, unsigned * dir, unsigned * state, unsigned * mode, unsigned * mpty, char ** number, unsigned * toa)
+int at_parse_dsci(char* str, unsigned* call_idx, unsigned* dir, unsigned* state, unsigned* call_type, char** number, unsigned* toa)
+{
+	/*
+	 * ^DSCI: <id>,<dir>,<stat>,<type>,<number>,<num_type>[,<tone_info>]\r\n
+	 
+	 * examples
+	 *
+	 * ^DSCI: 2,1,4,0,+48XXXXXXXXX,145
+	 * ^DSCI: 2,1,6,0,+48XXXXXXXXX,145
+	 */
+
+	static const char delimiters[] = ":,,,,,,";
+	static const size_t nmarks = STRLEN(delimiters) - 1u;
+
+	char* marks[STRLEN(delimiters)];
+
+	if (mark_line(str, delimiters, marks) >= nmarks) {
+		if (sscanf(marks[0] + 1, "%u", call_idx) == 1 &&
+			sscanf(marks[1] + 1, "%u", dir) == 1 &&
+			sscanf(marks[2] + 1, "%u", state) == 1 &&
+			sscanf(marks[3] + 1, "%u", call_type) == 1 &&
+			sscanf(marks[5] + 1, "%u", toa) == 1)
+		{
+			*number = marks[4] + 1;
+			marks[5][0] = '\000';
+
+			return 0;
+		}
+	}
+
+	return -1;
+}
+
+#/* */
+int at_parse_clcc(char* str, unsigned* call_idx, unsigned* dir, unsigned* state, unsigned* mode, unsigned* mpty, char** number, unsigned* toa)
 {
 	/*
 	 * +CLCC:<id1>,<dir>,<stat>,<mode>,<mpty>[,<number>,<type>[,<alpha>[,<priority>]]]\r\n
@@ -719,25 +753,16 @@ EXPORT_DEF int at_parse_clcc(char* str, unsigned * call_idx, unsigned * dir, uns
 	 *   +CLCC: 1,1,4,0,0,"0079139131234",145
 	 *   +CLCC: 1,1,4,0,0,"+7913913ABCA",145
 	 */
-	char delimiters[] = ":,,,,,,";
-	char * marks[STRLEN(delimiters)];
+	static const char delimiters[] = ":,,,,,,";
+	char* marks[STRLEN(delimiters)];
 
-	*call_idx = 0;
-	*dir = 0;
-	*state = 0;
-	*mode = 0;
-	*mpty = 0;
-	*number = "";
-	*toa = 0;
-
-	if(mark_line(str, delimiters, marks) == ITEMS_OF(marks))
-	{
-		if(sscanf(marks[0] + 1, "%u", call_idx) == 1
-			&& sscanf(marks[1] + 1, "%u", dir) == 1
-			&& sscanf(marks[2] + 1, "%u", state) == 1
-			&& sscanf(marks[3] + 1, "%u", mode) == 1
-			&& sscanf(marks[4] + 1, "%u", mpty) == 1
-			&& sscanf(marks[6] + 1, "%u", toa) == 1)
+	if (mark_line(str, delimiters, marks) == ITEMS_OF(marks)) {
+		if (sscanf(marks[0] + 1, "%u", call_idx) == 1 &&
+			sscanf(marks[1] + 1, "%u", dir) == 1 &&
+			sscanf(marks[2] + 1, "%u", state) == 1 &&
+			sscanf(marks[3] + 1, "%u", mode) == 1 &&
+			sscanf(marks[4] + 1, "%u", mpty) == 1 &&
+			sscanf(marks[6] + 1, "%u", toa) == 1)
 		{
 			marks[5]++;
 			if(marks[5][0] == '"')
@@ -745,7 +770,7 @@ EXPORT_DEF int at_parse_clcc(char* str, unsigned * call_idx, unsigned * dir, uns
 			if(marks[6][-1] == '"')
 				marks[6]--;
 			*number = marks[5];
-			marks[6][0] = 0;
+			marks[6][0] = '\000';
 
 			return 0;
 		}

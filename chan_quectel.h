@@ -159,7 +159,6 @@ typedef struct pvt
 #define DATA_READ_TIMEOUT	10000				/* 10 seconds */
 
 	unsigned long		channel_instance;		/*!< number of channels created on this device */
-	unsigned int		rings;				/*!< ring/ccwa  number distributed to at_response_clcc() */
 
 	/* device caps */
 	unsigned int		use_ucs2_encoding:1;

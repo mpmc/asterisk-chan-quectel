@@ -394,24 +394,6 @@ static void activate_call(struct cpvt* cpvt)
 	}
 }
 
-static map_hangupcause(int hangup_cause)
-{
-	switch (hangup_cause) {
-		case 1:
-		case 16:
-		case 17:
-		case 18:
-		case 21:
-		case 27:
-		case 31:
-		case 88: // list of supportet cause codes
-		return hangup_cause;
-
-		default: // use default one
-		return AST_CAUSE_NORMAL_CLEARING;
-	}
-}
-
 #/* we has 2 case of call this function, when local side want terminate call and when called for cleanup after remote side alreay terminate call, CEND received and cpvt destroyed */
 static int channel_hangup(struct ast_channel* channel)
 {
@@ -428,7 +410,7 @@ static int channel_hangup(struct ast_channel* channel)
 		ast_debug(1, "[%s] Hanging up call - idx:%d cause:%d needed:%d\n", PVT_ID(pvt), cpvt->call_idx, hangup_cause, need_hangup);
 
 		if (need_hangup) {
-			if (at_enqueue_hangup(cpvt, cpvt->call_idx, map_hangupcause(hangup_cause)))
+			if (at_enqueue_hangup(cpvt, cpvt->call_idx, hangup_cause))
 				ast_log(LOG_ERROR, "[%s] Error adding AT+CHUP command to queue, call not terminated!\n", PVT_ID(pvt));
 			else
 				CPVT_RESET_FLAGS(cpvt, CALL_FLAG_NEED_HANGUP);
@@ -1457,11 +1439,6 @@ EXPORT_DEF struct ast_channel* new_channel(
 			channel->readformat	= AST_FORMAT_SLINEAR;
 			channel->writeformat	= AST_FORMAT_SLINEAR;
 #endif /* ^10- */
-
-			if (ast_state == AST_STATE_RING)
-			{
-				ast_channel_rings_set(channel, 1);
-			}
 
 			set_channel_vars(pvt, channel);
 

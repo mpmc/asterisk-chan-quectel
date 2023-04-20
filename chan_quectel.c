@@ -431,7 +431,6 @@ static void disconnect_quectel(struct pvt* pvt)
 	pvt_on_remove_last_channel(pvt);
 
 	pvt->dtmf_digit = 0;
-	pvt->rings = 0;
 
 //	else
 	{
