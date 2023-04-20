@@ -65,17 +65,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Rev: " PACKAGE_REVISION " $")
 #include "mutils.h"			/* ITEMS_OF() */
 #include "at_read.h"
 #include "cli.h"
-#include "app.h"
-#include "manager.h"
 #include "channel.h"			/* channel_queue_hangup() */
 #include "dc_config.h"			/* dc_uconfig_fill() dc_gconfig_fill() dc_sconfig_fill()  */
 #include "pdiscovery.h"			/* pdiscovery_lookup() pdiscovery_init() pdiscovery_fini() */
 #include "smsdb.h"
 #include "error.h"
 #include "errno.h"
-
-
-
 
 EXPORT_DEF const char * const dev_state_strs[4] = { "stop", "restart", "remove", "start" };
 EXPORT_DEF public_state_t * gpublic;
@@ -349,7 +344,6 @@ EXPORT_DEF int opentty(const char* dev, char ** lockfile, int typ)
 		flags = errno;
 		closetty(fd, lockfile);
 		snprintf(buf, sizeof(buf), "Open Failed\r\nErrorCode: %d", flags);
-		manager_event_message_raw("QuectelPortFail", dev, buf);
 		ast_log(LOG_WARNING, "unable to open %s: %s\n", dev, strerror(flags));
 		return -1;
 	}
@@ -478,8 +472,6 @@ static void disconnect_quectel(struct pvt* pvt)
 	ast_copy_string (PVT_STATE(pvt, audio_tty), CONF_UNIQ(pvt, audio_tty), sizeof (PVT_STATE(pvt, audio_tty)));
 
 	ast_verb (3, "[%s] Quectel has disconnected\n", PVT_ID(pvt));
-
-	manager_event_device_status(PVT_ID(pvt), "Disconnect");
 }
 
 #define SMS_INBOX_BIT(index)    ((sms_inbox_item_type)(1) << (index % SMS_INBOX_ITEM_BITS))
@@ -566,7 +558,6 @@ static void handle_expired_reports(struct pvt *pvt)
 			{ NULL, NULL },
 		};
 		start_local_channel(pvt, "report", dst, vars);
-		manager_event_report(PVT_ID(pvt), payload, payload_len, "", "", 0, 2, "");
 	}
 }
 
@@ -577,7 +568,7 @@ static void handle_expired_reports(struct pvt *pvt)
  * \retval 1 unloading
  */
 
-static void* do_monitor_phone (void* data)
+static void* do_monitor_phone(void* data)
 {
 	struct pvt*	pvt = (struct pvt*) data;
 	at_res_t	at_res;
@@ -695,10 +686,9 @@ e_restart:
 	return NULL;
 }
 
-static inline int start_monitor (struct pvt * pvt)
+static int start_monitor(struct pvt * pvt)
 {
-	if (ast_pthread_create_background (&pvt->monitor_thread, NULL, do_monitor_phone, pvt) < 0)
-	{
+	if (ast_pthread_create_background (&pvt->monitor_thread, NULL, do_monitor_phone, pvt) < 0) {
 		pvt->monitor_thread = AST_PTHREADT_NULL;
 		return 0;
 	}
@@ -846,7 +836,6 @@ static void pvt_start(struct pvt * pvt)
 
 	pvt->connected = 1;
 	pvt->current_state = DEV_STATE_STARTED;
-	manager_event_device_status(PVT_ID(pvt), "Connect");
 	ast_verb(3, "[%s] Quectel has connected, initializing...\n", PVT_ID(pvt));
 	return;
 
@@ -1002,8 +991,6 @@ EXPORT_DEF void pvt_on_create_1st_channel(struct pvt* pvt)
 	pvt->dtmf_begin_time.tv_usec = 0;
 	pvt->dtmf_end_time.tv_sec = 0;
 	pvt->dtmf_end_time.tv_usec = 0;
-
-	manager_event_device_status(PVT_ID(pvt), "Used");
 }
 
 #/* */
@@ -1014,7 +1001,6 @@ EXPORT_DEF void pvt_on_remove_last_channel(struct pvt* pvt)
 		ast_timer_close(pvt->a_timer);
 		pvt->a_timer = NULL;
 	}
-	manager_event_device_status(PVT_ID(pvt), "Free");
 }
 
 #define SET_BIT(dw_array,bitno)		do { (dw_array)[(bitno) >> 5] |= 1 << ((bitno) & 31) ; } while(0)
@@ -1885,9 +1871,6 @@ static int public_state_init(struct public_state * state)
 				smsdb_init();
 				cli_register();
 
-				app_register();
-				manager_register();
-
 				return AST_MODULE_LOAD_SUCCESS;
 			}
 			else
@@ -1931,12 +1914,7 @@ static void public_state_fini(struct public_state * state)
 	channel_tech.capabilities = ast_format_cap_destroy(channel_tech.capabilities);
 #endif /* ^10-13 */
 
-	/* Unregister the CLI & APP & MANAGER */
-
-	manager_unregister();
-
-	app_unregister();
-
+	/* Unregister the CLI */
 	cli_unregister();
 
 	discovery_stop(state);

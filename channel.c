@@ -33,7 +33,6 @@
 #include "at_command.h"
 #include "helpers.h"				/* get_at_clir_value()  */
 #include "at_queue.h"				/* write_all() TODO: move out */
-#include "manager.h"				/* manager_event_call_state_change() */
 
 #ifndef ESTRPIPE
 #define ESTRPIPE EPIPE
@@ -1333,7 +1332,6 @@ EXPORT_DEF void change_channel_state(struct cpvt * cpvt, unsigned newstate, int 
 					break;
 			}
 		}
-		manager_event_call_state_change(PVT_ID(pvt), call_idx, call_state2str(newstate));
 	}
 }
 

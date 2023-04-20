@@ -24,7 +24,6 @@
 #include "chan_quectel.h"
 #include "at_parse.h"
 #include "char_conv.h"
-#include "manager.h"
 #include "channel.h"				/* channel_queue_hangup() channel_queue_control() */
 #include "smsdb.h"
 #include "error.h"
@@ -63,25 +62,6 @@ EXPORT_DEF const char* at_res2str (at_res_t res)
 	return "UNDEFINED";
 }
 
-/*!
- * \brief Handle OK response
- * \param pvt -- pvt structure
- * \retval  0 success
- * \retval -1 error
- */
-
-static long uptime()
-{
-    struct sysinfo s_info;
-    int error = sysinfo(&s_info);
-    if(error != 0)
-    {
-        ast_log(LOG_ERROR,"Sysinfo error code %d\n", error);
-    }
-    return s_info.uptime;
-}
-
-
 static void request_clcc(struct pvt* pvt)
 {
 	if (at_enqueue_clcc(&pvt->sys_chan)) {
@@ -97,8 +77,6 @@ static int at_response_rcend(struct pvt * pvt)
 	int cc_cause   = 0;
 	struct cpvt * cpvt;
 
-	if (pvt->call_estb) return 0;
-
 	cpvt = active_cpvt(pvt);
 	if (cpvt) {
 
@@ -109,7 +87,6 @@ static int at_response_rcend(struct pvt * pvt)
 		CPVT_RESET_FLAGS(cpvt, CALL_FLAG_NEED_HANGUP);
 		PVT_STAT(pvt, calls_duration[cpvt->dir]) += duration;
 		change_channel_state(cpvt, CALL_STATE_RELEASED, cc_cause);
-		manager_event_cend(PVT_ID(pvt), call_index, duration, end_status, cc_cause);
 	}
 
 	return 0;
@@ -123,7 +100,6 @@ static int at_response_cend (struct pvt * pvt, const char* str)
 	int cc_cause   = 0;
 	struct cpvt * cpvt;
         
-        pvt->call_estb = 0;
 	request_clcc(pvt);
 
 	/*
@@ -137,25 +113,21 @@ static int at_response_cend (struct pvt * pvt, const char* str)
                 return 0;
 	}
 
-	ast_debug (1,	"[%s] CEND: call_index %d duration %d end_status %d cc_cause %d Line disconnected\n"
+	ast_debug (1, "[%s] CEND: call_index %d duration %d end_status %d cc_cause %d Line disconnected\n"
 				, PVT_ID(pvt), call_index, duration, end_status, cc_cause);
 
 
 	cpvt = active_cpvt(pvt);
-	if (cpvt)
-	{
-                voice_disable(pvt);
-                call_index = cpvt->call_idx;
-                ast_debug (1,	"[%s] CEND: call_index %d duration %d end_status %d cc_cause %d Line disconnected\n"
-				, PVT_ID(pvt), call_index, duration, end_status, cc_cause);
+	if (cpvt) {
+		voice_disable(pvt);
+		call_index = cpvt->call_idx;
+		ast_debug (1,	"[%s] CEND: call_index %d duration %d end_status %d cc_cause %d Line disconnected\n"
+			, PVT_ID(pvt), call_index, duration, end_status, cc_cause);
 		CPVT_RESET_FLAGS(cpvt, CALL_FLAG_NEED_HANGUP);
 		PVT_STAT(pvt, calls_duration[cpvt->dir]) += duration;
 		change_channel_state(cpvt, CALL_STATE_RELEASED, cc_cause);
-		manager_event_cend(PVT_ID(pvt), call_index, duration, end_status, cc_cause);
 	}
-
-	else
-	{
+	else {
 		ast_log (LOG_ERROR, "[%s] CEND event for unknown call idx '%d'\n", PVT_ID(pvt), call_index);
 	}
  
@@ -198,6 +170,7 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 			case CMD_AT_QINDCFG_CSQ:
 			case CMD_AT_QINDCFG_ACT:
 			case CMD_AT_DSCI:
+			case CMD_AT_QCRCIND:
 				ast_debug (3, "[%s] %s sent successfully\n", PVT_ID(pvt), at_cmd2str (ecmd->cmd));
 				break;
 
@@ -206,7 +179,6 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CREG_INIT:
-                                pvt->call_estb = 0;
 				ast_debug (1, "[%s] registration info enabled\n", PVT_ID(pvt));
 				break;
 
@@ -222,25 +194,28 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 				ast_debug (1, "[%s] Quectel has voice support\n", PVT_ID(pvt));
 
 				pvt->has_voice = 1;
-                                pvt->is_simcom = 0;
-       
+				pvt->is_simcom = 0;
 				break;
+
 			case CMD_AT_CVOICE2:
+			{
 				ast_debug (1, "[%s] Simcom has voice support\n", PVT_ID(pvt));
 
 				pvt->has_voice = 1;
-                                pvt->is_simcom = 1;
-                                pvt->t0 = 0;
+				pvt->is_simcom = 1;
 
-                                static const char cmd_atrcend[] = "AT$QCRCIND=1\r";
-                                static const at_queue_cmd_t cmds1[] = {
-		                ATQ_CMD_DECLARE_STIT(CMD_AT_Z, cmd_atrcend, ATQ_CMD_TIMEOUT_MEDIUM, 0),
-		                                                       }; 
-	                        if (at_queue_insert_const(&pvt->sys_chan, cmds1, ITEMS_OF(cmds1), 1) != 0) {
-		                chan_quectel_err = E_QUEUE;
-		                return -1;
-	                        }
+				static const char cmd_atqcrcind[] = "AT$QCRCIND=1\r";
+				static const at_queue_cmd_t cmds[] = {
+					ATQ_CMD_DECLARE_STIT(CMD_AT_QCRCIND, cmd_atqcrcind, ATQ_CMD_TIMEOUT_MEDIUM, 0),
+				};
+
+				if (at_queue_insert_const(&pvt->sys_chan, cmds, ITEMS_OF(cmds), 1) != 0) {
+					chan_quectel_err = E_QUEUE;
+					return -1;
+				}
+
 				break;
+			}
 
 /*
 			case CMD_AT_CLIP:
@@ -276,7 +251,6 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 					pvt->timeout = DATA_READ_TIMEOUT;
 					pvt->initialized = 1;
 					ast_verb (3, "[%s] Quectel initialized and ready\n", PVT_ID(pvt));
-					manager_event_device_status(PVT_ID(pvt), "Initialize");
 				}
 				break;
 
@@ -304,18 +278,15 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CPCMREG1:
-				pvt->t0 = 0;
 				ast_debug(1, "[%s] %s sent successfully\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
 				if (!pvt->initialized) {
 					pvt->timeout = DATA_READ_TIMEOUT;
 					pvt->initialized = 1;
 					ast_verb (3, "[%s] Quectel initialized and ready\n", PVT_ID(pvt));
-					manager_event_device_status(PVT_ID(pvt), "Initialize");
 				}
 				break;
 
 			case CMD_AT_CPCMREG0:
-				pvt->t0 = 0;
 				ast_debug(1, "[%s] %s sent successfully\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
 				break;
 
@@ -488,7 +459,8 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 			case CMD_AT_QINDCFG_CSQ:
 			case CMD_AT_QINDCFG_ACT:
 			case CMD_AT_DSCI:
-				ast_debug (1, "[%s] Error enabling indications\n", PVT_ID(pvt));
+			case CMD_AT_QCRCIND:
+				ast_debug(1, "[%s] Error enabling indications\n", PVT_ID(pvt));
 				break;
 
 			case CMD_AT_CVOICE:
@@ -575,24 +547,11 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CPCMREG1:
-				log_cmd_response_error(pvt, ecmd, "[%s] %s Enable audio failed, retrying...\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
-				if (pvt->t0 >= 5) {
-					pvt->t0 = 0;
-					break;
-				}
-				sleep(1);
-				pvt->t0 += 1;
-				voice_enable(pvt);
+				log_cmd_response_error(pvt, ecmd, "[%s] %s Enable audio failed\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
 				break;
 
 			case CMD_AT_CPCMREG0:
-				if (pvt->t0 >= 5) {
-					pvt->t0 = 0;
-					break;
-				}
-				sleep(1);
-				pvt->t0 += 1;
-				voice_disable(pvt);
+				log_cmd_response_error(pvt, ecmd, "[%s] %s Disable audio failed\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
 				break;
 
 			case CMD_AT_CHUP:
@@ -602,8 +561,8 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CMGR:
-//				log_cmd_response_error(pvt, ecmd, "[%s] Error reading SMS message, resetting index\n", PVT_ID(pvt));
-                                pvt->incoming_sms_index = -1U;
+				// log_cmd_response_error(pvt, ecmd, "[%s] Error reading SMS message, resetting index\n", PVT_ID(pvt));
+                pvt->incoming_sms_index = -1U;
 				break;
 
 			case CMD_AT_CMGD:
@@ -632,7 +591,6 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 							{ NULL, NULL },
 						};
 						start_local_channel(pvt, "report", dst, vars);
-						manager_event_report(PVT_ID(pvt), payload, payload_len, "", "", 0, 0, "");
 					}
 				}
 
@@ -851,10 +809,7 @@ static void handle_clcc(struct pvt* pvt,
 
 			if(cpvt) {
 				/* FIXME: delay until CLCC handle? */
-				if (!pvt->is_simcom) pvt->t0 = uptime();
-				pvt->call_estb = 1;
 				PVT_STAT(pvt, calls_answered[cpvt->dir]) ++;
-				change_channel_state(cpvt, CALL_STATE_ACTIVE, 0);
 				if(CPVT_TEST_FLAG(cpvt, CALL_FLAG_CONFERENCE)) at_enqueue_conference(cpvt);
 			}
 			else {
@@ -916,29 +871,10 @@ static void handle_clcc(struct pvt* pvt,
 		
 		case CALL_STATE_RELEASED: // CALL END
 		{
-			pvt->ring = 1;
+			pvt->ring = 0;
 			pvt->dialing = 0;
 			pvt->cwaiting = 0;
 
-			int duration   = 0;
-			int end_status = 0;
-			int cc_cause   = 0;
-
-			struct cpvt *cpvt = pvt_find_cpvt(pvt, call_idx);
-
-			ast_debug(1, "[%s] CALL END - idx:%u duration:%d end_status:%d cc_cause:%d Line disconnected\n"
-						, PVT_ID(pvt), call_idx, duration, end_status, cc_cause);
-
-			if (cpvt) {
-				if (pvt->call_estb) duration = uptime() - pvt->t0;
-				pvt->call_estb = 0;
-				CPVT_RESET_FLAGS(cpvt, CALL_FLAG_NEED_HANGUP);
-				PVT_STAT(pvt, calls_duration[cpvt->dir]) += duration;
-				manager_event_cend(PVT_ID(pvt), call_idx, duration, end_status, cc_cause);
-			}
-			else {
-				ast_log(LOG_ERROR, "[%s] CALL END event for unknown call idx %u\n", PVT_ID(pvt), call_idx);
-			}
 			break;
 		}
 
@@ -1295,7 +1231,6 @@ static int at_response_cmgr(struct pvt* pvt, char* str, size_t len)
 
 	const struct at_queue_cmd * ecmd = at_queue_head_cmd(pvt);
 
-	manager_event_message("QuectelNewCMGR", PVT_ID(pvt), str);
 	if (ecmd) {
 		if (ecmd->res == RES_CMGR || ecmd->cmd == CMD_USER) {
 			at_queue_handle_result (pvt, RES_CMGR);
@@ -1333,7 +1268,6 @@ static int at_response_cmgr(struct pvt* pvt, char* str, size_t len)
 						{ NULL, NULL },
 					};
 					start_local_channel(pvt, "report", oa, vars);
-					manager_event_report(PVT_ID(pvt), payload, payload_len, scts, dt, success, 1, status_report_str);
 				}
 				break;
 			case PDUTYPE_MTI_SMS_DELIVER:
@@ -1361,8 +1295,6 @@ receive_as_is:
 				ast_verb (1, "[%s] Got full SMS from %s: '%s'\n", PVT_ID(pvt), oa, fullmsg);
 				ast_base64encode (text_base64, (unsigned char*)fullmsg, fullmsg_len, sizeof(text_base64));
 
-				manager_event_new_sms(PVT_ID(pvt), oa, fullmsg);
-				manager_event_new_sms_base64(PVT_ID(pvt), oa, text_base64);
 				{
 					channel_var_t vars[] =
 					{
@@ -1452,8 +1384,6 @@ static int at_response_cusd(struct pvt* pvt, char* str, size_t len)
 	char typebuf[2];
 	const char*	typestr;
 
-	manager_event_message("QuectelNewCUSD", PVT_ID(pvt), str);
-
 	if (at_parse_cusd(str, &type, &cusd, &dcs)) {
 		ast_verb(1, "[%s] Error parsing CUSD: '%.*s'\n", PVT_ID(pvt), (int) len, str);
 		return -1;
@@ -1505,10 +1435,6 @@ static int at_response_cusd(struct pvt* pvt, char* str, size_t len)
 
 	ast_verb (1, "[%s] Got USSD type %d '%s': '%s'\n", PVT_ID(pvt), type, typestr, cusd_utf8_str);
 	ast_base64encode (text_base64, (unsigned char*)cusd_utf8_str, res, sizeof(text_base64));
-
-	// TODO: pass type
-	manager_event_new_ussd(PVT_ID(pvt), cusd_utf8_str);
-	manager_event_message("QuectelNewUSSDBase64", PVT_ID(pvt), text_base64);
 
 	{
 		channel_var_t vars[] =
@@ -1669,12 +1595,10 @@ static int at_response_creg (struct pvt* pvt, char* str, size_t len)
 			at_enqueue_set_ccwa(&pvt->sys_chan, CONF_SHARED(pvt, callwaiting));
 //#endif
 		pvt->gsm_registered = 1;
-		manager_event_device_status(PVT_ID(pvt), "Register");
 	}
 	else
 	{
 		pvt->gsm_registered = 0;
-		manager_event_device_status(PVT_ID(pvt), "Unregister");
 	}
 
 	if (lac)
@@ -1854,7 +1778,6 @@ int at_response(struct pvt* pvt, const struct iovec* iov, int iovcnt, at_res_t a
 							{ NULL, NULL },
 						};
 						start_local_channel(pvt, "report", dst, vars);
-						manager_event_report(PVT_ID(pvt), payload, payload_len, "", "", 1, 0, "");
 					}
 				}
 				return 0;

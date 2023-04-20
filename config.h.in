@@ -6,12 +6,6 @@
 /* name of asterisk module */
 #undef AST_MODULE
 
-/* Build Application extensions */
-#undef BUILD_APPLICATIONS
-
-/* Build Manager extensions */
-#undef BUILD_MANAGER
-
 /* Define to 1 if you have HAVE_AST_CONTROL_SRCCHANGE in asterisk/frame.h */
 #undef HAVE_AST_CONTROL_SRCCHANGE
 

@@ -51,22 +51,6 @@ AC_ARG_ENABLE(
 	[ enable_debug="no"]
 )
 
-dnl  Optionally disable manager.
-AC_ARG_ENABLE(
-	[manager],
-	AS_HELP_STRING([--enable-manager], [enable manager code]),
-	[ if test "x$enable_manager" != "xyes" ; then enable_manager="no" ; fi ],
-	[ enable_manager="yes" ]
-)
-
-dnl  Optionally disable applications
-AC_ARG_ENABLE(
-	[apps],
-	AS_HELP_STRING([--enable-apps], [enable applications code]),
-	[ if test "x$enable_apps" != "xyes" ; then enable_apps="no" ; fi],
-	[ enable_apps="yes" ]
-)
-
 dnl Checks for programs.
 AC_PROG_CC([gcc cl cc])
 AC_PROG_CPP
@@ -230,14 +214,6 @@ dnl Asterisk header files use lots of old style declarations, ignore those.
 dnl > warning: ‘inline’ is not at beginning of declaration [-Wold-style-declaration]
 dnl >   static void force_inline _ast_assert(...)
 CFLAGS="$CFLAGS -Wno-old-style-declaration"
-
-if test "x$enable_manager" = "xyes" ; then
-  AC_DEFINE([BUILD_MANAGER],[1], [Build Manager extensions])
-fi
-
-if test "x$enable_apps" = "xyes" ; then
-  AC_DEFINE([BUILD_APPLICATIONS],[1],[Build Application extensions])
-fi
 
 case "$target_os" in
     linux*)

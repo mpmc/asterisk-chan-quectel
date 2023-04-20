@@ -15,7 +15,6 @@
 #include "at_queue.h"			/* write_all() */
 #include "at_read.h"			/* at_wait() at_read() at_read_result_iov() at_read_result_classification() */
 #include "chan_quectel.h"		/* opentty() closetty() */
-#include "manager.h"			/* manager_event_message_raw() */
 
 /*
 static const char sys_bus_usb_drivers_usb[] = "/sys/bus/usb/drivers/usb";
@@ -511,16 +510,13 @@ static int pdiscovery_do_cmd(const struct pdiscovery_request * req, int fd, cons
 					return 0;
 			} else {
 				snprintf(buf, sizeof(buf), "Read Failed\r\nErrorCode: %d", errno);
-				manager_event_message_raw("QuectelPortFail", name, buf);
 				ast_log (LOG_ERROR, "[%s discovery] read from %s failed: %s\n", req->name, name, strerror(errno));
 				return -1;
 			}
 		}
-		manager_event_message_raw("QuectelPortFail", name, "Response Failed");
 		ast_log (LOG_ERROR, "[%s discovery] failed to get valid response from %s in %d msec\n", req->name, name, PDISCOVERY_TIMEOUT);
 	} else {
 		snprintf(buf, sizeof(buf), "Write Failed\r\nErrorCode: %d", errno);
-		manager_event_message_raw("QuectelPortFail", name, buf);
 		ast_log (LOG_ERROR, "[%s discovery] write to %s failed: %s\n", req->name, name, strerror(errno));
 	}
 	return 1;

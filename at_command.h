@@ -78,6 +78,7 @@
 	_( AT_QINDCFG_CSQ, 	"AT+QINDCFG=\"csq\",1,0") \
 	_( AT_QINDCFG_ACT, 	"AT+QINDCFG=\"act\",1,0") \
 	_( AT_DSCI,			"AT+^DSCI=1") \
+	_( AT_QCRCIND,		"AT$QCRCIND=1") \
 /* AT_COMMANDS_TABLE */
 
 typedef enum {
