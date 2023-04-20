@@ -105,9 +105,6 @@ EXPORT_DEF void cpvt_free(struct cpvt* cpvt)
 			task->cpvt = &pvt->sys_chan;
 		}
 	}
-	/* drop last_dialed_cpvt if need */
-	if(pvt->last_dialed_cpvt == cpvt)
-		pvt->last_dialed_cpvt = NULL;
 
 	if(PVT_NO_CHANS(pvt)) {
 		pvt_on_remove_last_channel(pvt);
@@ -138,6 +135,19 @@ EXPORT_DEF struct cpvt * active_cpvt(struct pvt * pvt)
 	}
 
 	return 0;
+}
+
+struct cpvt* last_initialized_cpvt(struct pvt * pvt)
+{
+	struct cpvt * cpvt;
+	struct cpvt * res = NULL;
+
+	AST_LIST_TRAVERSE(&pvt->chans, cpvt, entry) {
+		if(CPVT_IS_SOUND_SOURCE(cpvt) || (cpvt)->state == CALL_STATE_INIT)
+			res = cpvt;
+	}
+
+	return res;
 }
 
 EXPORT_DEF void voice_enable(struct pvt * pvt)

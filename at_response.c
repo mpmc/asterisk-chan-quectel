@@ -256,9 +256,6 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 
 			case CMD_AT_D:
 				pvt->dialing = 1;
-				if (task->cpvt != &pvt->sys_chan) {
-					pvt->last_dialed_cpvt = task->cpvt;
-				}
 				/* fall through */
 			case CMD_AT_A:
 			case CMD_AT_CHLD_2x:
@@ -730,99 +727,86 @@ static void handle_clcc(struct pvt* pvt,
 	const char* number,
 	unsigned type)
 {
-	ast_debug(3, "[%s] CLCC idx:%u dir:%u state:%u mode:%u mpty:%u number:%s type:%u\n", PVT_ID(pvt), call_idx, dir, state, mode, mpty, number, type);
-
 	struct cpvt* cpvt = pvt_find_cpvt(pvt, (int)call_idx);
 
 	if(cpvt) {
 		/* cpvt alive */
 		CPVT_SET_FLAGS(cpvt, CALL_FLAG_ALIVE);
-		if(dir == cpvt->dir) {
+
+		if(dir != cpvt->dir) {
+			ast_log(LOG_ERROR, "[%s] CLCC call idx:%d - direction mismatch %d/%d\n", PVT_ID(pvt), cpvt->call_idx, dir, cpvt->dir);
+			return;
+		}
+
+		if (mpty == 0 || mpty == 1) {
 			if(mpty)
 				CPVT_SET_FLAGS(cpvt, CALL_FLAG_MULTIPARTY);
 			else
 				CPVT_RESET_FLAGS(cpvt, CALL_FLAG_MULTIPARTY);
+		}
 
-			if(state != cpvt->state) {
-				change_channel_state(cpvt, state, 0);
-			}
+		if(state != cpvt->state) {
+			change_channel_state(cpvt, state, 0);
 		}
 		else {
-			ast_log(LOG_ERROR, "[%s] CLCC call idx %d direction mismatch %d/%d\n", PVT_ID(pvt), cpvt->call_idx, dir, cpvt->dir);
 			return;
 		}
 	}
+	else {
+		switch (state)
+		{
+			case CALL_STATE_DIALING:
+			case CALL_STATE_ALERTING:
+			cpvt = last_initialized_cpvt(pvt);
+			if (cpvt) {
+				cpvt->call_idx = (short)call_idx;
+				change_channel_state(cpvt, state, 0);				
+			} else {
+				at_enqueue_hangup(&pvt->sys_chan, call_idx, AST_CAUSE_CALL_REJECTED);
+				ast_log(LOG_ERROR, "[%s] answered unexisting incoming call - idx:%d, hanging up!\n", PVT_ID(pvt), call_idx);
+				return;
+			}
+			break;
+		}
+	}
+
+	if (cpvt || state == CALL_STATE_INCOMING) {
+		ast_debug(3, "[%s] CLCC idx:%u dir:%u state:%u mode:%u mpty:%u number:%s type:%u\n", PVT_ID(pvt), call_idx, dir, state, mode, mpty, number, type);		
+	}
+	else {
+		ast_log(LOG_WARNING, "[%s] CLCC (not found) idx:%u dir:%u state:%u mode:%u mpty:%u number:%s type:%u\n", PVT_ID(pvt), call_idx, dir, state, mode, mpty, number, type);			
+	}
 
 	switch(state) {
-		case CALL_STATE_DIALING: // CALL ORIGINAL
+		case CALL_STATE_ACTIVE:
+		break; // do nothing
+
+		case CALL_STATE_DIALING:
 		{
 			pvt->dialing = 1;
 			pvt->cwaiting = 0;
 			pvt->ring = 0;
-
-			struct cpvt *cpvt = pvt->last_dialed_cpvt;
-			pvt->last_dialed_cpvt = NULL;
-
-			if (!cpvt) {
-				ast_log(LOG_ERROR, "[%s] CALL ORIGINAL %u for unknown ATD\n", PVT_ID(pvt), call_idx);
-				break;
-			}
-
-			ast_debug(1, "[%s] CALL ORIGINAL - idx:%u\n", PVT_ID(pvt), call_idx);
 
 			if (pvt->is_simcom) {
 				sleep(1);
 				voice_enable(pvt);
 			}
-
-			if((int)call_idx >= MIN_CALL_IDX && (int)call_idx <= MAX_CALL_IDX) {
-				/* set REAL call idx */
-				/* WARNING if direction mismatch
-					cpvt->dir = CALL_DIR_OUTGOING;
-				*/
-				cpvt->call_idx = (short)call_idx;
-				change_channel_state(cpvt, CALL_STATE_DIALING, 0);
-				/* TODO: move to CONN ? */
-				/*
-				if(pvt->volume_sync_step == VOLUME_SYNC_BEGIN)
-				{
-					pvt->volume_sync_step = VOLUME_SYNC_BEGIN;
-					if (at_enqueue_volsync(cpvt))
-					{
-						ast_log (LOG_ERROR, "[%s] Error synchronize audio level\n", PVT_ID(pvt));
-					}
-					else
-						pvt->volume_sync_step++;
-				}
-				*/
-			}
 			break;
 		}
 
-		case CALL_STATE_ALERTING: // CALL_CONNECT
+		case CALL_STATE_ALERTING:
 		{
 			pvt->dialing = 1;
 			pvt->cwaiting = 0;
 			pvt->ring = 0;
 
-			ast_debug(1, "[%s] CALL CONNECT - idx:%u\n", PVT_ID(pvt), call_idx);
-
-			if(cpvt) {
-				/* FIXME: delay until CLCC handle? */
-				PVT_STAT(pvt, calls_answered[cpvt->dir]) ++;
-				if(CPVT_TEST_FLAG(cpvt, CALL_FLAG_CONFERENCE)) at_enqueue_conference(cpvt);
-			}
-			else {
-				at_enqueue_hangup(&pvt->sys_chan, call_idx, AST_CAUSE_CALL_REJECTED);
-				ast_log(LOG_ERROR, "[%s] answered unexisting incoming call - idx:%d, hanging up!\n", PVT_ID(pvt), call_idx);
-			}
+			PVT_STAT(pvt, calls_answered[cpvt->dir]) ++;
+			if(CPVT_TEST_FLAG(cpvt, CALL_FLAG_CONFERENCE)) at_enqueue_conference(cpvt);
 			break;
 		}
 
 		case CALL_STATE_INCOMING:
 		{
-			ast_debug(1, "[%s] CALL INCOMING - idx:%u\n", PVT_ID(pvt), call_idx);
-
 			pvt->ring = 1;
 			pvt->dialing = 0;
 			pvt->cwaiting = 0;
@@ -845,8 +829,6 @@ static void handle_clcc(struct pvt* pvt,
 
 		case CALL_STATE_WAITING:
 		{
-			ast_debug(1, "[%s] CALL WAITING - idx:%u dir:%u\n", PVT_ID(pvt), call_idx, dir);
-
 			pvt->cwaiting = 1;
 			pvt->ring = 0;
 			pvt->dialing = 0;
@@ -874,12 +856,11 @@ static void handle_clcc(struct pvt* pvt,
 			pvt->ring = 0;
 			pvt->dialing = 0;
 			pvt->cwaiting = 0;
-
 			break;
 		}
 
 		default:
-		ast_log(LOG_WARNING, "[%s] Unhandled call state event - idx:%u call_state:%d\n", PVT_ID(pvt), call_idx, state);
+		ast_log(LOG_WARNING, "[%s] Unhandled call state event - idx:%u call_state:%s-%u)\n", PVT_ID(pvt), call_idx, call_state2str((call_state_t)state), state);
 		break;
 	}
 }
@@ -976,7 +957,7 @@ static int at_response_dsci(struct pvt* pvt, char* str)
 
 	switch (call_state) {
 		case CALL_STATE_RELEASED: // released call will not be listed by AT+CLCC command, handle directly
-		handle_clcc(pvt, call_index, call_dir, call_state, call_type, 0u, number, number_type);
+		handle_clcc(pvt, call_index, call_dir, call_state, call_type, 2u, number, number_type);
 		break;
 
 		default: // request CLCC anyway
@@ -1699,9 +1680,6 @@ static void at_response_busy(struct pvt* pvt, enum ast_control_frame_type contro
 {
 	const struct at_queue_task * task = at_queue_head_task (pvt);
 	struct cpvt* cpvt = task->cpvt;
-
-	if(cpvt == &pvt->sys_chan)
-		cpvt = pvt->last_dialed_cpvt;
 
 	if(cpvt)
 	{

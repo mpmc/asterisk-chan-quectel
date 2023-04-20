@@ -94,6 +94,7 @@ EXPORT_DECL void cpvt_free(struct cpvt* cpvt);
 
 EXPORT_DECL struct cpvt * pvt_find_cpvt(struct pvt * pvt, int call_idx);
 EXPORT_DECL struct cpvt * active_cpvt(struct pvt * pvt);
+struct cpvt* last_initialized_cpvt(struct pvt * pvt);
 EXPORT_DECL void voice_enable(struct pvt * pvt);
 EXPORT_DECL void voice_disable(struct pvt * pvt);
 EXPORT_DECL const char * pvt_call_dir(const struct pvt * pvt);

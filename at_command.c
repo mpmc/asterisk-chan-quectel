@@ -804,6 +804,9 @@ static int map_hangup_cause(int hangup_cause)
 		case AST_CAUSE_INCOMPATIBLE_DESTINATION:
 		return hangup_cause;
 
+		case AST_CAUSE_NO_ANSWER:
+		return AST_CAUSE_NO_USER_RESPONSE;
+
 		default: // use default one
 		return AST_CAUSE_NORMAL_CLEARING;
 	}
@@ -839,10 +842,6 @@ EXPORT_DEF int at_enqueue_hangup(struct cpvt *cpvt, int call_idx, int release_ca
 				}
 			}
 		}
-
-		/* early AT+CHUP before ^ORIG for outgoing call may not get ^CEND in future */
-		if(cpvt->state == CALL_STATE_INIT)
-			pvt->last_dialed_cpvt = 0;
 
 		if (at_queue_insert(cpvt, cmds, ITEMS_OF(cmds), 1) != 0) {
 			chan_quectel_err = E_QUEUE;

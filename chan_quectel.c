@@ -405,7 +405,7 @@ static void disconnect_quectel(struct pvt* pvt)
 	}
 
 	at_queue_flush(pvt);
-	pvt->last_dialed_cpvt = NULL;
+
     if (CONF_UNIQ(pvt, uac)) {
 		if (pvt->icard) snd_pcm_close(pvt->icard);
 		if (pvt->ocard)	snd_pcm_close(pvt->ocard);
