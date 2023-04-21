@@ -1176,9 +1176,18 @@ static int channel_devicestate (void* data)
 #/* */
 static int channel_indicate (struct ast_channel* channel, int condition, const void* data, attribute_unused size_t datalen)
 {
+	ast_debug(1, "[%s] Requested indication %d\n", ast_channel_name(channel), condition);
+
+	struct cpvt* cpvt = ast_channel_tech_pvt(channel);
+	struct pvt* pvt = NULL;
 	int res = 0;
 
-	ast_debug (1, "[%s] Requested indication %d\n", ast_channel_name(channel), condition);
+	if (!cpvt || cpvt->channel != channel || !cpvt->pvt) {
+		ast_log (LOG_WARNING, "call on unreferenced %s\n", ast_channel_name(channel));
+	}
+	else {
+		pvt = cpvt->pvt;
+	}
 
 	switch (condition)
 	{
@@ -1202,11 +1211,21 @@ static int channel_indicate (struct ast_channel* channel, int condition, const v
 			break;
 
 		case AST_CONTROL_HOLD:
-			ast_moh_start (channel, data, NULL);
+			if (pvt) {
+				ast_mutex_lock(&pvt->lock);
+				at_enqueue_mute(cpvt, 1);
+				ast_mutex_unlock(&pvt->lock);
+			}
+			ast_moh_start(channel, data, NULL);
 			break;
 
 		case AST_CONTROL_UNHOLD:
-			ast_moh_stop (channel);
+			if (cpvt) {
+				ast_mutex_lock(&pvt->lock);
+				at_enqueue_mute(cpvt, 0);
+				ast_mutex_unlock(&pvt->lock);
+			}
+			ast_moh_stop(channel);
 			break;
 
 		default:

@@ -6,7 +6,6 @@
 
 #include "ast_config.h"
 
-#include "export.h"		/* EXPORT_DECL EXPORT_DEF */
 #include "dc_config.h"		/* call_waiting_t */
 #include "mutils.h"		/* enum2str_def() ITEMS_OF() */
 
@@ -79,6 +78,8 @@
 	_( AT_QINDCFG_ACT, 	"AT+QINDCFG=\"act\",1,0") \
 	_( AT_DSCI,			"AT+^DSCI=1") \
 	_( AT_QCRCIND,		"AT$QCRCIND=1") \
+	_( AT_CMUT_0,		"AT+CMUT=0") \
+	_( AT_CMUT_1,		"AT+CMUT=1") \
 /* AT_COMMANDS_TABLE */
 
 typedef enum {
@@ -90,43 +91,30 @@ typedef enum {
 	SUPPRESS_ERROR_ENABLED
 } at_cmd_suppress_error_t;
 
-/*!
- * \brief Get the string representation of the given AT command
- * \param cmd -- the command to process
- * \return a string describing the given command
- */
-
-INLINE_DECL const char* at_cmd2str (at_cmd_t cmd)
-{
-	static const char * const cmds[] = {
-		AT_COMMANDS_TABLE(AT_CMD_AS_STRING)
-	};
-	return enum2str_def(cmd, cmds, ITEMS_OF(cmds), "UNDEFINED");
-}
-
 struct cpvt;
 
-EXPORT_DECL const char *at_cmd2str(at_cmd_t cmd);
-EXPORT_DECL int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_command);
-EXPORT_DECL int at_enqueue_ping(struct cpvt *cpvt);
-EXPORT_DECL int at_enqueue_cops(struct cpvt *cpvt);
-EXPORT_DECL int at_enqueue_sms(struct cpvt *cpvt, const char *number, const char *msg, unsigned validity_min, int report_req, const char *payload, size_t payload_len);
-EXPORT_DECL int at_enqueue_ussd(struct cpvt *cpvt, const char *code);
-EXPORT_DECL int at_enqueue_dtmf(struct cpvt *cpvt, char digit);
-EXPORT_DECL int at_enqueue_set_ccwa(struct cpvt *cpvt, unsigned call_waiting);
-EXPORT_DECL int at_enqueue_reset(struct cpvt *cpvt);
-EXPORT_DECL int at_enqueue_dial(struct cpvt *cpvt, const char *number, int clir);
-EXPORT_DECL int at_enqueue_answer(struct cpvt *cpvt);
-EXPORT_DECL int at_enqueue_user_cmd(struct cpvt *cpvt, const char *input);
-EXPORT_DECL void at_retrieve_next_sms(struct cpvt *cpvt, at_cmd_suppress_error_t suppress_error);
-EXPORT_DECL int at_enqueue_retrieve_sms(struct cpvt *cpvt, int index, at_cmd_suppress_error_t suppress_error);
-EXPORT_DECL int at_enqueue_delete_sms(struct cpvt *cpvt, int index);
-EXPORT_DECL int at_enqueue_hangup(struct cpvt *cpvt, int call_idx, int release_cause);
-EXPORT_DECL int at_enqueue_volsync(struct cpvt *cpvt);
-EXPORT_DECL int at_enqueue_clcc(struct cpvt *cpvt);
-EXPORT_DECL int at_enqueue_activate(struct cpvt *cpvt);
-EXPORT_DECL int at_enqueue_flip_hold(struct cpvt *cpvt);
-EXPORT_DECL int at_enqueue_conference(struct cpvt *cpvt);
-EXPORT_DECL void at_hangup_immediality(struct cpvt *cpvt);
+const char *at_cmd2str(at_cmd_t cmd);
+int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_command);
+int at_enqueue_ping(struct cpvt *cpvt);
+int at_enqueue_cops(struct cpvt *cpvt);
+int at_enqueue_sms(struct cpvt *cpvt, const char *number, const char *msg, unsigned validity_min, int report_req, const char *payload, size_t payload_len);
+int at_enqueue_ussd(struct cpvt *cpvt, const char *code);
+int at_enqueue_dtmf(struct cpvt *cpvt, char digit);
+int at_enqueue_set_ccwa(struct cpvt *cpvt, unsigned call_waiting);
+int at_enqueue_reset(struct cpvt *cpvt);
+int at_enqueue_dial(struct cpvt *cpvt, const char *number, int clir);
+int at_enqueue_answer(struct cpvt *cpvt);
+int at_enqueue_user_cmd(struct cpvt *cpvt, const char *input);
+void at_retrieve_next_sms(struct cpvt *cpvt, at_cmd_suppress_error_t suppress_error);
+int at_enqueue_retrieve_sms(struct cpvt *cpvt, int index, at_cmd_suppress_error_t suppress_error);
+int at_enqueue_delete_sms(struct cpvt *cpvt, int index);
+int at_enqueue_hangup(struct cpvt *cpvt, int call_idx, int release_cause);
+int at_enqueue_volsync(struct cpvt *cpvt);
+int at_enqueue_clcc(struct cpvt *cpvt);
+int at_enqueue_activate(struct cpvt *cpvt);
+int at_enqueue_flip_hold(struct cpvt *cpvt);
+int at_enqueue_conference(struct cpvt *cpvt);
+void at_hangup_immediality(struct cpvt *cpvt);
+int at_enqueue_mute(struct cpvt *cpvt, int mute);
 
 #endif /* CHAN_QUECTEL_AT_SEND_H_INCLUDED */

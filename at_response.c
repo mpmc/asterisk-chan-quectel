@@ -341,6 +341,14 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 				}
 				break;
 
+			case CMD_AT_CMUT_0:
+			ast_debug(1, "[%s] Uplink voice unmuted\n", PVT_ID(pvt));
+			break;
+
+			case CMD_AT_CMUT_1:			
+			ast_debug(1, "[%s] Uplink voice muted\n", PVT_ID(pvt));
+			break;
+
 			case CMD_USER:
 				break;
 
@@ -611,6 +619,14 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 			case CMD_AT_CUSD:
 				ast_verb (3, "[%s] Error sending USSD %p\n", PVT_ID(pvt), task);
 				log_cmd_response_error(pvt, ecmd, "[%s] Error sending USSD %p\n", PVT_ID(pvt), task);
+				break;
+
+			case CMD_AT_CMUT_0:
+				ast_debug(1, "[%s] Cannot unmute uplink voice\n", PVT_ID(pvt));
+				break;
+			
+			case CMD_AT_CMUT_1:			
+				ast_debug(1, "[%s] Cannot mute uplink voice\n", PVT_ID(pvt));
 				break;
 
 			default:

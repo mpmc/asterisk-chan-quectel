@@ -36,6 +36,20 @@ static const char cmd_chld2[]    = "AT+CHLD=2\r";
 static const char cmd_clcc[]     = "AT+CLCC\r";
 
 /*!
+ * \brief Get the string representation of the given AT command
+ * \param cmd -- the command to process
+ * \return a string describing the given command
+ */
+
+const char* at_cmd2str(at_cmd_t cmd)
+{
+	static const char * const cmds[] = {
+		AT_COMMANDS_TABLE(AT_CMD_AS_STRING)
+	};
+	return enum2str_def(cmd, cmds, ITEMS_OF(cmds), "UNDEFINED");
+}
+
+/*!
  * \brief Format and fill generic command
  * \param cmd -- the command structure
  * \param format -- printf format string
@@ -108,7 +122,7 @@ static int __attribute__ ((format(printf, 4, 5))) at_enqueue_generic(struct cpvt
  * \param from_command -- begin initialization from this command in list
  * \return 0 on success
  */
-EXPORT_DEF int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_command)
+int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_command)
 {
 	static const char cmd_z[] = "ATZ\r";
 	static const char cmd_ate0[] = "ATE0\r";
@@ -213,7 +227,7 @@ EXPORT_DEF int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_comman
  * \return 0 on success
  */
 
-EXPORT_DEF int at_enqueue_cops(struct cpvt *cpvt)
+int at_enqueue_cops(struct cpvt *cpvt)
 {
 	static const char cmd[] = "AT+COPS?\r";
 	static at_queue_cmd_t at_cmd = ATQ_CMD_DECLARE_ST(CMD_AT_COPS, cmd);
@@ -268,7 +282,7 @@ static int at_enqueue_pdu(struct cpvt *cpvt, const char *pdu, size_t length, siz
  * \param number -- the destination of the message
  * \param msg -- utf-8 encoded message
  */
-EXPORT_DEF int at_enqueue_sms(struct cpvt *cpvt, const char *destination, const char *msg, unsigned validity_minutes, int report_req, const char *payload, size_t payload_len)
+int at_enqueue_sms(struct cpvt *cpvt, const char *destination, const char *msg, unsigned validity_minutes, int report_req, const char *payload, size_t payload_len)
 {
 	ssize_t res;
 	pvt_t* pvt = cpvt->pvt;
@@ -319,7 +333,7 @@ EXPORT_DEF int at_enqueue_sms(struct cpvt *cpvt, const char *destination, const 
  * \param code the CUSD code to send
  */
 
-EXPORT_DEF int at_enqueue_ussd(struct cpvt *cpvt, const char *code)
+int at_enqueue_ussd(struct cpvt *cpvt, const char *code)
 {
 	static const char cmd[] = "AT+CUSD=1,\"";
 	static const char cmd_end[] = "\",15\r";
@@ -379,7 +393,7 @@ EXPORT_DEF int at_enqueue_ussd(struct cpvt *cpvt, const char *code)
  * \return -2 if digis is invalid, 0 on success
  */
 
-EXPORT_DEF int at_enqueue_dtmf(struct cpvt *cpvt, char digit)
+int at_enqueue_dtmf(struct cpvt *cpvt, char digit)
 {
 	switch (digit)
 	{
@@ -418,7 +432,7 @@ EXPORT_DEF int at_enqueue_dtmf(struct cpvt *cpvt, char digit)
  * \return 0 on success
  */
 
-EXPORT_DEF int at_enqueue_set_ccwa(struct cpvt *cpvt, unsigned call_waiting)
+int at_enqueue_set_ccwa(struct cpvt *cpvt, unsigned call_waiting)
 {
 	static const char cmd_ccwa_get[] = "AT+CCWA=1,2,1\r";
 	static const char cmd_ccwa_set[] = "AT+CCWA=%d,%d,%d\r";
@@ -464,7 +478,7 @@ EXPORT_DEF int at_enqueue_set_ccwa(struct cpvt *cpvt, unsigned call_waiting)
  * \return 0 on success
  */
 
-EXPORT_DEF int at_enqueue_reset(struct cpvt *cpvt)
+int at_enqueue_reset(struct cpvt *cpvt)
 {
 	static const char cmd[] = "AT+CFUN=1,1\r";
 	static const at_queue_cmd_t at_cmd = ATQ_CMD_DECLARE_ST(CMD_AT_CFUN, cmd);
@@ -484,7 +498,7 @@ EXPORT_DEF int at_enqueue_reset(struct cpvt *cpvt)
  * \param clir -- value of clir
  * \return 0 on success
  */
-EXPORT_DEF int at_enqueue_dial(struct cpvt *cpvt, const char *number, int clir)
+int at_enqueue_dial(struct cpvt *cpvt, const char *number, int clir)
 {
 	struct pvt *pvt = cpvt->pvt;
 	int err;
@@ -547,7 +561,7 @@ EXPORT_DEF int at_enqueue_dial(struct cpvt *cpvt, const char *number, int clir)
  * \param cpvt -- cpvt structure
  * \return 0 on success
  */
-EXPORT_DEF int at_enqueue_answer(struct cpvt *cpvt)
+int at_enqueue_answer(struct cpvt *cpvt)
 {
 	pvt_t* pvt = cpvt->pvt;
 	at_queue_cmd_t cmds[] = {
@@ -601,7 +615,7 @@ EXPORT_DEF int at_enqueue_answer(struct cpvt *cpvt)
  * \param cpvt -- cpvt structure
  * \return 0 on success
  */
-EXPORT_DEF int at_enqueue_activate(struct cpvt *cpvt)
+int at_enqueue_activate(struct cpvt *cpvt)
 {
 	at_queue_cmd_t cmds[] = {
 		ATQ_CMD_DECLARE_DYN(CMD_AT_CHLD_2x),
@@ -634,7 +648,7 @@ EXPORT_DEF int at_enqueue_activate(struct cpvt *cpvt)
  * \param pvt -- pvt structure
  * \return 0 on success
  */
-EXPORT_DEF int at_enqueue_flip_hold(struct cpvt *cpvt)
+int at_enqueue_flip_hold(struct cpvt *cpvt)
 {
 	static const at_queue_cmd_t cmds[] = {
 		ATQ_CMD_DECLARE_ST(CMD_AT_CHLD_2, cmd_chld2),
@@ -653,7 +667,7 @@ EXPORT_DEF int at_enqueue_flip_hold(struct cpvt *cpvt)
  * \param pvt -- pvt structure
  * \return 0 on success
  */
-EXPORT_DEF int at_enqueue_ping(struct cpvt *cpvt)
+int at_enqueue_ping(struct cpvt *cpvt)
 {
 	static const at_queue_cmd_t cmds[] = {
 		ATQ_CMD_DECLARE_STIT(CMD_AT, cmd_at, ATQ_CMD_TIMEOUT_SHORT, 0),
@@ -672,7 +686,7 @@ EXPORT_DEF int at_enqueue_ping(struct cpvt *cpvt)
  * \param input -- user's command
  * \return 0 on success
  */
-EXPORT_DEF int at_enqueue_user_cmd(struct cpvt *cpvt, const char *input)
+int at_enqueue_user_cmd(struct cpvt *cpvt, const char *input)
 {
 	if (at_enqueue_generic(cpvt, CMD_USER, 1, "%s\r", input) != 0) {
 		chan_quectel_err = E_QUEUE;
@@ -685,7 +699,7 @@ EXPORT_DEF int at_enqueue_user_cmd(struct cpvt *cpvt, const char *input)
  * \brief Start reading next SMS, if any
  * \param cpvt -- cpvt structure
  */
-EXPORT_DEF void at_retrieve_next_sms(struct cpvt *cpvt, at_cmd_suppress_error_t suppress_error)
+void at_retrieve_next_sms(struct cpvt *cpvt, at_cmd_suppress_error_t suppress_error)
 {
 	pvt_t *pvt = cpvt->pvt;
 	unsigned int i;
@@ -720,7 +734,7 @@ EXPORT_DEF void at_retrieve_next_sms(struct cpvt *cpvt, at_cmd_suppress_error_t 
  * \param index -- index of message in store
  * \return 0 on success
  */
-EXPORT_DEF int at_enqueue_retrieve_sms(struct cpvt *cpvt, int index, at_cmd_suppress_error_t suppress_error)
+int at_enqueue_retrieve_sms(struct cpvt *cpvt, int index, at_cmd_suppress_error_t suppress_error)
 {
 	pvt_t *pvt = cpvt->pvt;
 	int err;
@@ -769,7 +783,7 @@ error:
  * \param index -- index of message in store
  * \return 0 on success
  */
-EXPORT_DEF int at_enqueue_delete_sms(struct cpvt *cpvt, int index)
+int at_enqueue_delete_sms(struct cpvt *cpvt, int index)
 {
 	int err;
 	at_queue_cmd_t cmds[] = {
@@ -819,7 +833,7 @@ static int map_hangup_cause(int hangup_cause)
  * \return 0 on success
  */
 
-EXPORT_DEF int at_enqueue_hangup(struct cpvt *cpvt, int call_idx, int release_cause)
+int at_enqueue_hangup(struct cpvt *cpvt, int call_idx, int release_cause)
 {
 	struct pvt* pvt = cpvt->pvt;
 
@@ -873,7 +887,7 @@ EXPORT_DEF int at_enqueue_hangup(struct cpvt *cpvt, int call_idx, int release_ca
  * \return 0 on success
  */
 
-EXPORT_DEF int at_enqueue_volsync(struct cpvt *cpvt)
+int at_enqueue_volsync(struct cpvt *cpvt)
 {
 	static const char cmd1[] = "AT+CLVL=1\r";
 	static const char cmd2[] = "AT+CLVL=5\r";
@@ -894,7 +908,7 @@ EXPORT_DEF int at_enqueue_volsync(struct cpvt *cpvt)
  * \param cpvt -- cpvt structure
  * \return 0 on success
  */
-EXPORT_DEF int at_enqueue_clcc(struct cpvt *cpvt)
+int at_enqueue_clcc(struct cpvt *cpvt)
 {
 	static const at_queue_cmd_t at_cmd = ATQ_CMD_DECLARE_ST(CMD_AT_CLCC, cmd_clcc);
 
@@ -910,7 +924,7 @@ EXPORT_DEF int at_enqueue_clcc(struct cpvt *cpvt)
  * \param cpvt -- cpvt structure
  * \return 0 on success
  */
-EXPORT_DEF int at_enqueue_conference(struct cpvt *cpvt)
+int at_enqueue_conference(struct cpvt *cpvt)
 {
 	static const char cmd_chld3[] = "AT+CHLD=3\r";
 	static const at_queue_cmd_t cmds[] = {
@@ -930,7 +944,7 @@ EXPORT_DEF int at_enqueue_conference(struct cpvt *cpvt)
  * \brief SEND AT+CHUP command to device IMMEDIALITY
  * \param cpvt -- cpvt structure
  */
-EXPORT_DEF void at_hangup_immediality(struct cpvt* cpvt)
+void at_hangup_immediality(struct cpvt* cpvt)
 {
 	char buf[20];
 	int length = snprintf(buf, sizeof(buf), cmd_chld1x, cpvt->call_idx);
@@ -939,3 +953,21 @@ EXPORT_DEF void at_hangup_immediality(struct cpvt* cpvt)
 		at_write(cpvt->pvt, buf, length);
 }
 
+
+int at_enqueue_mute(struct cpvt *cpvt, int mute)
+{
+	static const char cmd_cmut0[] = "AT+CMUT=0\r";
+	static const char cmd_cmut1[] = "AT+CMUT=1\r";
+
+	static const at_queue_cmd_t cmds0 = ATQ_CMD_DECLARE_ST(CMD_AT_CMUT_0, cmd_cmut0);
+	static const at_queue_cmd_t cmds1 = ATQ_CMD_DECLARE_ST(CMD_AT_CMUT_1, cmd_cmut1);
+
+	const at_queue_cmd_t* cmds = mute? &cmds1 : &cmds0;
+
+	if (at_queue_insert_const(cpvt, cmds, 1, 1) != 0) {
+		chan_quectel_err = E_QUEUE;
+		return -1;
+	}
+
+	return 0;
+}
