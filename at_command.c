@@ -154,7 +154,8 @@ int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_command)
 
 	static const char cmd_at_qindcfg_csq[] = "AT+QINDCFG=\"csq\",1,0\r";
 	static const char cmd_at_qindcfg_act[] = "AT+QINDCFG=\"act\",1,0\r";
-	static const char cmd_dsci[] = "AT^DSCI=1\r";
+	static const char cmd_at_qindcfg_ring[] = "AT+QINDCFG=\"ring\",0,0\r";
+	static const char cmd_at_qindcfg_cc[] = "AT+QINDCFG=\"ccinfo\",1,0\r";
 
 	static const at_queue_cmd_t st_cmds[] = {
 		ATQ_CMD_DECLARE_ST(CMD_AT, cmd_at),
@@ -189,10 +190,10 @@ int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_command)
 
 		/* pvt->initialized = 1 after successful of CMD_AT_CNMI */
 		ATQ_CMD_DECLARE_ST(CMD_AT_CNMI, cmd_cnmi),		/* New SMS Notification Setting +CNMI=[<mode>[,<mt>[,<bm>[,<ds>[,<bfr>]]]]] */
-		ATQ_CMD_DECLARE_ST(CMD_AT_DSCI, cmd_dsci),		/* Enable call status notifications */
+		ATQ_CMD_DECLARE_STI(CMD_AT_QINDCFG_CC, cmd_at_qindcfg_cc), 		/* Enable call status notifications */		
 		ATQ_CMD_DECLARE_STI(CMD_AT_QINDCFG_CSQ, cmd_at_qindcfg_csq),
 		ATQ_CMD_DECLARE_STI(CMD_AT_QINDCFG_ACT, cmd_at_qindcfg_act),
-
+		ATQ_CMD_DECLARE_STI(CMD_AT_QINDCFG_RING, cmd_at_qindcfg_ring),
 	};
 
 	unsigned in, out;

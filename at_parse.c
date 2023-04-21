@@ -45,7 +45,7 @@ static unsigned mark_line(char * line, const char * delimiters, char * pointers[
  * \return NULL on error (parse error) or a pointer to the subscriber number
  */
 
-EXPORT_DEF char * at_parse_cnum (char* str)
+char * at_parse_cnum (char* str)
 {
 	/*
 	 * parse CNUM response in the following format:
@@ -82,7 +82,7 @@ EXPORT_DEF char * at_parse_cnum (char* str)
  * \return NULL on error (parse error) or a pointer to the provider name
  */
 
-EXPORT_DEF char* at_parse_cops (char* str)
+char* at_parse_cops (char* str)
 {
 	/*
 	 * parse COPS response in the following format:
@@ -137,7 +137,7 @@ EXPORT_DEF char* at_parse_cops (char* str)
  * \retval -1 parse error
  */
 
-EXPORT_DEF int at_parse_creg (char* str, unsigned len, int* gsm_reg, int* gsm_reg_status, char** lac, char** ci)
+int at_parse_creg (char* str, unsigned len, int* gsm_reg, int* gsm_reg_status, char** lac, char** ci)
 {
 	unsigned	i;
 	int	state;
@@ -325,7 +325,7 @@ EXPORT_DEF int at_parse_creg (char* str, unsigned len, int* gsm_reg, int* gsm_re
  * \return -1 on error (parse error) or the index of the new sms message
  */
 
-EXPORT_DEF int at_parse_cmti (const char* str)
+int at_parse_cmti (const char* str)
 {
 	int index;
 
@@ -345,7 +345,7 @@ EXPORT_DEF int at_parse_cmti (const char* str)
  * \return -1 on error (parse error) or the index of the new sms message
  */
 
-EXPORT_DEF int at_parse_cdsi (const char* str)
+int at_parse_cdsi (const char* str)
 {
 	int index;
 
@@ -370,7 +370,7 @@ EXPORT_DEF int at_parse_cdsi (const char* str)
  * \retval -1 parse error
  */
 
-EXPORT_DEF int at_parse_cmgr(char *str, size_t len, int *tpdu_type, char *sca, size_t sca_len, char *oa, size_t oa_len, char *scts, int *mr, int *st, char *dt, char *msg, size_t *msg_len, pdu_udh_t *udh)
+int at_parse_cmgr(char *str, size_t len, int *tpdu_type, char *sca, size_t sca_len, char *oa, size_t oa_len, char *scts, int *mr, int *st, char *dt, char *msg, size_t *msg_len, pdu_udh_t *udh)
 {
 	/* skip "+CMGR:" */
 	str += 6;
@@ -478,7 +478,7 @@ EXPORT_DEF int at_parse_cmgr(char *str, size_t len, int *tpdu_type, char *sca, s
  * \todo FIXME: parse <mr>[,<scts>] value correctly
  */
 
-EXPORT_DEF int at_parse_cmgs (const char* str)
+int at_parse_cmgs (const char* str)
 {
 	int cmgs = -1;
 
@@ -501,7 +501,7 @@ EXPORT_DEF int at_parse_cmgs (const char* str)
  * \retval -1 parse error
  */
 
-EXPORT_DEF int at_parse_cusd (char* str, int * type, char** cusd, int * dcs)
+int at_parse_cusd (char* str, int * type, char** cusd, int * dcs)
 {
 	/*
 	 * parse cusd message in the following format:
@@ -560,7 +560,7 @@ EXPORT_DEF int at_parse_cusd (char* str, int * type, char** cusd, int * dcs)
  * \return -1 on error (parse error) or card lock
  */
 
-EXPORT_DEF int at_parse_cpin (char* str, size_t len)
+int at_parse_cpin (char* str, size_t len)
 {
 	static const struct {
 		const char	* value;
@@ -588,7 +588,7 @@ EXPORT_DEF int at_parse_cpin (char* str, size_t len)
  * \retval -1 error
  */
 
-EXPORT_DEF int at_parse_csq (const char* str, int* rssi)
+int at_parse_csq (const char* str, int* rssi)
 {
 	/*
 	 * parse +CSQ response in the following format:
@@ -605,7 +605,7 @@ EXPORT_DEF int at_parse_csq (const char* str, int* rssi)
  * \return -1 on error (parse error) or the rssi value
  */
 
-EXPORT_DEF int at_parse_rssi (const char* str)
+int at_parse_rssi (const char* str)
 {
 	int rssi = -1;
 
@@ -618,24 +618,46 @@ EXPORT_DEF int at_parse_rssi (const char* str)
 	return rssi;
 }
 
-/*!
- * \brief Parse a +QIND notification (CSQ)
- * \param str -- string to parse (null terminated)
- * \param ind -- notification subject
- * \return -1 on error (parse error) or the the link mode value
- */
+int at_parse_qind(char* str, qind_t* qind, char** params)
+{
+	static const char delimiters[] = "\"\",";
+	char* marks[STRLEN(delimiters)];
 
-EXPORT_DEF int at_parse_qind_csq (const char * str, int* rssi)
+	if (mark_line(str, delimiters, marks) == ITEMS_OF(marks)) {
+		const char* qind_str = marks[0] + 1;
+		marks[1][0] = '\000';
+
+		if (!strcmp(qind_str, "csq")) {
+			*qind = QIND_CSQ;
+		}
+		else if (!strcmp(qind_str, "act")) {
+			*qind = QIND_ACT;
+		}
+		else if (!strcmp(qind_str, "ccinfo")) {
+			*qind = QIND_CCINFO;
+		}
+		else {
+			*qind = QIND_NONE;
+		}
+
+		*params = marks[2] + 1;
+		return 0;
+	}
+
+	return -1;
+}
+
+int at_parse_qind_csq(const char* params, int* rssi)
 {
 	/*
 	 * parse notification in the following format:
 	 * +QIND: "csq",<RSSI>,<BER>
 	 */
 
-	return sscanf(str, "+QIND: \"csq\",%d", rssi) == 1 ? 0 : -1;
+	return sscanf(params, "%d", rssi) == 1 ? 0 : -1;
 }
 
-EXPORT_DEF int at_parse_qind_act(const char * str, int* act)
+int at_parse_qind_act(char* params, int* act)
 {
 	/*
 	 * parse notification in the following format:
@@ -660,21 +682,14 @@ EXPORT_DEF int at_parse_qind_act(const char * str, int* act)
 		{ "UNKNOWN", 0 },
 	};
 
-	char act_str[20];
-	if (sscanf(str, "+QIND: \"act\",\"%s\"", act_str) != 1)
-	{
-		return -1;
-	}
+	char* act_str = params;
+	if (*act_str == '\"') act_str += 1;
 
-	unsigned idx;
-	const size_t len = strlen(act_str) - 1;
-	for(idx = 0; idx < ITEMS_OF(ACTS); idx++)
-	{
-		size_t alen = strlen(ACTS[idx].act);
-		if (alen != len) continue;
+	char* act_end = act_str + strlen(act_str) - 1;
+	if (*act_end == '\"') *act_end = '\000';
 
-		if (!strncmp(ACTS[idx].act, act_str, alen))
-		{
+	for(size_t idx = 0; idx < ITEMS_OF(ACTS); ++idx) {
+		if (!strcmp(ACTS[idx].act, act_str)) {
 			*act = ACTS[idx].val;
 			return 0;
 		}
@@ -684,8 +699,49 @@ EXPORT_DEF int at_parse_qind_act(const char * str, int* act)
 	return 0;
 }
 
+int at_parse_qind_cc(char* params, unsigned* call_idx, unsigned* dir, unsigned* state, unsigned* mode, unsigned* mpty, char** number, unsigned* toa)
+{
+	/*
+	 * +QIND: "ccinfo",<idx>,<dir>,<state>,<mode>,<mpty>,<number>,<type>[,<alpha>]
+	 * 
+	 * examples
+	 *  +QIND: "ccinfo",2,0,3,0,0,"XXXXXXXXX",129
+	 *  +QIND: "ccinfo",2,0,-1,0,0,"XXXXXXXXX",129 [-1 => 7]
+	 */
+	static const char delimiters[] = ",,,,,,,";
+	static const size_t nmarks = STRLEN(delimiters) - 1u;
+
+	char* marks[STRLEN(delimiters)];
+
+	if (mark_line(params, delimiters, marks) < nmarks) {
+		return -1;
+	}
+
+	int cc_state;
+	if (sscanf(params, "%u", call_idx) == 1 &&
+		sscanf(marks[0] + 1, "%u", dir) == 1 &&
+		sscanf(marks[1] + 1, "%d", &cc_state) == 1 &&
+		sscanf(marks[2] + 1, "%u", mode) == 1 &&
+		sscanf(marks[3] + 1, "%u", mpty) == 1 &&
+		sscanf(marks[5] + 1, "%u", toa) == 1)
+	{
+		marks[4]++;
+		if(marks[4][0] == '"')
+			marks[4]++;
+		if(marks[5][-1] == '"')
+			marks[5]--;
+		*number = marks[4];
+		marks[5][0] = '\000';
+
+		*state = (cc_state < 0)? CALL_STATE_RELEASED : (unsigned)cc_state;
+		return 0;
+	}
+
+	return -1;
+}
+
 #/* */
-EXPORT_DEF int at_parse_csca(char* str, char ** csca)
+int at_parse_csca(char* str, char ** csca)
 {
 	/*
 	 * parse CSCA info in the following format:
@@ -780,7 +836,7 @@ int at_parse_clcc(char* str, unsigned* call_idx, unsigned* dir, unsigned* state,
 }
 
 #/* */
-EXPORT_DEF int at_parse_ccwa(char* str, unsigned * class)
+int at_parse_ccwa(char* str, unsigned * class)
 {
 	/*
 	 * CCWA may be in form:

@@ -169,6 +169,8 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 			case CMD_AT_CLIR:
 			case CMD_AT_QINDCFG_CSQ:
 			case CMD_AT_QINDCFG_ACT:
+			case CMD_AT_QINDCFG_RING:
+			case CMD_AT_QINDCFG_CC:
 			case CMD_AT_DSCI:
 			case CMD_AT_QCRCIND:
 				ast_debug (3, "[%s] %s sent successfully\n", PVT_ID(pvt), at_cmd2str (ecmd->cmd));
@@ -463,6 +465,8 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 
 			case CMD_AT_QINDCFG_CSQ:
 			case CMD_AT_QINDCFG_ACT:
+			case CMD_AT_QINDCFG_RING:
+			case CMD_AT_QINDCFG_CC:
 			case CMD_AT_DSCI:
 			case CMD_AT_QCRCIND:
 				ast_debug(1, "[%s] Error enabling indications\n", PVT_ID(pvt));
@@ -657,35 +661,6 @@ e_return:
 	at_queue_handle_result (pvt, res);
 
 	return -1;
-}
-
-/*!
- * \brief Handle +QIND response.
- * \param pvt -- pvt structure
- * \param str -- string containing response (null terminated)
- * \param len -- string lenght
- * \retval  0 success
- * \retval -1 error
- */
-
-static int at_response_qind(struct pvt* pvt, const char* str)
-{
-	int val;
-	int res;
-
-	res = at_parse_qind_csq(str, &val);
-	if (res >= 0) {
-		pvt->rssi = val;
-		return 0;
-	}
-
-	res = at_parse_qind_act(str, &val);
-	if (res >= 0) {
-		pvt->linkmode = val;
-		return 0;
-	}
-
-	return 0;
 }
 
 static int start_pbx(struct pvt* pvt, const char * number, int call_idx, call_state_t state)
@@ -982,6 +957,72 @@ static int at_response_dsci(struct pvt* pvt, char* str)
 	}
 	
 	return 0;
+}
+
+/*!
+ * \brief Handle +QIND response.
+ * \param pvt -- pvt structure
+ * \param str -- string containing response (null terminated)
+ * \param len -- string lenght
+ * \retval  0 success
+ * \retval -1 error
+ */
+
+static int at_response_qind(struct pvt* pvt, char* str)
+{
+	int val;
+	int res;
+
+	qind_t qind;
+	char* params;
+	res = at_parse_qind(str, &qind, &params);
+	if (res < 0) {
+		return -1;
+	}
+
+	switch(qind) {
+		case QIND_CSQ:
+		{
+			int val;
+			res = at_parse_qind_csq(params, &val);
+			if (res < 0) {
+				ast_debug(1, "[%s] Failed to parse CSQ - %s\n", PVT_ID(pvt), params);
+				break;
+			}
+			pvt->rssi = val;
+			return 0;
+		}
+
+		case QIND_ACT:
+		{
+			res = at_parse_qind_act(params, &val);
+			if (res < 0) {
+				ast_debug(1, "[%s] Failed to parse ACT - %s\n", PVT_ID(pvt), params);
+				break;
+			}
+			pvt->linkmode = val;
+			return 0;
+		}
+
+		case QIND_CCINFO:
+		{
+			unsigned call_idx, dir, state, mode, mpty, toa;
+			char* number;
+
+			res = at_parse_qind_cc(params, &call_idx, &dir, &state, &mode, &mpty, &number, &toa);
+			if (res < 0) {
+				ast_log(LOG_ERROR, "[%s] Fail to parse CCINFO - %s\n", PVT_ID(pvt), params);
+				break;
+			}
+			handle_clcc(pvt, call_idx, dir, state, mode, mpty, number, toa);
+			return 0;
+		}
+
+		case QIND_NONE:
+		return 0;
+	}
+
+	return -1;
 }
 
 /*!

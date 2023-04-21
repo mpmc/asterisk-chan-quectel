@@ -7,29 +7,36 @@
 
 #include <sys/types.h>			/* size_t */
 
-#include "export.h"		/* EXPORT_DECL EXPORT_DECL */
 #include "char_conv.h"		/* str_encoding_t */
 #include "pdu.h"
 struct pvt;
 
-EXPORT_DECL char* at_parse_cnum (char* str);
-EXPORT_DECL char* at_parse_cops (char* str);
-EXPORT_DECL int at_parse_creg (char* str, unsigned len, int* gsm_reg, int* gsm_reg_status, char** lac, char** ci);
-EXPORT_DECL int at_parse_cmti (const char* str);
-EXPORT_DECL int at_parse_cdsi (const char* str);
-EXPORT_DECL int at_parse_cmgr(char *str, size_t len, int *tpdu_type, char *sca, size_t sca_len, char *oa, size_t oa_len, char *scts, int *mr, int *st, char *dt, char *msg, size_t *msg_len, pdu_udh_t *udh);
-EXPORT_DECL int at_parse_cmgs (const char* str);
-EXPORT_DECL int at_parse_cusd (char* str, int * type, char ** cusd, int * dcs);
-EXPORT_DECL int at_parse_cpin (char* str, size_t len);
-EXPORT_DECL int at_parse_csq (const char* str, int* rssi);
-EXPORT_DECL int at_parse_rssi (const char* str);
-EXPORT_DECL int at_parse_qind_csq (const char* str, int* rssi);
-EXPORT_DECL int at_parse_qind_act (const char* str, int* act);
-EXPORT_DECL int at_parse_csca (char* str, char ** csca);
+typedef enum
+{
+    QIND_NONE = 0,
+    QIND_CSQ,
+    QIND_ACT,
+    QIND_CCINFO
+} qind_t;
+
+char* at_parse_cnum(char* str);
+char* at_parse_cops(char* str);
+int at_parse_creg(char* str, unsigned len, int* gsm_reg, int* gsm_reg_status, char** lac, char** ci);
+int at_parse_cmti(const char* str);
+int at_parse_cdsi(const char* str);
+int at_parse_cmgr(char *str, size_t len, int *tpdu_type, char *sca, size_t sca_len, char *oa, size_t oa_len, char *scts, int *mr, int *st, char *dt, char *msg, size_t *msg_len, pdu_udh_t *udh);
+int at_parse_cmgs(const char* str);
+int at_parse_cusd(char* str, int * type, char ** cusd, int * dcs);
+int at_parse_cpin(char* str, size_t len);
+int at_parse_csq(const char* str, int* rssi);
+int at_parse_rssi(const char* str);
+int at_parse_qind(char* str, qind_t* qind, char** params);
+int at_parse_qind_csq(const char* params, int* rssi);
+int at_parse_qind_act(char* params, int* act);
+int at_parse_qind_cc(char* params, unsigned* call_idx, unsigned* dir, unsigned* state, unsigned* mode, unsigned* mpty, char** number, unsigned* toa);
+int at_parse_csca(char* str, char ** csca);
 int at_parse_dsci(char* str, unsigned* call_idx, unsigned* dir, unsigned* state, unsigned* call_type, char** number, unsigned* toa);
 int at_parse_clcc(char* str, unsigned* call_idx, unsigned* dir, unsigned* state, unsigned* mode, unsigned* mpty, char** number, unsigned* toa);
-EXPORT_DECL int at_parse_ccwa(char* str, unsigned * class);
-
-
+int at_parse_ccwa(char* str, unsigned * class);
 
 #endif /* CHAN_QUECTEL_AT_PARSE_H_INCLUDED */

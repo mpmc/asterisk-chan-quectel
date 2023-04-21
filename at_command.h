@@ -74,8 +74,10 @@
 	_( AT_CHLD_2,       "AT+CHLD=2") \
 	_( AT_CHLD_3,       "AT+CHLD=3") \
 	_( AT_CLCC,         "AT+CLCC") \
-	_( AT_QINDCFG_CSQ, 	"AT+QINDCFG=\"csq\",1,0") \
-	_( AT_QINDCFG_ACT, 	"AT+QINDCFG=\"act\",1,0") \
+	_( AT_QINDCFG_CSQ,	"AT+QINDCFG=\"csq\",1,0") \
+	_( AT_QINDCFG_ACT,	"AT+QINDCFG=\"act\",1,0") \
+	_( AT_QINDCFG_RING,	"AT+QINDCFG=\"ring\",0,0") \
+	_( AT_QINDCFG_CC,	"AT+QINDCFG=\"cc\",1,0") \
 	_( AT_DSCI,			"AT+^DSCI=1") \
 	_( AT_QCRCIND,		"AT$QCRCIND=1") \
 	_( AT_CMUT_0,		"AT+CMUT=0") \
