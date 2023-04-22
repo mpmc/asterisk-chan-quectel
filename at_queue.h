@@ -11,8 +11,6 @@
 
 #include "at_command.h"			/* at_cmd_t */
 #include "at_response.h"		/* at_res_t */
-#include "export.h"			/* EXPORT_DECL EXPORT_DEF */
-
 
 typedef struct at_queue_cmd
 {
@@ -85,16 +83,16 @@ typedef struct at_queue_task
 	at_queue_cmd_t	cmds[0];	/* this field must be last */
 } at_queue_task_t;
 
-
-EXPORT_DECL int at_queue_insert_const (struct cpvt * cpvt, const at_queue_cmd_t * cmds, unsigned cmdsno, int athead);
-EXPORT_DECL int at_queue_insert (struct cpvt * cpvt, at_queue_cmd_t * cmds, unsigned cmdsno, int athead);
-EXPORT_DECL int at_queue_insert_uid (struct cpvt * cpvt, at_queue_cmd_t * cmds, unsigned cmdsno, int athead, int uid);
-EXPORT_DECL void at_queue_handle_result (struct pvt * pvt, at_res_t res);
-EXPORT_DECL void at_queue_flush (struct pvt * pvt);
-EXPORT_DECL const at_queue_task_t * at_queue_head_task (const struct pvt * pvt);
-EXPORT_DECL const at_queue_cmd_t * at_queue_head_cmd(const struct pvt * pvt);
-EXPORT_DECL int at_queue_timeout(const struct pvt * pvt);
-EXPORT_DECL int at_queue_run (struct pvt * pvt);
+at_queue_task_t * at_queue_add (struct cpvt * cpvt, const at_queue_cmd_t * cmds, unsigned cmdsno, int prio);
+int at_queue_insert_const (struct cpvt * cpvt, const at_queue_cmd_t * cmds, unsigned cmdsno, int athead);
+int at_queue_insert (struct cpvt * cpvt, at_queue_cmd_t * cmds, unsigned cmdsno, int athead);
+int at_queue_insert_uid (struct cpvt * cpvt, at_queue_cmd_t * cmds, unsigned cmdsno, int athead, int uid);
+void at_queue_handle_result (struct pvt * pvt, at_res_t res);
+void at_queue_flush (struct pvt * pvt);
+const at_queue_task_t * at_queue_head_task (const struct pvt * pvt);
+const at_queue_cmd_t * at_queue_head_cmd(const struct pvt * pvt);
+int at_queue_timeout(const struct pvt * pvt);
+int at_queue_run (struct pvt * pvt);
 
 INLINE_DECL at_cmd_suppress_error_t at_cmd_suppress_error_mode(int flags)
 {
@@ -108,6 +106,6 @@ static inline const at_queue_cmd_t * at_queue_task_cmd (const at_queue_task_t * 
 
 /* direct device write, dangerouse */
 /* TODO: move */
-EXPORT_DECL int at_write (struct pvt * pvt, const char * buf, size_t count);
-EXPORT_DECL size_t write_all (int fd, const char * buf, size_t count);
+int at_write (struct pvt * pvt, const char * buf, size_t count);
+size_t write_all (int fd, const char * buf, size_t count);
 #endif /* CHAN_QUECTEL_AT_CMD_QUEUE_H_INCLUDED */

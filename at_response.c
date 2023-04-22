@@ -172,7 +172,6 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 			case CMD_AT_QINDCFG_RING:
 			case CMD_AT_QINDCFG_CC:
 			case CMD_AT_DSCI:
-			case CMD_AT_QCRCIND:
 				ast_debug (3, "[%s] %s sent successfully\n", PVT_ID(pvt), at_cmd2str (ecmd->cmd));
 				break;
 
@@ -195,29 +194,35 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 			case CMD_AT_CVOICE:
 				ast_debug (1, "[%s] Quectel has voice support\n", PVT_ID(pvt));
 
-				pvt->has_voice = 1;
 				pvt->is_simcom = 0;
+
+				if (CONF_UNIQ(pvt, uac)) {
+					at_enqueue_enable_uac(&pvt->sys_chan);
+				} else {
+					at_enqueue_enable_tty(&pvt->sys_chan);
+				}
 				break;
 
 			case CMD_AT_CVOICE2:
-			{
 				ast_debug (1, "[%s] Simcom has voice support\n", PVT_ID(pvt));
 
-				pvt->has_voice = 1;
 				pvt->is_simcom = 1;
-
-				static const char cmd_atqcrcind[] = "AT$QCRCIND=1\r";
-				static const at_queue_cmd_t cmds[] = {
-					ATQ_CMD_DECLARE_STIT(CMD_AT_QCRCIND, cmd_atqcrcind, ATQ_CMD_TIMEOUT_MEDIUM, 0),
-				};
-
-				if (at_queue_insert_const(&pvt->sys_chan, cmds, ITEMS_OF(cmds), 1) != 0) {
-					chan_quectel_err = E_QUEUE;
-					return -1;
-				}
-
+				at_enqueue_qcrcind(&pvt->sys_chan);
 				break;
-			}
+
+			case CMD_AT_QPCMV_0:
+				ast_debug(3, "[%s] %s sent successfully\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
+
+				pvt->has_voice = 0;
+				break;
+			
+			case CMD_AT_QPCMV_TTY:
+			case CMD_AT_QPCMV_UAC:
+			case CMD_AT_QCRCIND:
+				ast_debug(3, "[%s] %s sent successfully\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
+
+				pvt->has_voice = 1;
+				break;
 
 /*
 			case CMD_AT_CLIP:
@@ -532,12 +537,12 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 			case CMD_AT_A:
 			case CMD_AT_CHLD_2x:
 				log_cmd_response_error(pvt, ecmd, "[%s] Answer failed for call idx %d\n", PVT_ID(pvt), task->cpvt->call_idx);
-				queue_hangup (task->cpvt->channel, 0);
+				queue_hangup (task->cpvt->channel, AST_CAUSE_CALL_REJECTED);
 				break;
 
 			case CMD_AT_CHLD_3:
 				log_cmd_response_error(pvt, ecmd, "[%s] Can't begin conference call idx %d\n", PVT_ID(pvt), task->cpvt->call_idx);
-				queue_hangup(task->cpvt->channel, 0);
+				queue_hangup(task->cpvt->channel, AST_CAUSE_CALL_REJECTED);
 				break;
 
 			case CMD_AT_CLIR:
@@ -631,6 +636,18 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 			
 			case CMD_AT_CMUT_1:			
 				ast_debug(1, "[%s] Cannot mute uplink voice\n", PVT_ID(pvt));
+				break;
+
+			case CMD_AT_QPCMV_0:
+				ast_log(LOG_WARNING, "[%s] Cannot disable UAC\n", PVT_ID(pvt));
+				break;
+
+			case CMD_AT_QPCMV_TTY:
+				ast_log(LOG_WARNING, "[%s] Cannot enable audio on serial port\n", PVT_ID(pvt));
+				break;
+
+			case CMD_AT_QPCMV_UAC:
+				ast_log(LOG_WARNING, "[%s] Cannot enable UAC\n", PVT_ID(pvt));
 				break;
 
 			default:

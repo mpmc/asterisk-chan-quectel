@@ -30,10 +30,8 @@
 #include "smsdb.h"
 #include "error.h"
 
-static const char cmd_at[] 	 = "AT\r";
-static const char cmd_chld1x[]   = "AT+CHLD=1%d\r";
-static const char cmd_chld2[]    = "AT+CHLD=2\r";
-static const char cmd_clcc[]     = "AT+CLCC\r";
+static const char cmd_at[]		= "AT\r";
+static const char cmd_chld2[]	= "AT+CHLD=2\r";
 
 /*!
  * \brief Get the string representation of the given AT command
@@ -57,7 +55,7 @@ const char* at_cmd2str(at_cmd_t cmd)
  * \return 0 on success
  */
 
-static int at_fill_generic_cmd_va (at_queue_cmd_t * cmd, const char * format, va_list ap)
+static int at_fill_generic_cmd_va(at_queue_cmd_t * cmd, const char * format, va_list ap)
 {
 	char buf[4096];
 
@@ -507,18 +505,15 @@ int at_enqueue_dial(struct cpvt *cpvt, const char *number, int clir)
 	char * tmp = NULL;
 	at_queue_cmd_t cmds[6];
 
-
-	if(PVT_STATE(pvt, chan_count[CALL_STATE_ACTIVE]) > 0 && CPVT_TEST_FLAG(cpvt, CALL_FLAG_HOLD_OTHER))
-	{
-		ATQ_CMD_INIT_ST(cmds[0], CMD_AT_CHLD_2, cmd_chld2);
-/*  enable this cause response_clcc() see all calls are held and insert 'AT+CHLD=2'
-		ATQ_CMD_INIT_ST(cmds[1], CMD_AT_CLCC, cmd_clcc);
-*/
-		cmdsno = 1;
+	if (PVT_STATE(pvt, chan_count[CALL_STATE_ACTIVE]) > 0 && CPVT_TEST_FLAG(cpvt, CALL_FLAG_HOLD_OTHER)) {
+		ATQ_CMD_INIT_ST(cmds[cmdsno], CMD_AT_CHLD_2, cmd_chld2);
+		/*  enable this cause response_clcc() see all calls are held and insert 'AT+CHLD=2'
+			ATQ_CMD_INIT_ST(cmds[1], CMD_AT_CLCC, cmd_clcc);
+		*/
+		cmdsno++;
 	}
 
-	if(clir != -1)
-	{
+	if (clir != -1) {
 		err = at_fill_generic_cmd(&cmds[cmdsno], "AT+CLIR=%d\r", clir);
 		if (err) {
 			chan_quectel_err = E_UNKNOWN;
@@ -528,14 +523,15 @@ int at_enqueue_dial(struct cpvt *cpvt, const char *number, int clir)
 		ATQ_CMD_INIT_DYNI(cmds[cmdsno], CMD_AT_CLIR);
 		cmdsno++;
 	}
-        if (pvt->is_simcom) {
-	err = at_fill_generic_cmd(&cmds[cmdsno], "AT+CPCMREG=0;D%s;\r", number); }
-        else if (CONF_UNIQ(pvt, uac)) {
-        err = at_fill_generic_cmd(&cmds[cmdsno], "AT+QPCMV=0;+QPCMV=1,2;D%s;\r", number); }
-        else {
-        err = at_fill_generic_cmd(&cmds[cmdsno], "AT+QPCMV=0;+QPCMV=1,0;D%s;\r", number); }
-	if(err)
-	{
+
+	if (pvt->is_simcom) {
+		err = at_fill_generic_cmd(&cmds[cmdsno], "AT+CPCMREG=0;D%s;\r", number);
+	}
+	else {
+		err = at_fill_generic_cmd(&cmds[cmdsno], "D%s;\r", number);
+	}
+
+	if(err) {
 		ast_free(tmp);
 		chan_quectel_err = E_UNKNOWN;
 		return -1;
@@ -544,14 +540,11 @@ int at_enqueue_dial(struct cpvt *cpvt, const char *number, int clir)
 	ATQ_CMD_INIT_DYNI(cmds[cmdsno], CMD_AT_D);
 	cmdsno++;
 
-/* on failed ATD this up held call */
-	ATQ_CMD_INIT_ST(cmds[cmdsno], CMD_AT_CLCC, cmd_clcc);
-	cmdsno++;
-
 	if (at_queue_insert(cpvt, cmds, cmdsno, 1) != 0) {
 		chan_quectel_err = E_QUEUE;
 		return -1;
 	}
+
 	/* set CALL_FLAG_NEED_HANGUP early because ATD may be still in queue while local hangup called */
 	CPVT_SET_FLAGS(cpvt, CALL_FLAG_NEED_HANGUP);
 	return 0;
@@ -564,50 +557,54 @@ int at_enqueue_dial(struct cpvt *cpvt, const char *number, int clir)
  */
 int at_enqueue_answer(struct cpvt *cpvt)
 {
-	pvt_t* pvt = cpvt->pvt;
+	struct pvt *pvt = cpvt->pvt;
+
 	at_queue_cmd_t cmds[] = {
 		ATQ_CMD_DECLARE_DYN(CMD_AT_A),
 	};
 	int count = ITEMS_OF(cmds);
-	const char * cmd1;
+	const char* cmd1;
 
-	if(cpvt->state == CALL_STATE_INCOMING)
+	switch (cpvt->state)
 	{
-/* FIXME: channel number? */
-             if (pvt->is_simcom) {
-		cmd1 = "AT+CPCMREG=0;A\r"; }
-             else if (CONF_UNIQ(pvt, uac)) {
-                cmd1 = "AT+QPCMV=0;+QPCMV=1,2;A\r"; }
-             else { 
-                cmd1 = "AT+QPCMV=0;+QPCMV=1,0;A\r"; }
+		case CALL_STATE_INCOMING:
+			/* FIXME: channel number? */
+			if (pvt->is_simcom) {
+				cmd1 = "AT+CPCMREG=0;A\r";
+			}
+			else {
+				cmd1 = "ATA\r";
+			}
+			break;
+		
+		case CALL_STATE_WAITING:
+			cmds[0].cmd = CMD_AT_CHLD_2x;
+			cmd1 = "AT+CHLD=2%d\r";
+			/* no need CMD_AT_DDSETEX in this case? */
+			count--;		
+			break;
 
-	}
-	else if(cpvt->state == CALL_STATE_WAITING)
-	{
-		cmds[0].cmd = CMD_AT_CHLD_2x;
-		cmd1 = "AT+CHLD=2%d\r";
-/* no need CMD_AT_DDSETEX in this case? */
-		count--;
-	}
-	else
-	{
-		ast_log (LOG_ERROR, "[%s] Request answer for call idx %d with state '%s'\n", PVT_ID(cpvt->pvt), cpvt->call_idx, call_state2str(cpvt->state));
-		return -1;
+		default:
+			ast_log (LOG_ERROR, "[%s] Request answer for call idx %d with state '%s'\n", PVT_ID(cpvt->pvt), cpvt->call_idx, call_state2str(cpvt->state));
+			chan_quectel_err = E_UNKNOWN;
+			return -1;
 	}
 
 	if (at_fill_generic_cmd(&cmds[0], cmd1, cpvt->call_idx) != 0) {
 		chan_quectel_err = E_UNKNOWN;
 		return -1;
 	}
+
 	if (at_queue_insert(cpvt, cmds, count, 1) != 0) {
 		chan_quectel_err = E_QUEUE;
 		return -1;
 	}
-             if (pvt->is_simcom) {
 
-                sleep(1);
-                voice_enable(pvt);
-                                  }
+	if (pvt->is_simcom) {
+		sleep(1);
+		voice_enable(pvt);
+	}
+
 	return 0;
 }
 
@@ -618,26 +615,24 @@ int at_enqueue_answer(struct cpvt *cpvt)
  */
 int at_enqueue_activate(struct cpvt *cpvt)
 {
-	at_queue_cmd_t cmds[] = {
-		ATQ_CMD_DECLARE_DYN(CMD_AT_CHLD_2x),
-		ATQ_CMD_DECLARE_ST(CMD_AT_CLCC, cmd_clcc),
-		};
-
 	if (cpvt->state == CALL_STATE_ACTIVE)
 		return 0;
 
+	at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_CHLD_2x);
+
 	if (cpvt->state != CALL_STATE_ONHOLD && cpvt->state != CALL_STATE_WAITING)
 	{
-		ast_log (LOG_ERROR, "[%s] Imposible activate call idx %d from state '%s'\n",
-				PVT_ID(cpvt->pvt), cpvt->call_idx, call_state2str(cpvt->state));
+		ast_log(LOG_ERROR, "[%s] Imposible activate call idx %d from state '%s'\n",
+					PVT_ID(cpvt->pvt), cpvt->call_idx, call_state2str(cpvt->state));
 		return -1;
 	}
 
-	if (at_fill_generic_cmd(&cmds[0], "AT+CHLD=2%d\r", cpvt->call_idx) != 0) {
+	if (at_fill_generic_cmd(&cmd, "AT+CHLD=2%d\r", cpvt->call_idx) != 0) {
 		chan_quectel_err = E_UNKNOWN;
 		return -1;
 	}
-	if (at_queue_insert(cpvt, cmds, ITEMS_OF(cmds), 1) != 0) {
+
+	if (at_queue_insert(cpvt, &cmd, 1, 1) != 0) {
 		chan_quectel_err = E_QUEUE;
 		return -1;
 	}
@@ -651,12 +646,9 @@ int at_enqueue_activate(struct cpvt *cpvt)
  */
 int at_enqueue_flip_hold(struct cpvt *cpvt)
 {
-	static const at_queue_cmd_t cmds[] = {
-		ATQ_CMD_DECLARE_ST(CMD_AT_CHLD_2, cmd_chld2),
-		ATQ_CMD_DECLARE_ST(CMD_AT_CLCC, cmd_clcc),
-		};
+	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_ST(CMD_AT_CHLD_2, cmd_chld2);
 
-	if (at_queue_insert_const(cpvt, cmds, ITEMS_OF(cmds), 1) != 0) {
+	if (at_queue_insert_const(cpvt, &cmd, 1, 1) != 0) {
 		chan_quectel_err = E_QUEUE;
 		return -1;
 	}
@@ -670,11 +662,9 @@ int at_enqueue_flip_hold(struct cpvt *cpvt)
  */
 int at_enqueue_ping(struct cpvt *cpvt)
 {
-	static const at_queue_cmd_t cmds[] = {
-		ATQ_CMD_DECLARE_STIT(CMD_AT, cmd_at, ATQ_CMD_TIMEOUT_SHORT, 0),
-		};
+	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_STIT(CMD_AT, cmd_at, ATQ_CMD_TIMEOUT_SHORT, 0);
 
-	if (at_queue_insert_const(cpvt, cmds, ITEMS_OF(cmds), 1) != 0) {
+	if (at_queue_insert_const(cpvt, &cmd, 1, 1) != 0) {
 		chan_quectel_err = E_QUEUE;
 		return -1;
 	}
@@ -836,21 +826,20 @@ static int map_hangup_cause(int hangup_cause)
 
 int at_enqueue_hangup(struct cpvt *cpvt, int call_idx, int release_cause)
 {
+	static const char cmd_chld1x[] = "AT+CHLD=1%d\r";
+
 	struct pvt* pvt = cpvt->pvt;
 
 	if (pvt->is_simcom) { // AT+CHUP
 		static const char cmd_chup[] = "AT+CHUP\r";
 
-		at_queue_cmd_t cmds[] = {
-			ATQ_CMD_DECLARE_ST(CMD_AT_CHUP, cmd_chup),
-			ATQ_CMD_DECLARE_ST(CMD_AT_CLCC, cmd_clcc),
-			};
+		at_queue_cmd_t cmd = ATQ_CMD_DECLARE_ST(CMD_AT_CHUP, cmd_chup);
 
 		if(cpvt == &pvt->sys_chan || cpvt->dir == CALL_DIR_INCOMING || (cpvt->state != CALL_STATE_INIT && cpvt->state != CALL_STATE_DIALING)) {
 			/* FIXME: other channels may be in RELEASED or INIT state */
 			if(PVT_STATE(pvt, chansno) > 1) {
-				cmds[0].cmd = CMD_AT_CHLD_1x;
-				const int err = at_fill_generic_cmd(&cmds[0], cmd_chld1x, call_idx);
+				cmd.cmd = CMD_AT_CHLD_1x;
+				const int err = at_fill_generic_cmd(&cmd, cmd_chld1x, call_idx);
 				if (err) {
 					chan_quectel_err = E_UNKNOWN;
 					return -1;
@@ -858,23 +847,21 @@ int at_enqueue_hangup(struct cpvt *cpvt, int call_idx, int release_cause)
 			}
 		}
 
-		if (at_queue_insert(cpvt, cmds, ITEMS_OF(cmds), 1) != 0) {
+		if (at_queue_insert(cpvt, &cmd, 1, 1) != 0) {
 			chan_quectel_err = E_QUEUE;
 			return -1;
 		}
 	}
 	else { // AT+QHUP=<cause>,<idx>
-		at_queue_cmd_t cmds[] = {
-			ATQ_CMD_DECLARE_DYN(CMD_AT_QHUP)
-		};
+		at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_QHUP);
 
-		const int err = at_fill_generic_cmd(&cmds[0], "AT+QHUP=%d,%d\r", map_hangup_cause(release_cause), call_idx);
+		const int err = at_fill_generic_cmd(&cmd, "AT+QHUP=%d,%d\r", map_hangup_cause(release_cause), call_idx);
 		if (err) {
 			chan_quectel_err = E_UNKNOWN;
 			return err;
 		}
 
-		if (at_queue_insert(cpvt, cmds, ITEMS_OF(cmds), 1) != 0) {
+		if (at_queue_insert(cpvt, &cmd, 1, 1) != 0) {
 			chan_quectel_err = E_QUEUE;
 			return -1;
 		}
@@ -911,6 +898,7 @@ int at_enqueue_volsync(struct cpvt *cpvt)
  */
 int at_enqueue_clcc(struct cpvt *cpvt)
 {
+	static const char cmd_clcc[] = "AT+CLCC\r";
 	static const at_queue_cmd_t at_cmd = ATQ_CMD_DECLARE_ST(CMD_AT_CLCC, cmd_clcc);
 
 	if (at_queue_insert_const(cpvt, &at_cmd, 1, 1) != 0) {
@@ -928,12 +916,9 @@ int at_enqueue_clcc(struct cpvt *cpvt)
 int at_enqueue_conference(struct cpvt *cpvt)
 {
 	static const char cmd_chld3[] = "AT+CHLD=3\r";
-	static const at_queue_cmd_t cmds[] = {
-		ATQ_CMD_DECLARE_ST(CMD_AT_CHLD_3, cmd_chld3),
-		ATQ_CMD_DECLARE_ST(CMD_AT_CLCC, cmd_clcc),
-		};
+	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_ST(CMD_AT_CHLD_3, cmd_chld3);
 
-	if (at_queue_insert_const(cpvt, cmds, ITEMS_OF(cmds), 1) != 0) {
+	if (at_queue_insert_const(cpvt, &cmd, 1, 1) != 0) {
 		chan_quectel_err = E_QUEUE;
 		return -1;
 	}
@@ -945,15 +930,52 @@ int at_enqueue_conference(struct cpvt *cpvt)
  * \brief SEND AT+CHUP command to device IMMEDIALITY
  * \param cpvt -- cpvt structure
  */
-void at_hangup_immediality(struct cpvt* cpvt)
+int at_hangup_immediality(struct cpvt* cpvt, int release_cause)
 {
-	char buf[20];
-	int length = snprintf(buf, sizeof(buf), cmd_chld1x, cpvt->call_idx);
+	struct pvt* pvt = cpvt->pvt;
 
-	if(length > 0)
-		at_write(cpvt->pvt, buf, length);
+	if (pvt->is_simcom) { // AT+CHUP
+		static const char cmd_chup[] = "AT+CHUP\r";
+		static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_ST(CMD_AT_CHUP, cmd_chup);
+
+		if (at_queue_add(cpvt, &cmd, 1, 1) == NULL) {
+			chan_quectel_err = E_QUEUE;
+			return -1;
+		}
+	}
+	else { // AT+QHUP=<cause>,<idx>
+		at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_QHUP);
+		const int err = at_fill_generic_cmd(&cmd, "AT+QHUP=%d,%d\r", map_hangup_cause(release_cause), cpvt->call_idx);
+		if (err) {
+			chan_quectel_err = E_UNKNOWN;
+			return err;
+		}
+
+		if (at_queue_add(cpvt, &cmd, 1, 1) == NULL) {
+			chan_quectel_err = E_QUEUE;
+			return -1;
+		}
+	}
+	return 0;
+
 }
 
+int at_disable_uac_immediality(struct cpvt *cpvt)
+{
+	struct pvt* pvt = cpvt->pvt;
+
+	if (!pvt->is_simcom) {
+		static const char cmd_qpcmv[] = "AT+QPCMV=0\r";
+		static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_ST(CMD_AT_QPCMV_0, cmd_qpcmv);
+
+		if (at_queue_add(cpvt, &cmd, 1, 1) == NULL) {
+			chan_quectel_err = E_QUEUE;
+			return -1;
+		}
+	}
+
+	return 0;
+}
 
 int at_enqueue_mute(struct cpvt *cpvt, int mute)
 {
@@ -966,6 +988,45 @@ int at_enqueue_mute(struct cpvt *cpvt, int mute)
 	const at_queue_cmd_t* cmds = mute? &cmds1 : &cmds0;
 
 	if (at_queue_insert_const(cpvt, cmds, 1, 1) != 0) {
+		chan_quectel_err = E_QUEUE;
+		return -1;
+	}
+
+	return 0;
+}
+
+int at_enqueue_qcrcind(struct cpvt* cpvt)
+{
+	static const char cmd_atqcrcind[] = "AT$QCRCIND=1\r";
+	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_STIT(CMD_AT_QCRCIND, cmd_atqcrcind, ATQ_CMD_TIMEOUT_MEDIUM, 0);
+
+	if (at_queue_insert_const(cpvt, &cmd, 1, 1) != 0) {
+		chan_quectel_err = E_QUEUE;
+		return -1;
+	}
+
+	return 0;
+}
+
+int at_enqueue_enable_tty(struct cpvt* cpvt)
+{
+	static const char cmd_atqpcmv[] = "AT+QPCMV=1,0\r";
+	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_ST(CMD_AT_QPCMV_TTY, cmd_atqpcmv);
+
+	if (at_queue_insert_const(cpvt, &cmd, 1, 1) != 0) {
+		chan_quectel_err = E_QUEUE;
+		return -1;
+	}
+
+	return 0;
+}
+
+int at_enqueue_enable_uac(struct cpvt* cpvt)
+{
+	static const char cmd_atqpcmv[] = "AT+QPCMV=1,2\r";
+	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_ST(CMD_AT_QPCMV_UAC, cmd_atqpcmv);
+
+	if (at_queue_insert_const(cpvt, &cmd, 1, 1) != 0) {
 		chan_quectel_err = E_QUEUE;
 		return -1;
 	}

@@ -44,6 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Rev: " PACKAGE_REVISION " $")
 #include <asterisk/callerid.h>
 #include <asterisk/module.h>		/* AST_MODULE_LOAD_DECLINE ... */
 #include <asterisk/timing.h>		/* ast_timer_open() ast_timer_fd() */
+#include <asterisk/causes.h>
 
 #include <sys/stat.h>			/* S_IRUSR | S_IRGRP | S_IROTH */
 #include <termios.h>			/* struct termios tcgetattr() tcsetattr()  */
@@ -398,12 +399,16 @@ static void disconnect_quectel(struct pvt* pvt)
 		for(cpvt = pvt->chans.first; cpvt; cpvt = next)
 		{
 			next = cpvt->entry.next;
-			at_hangup_immediality(cpvt);
+			if (CONF_UNIQ(pvt, uac)) {
+				at_disable_uac_immediality(cpvt);
+			}
+			at_hangup_immediality(cpvt, AST_CAUSE_NORMAL_UNSPECIFIED);
 			CPVT_RESET_FLAGS(cpvt, CALL_FLAG_NEED_HANGUP);
-			change_channel_state(cpvt, CALL_STATE_RELEASED, 0);
+			change_channel_state(cpvt, CALL_STATE_RELEASED, AST_CAUSE_NORMAL_UNSPECIFIED);
 		}
 	}
 
+	at_queue_run(pvt);
 	at_queue_flush(pvt);
 
     if (CONF_UNIQ(pvt, uac)) {

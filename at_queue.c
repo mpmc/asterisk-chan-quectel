@@ -91,7 +91,7 @@ static at_queue_cmd_t* at_queue_head_cmd_nc (const struct pvt * pvt)
  * \return task on success, NULL on error
  */
 #/* */
-static at_queue_task_t * at_queue_add (struct cpvt * cpvt, const at_queue_cmd_t * cmds, unsigned cmdsno, int prio)
+ at_queue_task_t * at_queue_add (struct cpvt * cpvt, const at_queue_cmd_t * cmds, unsigned cmdsno, int prio)
 {
 	at_queue_task_t * e = NULL;
 	if(cmdsno > 0)
@@ -143,7 +143,7 @@ static at_queue_task_t * at_queue_add (struct cpvt * cpvt, const at_queue_cmd_t 
  */
 
 #/* */
-EXPORT_DEF size_t write_all (int fd, const char* buf, size_t count)
+size_t write_all (int fd, const char* buf, size_t count)
 {
 	ssize_t out_count;
 	size_t total = 0;
@@ -184,7 +184,7 @@ EXPORT_DEF size_t write_all (int fd, const char* buf, size_t count)
  */
 
 #/* */
-EXPORT_DEF int at_write (struct pvt* pvt, const char* buf, size_t count)
+int at_write (struct pvt* pvt, const char* buf, size_t count)
 {
 	size_t wrote;
 
@@ -205,7 +205,7 @@ EXPORT_DEF int at_write (struct pvt* pvt, const char* buf, size_t count)
  * \param pvt -- pvt structure
  */
 #/* */
-EXPORT_DEF void at_queue_remove_cmd (struct pvt* pvt, at_res_t res)
+void at_queue_remove_cmd (struct pvt* pvt, at_res_t res)
 {
 	at_queue_task_t * task = AST_LIST_FIRST (&pvt->at_queue);
 
@@ -233,7 +233,7 @@ EXPORT_DEF void at_queue_remove_cmd (struct pvt* pvt, at_res_t res)
  * \return 0 on success, non-0 on error
  */
 #/* */
-EXPORT_DEF int at_queue_run (struct pvt * pvt)
+int at_queue_run (struct pvt * pvt)
 {
 	int fail = 0;
 	at_queue_cmd_t * cmd = at_queue_head_cmd_nc(pvt);
@@ -283,13 +283,13 @@ EXPORT_DEF int at_queue_run (struct pvt * pvt)
  * \return 0 on success non-0 on error
  */
 #/* */
-EXPORT_DEF int at_queue_insert_const (struct cpvt * cpvt, const at_queue_cmd_t * cmds, unsigned cmdsno, int athead)
+int at_queue_insert_const (struct cpvt * cpvt, const at_queue_cmd_t * cmds, unsigned cmdsno, int athead)
 {
 	return at_queue_add(cpvt, cmds, cmdsno, athead) == NULL || at_queue_run(cpvt->pvt);
 }
 
 #/* */
-EXPORT_DEF int at_queue_insert_uid(struct cpvt * cpvt, at_queue_cmd_t * cmds, unsigned cmdsno, int athead, int uid)
+int at_queue_insert_uid(struct cpvt * cpvt, at_queue_cmd_t * cmds, unsigned cmdsno, int athead, int uid)
 {
 	unsigned idx;
 	at_queue_task_t *task = at_queue_add(cpvt, cmds, cmdsno, athead);
@@ -310,7 +310,7 @@ EXPORT_DEF int at_queue_insert_uid(struct cpvt * cpvt, at_queue_cmd_t * cmds, un
 }
 
 #/* */
-EXPORT_DEF int at_queue_insert(struct cpvt * cpvt, at_queue_cmd_t * cmds, unsigned cmdsno, int athead)
+int at_queue_insert(struct cpvt * cpvt, at_queue_cmd_t * cmds, unsigned cmdsno, int athead)
 {
 	return at_queue_insert_uid(cpvt, cmds, cmdsno, athead, 0);
 }
@@ -318,7 +318,7 @@ EXPORT_DEF int at_queue_insert(struct cpvt * cpvt, at_queue_cmd_t * cmds, unsign
 
 
 #/* */
-EXPORT_DEF void at_queue_handle_result (struct pvt* pvt, at_res_t res)
+void at_queue_handle_result (struct pvt* pvt, at_res_t res)
 {
 	/* move queue */
 	at_queue_remove_cmd(pvt, res);
@@ -330,7 +330,7 @@ EXPORT_DEF void at_queue_handle_result (struct pvt* pvt, at_res_t res)
  */
 
 #/* */
-EXPORT_DEF void at_queue_flush (struct pvt* pvt)
+void at_queue_flush (struct pvt* pvt)
 {
 	struct at_queue_task* task;
 
@@ -346,7 +346,7 @@ EXPORT_DEF void at_queue_flush (struct pvt* pvt)
  * \return a pointer to the first command of the given queue
  */
 #/* */
-EXPORT_DEF const struct at_queue_task* at_queue_head_task (const struct pvt * pvt)
+const struct at_queue_task* at_queue_head_task (const struct pvt * pvt)
 {
 	return AST_LIST_FIRST (&pvt->at_queue);
 }
@@ -358,13 +358,13 @@ EXPORT_DEF const struct at_queue_task* at_queue_head_task (const struct pvt * pv
  * \return a pointer to the first command of the given queue
  */
 #/* */
-EXPORT_DEF const at_queue_cmd_t * at_queue_head_cmd(const struct pvt * pvt)
+const at_queue_cmd_t * at_queue_head_cmd(const struct pvt * pvt)
 {
 	return at_queue_task_cmd(at_queue_head_task(pvt));
 }
 
 #/* */
-EXPORT_DEF int at_queue_timeout(const struct pvt * pvt)
+int at_queue_timeout(const struct pvt * pvt)
 {
 	int ms_timeout = -1;
 	const at_queue_cmd_t * cmd = at_queue_head_cmd(pvt);

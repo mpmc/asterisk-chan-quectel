@@ -82,6 +82,9 @@
 	_( AT_QCRCIND,		"AT$QCRCIND=1") \
 	_( AT_CMUT_0,		"AT+CMUT=0") \
 	_( AT_CMUT_1,		"AT+CMUT=1") \
+	_( AT_QPCMV_0,		"AT+QPCMV=0") \
+	_( AT_QPCMV_TTY,	"AT+QPCMV=1,0") \
+	_( AT_QPCMV_UAC,	"AT+QPCMV=1,2") \
 /* AT_COMMANDS_TABLE */
 
 typedef enum {
@@ -116,7 +119,11 @@ int at_enqueue_clcc(struct cpvt *cpvt);
 int at_enqueue_activate(struct cpvt *cpvt);
 int at_enqueue_flip_hold(struct cpvt *cpvt);
 int at_enqueue_conference(struct cpvt *cpvt);
-void at_hangup_immediality(struct cpvt *cpvt);
+int at_hangup_immediality(struct cpvt *cpvt, int release_cause);
+int at_disable_uac_immediality(struct cpvt *cpvt);
+int at_enqueue_enable_tty(struct cpvt *cpvt);
+int at_enqueue_enable_uac(struct cpvt *cpvt);
 int at_enqueue_mute(struct cpvt *cpvt, int mute);
+int at_enqueue_qcrcind(struct cpvt* cpvt);
 
 #endif /* CHAN_QUECTEL_AT_SEND_H_INCLUDED */
