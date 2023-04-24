@@ -38,6 +38,17 @@ static unsigned mark_line(char * line, const char * delimiters, char * pointers[
 	return found;
 }
 
+const char* at_qind2str(qind_t qind)
+{
+	static const char* qind_names[] = {
+		"NONE",
+		"CSQ",
+		"ACT",
+		"CCINFO"
+	};
+	return enum2str_def(qind, qind_names, ITEMS_OF(qind_names), "UNK");
+}
+
 /*!
  * \brief Parse a CNUM response
  * \param str -- string to parse (null terminated)
@@ -92,12 +103,11 @@ char* at_parse_cops (char* str)
 	 *  +COPS: 0,0,"TELE2",0
 	 */
 
-	char delimiters[] = ":,,,";
-	char * marks[STRLEN(delimiters)];
+	static const char delimiters[] = ":,,,";
+	char* marks[STRLEN(delimiters)];
 
 	/* parse URC only here */
-	if(mark_line(str, delimiters, marks) == ITEMS_OF(marks))
-	{
+	if (mark_line(str, delimiters, marks) == ITEMS_OF(marks)) {
 		marks[2]++;
 		if(marks[2][0] == '"')
 			marks[2]++;
@@ -122,6 +132,45 @@ char* at_parse_cops (char* str)
 	}
 
 	return NULL;
+}
+
+static char* strip_quoted(char* buf)
+{
+	return ast_strip_quoted(buf, "\"", "\"");
+}
+
+int at_parse_qspn(char* str, char** fnn, char** snn, char** spn)
+{
+	/*
+		+QSPN: <FNN>,<SNN>,<SPN>,<alphabet>,<RPLMN>
+
+		examples:
+
+		+QSPN: "aaaaa","bbbbb","ccccc",0,"000000"
+	*/
+
+	static const char delimiters[] = ":,,,,";
+	char* marks[STRLEN(delimiters)];
+
+	/* parse URC only here */
+	if (mark_line(str, delimiters, marks) == ITEMS_OF(marks)) {
+		marks[0]++;
+		if (marks[0][0] == ' ') marks[0]++;
+		marks[1][0] = '\000';
+		marks[1]++;
+
+		marks[2][0] = '\000';
+		marks[2]++;
+
+		marks[3][0] = '\000';
+
+		*spn = strip_quoted(marks[2]);
+		*snn = strip_quoted(marks[1]);
+		*fnn = strip_quoted(marks[0]);
+		return 0;
+	}
+
+	return -1;
 }
 
 /*!

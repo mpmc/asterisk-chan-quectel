@@ -135,7 +135,7 @@ int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_command)
 	static const char cmd_cimi[] = "AT+CIMI\r";
 	static const char cmd_cpin[] = "AT+CPIN?\r";
 
-	static const char cmd_cops[] = "AT+COPS=0,0\r";
+	static const char cmd_cops[] = "AT+COPS=3,0\r";
 	static const char cmd_creg_2[] = "AT+CREG=2\r";
 	static const char cmd_creg[] = "AT+CREG?\r";
 	static const char cmd_cnum[] = "AT+CNUM\r";
@@ -238,6 +238,17 @@ int at_enqueue_cops(struct cpvt *cpvt)
 	return 0;
 }
 
+int at_enqueue_qspn(struct cpvt *cpvt)
+{
+	static const char cmd[] = "AT+QSPN\r";
+	static at_queue_cmd_t at_cmd = ATQ_CMD_DECLARE_ST(CMD_AT_QSPN, cmd);
+
+	if (at_queue_insert_const(cpvt, &at_cmd, 1, 0) != 0) {
+		chan_quectel_err = E_QUEUE;
+		return -1;
+	}
+	return 0;
+}
 
 /* SMS sending */
 static int at_enqueue_pdu(struct cpvt *cpvt, const char *pdu, size_t length, size_t tpdulen, int uid)
@@ -284,7 +295,7 @@ static int at_enqueue_pdu(struct cpvt *cpvt, const char *pdu, size_t length, siz
 int at_enqueue_sms(struct cpvt *cpvt, const char *destination, const char *msg, unsigned validity_minutes, int report_req, const char *payload, size_t payload_len)
 {
 	ssize_t res;
-	pvt_t* pvt = cpvt->pvt;
+	struct pvt* pvt = cpvt->pvt;
 
 	/* set default validity period */
 	if (validity_minutes <= 0)
@@ -528,7 +539,7 @@ int at_enqueue_dial(struct cpvt *cpvt, const char *number, int clir)
 		err = at_fill_generic_cmd(&cmds[cmdsno], "AT+CPCMREG=0;D%s;\r", number);
 	}
 	else {
-		err = at_fill_generic_cmd(&cmds[cmdsno], "D%s;\r", number);
+		err = at_fill_generic_cmd(&cmds[cmdsno], "ATD%s;\r", number);
 	}
 
 	if(err) {
@@ -930,28 +941,28 @@ int at_enqueue_conference(struct cpvt *cpvt)
  * \brief SEND AT+CHUP command to device IMMEDIALITY
  * \param cpvt -- cpvt structure
  */
-int at_hangup_immediality(struct cpvt* cpvt, int release_cause)
+int at_hangup_immediately(struct cpvt* cpvt, int release_cause)
 {
 	struct pvt* pvt = cpvt->pvt;
 
 	if (pvt->is_simcom) { // AT+CHUP
-		static const char cmd_chup[] = "AT+CHUP\r";
+		static const char cmd_chup[] = "+CHUP";
 		static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_ST(CMD_AT_CHUP, cmd_chup);
 
-		if (at_queue_add(cpvt, &cmd, 1, 1) == NULL) {
+		if (at_queue_add(cpvt, &cmd, 1, 0, 1u) == NULL) {
 			chan_quectel_err = E_QUEUE;
 			return -1;
 		}
 	}
 	else { // AT+QHUP=<cause>,<idx>
 		at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_QHUP);
-		const int err = at_fill_generic_cmd(&cmd, "AT+QHUP=%d,%d\r", map_hangup_cause(release_cause), cpvt->call_idx);
+		const int err = at_fill_generic_cmd(&cmd, "+QHUP=%d,%d", map_hangup_cause(release_cause), cpvt->call_idx);
 		if (err) {
 			chan_quectel_err = E_UNKNOWN;
 			return err;
 		}
 
-		if (at_queue_add(cpvt, &cmd, 1, 1) == NULL) {
+		if (at_queue_add(cpvt, &cmd, 1, 0, 1u) == NULL) {
 			chan_quectel_err = E_QUEUE;
 			return -1;
 		}
@@ -960,15 +971,13 @@ int at_hangup_immediality(struct cpvt* cpvt, int release_cause)
 
 }
 
-int at_disable_uac_immediality(struct cpvt *cpvt)
+int at_disable_uac_immediately(struct pvt *pvt)
 {
-	struct pvt* pvt = cpvt->pvt;
-
 	if (!pvt->is_simcom) {
-		static const char cmd_qpcmv[] = "AT+QPCMV=0\r";
+		static const char cmd_qpcmv[] = "+QPCMV=0";
 		static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_ST(CMD_AT_QPCMV_0, cmd_qpcmv);
 
-		if (at_queue_add(cpvt, &cmd, 1, 1) == NULL) {
+		if (at_queue_add(&pvt->sys_chan, &cmd, 1, 0, 1u) == NULL) {
 			chan_quectel_err = E_QUEUE;
 			return -1;
 		}
@@ -1000,7 +1009,7 @@ int at_enqueue_qcrcind(struct cpvt* cpvt)
 	static const char cmd_atqcrcind[] = "AT$QCRCIND=1\r";
 	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_STIT(CMD_AT_QCRCIND, cmd_atqcrcind, ATQ_CMD_TIMEOUT_MEDIUM, 0);
 
-	if (at_queue_insert_const(cpvt, &cmd, 1, 1) != 0) {
+	if (at_queue_insert_const(cpvt, &cmd, 1, 0) != 0) {
 		chan_quectel_err = E_QUEUE;
 		return -1;
 	}
@@ -1013,7 +1022,7 @@ int at_enqueue_enable_tty(struct cpvt* cpvt)
 	static const char cmd_atqpcmv[] = "AT+QPCMV=1,0\r";
 	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_ST(CMD_AT_QPCMV_TTY, cmd_atqpcmv);
 
-	if (at_queue_insert_const(cpvt, &cmd, 1, 1) != 0) {
+	if (at_queue_insert_const(cpvt, &cmd, 1, 0) != 0) {
 		chan_quectel_err = E_QUEUE;
 		return -1;
 	}
@@ -1026,7 +1035,7 @@ int at_enqueue_enable_uac(struct cpvt* cpvt)
 	static const char cmd_atqpcmv[] = "AT+QPCMV=1,2\r";
 	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_ST(CMD_AT_QPCMV_UAC, cmd_atqpcmv);
 
-	if (at_queue_insert_const(cpvt, &cmd, 1, 1) != 0) {
+	if (at_queue_insert_const(cpvt, &cmd, 1, 0) != 0) {
 		chan_quectel_err = E_QUEUE;
 		return -1;
 	}

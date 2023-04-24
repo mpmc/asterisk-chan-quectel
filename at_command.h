@@ -19,7 +19,7 @@
 #define AT_COMMANDS_TABLE(_) \
 	_( USER,            "USER'S") \
 	_( AT,              "AT") \
-	_( AT_A,            "at+qpcmv=0;+qpcmv=1,0;a") \
+	_( AT_A,            "ATA") \
 	_( AT_CCWA_STATUS,  "AT+CCWA?") \
 	_( AT_CCWA_SET,     "AT+CCWA=") \
 	_( AT_CFUN,         "AT+CFUN") \
@@ -46,6 +46,7 @@
 	_( AT_CNUM,         "AT+CNUM") \
 \
 	_( AT_COPS,         "AT+COPS?") \
+	_( AT_QSPN,         "AT+QSPN") \
 	_( AT_COPS_INIT,    "AT+COPS=") \
 	_( AT_CPIN,         "AT+CPIN?") \
 	_( AT_CPMS,         "AT+CPMS") \
@@ -58,7 +59,7 @@
 	_( AT_CSSN,         "AT+CSSN") \
 	_( AT_CUSD,         "AT+CUSD") \
 	_( AT_CVOICE,       "AT+QPCMV?") \
-	_( AT_D,            "AT+CPCMREG=0;D") \
+	_( AT_D,            "ATD") \
 \
 	_( AT_CPCMREG1,		"AT+CPCMREG=1") \
 	_( AT_CPCMREG0,		"AT+CPCMREG=0") \
@@ -96,12 +97,14 @@ typedef enum {
 	SUPPRESS_ERROR_ENABLED
 } at_cmd_suppress_error_t;
 
+struct pvt;
 struct cpvt;
 
 const char *at_cmd2str(at_cmd_t cmd);
 int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_command);
 int at_enqueue_ping(struct cpvt *cpvt);
 int at_enqueue_cops(struct cpvt *cpvt);
+int at_enqueue_qspn(struct cpvt *cpvt);
 int at_enqueue_sms(struct cpvt *cpvt, const char *number, const char *msg, unsigned validity_min, int report_req, const char *payload, size_t payload_len);
 int at_enqueue_ussd(struct cpvt *cpvt, const char *code);
 int at_enqueue_dtmf(struct cpvt *cpvt, char digit);
@@ -119,8 +122,8 @@ int at_enqueue_clcc(struct cpvt *cpvt);
 int at_enqueue_activate(struct cpvt *cpvt);
 int at_enqueue_flip_hold(struct cpvt *cpvt);
 int at_enqueue_conference(struct cpvt *cpvt);
-int at_hangup_immediality(struct cpvt *cpvt, int release_cause);
-int at_disable_uac_immediality(struct cpvt *cpvt);
+int at_hangup_immediately(struct cpvt *cpvt, int release_cause);
+int at_disable_uac_immediately(struct pvt *pvt);
 int at_enqueue_enable_tty(struct cpvt *cpvt);
 int at_enqueue_enable_uac(struct cpvt *cpvt);
 int at_enqueue_mute(struct cpvt *cpvt, int mute);

@@ -324,6 +324,7 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_COPS:
+			case CMD_AT_QSPN:
 				ast_debug (1, "[%s] Provider query successfully\n", PVT_ID(pvt));
 				break;
 
@@ -480,20 +481,18 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 			case CMD_AT_CVOICE:
 				ast_debug (1, "[%s] No Quectel voice support\n", PVT_ID(pvt));
 				pvt->has_voice = 0;
-                                break;
-			case CMD_AT_CVOICE2:
-			ast_debug (1, "[%s] No Simcom voice support\n", PVT_ID(pvt));
-			pvt->is_simcom = 0;
-			if (!pvt->has_voice) {
-				ast_log(LOG_ERROR, "[%s] Dongle has NO voice support\n", PVT_ID(pvt));
-			}
+                break;
 
-			if (!pvt->initialized) {
-				if (at_enqueue_initialization(task->cpvt, CMD_AT_CNMI)) {
-					log_cmd_response_error(pvt, ecmd, "[%s] Error schedule initialization commands\n", PVT_ID(pvt));
-					goto e_return;
+			case CMD_AT_CVOICE2:
+				ast_debug (1, "[%s] No Simcom voice support\n", PVT_ID(pvt));
+				pvt->is_simcom = 0;
+
+				if (!pvt->initialized) {
+					if (at_enqueue_initialization(task->cpvt, CMD_AT_CNMI)) {
+						log_cmd_response_error(pvt, ecmd, "[%s] Error schedule initialization commands\n", PVT_ID(pvt));
+						goto e_return;
+					}
 				}
-			}
 			break;
 /*
 			case CMD_AT_CLIP:
@@ -617,6 +616,7 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_COPS:
+			case CMD_AT_QSPN:
 				ast_debug (1, "[%s] Could not get provider name\n", PVT_ID(pvt));
 				break;
 
@@ -992,10 +992,15 @@ static int at_response_qind(struct pvt* pvt, char* str)
 
 	qind_t qind;
 	char* params;
+
+	ast_debug(2, "[%s] QIND - %s\n", PVT_ID(pvt), str);
+
 	res = at_parse_qind(str, &qind, &params);
 	if (res < 0) {
 		return -1;
 	}
+
+	ast_verb(1, "[%s] QIND(%s) - %s\n", PVT_ID(pvt), at_qind2str(qind), params);
 
 	switch(qind) {
 		case QIND_CSQ:
@@ -1601,19 +1606,36 @@ static int at_response_cnum (struct pvt* pvt, char* str)
  * \retval -1 error
  */
 
-static int at_response_cops (struct pvt* pvt, char* str)
+static int at_response_cops(struct pvt* pvt, char* str)
 {
-	char* provider_name = at_parse_cops (str);
+	char* provider_name = at_parse_cops(str);
 
-	if (provider_name)
-	{
-		ast_copy_string (pvt->provider_name, provider_name, sizeof (pvt->provider_name));
+	if (provider_name) {
+		ast_copy_string(pvt->provider_name, provider_name, sizeof(pvt->provider_name));
+		ast_verb(1, "[%s] COPS - '%s'\n", PVT_ID(pvt), pvt->provider_name);
 		return 0;
 	}
 
-	ast_copy_string (pvt->provider_name, "NONE", sizeof (pvt->provider_name));
+	ast_copy_string(pvt->provider_name, "NONE", sizeof(pvt->provider_name));
+	ast_verb(1, "[%s] COPS - '%s'\n", PVT_ID(pvt), pvt->provider_name);
 
 	return -1;
+}
+
+static int at_response_qspn(struct pvt* pvt, char* str)
+{
+	char* fnn; // full network name
+	char* snn; // short network name
+	char* spn; // service provider name
+
+	if (at_parse_qspn(str, &fnn, &snn, &spn)) {
+		ast_log(LOG_ERROR, "[%s] Error parsing QSPN response - '%s'", PVT_ID(pvt), str);
+		return -1;
+	}
+
+	ast_verb(1, "[%s] QSPN - FNN:'%s' SNN:'%s' SPN:'%s'\n", PVT_ID(pvt), fnn, snn, spn);
+	ast_copy_string(pvt->provider_name, spn, sizeof(pvt->provider_name));
+	return 0;
 }
 
 /*!
@@ -1625,45 +1647,53 @@ static int at_response_cops (struct pvt* pvt, char* str)
  * \retval -1 error
  */
 
-static int at_response_creg (struct pvt* pvt, char* str, size_t len)
+static int at_response_creg(struct pvt* pvt, char* str, size_t len)
 {
-	int	d;
+	int	gsm_reg;
 	char* lac;
 	char* ci;
 
-	if (at_enqueue_cops(&pvt->sys_chan))
-	{
-		ast_log (LOG_ERROR, "[%s] Error sending query for provider name\n", PVT_ID(pvt));
-	}
-
-	if (at_parse_creg (str, len, &d, &pvt->gsm_reg_status, &lac, &ci))
-	{
-		ast_verb (1, "[%s] Error parsing CREG: '%.*s'\n", PVT_ID(pvt), (int) len, str);
+	if (at_parse_creg(str, len, &gsm_reg, &pvt->gsm_reg_status, &lac, &ci)) {
+		ast_log(LOG_ERROR, "[%s] Error parsing CREG: '%.*s'\n", PVT_ID(pvt), (int)len, str);
 		return 0;
 	}
 
-	if (d)
-	{
+	if (gsm_reg) {
+		if (pvt->is_simcom) {
+			if (at_enqueue_cops(&pvt->sys_chan)) {
+				ast_log(LOG_WARNING, "[%s] Error sending query for provider name\n", PVT_ID(pvt));
+			}
+		}
+		else {
+			if (at_enqueue_qspn(&pvt->sys_chan)) {
+				ast_log(LOG_WARNING, "[%s] Error sending query for provider name\n", PVT_ID(pvt));
+			}
+		}
+
 //#ifdef ISSUE_CCWA_STATUS_CHECK
 		/* only if gsm_registered 0 -> 1 ? */
-		if(!pvt->gsm_registered && CONF_SHARED(pvt, callwaiting) != CALL_WAITING_AUTO)
-			at_enqueue_set_ccwa(&pvt->sys_chan, CONF_SHARED(pvt, callwaiting));
+		if(!pvt->gsm_registered && CONF_SHARED(pvt, callwaiting) != CALL_WAITING_AUTO) {
+			if (at_enqueue_set_ccwa(&pvt->sys_chan, CONF_SHARED(pvt, callwaiting))) {
+				ast_log(LOG_WARNING, "[%s] Error setting call waiting mode\n", PVT_ID(pvt));
+			}
+		}
 //#endif
 		pvt->gsm_registered = 1;
 	}
-	else
-	{
+	else {
 		pvt->gsm_registered = 0;
 	}
 
-	if (lac)
-	{
-		ast_copy_string (pvt->location_area_code, lac, sizeof (pvt->location_area_code));
+	if (lac) {
+		ast_copy_string(pvt->location_area_code, lac, sizeof(pvt->location_area_code));
 	}
 
-	if (ci)
-	{
-		ast_copy_string (pvt->cell_id, ci, sizeof (pvt->cell_id));
+	if (ci) {
+		ast_copy_string(pvt->cell_id, ci, sizeof(pvt->cell_id));
+	}
+
+	if (lac || ci) {
+		ast_verb(1, "[%s] CREG - LAC:%s CID:%s\n", PVT_ID(pvt), pvt->location_area_code, pvt->cell_id);
 	}
 
 	return 0;
@@ -1799,6 +1829,7 @@ int at_response(struct pvt* pvt, const struct iovec* iov, int iovcnt, at_res_t a
 			ast_verb(1, "[%s] Got Response for user's command:'%s'\n", PVT_ID(pvt), str);
 			ast_log(LOG_NOTICE, "[%s] Got Response for user's command:'%s'\n", PVT_ID(pvt), str);
 		}
+
 		switch (at_res)
 		{
 			case RES_BOOT:
@@ -1859,7 +1890,11 @@ int at_response(struct pvt* pvt, const struct iovec* iov, int iovcnt, at_res_t a
 
 			case RES_COPS:
 				/* An error here is not fatal. Just keep going. */
-				at_response_cops (pvt, str);
+				at_response_cops(pvt, str);
+				return 0;
+
+			case RES_QSPN:
+				at_response_qspn(pvt, str);
 				return 0;
 
 			case RES_CSQ:

@@ -24,6 +24,7 @@
 #include "chan_quectel.h"
 #include "at_read.h"
 #include "ringbuffer.h"
+#include "helpers.h"
 
 
 /*!
@@ -76,24 +77,22 @@ EXPORT_DEF ssize_t at_read (int fd, const char * dev, struct ringbuffer* rb)
 		{
 			rb_write_upd (rb, n);
 
-			ast_debug (5, "[%s] receive %zu byte, used %zu, free %zu, read %zu, write %zu\n",
+			ast_debug (6, "[%s] receive %zu byte, used %zu, free %zu, read %zu, write %zu\n",
 				dev, n, rb_used (rb), rb_free (rb), rb->read, rb->write);
 
 			iovcnt = rb_read_all_iov (rb, iov);
 
-			if (iovcnt > 0)
-			{
-				if (iovcnt == 2)
-				{
-					ast_debug (5, "[%s] [%.*s%.*s]\n", dev,
-							(int) iov[0].iov_len, (char*) iov[0].iov_base,
-							(int) iov[1].iov_len, (char*) iov[1].iov_base);
+			if (iovcnt > 0 && DEBUG_ATLEAST(5)) {
+				struct ast_str* const e0 = escape_nstr((const char*)iov[0].iov_base, iov[0].iov_len);
+				if (iovcnt == 2) {
+					struct ast_str* const e1 = escape_nstr((const char*)iov[1].iov_base, iov[1].iov_len);
+					ast_debug(5, "[%s] [%d][%s%s]\n", dev, iovcnt, ast_str_buffer(e0), ast_str_buffer(e1));
+					ast_free(e1);
 				}
-				else
-				{
-					ast_debug (5, "[%s] [%.*s]\n", dev,
-							(int) iov[0].iov_len, (char*) iov[0].iov_base);
+				else {
+					ast_debug(5, "[%s] [%d][%s]\n", dev, iovcnt, ast_str_buffer(e0));
 				}
+				ast_free(e0);
 			}
 		}
 	}
@@ -182,7 +181,7 @@ EXPORT_DEF at_res_t at_read_result_classification(struct ringbuffer* rb, size_t 
 {
 	at_res_t at_res = RES_UNKNOWN;
 
-	for(unsigned idx = at_responses.ids_first; idx < at_responses.ids; idx++)
+	for(unsigned idx = at_responses.ids_first; idx < at_responses.ids; ++idx)
 	{
 		if (rb_memcmp(rb, at_responses.responses[idx].id, at_responses.responses[idx].idlen) == 0) {
 			at_res = at_responses.responses[idx].res;
@@ -210,7 +209,7 @@ EXPORT_DEF at_res_t at_read_result_classification(struct ringbuffer* rb, size_t 
 
 	rb_read_upd (rb, len);
 
-	/* ast_debug (5, "receive result '%s'\n", at_res2str (at_res)); */
+	// ast_debug(5, "receive result '%s'\n", at_res2str(at_res));
 
 	return at_res;
 }

@@ -14,14 +14,14 @@
 
 typedef struct at_queue_cmd
 {
-	at_cmd_t		cmd;			/*!< command code */
-	at_res_t		res;			/*!< expected response code, can be RES_OK, RES_CMGR, RES_SMS_PROMPT */
+	at_cmd_t		cmd;					/*!< command code */
+	at_res_t		res;					/*!< expected response code, can be RES_OK, RES_CMGR, RES_SMS_PROMPT */
 
-	unsigned		flags;			/*!< flags */
-#define ATQ_CMD_FLAG_DEFAULT		0x00		/*!< empty flags */
-#define ATQ_CMD_FLAG_STATIC		0x01		/*!< data is static no try deallocate */
-#define ATQ_CMD_FLAG_IGNORE		0x02		/*!< ignore response non match condition */
-#define ATQ_CMD_FLAG_SUPPRESS_ERROR	0x04		/*!< don't print error message if command fails */
+	unsigned		flags;					/*!< flags */
+#define ATQ_CMD_FLAG_DEFAULT		0x00	/*!< empty flags */
+#define ATQ_CMD_FLAG_STATIC			0x01	/*!< data is static no try deallocate */
+#define ATQ_CMD_FLAG_IGNORE			0x02	/*!< ignore response non match condition */
+#define ATQ_CMD_FLAG_SUPPRESS_ERROR	0x04	/*!< don't print error message if command fails */
 
 	struct timeval		timeout;		/*!< timeout value, started at time when command actually written on device */
 #define ATQ_CMD_TIMEOUT_SHORT	1		/*!< timeout value  1 sec */
@@ -74,34 +74,34 @@ typedef struct at_queue_task
 {
 	AST_LIST_ENTRY (at_queue_task) entry;
 
-	unsigned	cmdsno;
-	unsigned	cindex;
+	unsigned		cmdsno;
+	unsigned		cindex;
 	struct cpvt*	cpvt;
-
-	int uid;
-
+	int				uid;
+	unsigned		at_once:1;
 	at_queue_cmd_t	cmds[0];	/* this field must be last */
 } at_queue_task_t;
 
-at_queue_task_t * at_queue_add (struct cpvt * cpvt, const at_queue_cmd_t * cmds, unsigned cmdsno, int prio);
-int at_queue_insert_const (struct cpvt * cpvt, const at_queue_cmd_t * cmds, unsigned cmdsno, int athead);
-int at_queue_insert (struct cpvt * cpvt, at_queue_cmd_t * cmds, unsigned cmdsno, int athead);
-int at_queue_insert_uid (struct cpvt * cpvt, at_queue_cmd_t * cmds, unsigned cmdsno, int athead, int uid);
-void at_queue_handle_result (struct pvt * pvt, at_res_t res);
-void at_queue_flush (struct pvt * pvt);
-const at_queue_task_t * at_queue_head_task (const struct pvt * pvt);
-const at_queue_cmd_t * at_queue_head_cmd(const struct pvt * pvt);
-int at_queue_timeout(const struct pvt * pvt);
-int at_queue_run (struct pvt * pvt);
+at_queue_task_t* at_queue_add(struct cpvt* cpvt, const at_queue_cmd_t* cmds, unsigned cmdsno, int prio, unsigned at_once);
+int at_queue_insert_const(struct cpvt* cpvt, const at_queue_cmd_t* cmds, unsigned cmdsno, int athead);
+int at_queue_insert(struct cpvt* cpvt, at_queue_cmd_t* cmds, unsigned cmdsno, int athead);
+int at_queue_insert_uid(struct cpvt* cpvt, at_queue_cmd_t* cmds, unsigned cmdsno, int athead, int uid);
+void at_queue_handle_result(struct pvt* pvt, at_res_t res);
+void at_queue_flush(struct pvt* pvt);
+const at_queue_task_t* at_queue_head_task (const struct pvt* pvt);
+const at_queue_cmd_t* at_queue_head_cmd(const struct pvt* pvt);
+int at_queue_timeout(const struct pvt* pvt);
+int at_queue_run(struct pvt* pvt);
+int at_queue_run_at_once(struct pvt* pvt);
 
-INLINE_DECL at_cmd_suppress_error_t at_cmd_suppress_error_mode(int flags)
+static inline at_cmd_suppress_error_t at_cmd_suppress_error_mode(int flags)
 {
 	return ((flags & ATQ_CMD_FLAG_SUPPRESS_ERROR) ? SUPPRESS_ERROR_ENABLED : SUPPRESS_ERROR_DISABLED);
 }
 
-static inline const at_queue_cmd_t * at_queue_task_cmd (const at_queue_task_t * task)
+static inline const at_queue_cmd_t* at_queue_task_cmd(const at_queue_task_t* task)
 {
-	return task ? &task->cmds[task->cindex] : NULL;
+	return task ? &task->cmds[task->at_once? 0u : task->cindex] : NULL;
 }
 
 /* direct device write, dangerouse */

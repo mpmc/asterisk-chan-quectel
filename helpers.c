@@ -202,3 +202,26 @@ EXPORT_DEF int schedule_restart_event(dev_state_t event, restate_time_t when, co
 
 	return 0;
 }
+
+struct ast_str* escape_nstr(const char* buf, size_t cnt)
+{
+	if (cnt == 0u) { // build empty string
+		struct ast_str* nbuf = ast_str_create(1);
+		ast_str_reset(nbuf);
+		return nbuf;
+	}
+	
+	// build null-terminated string
+	struct ast_str* nbuf = ast_str_create(cnt + 1u);
+	memcpy(ast_str_buffer(nbuf), buf, cnt);
+	*(ast_str_buffer(nbuf) + cnt) = '\000';
+	ast_str_update(nbuf);
+
+	// unescape string
+	struct ast_str* ebuf = ast_str_create(cnt * 2u);
+	ast_escape_c(ast_str_buffer(ebuf), ast_str_buffer(nbuf), ast_str_size(ebuf));
+	ast_str_update(ebuf);
+
+	ast_free(nbuf);
+	return ebuf;
+}

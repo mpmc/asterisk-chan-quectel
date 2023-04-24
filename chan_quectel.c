@@ -391,24 +391,19 @@ EXPORT_DEF int opentty(const char* dev, char ** lockfile, int typ)
 #/* phone monitor thread pvt cleanup */
 static void disconnect_quectel(struct pvt* pvt)
 {
-	struct cpvt * cpvt, * next;
-
 	if (!PVT_NO_CHANS(pvt)) {
-		ast_debug (1, "[%s] Quectel disconnecting, hanging up channels\n", PVT_ID(pvt));
-
-		for(cpvt = pvt->chans.first; cpvt; cpvt = next)
-		{
-			next = cpvt->entry.next;
-			if (CONF_UNIQ(pvt, uac)) {
-				at_disable_uac_immediality(cpvt);
-			}
-			at_hangup_immediality(cpvt, AST_CAUSE_NORMAL_UNSPECIFIED);
+		struct cpvt* cpvt;
+		AST_LIST_TRAVERSE(&(pvt->chans), cpvt, entry) {
+			at_hangup_immediately(cpvt, AST_CAUSE_NORMAL_UNSPECIFIED);
 			CPVT_RESET_FLAGS(cpvt, CALL_FLAG_NEED_HANGUP);
 			change_channel_state(cpvt, CALL_STATE_RELEASED, AST_CAUSE_NORMAL_UNSPECIFIED);
 		}
 	}
 
-	at_queue_run(pvt);
+	if (CONF_UNIQ(pvt, uac)) {
+		at_disable_uac_immediately(pvt);
+	}
+	at_queue_run_at_once(pvt);
 	at_queue_flush(pvt);
 
     if (CONF_UNIQ(pvt, uac)) {
@@ -429,6 +424,7 @@ static void disconnect_quectel(struct pvt* pvt)
 	}
 	pvt_on_remove_last_channel(pvt);
 
+	ast_debug(1, "[%s] Quectel disconnecting - cleaning up\n", PVT_ID(pvt));
 	pvt->dtmf_digit = 0;
 
 //	else
@@ -666,7 +662,13 @@ static void* do_monitor_phone(void* data)
 
 			ast_mutex_lock (&pvt->lock);
 			PVT_STAT(pvt, at_responses) ++;
-			if (at_response (pvt, iov, iovcnt, at_res) || at_queue_run(pvt)) {
+			if (at_response (pvt, iov, iovcnt, at_res)) {
+				ast_log(LOG_ERROR, "[%s] Fail to handle response\n", dev);
+				goto e_cleanup;
+			}
+
+			if (at_queue_run(pvt)) {
+				ast_log(LOG_ERROR, "[%s] Fail to handle run\n", dev);
 				goto e_cleanup;
 			}
 			ast_mutex_unlock (&pvt->lock);
