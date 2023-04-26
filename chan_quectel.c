@@ -80,71 +80,84 @@ struct ast_format chan_quectel_format;
 struct ast_format_cap * chan_quectel_format_cap;
 #endif /* ^10-13 */
 
-static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
+static snd_pcm_t *alsa_card_init(struct pvt* pvt, const char *dev, snd_pcm_stream_t stream)
 {
-	int err;
+	int res;
 	int direction;
 	snd_pcm_t *handle = NULL;
 	snd_pcm_hw_params_t *hwparams = NULL;
 	snd_pcm_sw_params_t *swparams = NULL;
-	struct pollfd pfd;
 	snd_pcm_uframes_t period_size = PERIOD_FRAMES * 4;
-	snd_pcm_uframes_t buffer_size = 0;
+	snd_pcm_uframes_t buffer_size = PERIOD_FRAMES * 8;
 	unsigned int rate = DESIRED_RATE;
 	snd_pcm_uframes_t start_threshold, stop_threshold;
 
+	const char* const stream_str = (stream == SND_PCM_STREAM_CAPTURE)? "capture" : "playback";
 
-	err = snd_pcm_open(&handle, dev, stream, SND_PCM_NONBLOCK);
-	if (err < 0) {
-		ast_log(LOG_ERROR, "snd_pcm_open failed: %s\n", snd_strerror(err));
+	res = snd_pcm_open(&handle, dev, stream, SND_PCM_NONBLOCK);
+	if (res < 0) {
+		ast_log(LOG_ERROR, "[%s][ALSA][%s] Fail to open device - dev:'%s' err:'%s'\n", PVT_ID(pvt), stream_str, dev, snd_strerror(res));
 		return NULL;
 	} else {
-		ast_debug(1, "Opening device %s in %s mode\n", dev, (stream == SND_PCM_STREAM_CAPTURE) ? "read" : "write");
+		ast_debug(1, "[%s][ALSA][%s] Device opened - dev:'%s'\n", PVT_ID(pvt), stream_str, dev);
 	}
 
 	hwparams = ast_alloca(snd_pcm_hw_params_sizeof());
 	memset(hwparams, 0, snd_pcm_hw_params_sizeof());
 	snd_pcm_hw_params_any(handle, hwparams);
 
-	err = snd_pcm_hw_params_set_access(handle, hwparams, SND_PCM_ACCESS_RW_INTERLEAVED);
-	if (err < 0)
-		ast_log(LOG_ERROR, "set_access failed: %s\n", snd_strerror(err));
-
-	err = snd_pcm_hw_params_set_format(handle, hwparams, format);
-	if (err < 0)
-		ast_log(LOG_ERROR, "set_format failed: %s\n", snd_strerror(err));
-
-	err = snd_pcm_hw_params_set_channels(handle, hwparams, 1);
-	if (err < 0)
-		ast_log(LOG_ERROR, "set_channels failed: %s\n", snd_strerror(err));
-
-	direction = 0;
-	err = snd_pcm_hw_params_set_rate_near(handle, hwparams, &rate, &direction);
-	if (rate != DESIRED_RATE)
-		ast_log(LOG_WARNING, "Rate not correct, requested %d, got %u\n", DESIRED_RATE, rate);
-
-	direction = 0;
-	err = snd_pcm_hw_params_set_period_size_near(handle, hwparams, &period_size, &direction);
-	if (err < 0)
-		ast_log(LOG_ERROR, "period_size(%lu frames) is bad: %s\n", period_size, snd_strerror(err));
-	else {
-		ast_debug(1, "Period size is %d\n", err);
+	res = snd_pcm_hw_params_set_access(handle, hwparams, SND_PCM_ACCESS_RW_INTERLEAVED);
+	if (res < 0) {
+		ast_log(LOG_ERROR, "[%s][ALSA][%s] HW Set access failed: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
 	}
 
-	buffer_size = 4096 * 2;		/* period_size * 16; */
-	err = snd_pcm_hw_params_set_buffer_size_near(handle, hwparams, &buffer_size);
-	if (err < 0)
-		ast_log(LOG_WARNING, "Problem setting buffer size of %lu: %s\n", buffer_size, snd_strerror(err));
-	else {
-		ast_debug(1, "Buffer size is set to %d frames\n", err);
+	res = snd_pcm_hw_params_set_format(handle, hwparams, format);
+	if (res < 0) {
+		ast_log(LOG_ERROR, "[%s][ALSA][%s] HW Set format failed: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
 	}
 
-	err = snd_pcm_hw_params(handle, hwparams);
-	if (err < 0)
-		ast_log(LOG_ERROR, "Couldn't set the new hw params: %s\n", snd_strerror(err));
+	res = snd_pcm_hw_params_set_channels(handle, hwparams, 1);
+	if (res < 0) {
+		ast_log(LOG_ERROR, "[%s][ALSA][%s] HW Set channels failed: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
+	}
+
+	direction = 0;
+	res = snd_pcm_hw_params_set_rate_near(handle, hwparams, &rate, &direction);
+	if (rate != DESIRED_RATE) {
+		ast_log(LOG_WARNING, "[%s][ALSA][%s] HW Rate not correct -  requested:%d got:%u\n", PVT_ID(pvt), stream_str, DESIRED_RATE, rate);
+	}
+
+	direction = 0;
+	res = snd_pcm_hw_params_set_period_size_near(handle, hwparams, &period_size, &direction);
+	if (res < 0) {
+		ast_log(LOG_ERROR, "[%s][ALSA][%s] HW Period size (%lu frames) is bad: %s\n", PVT_ID(pvt), stream_str, period_size, snd_strerror(res));
+	}
+
+	res = snd_pcm_hw_params_set_buffer_size_near(handle, hwparams, &buffer_size);
+	if (res < 0) {
+		ast_log(LOG_WARNING, "[%s][ALSA][%s] HW Problem setting buffer size of %lu: %s\n", PVT_ID(pvt), stream_str, buffer_size, snd_strerror(res));
+	}
+
+	res = snd_pcm_hw_params(handle, hwparams);
+	if (res < 0) {
+		ast_log(LOG_ERROR, "[%s][ALSA][%s] Couldn't set the new HW params: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
+	}
+
+	res = snd_pcm_hw_params_current(handle, hwparams);
+	if (res < 0) {
+		ast_log(LOG_WARNING, "[%s][ALSA][%s] HW Couldn't get current HW params: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
+	}
+	else {
+		res = snd_pcm_hw_params_get_period_size(hwparams, &period_size, NULL);
+		if (res >= 0) ast_debug(1, "[%s][ALSA][%s] Period size: %lu\n", PVT_ID(pvt), stream_str, period_size);
+
+		res = snd_pcm_hw_params_get_buffer_size(hwparams, &buffer_size);
+		if (res >= 0) ast_debug(1, "[%s][ALSA][%s] Buffer size: %lu\n", PVT_ID(pvt), stream_str, buffer_size);
+	}
 
 	swparams = ast_alloca(snd_pcm_sw_params_sizeof());
 	memset(swparams, 0, snd_pcm_sw_params_sizeof());
+
 	snd_pcm_sw_params_current(handle, swparams);
 
 	if (stream == SND_PCM_STREAM_PLAYBACK)
@@ -152,54 +165,66 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 	else
 		start_threshold = 1;
 
-	err = snd_pcm_sw_params_set_start_threshold(handle, swparams, start_threshold);
-	if (err < 0)
-		ast_log(LOG_ERROR, "start threshold: %s\n", snd_strerror(err));
+	res = snd_pcm_sw_params_set_start_threshold(handle, swparams, start_threshold);
+	if (res < 0) {
+		ast_log(LOG_ERROR, "[%s][ALSA][%s] SW Couldn't set start threshold: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
+	}
 
 	if (stream == SND_PCM_STREAM_PLAYBACK)
 		stop_threshold = buffer_size;
 	else
 		stop_threshold = buffer_size;
 
-	err = snd_pcm_sw_params_set_stop_threshold(handle, swparams, stop_threshold);
-	if (err < 0)
-		ast_log(LOG_ERROR, "stop threshold: %s\n", snd_strerror(err));
-
-	err = snd_pcm_sw_params(handle, swparams);
-	if (err < 0)
-		ast_log(LOG_ERROR, "sw_params: %s\n", snd_strerror(err));
-
-	err = snd_pcm_poll_descriptors_count(handle);
-	if (err <= 0)
-		ast_log(LOG_ERROR, "Unable to get a poll descriptors count, error is %s\n", snd_strerror(err));
-	if (err != 1) {
-		ast_debug(1, "Can't handle more than one device\n");
+	res = snd_pcm_sw_params_set_stop_threshold(handle, swparams, stop_threshold);
+	if (res < 0) {
+		ast_log(LOG_ERROR, "[%s][ALSA][%s] SW Couldn't set stop threshold: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
 	}
 
-	snd_pcm_poll_descriptors(handle, &pfd, err);
-	ast_debug(1, "Acquired fd %d from the poll descriptor\n", pfd.fd);
+	res = snd_pcm_sw_params(handle, swparams);
+	if (res < 0) {
+		ast_log(LOG_ERROR, "[%s][ALSA][%s] Couldn't set SW params: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
+	}
+
+	if (stream == SND_PCM_STREAM_CAPTURE) {
+		res = snd_pcm_poll_descriptors_count(handle);
+		if (res <= 0) {
+			ast_log(LOG_ERROR, "[%s][ALSA][%s] Unable to get a poll descriptors count: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
+		}
+		else if (res != 1) {
+			ast_debug(1, "[%s][ALSA][%s] Can't handle more than one FD - cnt:%d\n", PVT_ID(pvt), stream_str, res);
+		}
+		else {
+			struct pollfd pfd;
+
+			snd_pcm_poll_descriptors(handle, &pfd, res);
+			ast_debug(1, "[%s][ALSA][%s] Acquired FD:%d from the poll descriptor\n", PVT_ID(pvt), stream_str, pfd.fd);
+			pvt->audio_fd = pfd.fd;
+		}
+	}
 
 	return handle;
 }
 
 static int soundcard_init(struct pvt * pvt)
 {
-	pvt->icard = alsa_card_init(CONF_UNIQ(pvt, alsadev), SND_PCM_STREAM_CAPTURE);
+	pvt->icard = alsa_card_init(pvt, CONF_UNIQ(pvt, alsadev), SND_PCM_STREAM_CAPTURE);
 	if (!pvt->icard) {
-		ast_log(LOG_ERROR, "Problem opening ALSA capture device %s \n",CONF_UNIQ(pvt, alsadev));
+		ast_log(LOG_ERROR, "[%s][ALSA] Problem opening capture device '%s'\n", PVT_ID(pvt), CONF_UNIQ(pvt, alsadev));
 		return -1;
 	}
 
-	pvt->ocard = alsa_card_init(CONF_UNIQ(pvt, alsadev), SND_PCM_STREAM_PLAYBACK);
+	pvt->ocard = alsa_card_init(pvt, CONF_UNIQ(pvt, alsadev), SND_PCM_STREAM_PLAYBACK);
 	if (!pvt->ocard) {
-		ast_log(LOG_ERROR, "Problem opening ALSA playback device %s \n",CONF_UNIQ(pvt, alsadev));
+		ast_log(LOG_ERROR, "[%s][ALSA] Problem opening playback device '%s'\n", PVT_ID(pvt), CONF_UNIQ(pvt, alsadev));
 		return -1;
 	}
 
-	ast_verb(2, "Sound Card %s Initialized\n", CONF_UNIQ(pvt, alsadev));
-	snd_pcm_prepare(pvt->icard);
-	snd_pcm_drop(pvt->icard);
+	int err = snd_pcm_link(pvt->icard, pvt->ocard);
+	if (err < 0) {
+		ast_log(LOG_WARNING, "[%s][ALSA] Couldn't link devices: %s\n", PVT_ID(pvt), snd_strerror(err));
+	}
 
+	ast_verb(2, "[%s] Sound card '%s' initialized\n", PVT_ID(pvt), CONF_UNIQ(pvt, alsadev));
 	return 0;
 }
 
@@ -388,6 +413,25 @@ int opentty(const char* dev, char ** lockfile, int typ)
 	return fd;
 }
 
+static int pcm_close(snd_pcm_t** ad, snd_pcm_stream_t stream_type)
+{
+	if (*ad == NULL) return 0;
+	const int res = snd_pcm_close(*ad);
+	if (res < 0) {
+		switch (stream_type) {
+			case SND_PCM_STREAM_PLAYBACK:
+				ast_log(LOG_ERROR, "ALSA - failed to close playback device: %s", snd_strerror(res));
+				break;
+
+			case SND_PCM_STREAM_CAPTURE:
+				ast_log(LOG_ERROR, "ALSA - failed to close capture device: %s", snd_strerror(res));
+				break;
+		}
+	}
+	*ad = NULL;
+	return res;
+}
+
 #/* phone monitor thread pvt cleanup */
 static void disconnect_quectel(struct pvt* pvt)
 {
@@ -407,8 +451,12 @@ static void disconnect_quectel(struct pvt* pvt)
 	at_queue_flush(pvt);
 
     if (CONF_UNIQ(pvt, uac)) {
-		if (pvt->icard) snd_pcm_close(pvt->icard);
-		if (pvt->ocard)	snd_pcm_close(pvt->ocard);
+		const int err = snd_pcm_unlink(pvt->icard);
+		if (err < 0) {
+			ast_log(LOG_WARNING, "[%s][ALSA] Couldn't unlink devices: %s", PVT_ID(pvt), snd_strerror(err));
+		}
+		if (pvt->icard) pcm_close(&pvt->icard, SND_PCM_STREAM_CAPTURE);
+		if (pvt->ocard)	pcm_close(&pvt->ocard, SND_PCM_STREAM_PLAYBACK);
     }
 	else {
 		closetty(pvt->audio_fd, &pvt->alock);
@@ -989,17 +1037,17 @@ static void discovery_stop(public_state_t * state)
 #/* */
 void pvt_on_create_1st_channel(struct pvt* pvt)
 {
-        if (!CONF_UNIQ(pvt, uac)) {
-	mixb_init (&pvt->a_write_mixb, pvt->a_write_buf, sizeof (pvt->a_write_buf));
-//	rb_init (&pvt->a_write_rb, pvt->a_write_buf, sizeof (pvt->a_write_buf));
+	if (!CONF_UNIQ(pvt, uac)) {
+		mixb_init(&pvt->a_write_mixb, pvt->a_write_buf, sizeof(pvt->a_write_buf));
+		// rb_init (&pvt->a_write_rb, pvt->a_write_buf, sizeof (pvt->a_write_buf));
 
-	if(!pvt->a_timer)
-		pvt->a_timer = ast_timer_open ();
-                                                       }
+		if(!pvt->a_timer) pvt->a_timer = ast_timer_open();
+	}
 
-/* FIXME: do on each channel switch */
+	/* FIXME: do on each channel switch */
 	if(pvt->dsp)
 		ast_dsp_digitreset (pvt->dsp);
+
 	pvt->dtmf_digit = 0;
 	pvt->dtmf_begin_time.tv_sec = 0;
 	pvt->dtmf_begin_time.tv_usec = 0;
