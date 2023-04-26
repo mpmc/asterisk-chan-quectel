@@ -104,7 +104,7 @@ const char *at_cmd2str(at_cmd_t cmd);
 int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_command);
 int at_enqueue_ping(struct cpvt *cpvt);
 int at_enqueue_cops(struct cpvt *cpvt);
-int at_enqueue_qspn(struct cpvt *cpvt);
+int at_enqueue_qspn_qnwinfo(struct cpvt *cpvt);
 int at_enqueue_sms(struct cpvt *cpvt, const char *number, const char *msg, unsigned validity_min, int report_req, const char *payload, size_t payload_len);
 int at_enqueue_ussd(struct cpvt *cpvt, const char *code);
 int at_enqueue_dtmf(struct cpvt *cpvt, char digit);

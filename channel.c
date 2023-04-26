@@ -1357,11 +1357,24 @@ EXPORT_DEF void change_channel_state(struct cpvt * cpvt, unsigned newstate, int 
 #/* */
 static void set_channel_vars(struct pvt* pvt, struct ast_channel* channel)
 {
-	unsigned idx;
-	channel_var_t dev_vars[] =
+	char plmn[20]; // public land mobile network
+	snprintf(plmn, ITEMS_OF(plmn), "%d", pvt->operator);
+
+	char mcc[20]; // mobile country code
+	snprintf(mcc, ITEMS_OF(mcc), "%d", pvt->operator / 100);
+
+	char mnc[20]; // mobile network code
+	snprintf(mnc, ITEMS_OF(mnc), "%02d", pvt->operator % 100);
+
+	const channel_var_t dev_vars[] =
 	{
 		{ "QUECTELNAME", PVT_ID(pvt) },
+		{ "QUECTELNETWORKNAME", pvt->network_name },
+		{ "QUECTELSHORTNETWORKNAME", pvt->short_network_name },
 		{ "QUECTELPROVIDER", pvt->provider_name },
+		{ "QUECTELPLMN", plmn },
+		{ "QUECTELMCC", mcc },
+		{ "QUECTELMNC", mnc },
 		{ "QUECTELIMEI", pvt->imei },
 		{ "QUECTELIMSI", pvt->imsi },
 		{ "QUECTELNUMBER", pvt->subscriber_number },
@@ -1374,7 +1387,7 @@ static void set_channel_vars(struct pvt* pvt, struct ast_channel* channel)
 	//ast_string_field_set (channel, language, CONF_SHARED(pvt, language);
 #endif /* ^11- */
 
-	for (idx = 0; idx < ITEMS_OF(dev_vars); ++idx) {
+	for (size_t idx = 0; idx < ITEMS_OF(dev_vars); ++idx) {
 		ast_debug(1, "[%s] Setting chanvar %s = %s\n",
 			PVT_ID(pvt),
 			(dev_vars[idx].name ? dev_vars[idx].name : "(null)"),
@@ -1538,7 +1551,7 @@ EXPORT_DEF int queue_hangup(struct ast_channel* channel, int hangupcause)
 }
 
 #/* NOTE: bg: called from device level with pvt locked */
-EXPORT_DEF void start_local_channel (struct pvt* pvt, const char* exten, const char* number, channel_var_t* vars)
+EXPORT_DEF void start_local_channel (struct pvt* pvt, const char* exten, const char* number, const channel_var_t* vars)
 {
 	struct ast_channel*	channel;
 	int			cause = 0;

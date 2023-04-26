@@ -206,23 +206,29 @@ int at_write(struct pvt* pvt, const char* buf, size_t count)
  * \param pvt -- pvt structure
  */
 #/* */
-void at_queue_remove_cmd (struct pvt* pvt, at_res_t res)
+void at_queue_remove_cmd(struct pvt* pvt, at_res_t res)
 {
-	at_queue_task_t * task = AST_LIST_FIRST (&pvt->at_queue);
+	at_queue_task_t* const task = AST_LIST_FIRST(&pvt->at_queue);
+	if (!task) return;
 
-	if (task)
-	{
-		unsigned index = task->cindex;
+	if (task->at_once) {
+		task->cindex = task->cmdsno;
+		PVT_STATE(pvt, at_cmds) -= task->cmdsno;
+		if (task->cmds[0].res == res || (task->cmds[0].flags & ATQ_CMD_FLAG_IGNORE) != 0) {
+			at_queue_remove(pvt);
+		}
+	}
+	else {
+		const unsigned index = task->cindex;
 
 		task->cindex++;
 		PVT_STATE(pvt, at_cmds)--;
-		ast_debug (4, "[%s] remove command '%s' expected response '%s' real '%s' cmd %u/%u flags 0x%02x from queue\n",
-				PVT_ID(pvt), at_cmd2str (task->cmds[index].cmd),
+		ast_debug(4, "[%s] remove command '%s' expected response '%s' real '%s' cmd %u/%u flags 0x%02x from queue\n",
+				PVT_ID(pvt), at_cmd2str(task->cmds[index].cmd),
 				at_res2str (task->cmds[index].res), at_res2str (res),
 				task->cindex, task->cmdsno, task->cmds[index].flags);
 
-		if((task->cindex >= task->cmdsno) || (task->cmds[index].res != res && (task->cmds[index].flags & ATQ_CMD_FLAG_IGNORE) == 0))
-		{
+		if ((task->cindex >= task->cmdsno) || (task->cmds[index].res != res && (task->cmds[index].flags & ATQ_CMD_FLAG_IGNORE) == 0)) {
 			at_queue_remove(pvt);
 		}
 	}
@@ -232,8 +238,7 @@ static void at_queue_remove_task_at_once(struct pvt* pvt)
 {
 	at_queue_task_t* task = AST_LIST_FIRST (&pvt->at_queue);
 
-	if (task && task->at_once)
-	{
+	if (task && task->at_once) {
 		task->cindex = task->cmdsno;
 		PVT_STATE(pvt, at_cmds) -= task->cmdsno;
 		if((task->cmds[0].flags & ATQ_CMD_FLAG_IGNORE) == 0)
@@ -268,6 +273,8 @@ int at_queue_run(struct pvt* pvt)
 
 	if (t->at_once) {
 		size_t buflen = at_queue_get_total_cmd_len(t);
+		if (buflen == 0u) return fail; // do not send again
+
 		buflen += 2u; // AT + (semicolon separated commands)
 		buflen += t->cmdsno; // number of semicolons
 
@@ -322,7 +329,7 @@ int at_queue_run(struct pvt* pvt)
 	return fail;
 }
 
-int at_queue_run_at_once(struct pvt* pvt)
+int at_queue_run_immediately(struct pvt* pvt)
 {
 	int fail = 0;
 	size_t buflen = 0;
@@ -376,6 +383,11 @@ int at_queue_run_at_once(struct pvt* pvt)
 int at_queue_insert_const (struct cpvt * cpvt, const at_queue_cmd_t * cmds, unsigned cmdsno, int athead)
 {
 	return at_queue_add(cpvt, cmds, cmdsno, athead, 0u) == NULL || at_queue_run(cpvt->pvt);
+}
+
+int at_queue_insert_const_at_once(struct cpvt* cpvt, const at_queue_cmd_t* cmds, unsigned cmdsno, int athead)
+{
+	return at_queue_add(cpvt, cmds, cmdsno, athead, 1u) == NULL || at_queue_run(cpvt->pvt);
 }
 
 #/* */

@@ -164,18 +164,25 @@ typedef struct pvt
 
 	/* device state */
 	int			gsm_reg_status;
+	int			act;
+	int			operator;
 	int			rssi;
-	int			linkmode;
-	char		provider_name[32];
-	char		manufacturer[32];
-	char		model[32];
-	char		firmware[32];
-	char		imei[17];
-	char		imsi[17];
-	char		subscriber_number[128];
-	char		location_area_code[8];
-	char		cell_id[8];
-	char		sms_scenter[20];
+
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(manufacturer);
+		AST_STRING_FIELD(model);
+		AST_STRING_FIELD(firmware);
+		AST_STRING_FIELD(imei);
+		AST_STRING_FIELD(imsi);
+		AST_STRING_FIELD(network_name);
+		AST_STRING_FIELD(short_network_name);
+		AST_STRING_FIELD(provider_name);
+		AST_STRING_FIELD(location_area_code);
+		AST_STRING_FIELD(cell_id);
+		AST_STRING_FIELD(band);
+		AST_STRING_FIELD(sms_scenter);
+		AST_STRING_FIELD(subscriber_number);
+	);
 
 	unsigned int		incoming_sms_index;
 	sms_inbox_item_type	incoming_sms_inbox[SMS_INBOX_ARRAY_SIZE];
@@ -247,13 +254,14 @@ EXPORT_DECL const char * pvt_str_state(const struct pvt* pvt);
 EXPORT_DECL struct ast_str * pvt_str_state_ex(const struct pvt* pvt);
 EXPORT_DECL const char * GSM_regstate2str(int gsm_reg_status);
 EXPORT_DECL const char * sys_act2str(int sys_submode);
-EXPORT_DECL char* rssi2dBm(int rssi, char* buf, unsigned len);
+EXPORT_DECL const char* rssi2dBm(int rssi, char* buf, size_t len);
 
 EXPORT_DECL void pvt_on_create_1st_channel(struct pvt* pvt);
 EXPORT_DECL void pvt_on_remove_last_channel(struct pvt* pvt);
 EXPORT_DECL void pvt_reload(restate_time_t when);
 EXPORT_DECL int pvt_enabled(const struct pvt * pvt);
 EXPORT_DECL void pvt_try_restate(struct pvt * pvt);
+int pvt_set_act(struct pvt* pvt, int act);
 
 EXPORT_DECL int opentty (const char* dev, char ** lockfile, int typ);
 EXPORT_DECL void closetty(int fd, char ** lockfname);

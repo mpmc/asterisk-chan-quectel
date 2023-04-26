@@ -79,7 +79,7 @@ static char* cli_show_devices (struct ast_cli_entry* e, int cmd, struct ast_cli_
 			CONF_SHARED(pvt, group),
 			pvt_str_state(pvt),
 			pvt->rssi,
-			pvt->linkmode,
+			pvt->act,
 			pvt->provider_name,
 			pvt->model,
 			pvt->firmware,
@@ -137,11 +137,11 @@ static char* cli_show_device_settings (struct ast_cli_entry* e, int cmd, struct 
 		ast_cli (a->fd, "  Group                   : %d\n", CONF_SHARED(pvt, group));
 		ast_cli (a->fd, "  RX gain                 : %d\n", CONF_SHARED(pvt, rxgain));
 		ast_cli (a->fd, "  TX gain                 : %d\n", CONF_SHARED(pvt, txgain));
-		ast_cli (a->fd, "  Use CallingPres         : %s\n", CONF_SHARED(pvt, usecallingpres) ? "Yes" : "No");
+		ast_cli (a->fd, "  Use CallingPres         : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, usecallingpres)));
 		ast_cli (a->fd, "  Default CallingPres     : %s\n", CONF_SHARED(pvt, callingpres) < 0 ? "<Not set>" : ast_describe_caller_presentation (CONF_SHARED(pvt, callingpres)));
-		ast_cli (a->fd, "  Auto delete SMS         : %s\n", CONF_SHARED(pvt, autodeletesms) ? "Yes" : "No");
-		ast_cli (a->fd, "  Disable SMS             : %s\n", CONF_SHARED(pvt, disablesms) ? "Yes" : "No");
-		ast_cli (a->fd, "  Reset Quectel            : %s\n", CONF_SHARED(pvt, resetquectel) ? "Yes" : "No");
+		ast_cli (a->fd, "  Auto delete SMS         : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, autodeletesms)));
+		ast_cli (a->fd, "  Disable SMS             : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, disablesms)));
+		ast_cli (a->fd, "  Reset Quectel           : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, resetquectel)));
 		ast_cli (a->fd, "  Call Waiting            : %s\n", dc_cw_setting2str(CONF_SHARED(pvt, callwaiting)));
 		ast_cli (a->fd, "  DTMF                    : %s\n", dc_dtmf_setting2str(CONF_SHARED(pvt, dtmf)));
 		ast_cli (a->fd, "  Minimal DTMF Gap        : %d\n", CONF_SHARED(pvt, mindtmfgap));
@@ -199,8 +199,8 @@ static char* cli_show_device_state (struct ast_cli_entry* e, int cmd, struct ast
 		else
 		ast_cli (a->fd, "  Audio                   : %s\n", PVT_STATE(pvt, audio_tty));
 		ast_cli (a->fd, "  Data                    : %s\n", PVT_STATE(pvt, data_tty));
-		ast_cli (a->fd, "  Voice                   : %s\n", (pvt->has_voice) ? "Yes" : "No");
-		ast_cli (a->fd, "  SMS                     : %s\n", (pvt->has_sms) ? "Yes" : "No");
+		ast_cli (a->fd, "  Voice                   : %s\n", AST_CLI_YESNO(pvt->has_voice));
+		ast_cli (a->fd, "  SMS                     : %s\n", AST_CLI_YESNO(pvt->has_sms));
 		ast_cli (a->fd, "  Manufacturer            : %s\n", pvt->manufacturer);
 		ast_cli (a->fd, "  Model                   : %s\n", pvt->model);
 		ast_cli (a->fd, "  Firmware                : %s\n", pvt->firmware);
@@ -208,13 +208,17 @@ static char* cli_show_device_state (struct ast_cli_entry* e, int cmd, struct ast
 		ast_cli (a->fd, "  IMSI                    : %s\n", pvt->imsi);
 		ast_cli (a->fd, "  GSM Registration Status : %s\n", GSM_regstate2str(pvt->gsm_reg_status));
 		ast_cli (a->fd, "  RSSI                    : %d, %s\n", pvt->rssi, rssi2dBm(pvt->rssi, buf, sizeof(buf)));
-		ast_cli (a->fd, "  Mode                    : %s\n", sys_act2str(pvt->linkmode));
+		ast_cli (a->fd, "  Access technology       : %s\n", sys_act2str(pvt->act));
+		ast_cli (a->fd, "  Network Name            : %s\n", pvt->network_name);
+		ast_cli (a->fd, "  Short Network Name      : %s\n", pvt->short_network_name);
+		ast_cli (a->fd, "  Registered PLMN         : %d\n", pvt->operator);
 		ast_cli (a->fd, "  Provider Name           : %s\n", pvt->provider_name);
+		ast_cli (a->fd, "  Band                    : %s\n", pvt->band);
 		ast_cli (a->fd, "  Location area code      : %s\n", pvt->location_area_code);
 		ast_cli (a->fd, "  Cell ID                 : %s\n", pvt->cell_id);
 		ast_cli (a->fd, "  Subscriber Number       : %s\n", pvt->subscriber_number);
 		ast_cli (a->fd, "  SMS Service Center      : %s\n", pvt->sms_scenter);
-		ast_cli (a->fd, "  Use UCS-2 encoding      : %s\n", pvt->use_ucs2_encoding ? "Yes" : "No");
+		ast_cli (a->fd, "  Use UCS-2 encoding      : %s\n", AST_CLI_YESNO(pvt->use_ucs2_encoding));
 		ast_cli (a->fd, "  Tasks in queue          : %u\n", PVT_STATE(pvt, at_tasks));
 		ast_cli (a->fd, "  Commands in queue       : %u\n", PVT_STATE(pvt, at_cmds));
 		ast_cli (a->fd, "  Call Waiting            : %s\n", pvt->has_call_waiting ? "Enabled" : "Disabled" );

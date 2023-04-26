@@ -24,6 +24,7 @@ const char* at_qind2str(qind_t);
 char* at_parse_cnum(char* str);
 char* at_parse_cops(char* str);
 int at_parse_qspn(char* str, char** fnn, char** snn, char** spn);
+int at_parse_qnwinfo(char* str, int* act, int* oper, char** band, int* channel);
 int at_parse_creg(char* str, unsigned len, int* gsm_reg, int* gsm_reg_status, char** lac, char** ci);
 int at_parse_cmti(const char* str);
 int at_parse_cdsi(const char* str);

@@ -135,21 +135,18 @@ static int at_response_cend (struct pvt * pvt, const char* str)
 }
 
 
-static int at_response_ok (struct pvt* pvt, at_res_t res)
+static int at_response_ok(struct pvt* pvt, at_res_t res)
 {
-	const at_queue_task_t * task = at_queue_head_task (pvt);
-	const at_queue_cmd_t * ecmd = at_queue_task_cmd(task);
+	const at_queue_task_t* task = at_queue_head_task(pvt);
+	const at_queue_cmd_t* ecmd = at_queue_task_cmd(task);
 
-	if(!ecmd)
-	{
-		ast_log (LOG_ERROR, "[%s] Received unexpected 'OK'\n", PVT_ID(pvt));
+	if (!ecmd) {
+		ast_log(LOG_ERROR, "[%s] Received unexpected 'OK'\n", PVT_ID(pvt));
 		return 0;
 	}
 
-	if(ecmd->res == RES_OK || ecmd->res == RES_CMGR)
-	{
-		switch (ecmd->cmd)
-		{
+	if(ecmd->res == RES_OK || ecmd->res == RES_CMGR) {
+		switch (ecmd->cmd) {
 			case CMD_AT:
 			case CMD_AT_Z:
 			case CMD_AT_E:
@@ -176,11 +173,11 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_COPS_INIT:
-				ast_debug (1, "[%s] Operator select parameters set\n", PVT_ID(pvt));
+				ast_debug(1, "[%s] Operator select parameters set\n", PVT_ID(pvt));
 				break;
 
 			case CMD_AT_CREG_INIT:
-				ast_debug (1, "[%s] registration info enabled\n", PVT_ID(pvt));
+				ast_debug(1, "[%s] registration info enabled\n", PVT_ID(pvt));
 				break;
 
 			case CMD_AT_CREG:
@@ -188,11 +185,11 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CNUM:
-				ast_debug (1, "[%s] Subscriber phone number query successed\n", PVT_ID(pvt));
+				ast_debug(1, "[%s] Subscriber phone number query successed\n", PVT_ID(pvt));
 				break;
 
 			case CMD_AT_CVOICE:
-				ast_debug (1, "[%s] Quectel has voice support\n", PVT_ID(pvt));
+				ast_debug(1, "[%s] Quectel has voice support\n", PVT_ID(pvt));
 
 				pvt->is_simcom = 0;
 
@@ -204,7 +201,7 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CVOICE2:
-				ast_debug (1, "[%s] Simcom has voice support\n", PVT_ID(pvt));
+				ast_debug(1, "[%s] Simcom has voice support\n", PVT_ID(pvt));
 
 				pvt->is_simcom = 1;
 				at_enqueue_qcrcind(&pvt->sys_chan);
@@ -226,30 +223,30 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 
 /*
 			case CMD_AT_CLIP:
-				ast_debug (1, "[%s] Calling line indication disabled\n", PVT_ID(pvt));
+				ast_debug(1, "[%s] Calling line indication disabled\n", PVT_ID(pvt));
 				break;
 */
 			case CMD_AT_CSSN:
-				ast_debug (1, "[%s] Supplementary Service Notification enabled successful\n", PVT_ID(pvt));
+				ast_debug(1, "[%s] Supplementary Service Notification enabled successful\n", PVT_ID(pvt));
 				break;
 
 			case CMD_AT_CMGF:
-				ast_debug (1, "[%s] SMS operation mode set to PDU\n", PVT_ID(pvt));
+				ast_debug(1, "[%s] SMS operation mode set to PDU\n", PVT_ID(pvt));
 				break;
 
 			case CMD_AT_CSCS:
-				ast_debug (1, "[%s] UCS-2 text encoding enabled\n", PVT_ID(pvt));
+				ast_debug(1, "[%s] UCS-2 text encoding enabled\n", PVT_ID(pvt));
 
 				pvt->use_ucs2_encoding = 1;
 				break;
 
 			case CMD_AT_CPMS:
-				ast_debug (1, "[%s] SMS storage location is established\n", PVT_ID(pvt));
+				ast_debug(1, "[%s] SMS storage location is established\n", PVT_ID(pvt));
 				break;
 
 			case CMD_AT_CNMI:
-				ast_debug (1, "[%s] SMS new message indication enabled\n", PVT_ID(pvt));
-				ast_debug (1, "[%s] Quectel has sms support\n", PVT_ID(pvt));
+				ast_debug(1, "[%s] SMS new message indication enabled\n", PVT_ID(pvt));
+				ast_debug(1, "[%s] Quectel has sms support\n", PVT_ID(pvt));
 
 				pvt->has_sms = 1;
 
@@ -257,7 +254,7 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 				{
 					pvt->timeout = DATA_READ_TIMEOUT;
 					pvt->initialized = 1;
-					ast_verb (3, "[%s] Quectel initialized and ready\n", PVT_ID(pvt));
+					ast_verb(3, "[%s] Quectel initialized and ready\n", PVT_ID(pvt));
 				}
 				break;
 
@@ -271,7 +268,7 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 				task->cpvt->needhangup = 1;
 */
 				CPVT_SET_FLAGS(task->cpvt, CALL_FLAG_NEED_HANGUP);
-				ast_debug (1, "[%s] %s sent successfully for call id %d\n", PVT_ID(pvt), at_cmd2str (ecmd->cmd), task->cpvt->call_idx);
+				ast_debug(1, "[%s] %s sent successfully for call id %d\n", PVT_ID(pvt), at_cmd2str (ecmd->cmd), task->cpvt->call_idx);
 				break;
 
 			case CMD_AT_CFUN:
@@ -286,7 +283,7 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 				if (!pvt->initialized) {
 					pvt->timeout = DATA_READ_TIMEOUT;
 					pvt->initialized = 1;
-					ast_verb (3, "[%s] Quectel initialized and ready\n", PVT_ID(pvt));
+					ast_verb(3, "[%s] Quectel initialized and ready\n", PVT_ID(pvt));
 				}
 				break;
 
@@ -298,11 +295,11 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 			case CMD_AT_QHUP:
      		case CMD_AT_CHLD_1x:
 				CPVT_RESET_FLAGS(task->cpvt, CALL_FLAG_NEED_HANGUP);
-				ast_debug (1, "[%s] Successful hangup for call idx %d\n", PVT_ID(pvt), task->cpvt->call_idx);
+				ast_debug(1, "[%s] Successful hangup for call idx %d\n", PVT_ID(pvt), task->cpvt->call_idx);
 				break;
 
 			case CMD_AT_CMGS:
-				ast_debug (1, "[%s] Sending sms message in progress\n", PVT_ID(pvt));
+				ast_debug(1, "[%s] Sending sms message in progress\n", PVT_ID(pvt));
 				break;
 
 			case CMD_AT_SMSTEXT:
@@ -310,17 +307,17 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 				pvt_try_restate(pvt);
 
 				/* TODO: move to +CMGS: handler */
-				ast_verb (3, "[%s] Successfully sent SMS message %p\n", PVT_ID(pvt), task);
-				ast_log (LOG_NOTICE, "[%s] Successfully sent SMS message %p\n", PVT_ID(pvt), task);
+				ast_verb(3, "[%s] Successfully sent SMS message %p\n", PVT_ID(pvt), task);
+				ast_log(LOG_NOTICE, "[%s] Successfully sent SMS message %p\n", PVT_ID(pvt), task);
 				break;
 
 			case CMD_AT_DTMF:
-				ast_debug (1, "[%s] DTMF sent successfully for call idx %d\n", PVT_ID(pvt), task->cpvt->call_idx);
+				ast_debug(1, "[%s] DTMF sent successfully for call idx %d\n", PVT_ID(pvt), task->cpvt->call_idx);
 				break;
 
 			case CMD_AT_CUSD:
-				ast_verb (3, "[%s] Successfully sent USSD %p\n", PVT_ID(pvt), task);
-				ast_log (LOG_NOTICE, "[%s] Successfully sent USSD %p\n", PVT_ID(pvt), task);
+				ast_verb(3, "[%s] Successfully sent USSD %p\n", PVT_ID(pvt), task);
+				ast_log(LOG_NOTICE, "[%s] Successfully sent USSD %p\n", PVT_ID(pvt), task);
 				break;
 
 			case CMD_AT_COPS:
@@ -329,7 +326,7 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CMGR:
-				ast_debug (1, "[%s] SMS message see later\n", PVT_ID(pvt));
+				ast_debug(1, "[%s] SMS message see later\n", PVT_ID(pvt));
 				at_retrieve_next_sms(&pvt->sys_chan, at_cmd_suppress_error_mode(ecmd->flags));
 				break;
 
@@ -361,13 +358,13 @@ static int at_response_ok (struct pvt* pvt, at_res_t res)
 				break;
 
 			default:
-				ast_log (LOG_ERROR, "[%s] Received 'OK' for unhandled command '%s'\n", PVT_ID(pvt), at_cmd2str (ecmd->cmd));
+				ast_log(LOG_ERROR, "[%s] Received 'OK' for unhandled command '%s'\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
 				break;
 		}
-		at_queue_handle_result (pvt, res);
+		at_queue_handle_result(pvt, res);
 	}
 	else {
-		ast_log (LOG_ERROR, "[%s] Received 'OK' when expecting '%s', ignoring\n", PVT_ID(pvt), at_res2str (ecmd->res));
+		ast_log(LOG_ERROR, "[%s] Received 'OK' when expecting '%s', ignoring\n", PVT_ID(pvt), at_res2str(ecmd->res));
 	}
 
 	return 0;
@@ -403,10 +400,10 @@ static void log_cmd_response_error(const struct pvt* pvt, const at_queue_cmd_t *
  * \retval -1 error
  */
 
-static int at_response_error (struct pvt* pvt, at_res_t res)
+static int at_response_error(struct pvt* pvt, at_res_t res)
 {
-	const at_queue_task_t * task = at_queue_head_task(pvt);
-	const at_queue_cmd_t * ecmd = at_queue_task_cmd(task);
+	const at_queue_task_t* task = at_queue_head_task(pvt);
+	const at_queue_cmd_t* ecmd = at_queue_task_cmd(task);
 
 	if (ecmd && (ecmd->res == RES_OK || ecmd->res == RES_CMGR || ecmd->res == RES_SMS_PROMPT))
 	{
@@ -466,7 +463,7 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 				goto e_return;
 
 			case CMD_AT_CREG:
-				ast_debug (1, "[%s] Error getting registration info\n", PVT_ID(pvt));
+				ast_debug(1, "[%s] Error getting registration info\n", PVT_ID(pvt));
 				break;
 
 			case CMD_AT_QINDCFG_CSQ:
@@ -528,7 +525,7 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CSCS:
-				ast_debug (1, "[%s] No UCS-2 encoding support\n", PVT_ID(pvt));
+				ast_debug(1, "[%s] No UCS-2 encoding support\n", PVT_ID(pvt));
 
 				pvt->use_ucs2_encoding = 0;
 				break;
@@ -549,8 +546,7 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CHLD_2:
-				if (!CPVT_TEST_FLAG(task->cpvt, CALL_FLAG_HOLD_OTHER) ||
-						task->cpvt->state != CALL_STATE_INIT) {
+				if (!CPVT_TEST_FLAG(task->cpvt, CALL_FLAG_HOLD_OTHER) || task->cpvt->state != CALL_STATE_INIT) {
 					break;
 				}
 				/* fall through */
@@ -592,8 +588,8 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 					char dst[SMSDB_DST_MAX_LEN];
 					ssize_t payload_len = smsdb_outgoing_clear(task->uid, dst, payload);
 					if (payload_len >= 0) {
-						ast_verb (3, "[%s] Error payload: %.*s\n", PVT_ID(pvt), (int) payload_len, payload);
-						channel_var_t vars[] =
+						ast_verb(3, "[%s] Error payload: %.*s\n", PVT_ID(pvt), (int) payload_len, payload);
+						const channel_var_t vars[] =
 						{
 							{ "SMS_REPORT_PAYLOAD", payload },
 							{ "SMS_REPORT_TS", "" },
@@ -607,7 +603,7 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 					}
 				}
 
-				ast_verb (3, "[%s] Error sending SMS message %p\n", PVT_ID(pvt), task);
+				ast_verb(3, "[%s] Error sending SMS message %p\n", PVT_ID(pvt), task);
 				log_cmd_response_error(pvt, ecmd, "[%s] Error sending SMS message %p %s\n", PVT_ID(pvt), task, at_cmd2str (ecmd->cmd));
 				break;
 
@@ -617,16 +613,16 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 
 			case CMD_AT_COPS:
 			case CMD_AT_QSPN:
-				ast_debug (1, "[%s] Could not get provider name\n", PVT_ID(pvt));
+				ast_debug(1, "[%s] Could not get provider name\n", PVT_ID(pvt));
 				break;
 
 			case CMD_AT_CLVL:
-				ast_debug (1, "[%s] Audio level synchronization failed at step %d/%d\n", PVT_ID(pvt), pvt->volume_sync_step, VOLUME_SYNC_DONE-1);
+				ast_debug(1, "[%s] Audio level synchronization failed at step %d/%d\n", PVT_ID(pvt), pvt->volume_sync_step, VOLUME_SYNC_DONE-1);
 				pvt->volume_sync_step = VOLUME_SYNC_BEGIN;
 				break;
 
 			case CMD_AT_CUSD:
-				ast_verb (3, "[%s] Error sending USSD %p\n", PVT_ID(pvt), task);
+				ast_verb(3, "[%s] Error sending USSD %p\n", PVT_ID(pvt), task);
 				log_cmd_response_error(pvt, ecmd, "[%s] Error sending USSD %p\n", PVT_ID(pvt), task);
 				break;
 
@@ -654,7 +650,7 @@ static int at_response_error (struct pvt* pvt, at_res_t res)
 				log_cmd_response_error(pvt, ecmd, "[%s] Received 'ERROR' for unhandled command '%s'\n", PVT_ID(pvt), at_cmd2str (ecmd->cmd));
 				break;
 		}
-		at_queue_handle_result (pvt, res);
+		at_queue_handle_result(pvt, res);
 	}
 	else if (ecmd)
 	{
@@ -987,7 +983,6 @@ static int at_response_dsci(struct pvt* pvt, char* str)
 
 static int at_response_qind(struct pvt* pvt, char* str)
 {
-	int val;
 	int res;
 
 	qind_t qind;
@@ -1000,29 +995,47 @@ static int at_response_qind(struct pvt* pvt, char* str)
 		return -1;
 	}
 
-	ast_verb(1, "[%s] QIND(%s) - %s\n", PVT_ID(pvt), at_qind2str(qind), params);
+	ast_debug(1, "[%s] QIND(%s) - %s\n", PVT_ID(pvt), at_qind2str(qind), params);
 
 	switch(qind) {
 		case QIND_CSQ:
 		{
-			int val;
-			res = at_parse_qind_csq(params, &val);
+			int rssi;
+			char buf[40];
+
+			res = at_parse_qind_csq(params, &rssi);
 			if (res < 0) {
 				ast_debug(1, "[%s] Failed to parse CSQ - %s\n", PVT_ID(pvt), params);
 				break;
 			}
-			pvt->rssi = val;
+			ast_verb(1, "[%s] RSSI: %s\n", PVT_ID(pvt), rssi2dBm(rssi, buf, sizeof(buf)));
+			pvt->rssi = rssi;
 			return 0;
 		}
 
 		case QIND_ACT:
 		{
-			res = at_parse_qind_act(params, &val);
+			int act;
+			res = at_parse_qind_act(params, &act);
 			if (res < 0) {
 				ast_debug(1, "[%s] Failed to parse ACT - %s\n", PVT_ID(pvt), params);
 				break;
 			}
-			pvt->linkmode = val;
+			ast_verb(1, "[%s] Access technology: %s\n", PVT_ID(pvt), sys_act2str(act));
+			pvt_set_act(pvt, act);
+
+			if (act) {
+				if (pvt->is_simcom) {
+					if (at_enqueue_cops(&pvt->sys_chan)) {
+						ast_log(LOG_WARNING, "[%s] Error sending query for provider name\n", PVT_ID(pvt));
+					}
+				}
+				else {
+					if (at_enqueue_qspn_qnwinfo(&pvt->sys_chan)) {
+						ast_log(LOG_WARNING, "[%s] Error sending query for provider name\n", PVT_ID(pvt));
+					}
+				}
+			}
 			return 0;
 		}
 
@@ -1083,7 +1096,7 @@ static int at_response_csca(struct pvt* pvt, char* str)
 		return -1;
 	}
 	csca_utf8_str[res] = '\0';
-	ast_copy_string(pvt->sms_scenter, csca_utf8_str, sizeof(pvt->sms_scenter));
+	ast_string_field_set(pvt, sms_scenter, csca_utf8_str);
 	ast_debug(2, "[%s] CSCA: %s\n", PVT_ID(pvt), pvt->sms_scenter);
 	return 0;
 }
@@ -1303,7 +1316,7 @@ static int at_response_cmgr(struct pvt* pvt, char* str, size_t len)
 			switch (PDUTYPE_MTI(tpdu_type)) {
 			case PDUTYPE_MTI_SMS_STATUS_REPORT:
 				ast_verb(1, "[%s] Got status report with ref %d from %s and status code %d\n", PVT_ID(pvt), mr, oa, st);
-				snprintf(buf, 64, "Delivered\r\nForeignID: %d", mr);
+				snprintf(buf, ITEMS_OF(buf), "Delivered\r\nForeignID: %d", mr);
 				payload_len = smsdb_outgoing_part_status(pvt->imsi, oa, mr, st, status_report, payload);
 				if (payload_len >= 0) {
 					int success = 1;
@@ -1317,7 +1330,7 @@ static int at_response_cmgr(struct pvt* pvt, char* str, size_t len)
 					status_report_str[srroff] = '\0';
 					ast_verb(1, "[%s] Success: %d; Payload: %.*s; Report string: %s\n", PVT_ID(pvt), success, (int) payload_len, payload, status_report_str);
 					payload[payload_len] = '\0';
-					channel_var_t vars[] =
+					const channel_var_t vars[] =
 					{
 						{ "SMS_REPORT_PAYLOAD", payload } ,
 						{ "SMS_REPORT_TS", scts },
@@ -1356,7 +1369,7 @@ receive_as_is:
 				ast_base64encode (text_base64, (unsigned char*)fullmsg, fullmsg_len, sizeof(text_base64));
 
 				{
-					channel_var_t vars[] =
+					const channel_var_t vars[] =
 					{
 						{ "SMS", fullmsg } ,
 						{ "SMS_BASE64", text_base64 },
@@ -1497,7 +1510,7 @@ static int at_response_cusd(struct pvt* pvt, char* str, size_t len)
 	ast_base64encode (text_base64, (unsigned char*)cusd_utf8_str, res, sizeof(text_base64));
 
 	{
-		channel_var_t vars[] =
+		const channel_var_t vars[] =
 		{
 			{ "USSD_TYPE", typebuf },
 			{ "USSD_TYPE_STR", ast_strdupa(typestr) },
@@ -1585,13 +1598,13 @@ static int at_response_cnum (struct pvt* pvt, char* str)
 
 	if (number)
 	{
-		ast_copy_string (pvt->subscriber_number, number, sizeof (pvt->subscriber_number));
+		ast_string_field_set(pvt, subscriber_number, number);
 		if(pvt->subscriber_number[0] != 0)
 			pvt->has_subscriber_number = 1;
 		return 0;
 	}
 
-	ast_copy_string (pvt->subscriber_number, "Unknown", sizeof (pvt->subscriber_number));
+	ast_string_field_set(pvt, subscriber_number, "Unknown");
 	pvt->has_subscriber_number = 0;
 
 	return -1;
@@ -1611,12 +1624,12 @@ static int at_response_cops(struct pvt* pvt, char* str)
 	char* provider_name = at_parse_cops(str);
 
 	if (provider_name) {
-		ast_copy_string(pvt->provider_name, provider_name, sizeof(pvt->provider_name));
+		ast_string_field_set(pvt, provider_name, provider_name);
 		ast_verb(1, "[%s] COPS - '%s'\n", PVT_ID(pvt), pvt->provider_name);
 		return 0;
 	}
 
-	ast_copy_string(pvt->provider_name, "NONE", sizeof(pvt->provider_name));
+	ast_string_field_set(pvt, provider_name, "NONE");
 	ast_verb(1, "[%s] COPS - '%s'\n", PVT_ID(pvt), pvt->provider_name);
 
 	return -1;
@@ -1633,8 +1646,32 @@ static int at_response_qspn(struct pvt* pvt, char* str)
 		return -1;
 	}
 
-	ast_verb(1, "[%s] QSPN - FNN:'%s' SNN:'%s' SPN:'%s'\n", PVT_ID(pvt), fnn, snn, spn);
-	ast_copy_string(pvt->provider_name, spn, sizeof(pvt->provider_name));
+	ast_verb(1, "[%s] Operator: %s/%s/%s\n", PVT_ID(pvt), fnn, snn, spn);
+
+	ast_string_field_set(pvt, network_name, fnn);
+	ast_string_field_set(pvt, short_network_name, snn);
+	ast_string_field_set(pvt, provider_name, spn);
+	return 0;
+}
+
+static int at_response_qnwinfo(struct pvt* pvt, char* str)
+{
+	int act; // access technology
+	int oper; // operator in numeric format
+	char* band; // selected band
+	int channel; // channel ID
+
+	if (at_parse_qnwinfo(str, &act, &oper, &band, &channel)) {
+		ast_debug(1, "[%s] Error parsing QNWINFO response - '%s'", PVT_ID(pvt), str);
+		return -1;
+	}
+
+	pvt_set_act(pvt, act);
+	pvt->operator = oper;
+	ast_string_field_set(pvt, band, band);
+
+	ast_verb(1, "[%s] Registered PLMN: %d\n", PVT_ID(pvt), oper);
+	ast_verb(1, "[%s] Band: %s\n", PVT_ID(pvt), band);
 	return 0;
 }
 
@@ -1665,7 +1702,7 @@ static int at_response_creg(struct pvt* pvt, char* str, size_t len)
 			}
 		}
 		else {
-			if (at_enqueue_qspn(&pvt->sys_chan)) {
+			if (at_enqueue_qspn_qnwinfo(&pvt->sys_chan)) {
 				ast_log(LOG_WARNING, "[%s] Error sending query for provider name\n", PVT_ID(pvt));
 			}
 		}
@@ -1679,22 +1716,16 @@ static int at_response_creg(struct pvt* pvt, char* str, size_t len)
 		}
 //#endif
 		pvt->gsm_registered = 1;
+
+		ast_verb(1, "[%s] Location area code: %s\n", PVT_ID(pvt), pvt->location_area_code);
+		ast_verb(1, "[%s] Cell ID: %s\n", PVT_ID(pvt), pvt->cell_id);
 	}
 	else {
 		pvt->gsm_registered = 0;
 	}
 
-	if (lac) {
-		ast_copy_string(pvt->location_area_code, lac, sizeof(pvt->location_area_code));
-	}
-
-	if (ci) {
-		ast_copy_string(pvt->cell_id, ci, sizeof(pvt->cell_id));
-	}
-
-	if (lac || ci) {
-		ast_verb(1, "[%s] CREG - LAC:%s CID:%s\n", PVT_ID(pvt), pvt->location_area_code, pvt->cell_id);
-	}
+	ast_string_field_set(pvt, location_area_code, lac);
+	ast_string_field_set(pvt, cell_id, ci);
 
 	return 0;
 }
@@ -1710,7 +1741,7 @@ static int at_response_creg(struct pvt* pvt, char* str, size_t len)
 
 static int at_response_cgmi (struct pvt* pvt, const char* str)
 {
-	ast_copy_string (pvt->manufacturer, str, sizeof (pvt->manufacturer));
+	ast_string_field_set(pvt, manufacturer, str);
 
 	return 0;
 }
@@ -1727,7 +1758,7 @@ static int at_response_cgmi (struct pvt* pvt, const char* str)
 #/* */
 static int at_response_cgmm (struct pvt* pvt, const char* str)
 {
-	ast_copy_string (pvt->model, str, sizeof (pvt->model));
+	ast_string_field_set(pvt, model, str);
 
 	return 0;
 }
@@ -1743,7 +1774,7 @@ static int at_response_cgmm (struct pvt* pvt, const char* str)
 
 static int at_response_cgmr (struct pvt* pvt, const char* str)
 {
-	ast_copy_string (pvt->firmware, str, sizeof (pvt->firmware));
+	ast_string_field_set(pvt, firmware, str);
 
 	return 0;
 }
@@ -1759,7 +1790,7 @@ static int at_response_cgmr (struct pvt* pvt, const char* str)
 
 static int at_response_cgsn (struct pvt* pvt, const char* str)
 {
-	ast_copy_string (pvt->imei, str, sizeof (pvt->imei));
+	ast_string_field_set(pvt, imei, str);
 
 	return 0;
 }
@@ -1775,7 +1806,7 @@ static int at_response_cgsn (struct pvt* pvt, const char* str)
 
 static int at_response_cimi (struct pvt* pvt, const char* str)
 {
-	ast_copy_string (pvt->imsi, str, sizeof (pvt->imsi));
+	ast_string_field_set(pvt, imsi, str);
 
 	return 0;
 }
@@ -1850,7 +1881,7 @@ int at_response(struct pvt* pvt, const struct iovec* iov, int iovcnt, at_res_t a
 					ssize_t payload_len = smsdb_outgoing_part_put(task->uid, res, dst, payload);
 					if (payload_len >= 0) {
 						ast_verb (3, "[%s] Error payload: %.*s\n", PVT_ID(pvt), (int) payload_len, payload);
-						channel_var_t vars[] =
+						const channel_var_t vars[] =
 						{
 							{ "SMS_REPORT_PAYLOAD", payload },
 							{ "SMS_REPORT_TS", "" },
@@ -1895,6 +1926,10 @@ int at_response(struct pvt* pvt, const struct iovec* iov, int iovcnt, at_res_t a
 
 			case RES_QSPN:
 				at_response_qspn(pvt, str);
+				return 0;
+
+			case RES_QNWINFO:
+				at_response_qnwinfo(pvt, str);
 				return 0;
 
 			case RES_CSQ:

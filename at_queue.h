@@ -84,6 +84,7 @@ typedef struct at_queue_task
 
 at_queue_task_t* at_queue_add(struct cpvt* cpvt, const at_queue_cmd_t* cmds, unsigned cmdsno, int prio, unsigned at_once);
 int at_queue_insert_const(struct cpvt* cpvt, const at_queue_cmd_t* cmds, unsigned cmdsno, int athead);
+int at_queue_insert_const_at_once(struct cpvt* cpvt, const at_queue_cmd_t* cmds, unsigned cmdsno, int athead);
 int at_queue_insert(struct cpvt* cpvt, at_queue_cmd_t* cmds, unsigned cmdsno, int athead);
 int at_queue_insert_uid(struct cpvt* cpvt, at_queue_cmd_t* cmds, unsigned cmdsno, int athead, int uid);
 void at_queue_handle_result(struct pvt* pvt, at_res_t res);
@@ -92,7 +93,7 @@ const at_queue_task_t* at_queue_head_task (const struct pvt* pvt);
 const at_queue_cmd_t* at_queue_head_cmd(const struct pvt* pvt);
 int at_queue_timeout(const struct pvt* pvt);
 int at_queue_run(struct pvt* pvt);
-int at_queue_run_at_once(struct pvt* pvt);
+int at_queue_run_immediately(struct pvt* pvt);
 
 static inline at_cmd_suppress_error_t at_cmd_suppress_error_mode(int flags)
 {

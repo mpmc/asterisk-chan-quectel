@@ -64,8 +64,8 @@ struct iovec;
 	_( RCEND,       "CALLEND",      "REMOTE CALL END") \
 	_( CCWA,        "+CCWA",        "+CCWA:") \
 	_( QSPN,        "+QSPN",        "+QSPN:") \
+	_( QNWINFO,		"+QNWINFO",		"+QNWINFO:") \
 /* AT_RESPONSES_TABLE */
-
 
 typedef enum {
 

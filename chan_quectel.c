@@ -403,7 +403,7 @@ static void disconnect_quectel(struct pvt* pvt)
 	if (CONF_UNIQ(pvt, uac)) {
 		at_disable_uac_immediately(pvt);
 	}
-	at_queue_run_at_once(pvt);
+	at_queue_run_immediately(pvt);
 	at_queue_flush(pvt);
 
     if (CONF_UNIQ(pvt, uac)) {
@@ -433,18 +433,24 @@ static void disconnect_quectel(struct pvt* pvt)
 		pvt->use_ucs2_encoding = 0;
 		pvt->gsm_reg_status = -1;
 		pvt->rssi = 0;
-		pvt->linkmode = 0;
-		ast_copy_string (pvt->provider_name, "NONE", sizeof (pvt->provider_name));
-		pvt->manufacturer[0] = '\0';
-		pvt->model[0] = '\0';
-		pvt->firmware[0] = '\0';
-		pvt->imei[0] = '\0';
-		pvt->imsi[0] = '\0';
+		pvt->act = 0;
+		pvt->operator = 0;
+		
+		ast_string_field_set(pvt, manufacturer, NULL);
+		ast_string_field_set(pvt, model, NULL);
+		ast_string_field_set(pvt, firmware, NULL);
+		ast_string_field_set(pvt, imei, NULL);
+		ast_string_field_set(pvt, imsi, NULL);
+		ast_string_field_set(pvt, location_area_code, NULL);
+		ast_string_field_set(pvt, network_name, NULL);
+		ast_string_field_set(pvt, short_network_name, NULL);
+		ast_string_field_set(pvt, provider_name, "NONE");
+		ast_string_field_set(pvt, band, NULL);
+		ast_string_field_set(pvt, cell_id, NULL);
+		ast_string_field_set(pvt, sms_scenter, NULL);
+		ast_string_field_set(pvt, subscriber_number, "Unknown");
+
 		pvt->has_subscriber_number = 0;
-		ast_copy_string (pvt->subscriber_number, "Unknown", sizeof (pvt->subscriber_number));
-		pvt->location_area_code[0] = '\0';
-		pvt->cell_id[0] = '\0';
-		pvt->sms_scenter[0] = '\0';
 
 		pvt->gsm_registered	= 0;
 		pvt->has_sms = 0;
@@ -548,7 +554,7 @@ static void handle_expired_reports(struct pvt *pvt)
 	ssize_t payload_len = smsdb_outgoing_purge_one(dst, payload);
 	if (payload_len >= 0) {
 		ast_verb (3, "[%s] TTL payload: %.*s\n", PVT_ID(pvt), (int) payload_len, payload);
-		channel_var_t vars[] =
+		const channel_var_t vars[] =
 		{
 			{ "SMS_REPORT_PAYLOAD", payload },
 			{ "SMS_REPORT_TS", "" },
@@ -860,8 +866,9 @@ static void pvt_free(struct pvt * pvt)
 	if(pvt->dsp)
 		ast_dsp_free(pvt->dsp);
 
-	ast_mutex_unlock(&pvt->lock);
+	ast_string_field_free_memory(pvt);
 
+	ast_mutex_unlock(&pvt->lock);
 	ast_free(pvt);
 }
 
@@ -1521,6 +1528,12 @@ EXPORT_DEF const char * sys_act2str(int act)
 		"EVDO",
 		"CDMA and EVDO",
 		"CDMA and LTE",
+		"???",
+		"???",
+		"???",
+		"???",
+		"???",
+		"???",
 		"Ehrpd",
 		"CDMA and Ehrpd",
 	};
@@ -1529,22 +1542,18 @@ EXPORT_DEF const char * sys_act2str(int act)
 }
 
 #/* BUGFIX of https://code.google.com/p/asterisk-chan-quectel/issues/detail?id=118 */
-EXPORT_DEF char* rssi2dBm(int rssi, char * buf, unsigned len)
+EXPORT_DEF const char* rssi2dBm(int rssi, char* buf, size_t len)
 {
-	if(rssi <= 0)
-	{
+	if(rssi <= 0) {
 		snprintf(buf, len, "<= -113 dBm");
 	}
-	else if(rssi <= 30)
-	{
+	else if(rssi <= 30) {
 		snprintf(buf, len, "%d dBm", 2 * rssi - 113);
 	}
-	else if(rssi == 31)
-	{
+	else if(rssi == 31) {
 		snprintf(buf, len, ">= -51 dBm");
 	}
-	else
-	{
+	else {
 		snprintf(buf, len, "unknown or unmeasurable");
 	}
 	return buf;
@@ -1607,8 +1616,11 @@ static struct pvt * pvt_create(const pvt_config_t * settings)
 		pvt->gsm_reg_status		= -1;
 		pvt->incoming_sms_index	= -1U;
 
-		ast_copy_string (pvt->provider_name, "NONE", sizeof (pvt->provider_name));
-		ast_copy_string (pvt->subscriber_number, "Unknown", sizeof (pvt->subscriber_number));
+		ast_string_field_init(pvt, 13);
+
+		ast_string_field_set(pvt, provider_name, "NONE");
+		ast_string_field_set(pvt, subscriber_number, "Unknown");
+		
 		pvt->has_subscriber_number = 0;
 
 		pvt->desired_state = SCONFIG(settings, initstate);
@@ -1688,6 +1700,16 @@ static int pvt_reconfigure(struct pvt * pvt, const pvt_config_t * settings, rest
 		memcpy(&pvt->settings, settings, sizeof(pvt->settings));
 	}
 	return rv;
+}
+
+int pvt_set_act(struct pvt* pvt, int act)
+{
+	if (pvt->act == act) return act;
+
+	pvt->act = act;
+	pvt->rssi = 0;
+	ast_string_field_set(pvt, band, NULL);
+	return act;
 }
 
 #/* */

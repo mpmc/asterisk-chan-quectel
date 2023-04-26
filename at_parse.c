@@ -156,6 +156,7 @@ int at_parse_qspn(char* str, char** fnn, char** snn, char** spn)
 	if (mark_line(str, delimiters, marks) == ITEMS_OF(marks)) {
 		marks[0]++;
 		if (marks[0][0] == ' ') marks[0]++;
+
 		marks[1][0] = '\000';
 		marks[1]++;
 
@@ -172,6 +173,92 @@ int at_parse_qspn(char* str, char** fnn, char** snn, char** spn)
 
 	return -1;
 }
+
+static int act2int(const char* act)
+{
+	static const struct {
+		const char *act;
+		int val;
+	} ACTS[] = {
+		{ "NONE", 0},
+		{ "UNKNOWN", 0 },
+		{ "GSM", 1 },
+		{ "GPRS", 2},
+		{ "EDGE", 3},
+		{ "EGPRS", 3 },
+		{ "WCDMA", 4 },
+		{ "HSDPA", 5 },
+		{ "HSUPA", 6 },
+		{ "HSPA+", 7},
+	 	{ "HSDPA&HSUPA", 7 },
+		{ "TDD LTE", 8},
+		{ "FDD LTE", 8},
+		{ "LTE", 8 },
+		{ "TDSCDMA", 9},
+	 	{ "TD-SCDMA", 9 },
+		{ "CDMA1X", 13},
+		{ "CDMA", 13 },
+		{ "EVDO", 14 },
+		{ "CDMA1X AND HDR", 15},
+		{ "HDR", 16 },
+		{ "CDMA1X AND EHRPD", 24},
+		{ "HDR-EHRPD", 24},
+	};
+
+	for(size_t idx = 0; idx < ITEMS_OF(ACTS); ++idx) {
+		if (!strcmp(ACTS[idx].act, act)) {
+			return ACTS[idx].val;
+		}
+	}
+
+	return -1;
+}
+
+int at_parse_qnwinfo(char* str, int* act, int* oper, char** band, int* channel)
+{
+	/*
+		+QNWINFO: <Act>,<oper>,<band>,<channel>
+	*/
+
+	static const char delimiters[] = ":,,,";
+
+	char* marks[STRLEN(delimiters)];
+
+	/* parse URC only here */
+	if (mark_line(str, delimiters, marks) == ITEMS_OF(marks)) {
+		marks[0]++;
+		if (marks[0][0] == ' ') marks[0]++;
+
+		marks[1][0] = '\000';
+		marks[1]++;
+
+		marks[2][0] = '\000';
+		marks[2]++;
+
+		marks[3][0] = '\000';
+		marks[3]++;
+
+		const long ch = strtol(marks[3], (char**) NULL, 10);
+		if (ch == 0) {
+			return -1;
+		}
+		*channel = (int)ch;
+
+		*band = strip_quoted(marks[2]);
+
+		const long o = strtol(strip_quoted(marks[1]), (char**) NULL, 10);
+		if (o == 0) {
+			return -1;
+		}
+		*oper = (int)o;
+
+		*act = act2int(strip_quoted(marks[0]));
+		return 0;
+	}
+
+	return -1;
+}
+
 
 /*!
  * \brief Parse a CREG response
@@ -713,38 +800,7 @@ int at_parse_qind_act(char* params, int* act)
 	 * +QIND: "act","<val>"
 	 */
 
-	static const struct {
-		const char *act;
-		int val;
-	} ACTS[] = {
-		{ "GSM", 1 },
-		{ "EGPRS", 3 },
-		{ "WCDMA", 4 },
-		{ "HSDPA", 5 },
-		{ "HSUPA", 6 },
-	 	{ "HSDPA&HSUPA", 7 },
-		{ "LTE", 8 },
-	 	{ "TD-SCDMA", 9 },
-		{ "CDMA", 13 },
-		{ "HDR", 16 },
-		{ "EVDO", 14 },
-		{ "UNKNOWN", 0 },
-	};
-
-	char* act_str = params;
-	if (*act_str == '\"') act_str += 1;
-
-	char* act_end = act_str + strlen(act_str) - 1;
-	if (*act_end == '\"') *act_end = '\000';
-
-	for(size_t idx = 0; idx < ITEMS_OF(ACTS); ++idx) {
-		if (!strcmp(ACTS[idx].act, act_str)) {
-			*act = ACTS[idx].val;
-			return 0;
-		}
-	}
-
-    *act = 0;
+	*act = act2int(strip_quoted(params));
 	return 0;
 }
 

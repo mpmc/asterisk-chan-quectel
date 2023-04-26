@@ -15,8 +15,8 @@
 
 typedef struct channel_var
 {
-	const char	* name;
-	char		* value;
+	const char* name;
+	const char* value;
 } channel_var_t;
 
 struct pvt;
@@ -38,7 +38,7 @@ EXPORT_DECL struct ast_channel* new_channel(
 #endif /* ^12- */
 EXPORT_DECL int queue_control_channel (struct cpvt * cpvt, enum ast_control_frame_type control);
 EXPORT_DECL int queue_hangup (struct ast_channel * channel, int hangupcause);
-EXPORT_DECL void start_local_channel (struct pvt * pvt, const char * exten, const char * number, channel_var_t * vars);
+EXPORT_DECL void start_local_channel (struct pvt * pvt, const char * exten, const char * number, const channel_var_t * vars);
 EXPORT_DECL void change_channel_state(struct cpvt * cpvt, unsigned newstate, int cause);
 EXPORT_DECL int channels_loop(struct pvt * pvt, const struct ast_channel * requestor);
 

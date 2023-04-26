@@ -238,12 +238,17 @@ int at_enqueue_cops(struct cpvt *cpvt)
 	return 0;
 }
 
-int at_enqueue_qspn(struct cpvt *cpvt)
+int at_enqueue_qspn_qnwinfo(struct cpvt *cpvt)
 {
-	static const char cmd[] = "AT+QSPN\r";
-	static at_queue_cmd_t at_cmd = ATQ_CMD_DECLARE_ST(CMD_AT_QSPN, cmd);
+	static const char cmd_qspn[] = "+QSPN";
+	static const char cmd_qnwinfo[] = "+QNWINFO";
 
-	if (at_queue_insert_const(cpvt, &at_cmd, 1, 0) != 0) {
+	static at_queue_cmd_t at_cmds[] = {
+		ATQ_CMD_DECLARE_ST(CMD_AT_QSPN, cmd_qspn),
+		ATQ_CMD_DECLARE_ST(CMD_AT, cmd_qnwinfo),
+	};
+
+	if (at_queue_insert_const_at_once(cpvt, at_cmds, ITEMS_OF(at_cmds), 0) != 0) {
 		chan_quectel_err = E_QUEUE;
 		return -1;
 	}
