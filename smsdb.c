@@ -302,7 +302,7 @@ static int smsdb_commit_transaction(void)
  * \retval <=0 Error
  * \retval >0 Current number of messages in the DB
  */
-EXPORT_DEF int smsdb_put(const char *id, const char *addr, int ref, int parts, int order, const char *msg, char *out)
+int smsdb_put(const char *id, const char *addr, int ref, int parts, int order, const char *msg, char *out)
 {
 	const char *part;
 	char fullkey[MAX_DB_FIELD + 1];
@@ -380,7 +380,7 @@ EXPORT_DEF int smsdb_put(const char *id, const char *addr, int ref, int parts, i
 	return res;
 }
 
-EXPORT_DEF int smsdb_get_refid(const char *id, const char *addr)
+int smsdb_get_refid(const char *id, const char *addr)
 {
 	int res = 0;
 
@@ -427,7 +427,7 @@ EXPORT_DEF int smsdb_get_refid(const char *id, const char *addr)
 
 	return res;
 }
-EXPORT_DEF int smsdb_outgoing_add(const char *id, const char *addr, int cnt, int ttl, int srr, const char *payload, size_t len)
+int smsdb_outgoing_add(const char *id, const char *addr, int cnt, int ttl, int srr, const char *payload, size_t len)
 {
 	int res = 0;
 
@@ -485,7 +485,7 @@ static int smsdb_outgoing_clear_nolock(int uid)
 	
 	return res;
 }
-EXPORT_DEF ssize_t smsdb_outgoing_clear(int uid, char *dst, char *payload)
+ssize_t smsdb_outgoing_clear(int uid, char *dst, char *payload)
 {
 	int res = 0;
 	smsdb_begin_transaction();
@@ -511,7 +511,7 @@ EXPORT_DEF ssize_t smsdb_outgoing_clear(int uid, char *dst, char *payload)
 
 	return res;
 }
-EXPORT_DEF ssize_t smsdb_outgoing_part_put(int uid, int refid, char *dst, char *payload)
+ssize_t smsdb_outgoing_part_put(int uid, int refid, char *dst, char *payload)
 {
 	int res = 0;
 	char fullkey[MAX_DB_FIELD + 1];
@@ -596,7 +596,7 @@ EXPORT_DEF ssize_t smsdb_outgoing_part_put(int uid, int refid, char *dst, char *
 	return res;
 }
 
-EXPORT_DEF ssize_t smsdb_outgoing_part_status(const char *id, const char *addr, int mr, int st, int *status_all, char *payload)
+ssize_t smsdb_outgoing_part_status(const char *id, const char *addr, int mr, int st, int *status_all, char *payload)
 {
 	char fullkey[MAX_DB_FIELD + 1];
 	int fullkey_len;
@@ -688,7 +688,7 @@ EXPORT_DEF ssize_t smsdb_outgoing_part_status(const char *id, const char *addr, 
 	return res;
 }
 
-EXPORT_DEF ssize_t smsdb_outgoing_purge_one(char *dst, char *payload)
+ssize_t smsdb_outgoing_purge_one(char *dst, char *payload)
 {
 	int res = -1, uid;
 
@@ -719,7 +719,7 @@ EXPORT_DEF ssize_t smsdb_outgoing_purge_one(char *dst, char *payload)
  * \internal
  * \brief Clean up resources on Asterisk shutdown
  */
-EXPORT_DEF void smsdb_atexit()
+void smsdb_atexit()
 {
 	ast_mutex_lock(&dblock);
 	clean_statements();
@@ -729,7 +729,7 @@ EXPORT_DEF void smsdb_atexit()
 	ast_mutex_unlock(&dblock);
 }
 
-EXPORT_DEF int smsdb_init()
+int smsdb_init()
 {
 	if (db_init()) {
 		return -1;

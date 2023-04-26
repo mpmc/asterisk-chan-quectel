@@ -94,7 +94,7 @@ static int parse_dial_string(char * dialstr, const char** number, int * opts)
 
 
 #/* */
-EXPORT_DEF int channels_loop(struct pvt * pvt, const struct ast_channel * requestor)
+int channels_loop(struct pvt * pvt, const struct ast_channel * requestor)
 {
 	/* not allow hold requester channel :) */
 	/* FIXME: requestor may be just proxy/masquerade for real channel */
@@ -1241,7 +1241,7 @@ static int channel_indicate (struct ast_channel* channel, int condition, const v
 /* ARCH: move to cpvt */
 /* FIXME: protection for cpvt->channel if exists */
 #/* NOTE: called from device level with locked pvt */
-EXPORT_DEF void change_channel_state(struct cpvt * cpvt, unsigned newstate, int cause)
+void change_channel_state(struct cpvt * cpvt, unsigned newstate, int cause)
 {
 	struct ast_channel * channel;
 	struct pvt* pvt;
@@ -1398,13 +1398,13 @@ static void set_channel_vars(struct pvt* pvt, struct ast_channel* channel)
 
 /* NOTE: called from device and current levels with locked pvt */
 #if ASTERISK_VERSION_NUM >= 120000 /* 12+ */
-EXPORT_DEF struct ast_channel* new_channel(
+struct ast_channel* new_channel(
 		struct pvt* pvt, int ast_state, const char* cid_num, int call_idx,
 		unsigned dir, call_state_t state, const char * dnid,
 		const struct ast_assigned_ids *assignedids,
 		attribute_unused const struct ast_channel * requestor)
 #else /* 13- */
-EXPORT_DEF struct ast_channel* new_channel(
+struct ast_channel* new_channel(
 		struct pvt* pvt, int ast_state, const char* cid_num, int call_idx,
 		unsigned dir, call_state_t state, const char * dnid,
 		attribute_unused const struct ast_channel * requestor)
@@ -1501,7 +1501,7 @@ EXPORT_DEF struct ast_channel* new_channel(
 
 /* NOTE: bg: hmm ast_queue_control() say no need channel lock, trylock got deadlock up to 30 seconds here */
 /* NOTE: called from device and current levels with pvt locked */
-EXPORT_DEF int queue_control_channel (struct cpvt * cpvt, enum ast_control_frame_type control)
+int queue_control_channel (struct cpvt * cpvt, enum ast_control_frame_type control)
 {
 /*
 	for (;;)
@@ -1536,7 +1536,7 @@ EXPORT_DEF int queue_control_channel (struct cpvt * cpvt, enum ast_control_frame
 
 /* NOTE: bg: hmm ast_queue_hangup() say no need channel lock before call, trylock got deadlock up to 30 seconds here */
 /* NOTE: bg: called from device level and change_channel_state() with pvt locked */
-EXPORT_DEF int queue_hangup(struct ast_channel* channel, int hangupcause)
+int queue_hangup(struct ast_channel* channel, int hangupcause)
 {
 	int rv = 0;
 	if(channel)
@@ -1551,7 +1551,7 @@ EXPORT_DEF int queue_hangup(struct ast_channel* channel, int hangupcause)
 }
 
 #/* NOTE: bg: called from device level with pvt locked */
-EXPORT_DEF void start_local_channel (struct pvt* pvt, const char* exten, const char* number, const channel_var_t* vars)
+void start_local_channel (struct pvt* pvt, const char* exten, const char* number, const channel_var_t* vars)
 {
 	struct ast_channel*	channel;
 	int			cause = 0;
@@ -1731,7 +1731,7 @@ static int channel_func_write(struct ast_channel* channel, const char* function,
 	return ret;
 }
 
-EXPORT_DEF struct ast_channel_tech channel_tech =
+struct ast_channel_tech channel_tech =
 {
 	.type			= "Quectel",
 	.description		= MODULE_DESCRIPTION,

@@ -9,7 +9,6 @@
 #include <asterisk/linkedlists.h>		/* AST_LIST_ENTRY() */
 #include <asterisk/frame.h>			/* AST_FRIENDLY_OFFSET */
 
-#include "export.h"				/* EXPORT_DECL EXPORT_DEF */
 #include "mixbuffer.h"				/* struct mixstream */
 #include "mutils.h"				/* enum2str() ITEMS_OF() */
 #define FRAME_SIZE		320
@@ -89,18 +88,18 @@ typedef struct cpvt {
 #define CPVT_IS_SOUND_SOURCE(cpvt)	((cpvt)->state == CALL_STATE_ACTIVE || (cpvt)->state == CALL_STATE_DIALING || (cpvt)->state == CALL_STATE_ALERTING)
 
 
-EXPORT_DECL struct cpvt * cpvt_alloc(struct pvt * pvt, int call_idx, unsigned dir, call_state_t statem);
-EXPORT_DECL void cpvt_free(struct cpvt* cpvt);
+struct cpvt * cpvt_alloc(struct pvt * pvt, int call_idx, unsigned dir, call_state_t statem);
+void cpvt_free(struct cpvt* cpvt);
 
-EXPORT_DECL struct cpvt * pvt_find_cpvt(struct pvt * pvt, int call_idx);
-EXPORT_DECL struct cpvt * active_cpvt(struct pvt * pvt);
+struct cpvt * pvt_find_cpvt(struct pvt * pvt, int call_idx);
+struct cpvt * active_cpvt(struct pvt * pvt);
 struct cpvt* last_initialized_cpvt(struct pvt * pvt);
-EXPORT_DECL void voice_enable(struct pvt * pvt);
-EXPORT_DECL void voice_disable(struct pvt * pvt);
-EXPORT_DECL const char * pvt_call_dir(const struct pvt * pvt);
+void voice_enable(struct pvt * pvt);
+void voice_disable(struct pvt * pvt);
+const char * pvt_call_dir(const struct pvt * pvt);
 
 #/* */
-INLINE_DECL const char * call_state2str(call_state_t state)
+static inline const char * call_state2str(call_state_t state)
 {
 	static const char * const states[] = {
 	/* real device states */

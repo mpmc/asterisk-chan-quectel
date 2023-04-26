@@ -68,13 +68,13 @@ static ssize_t convert_string(const char *in, size_t in_length, char *out, size_
 	return out_ptr - out;
 }
 
-EXPORT_DEF ssize_t utf8_to_ucs2(const char *in, size_t in_length, uint16_t *out, size_t out_size)
+ssize_t utf8_to_ucs2(const char *in, size_t in_length, uint16_t *out, size_t out_size)
 {
 	ssize_t res = convert_string(in, in_length, (char*)out, out_size * 2, "UTF-8", "UTF-16BE");
 	if (res < 0) return res;
 	return res / 2;
 }
-EXPORT_DEF ssize_t ucs2_to_utf8(const uint16_t *in, size_t in_length, char *out, size_t out_size)
+ssize_t ucs2_to_utf8(const uint16_t *in, size_t in_length, char *out, size_t out_size)
 {
 	return convert_string((const char*)in, in_length * 2, out, out_size, "UTF-16BE", "UTF-8");
 }
@@ -88,7 +88,7 @@ static char val2hexchar(unsigned char h)
 {
 	return lut_val2hex[h];
 }
-EXPORT_DEF int unhex(const char *in, uint8_t *out)
+int unhex(const char *in, uint8_t *out)
 {
 	int len = 0, nibbles = 0;
 	while (in[0]) {
@@ -102,7 +102,7 @@ EXPORT_DEF int unhex(const char *in, uint8_t *out)
 	}
 	return nibbles;
 }
-EXPORT_DEF void hexify(const uint8_t *in, size_t in_length, char *out)
+void hexify(const uint8_t *in, size_t in_length, char *out)
 {
 	// code from end of string to allow in-place encoding
 	for (int i = in_length - 1; i >= 0; --i) {
@@ -122,7 +122,7 @@ static const uint8_t *get_char_gsm7_encoding(uint16_t c)
 	return LUT_GSM7_REV2[subtab][minor];
 }
 
-EXPORT_DEF ssize_t gsm7_encode(const uint16_t *in, size_t in_length, uint16_t *out)
+ssize_t gsm7_encode(const uint16_t *in, size_t in_length, uint16_t *out)
 {
 	// TODO: Should we check for other tables or just use UCS-2?
 	unsigned bytes = 0;
@@ -143,7 +143,7 @@ EXPORT_DEF ssize_t gsm7_encode(const uint16_t *in, size_t in_length, uint16_t *o
 	}
 	return bytes;
 }
-EXPORT_DEF ssize_t gsm7_pack(const uint16_t *in, size_t in_length, char *out, size_t out_size, unsigned out_padding)
+ssize_t gsm7_pack(const uint16_t *in, size_t in_length, char *out, size_t out_size, unsigned out_padding)
 {
 	size_t i, x;
 	unsigned value = 0;
@@ -176,7 +176,7 @@ EXPORT_DEF ssize_t gsm7_pack(const uint16_t *in, size_t in_length, char *out, si
 	/* return total string length in nibbles, excluding terminating zero */
 	return x * 2 - (out_padding == 1 || out_padding == 2 || out_padding == 3 ? 1 : 0);
 }
-EXPORT_DEF ssize_t gsm7_unpack_decode(const char *in, size_t in_nibbles, uint16_t *out, size_t out_size, unsigned in_padding, uint8_t ls, uint8_t ss)
+ssize_t gsm7_unpack_decode(const char *in, size_t in_nibbles, uint16_t *out, size_t out_size, unsigned in_padding, uint8_t ls, uint8_t ss)
 {
 	if (ls > 13) ls = 0;
 	if (ss > 13) ss = 0;

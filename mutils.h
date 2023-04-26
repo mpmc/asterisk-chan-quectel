@@ -4,8 +4,6 @@
 #ifndef CHAN_QUECTEL_MUTILS_H_INCLUDED
 #define CHAN_QUECTEL_MUTILS_H_INCLUDED
 
-#include "export.h"
-
 #include <string.h>
 
 #define ITEMS_OF(x)				(sizeof(x)/sizeof((x)[0]))
@@ -15,7 +13,7 @@
 #define MIN(a,b) (((a) < (b)) ? (a) : (b))
 #endif
 
-INLINE_DECL const char * enum2str_def(unsigned value, const char * const names[], unsigned items, const char * def)
+static inline const char * enum2str_def(unsigned value, const char * const names[], unsigned items, const char * def)
 {
 	const char * name;
 	if(value < items)
@@ -25,12 +23,12 @@ INLINE_DECL const char * enum2str_def(unsigned value, const char * const names[]
 	return name;
 }
 
-INLINE_DECL const char * enum2str(unsigned value, const char * const names[], unsigned items)
+static inline const char * enum2str(unsigned value, const char * const names[], unsigned items)
 {
 	return enum2str_def(value, names, items, "unknown");
 }
 
-INLINE_DECL int str2enum(const char * value, const char * const options[], unsigned items)
+static inline int str2enum(const char * value, const char * const options[], unsigned items)
 {
 	unsigned index;
 	for(index = 0; index < items; index++)

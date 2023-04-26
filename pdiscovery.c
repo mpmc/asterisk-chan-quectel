@@ -674,19 +674,19 @@ static int pdiscovery_request_do(const char * name, int len, const struct pdisco
 
 
 #/* */
-EXPORT_DEF void pdiscovery_init()
+void pdiscovery_init()
 {
 	cache_init(&cache);
 }
 
 #/* */
-EXPORT_DEF void pdiscovery_fini()
+void pdiscovery_fini()
 {
 	cache_fini(&cache);
 }
 
 #/* */
-EXPORT_DEF int pdiscovery_lookup(const char * devname, const char * imei, const char * imsi, char ** dport, char ** aport)
+int pdiscovery_lookup(const char * devname, const char * imei, const char * imsi, char ** dport, char ** aport)
 {
 	int found;
 	struct pdiscovery_result res;
@@ -707,7 +707,7 @@ EXPORT_DEF int pdiscovery_lookup(const char * devname, const char * imei, const 
 }
 
 #/* */
-EXPORT_DEF const struct pdiscovery_result * pdiscovery_list_begin(const struct pdiscovery_cache_item ** opaque)
+const struct pdiscovery_result * pdiscovery_list_begin(const struct pdiscovery_cache_item ** opaque)
 {
 	const struct pdiscovery_cache_item * item;
 	struct pdiscovery_result res;
@@ -726,7 +726,7 @@ EXPORT_DEF const struct pdiscovery_result * pdiscovery_list_begin(const struct p
 }
 
 #/* */
-EXPORT_DECL const struct pdiscovery_result * pdiscovery_list_next(const struct pdiscovery_cache_item ** opaque)
+const struct pdiscovery_result * pdiscovery_list_next(const struct pdiscovery_cache_item ** opaque)
 {
 	const struct pdiscovery_cache_item * item = AST_RWLIST_NEXT(*opaque, entry);
 	*opaque = item;
@@ -734,7 +734,7 @@ EXPORT_DECL const struct pdiscovery_result * pdiscovery_list_next(const struct p
 }
 
 #/* */
-EXPORT_DECL void pdiscovery_list_end()
+void pdiscovery_list_end()
 {
 	cache_unlock(&cache);
 }

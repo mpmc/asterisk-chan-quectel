@@ -35,7 +35,7 @@
  * \retval 0 timeout
  */
 
-EXPORT_DEF int at_wait (int fd, int* ms)
+int at_wait (int fd, int* ms)
 {
 	int exception, outfd;
 
@@ -50,7 +50,7 @@ EXPORT_DEF int at_wait (int fd, int* ms)
 }
 
 #/* return number of bytes read */
-EXPORT_DEF ssize_t at_read (int fd, const char * dev, struct ringbuffer* rb)
+ssize_t at_read (int fd, const char * dev, struct ringbuffer* rb)
 {
 	struct iovec	iov[2];
 	int		iovcnt;
@@ -101,7 +101,7 @@ EXPORT_DEF ssize_t at_read (int fd, const char * dev, struct ringbuffer* rb)
 	return n;
 }
 
-EXPORT_DEF int at_read_result_iov(const char* dev, int* read_result, struct ringbuffer* rb, struct iovec *iov)
+int at_read_result_iov(const char* dev, int* read_result, struct ringbuffer* rb, struct iovec *iov)
 {
 	size_t s = rb_used(rb);
 
@@ -177,7 +177,7 @@ EXPORT_DEF int at_read_result_iov(const char* dev, int* read_result, struct ring
 	return 0;
 }
 
-EXPORT_DEF at_res_t at_read_result_classification(struct ringbuffer* rb, size_t len)
+at_res_t at_read_result_classification(struct ringbuffer* rb, size_t len)
 {
 	at_res_t at_res = RES_UNKNOWN;
 

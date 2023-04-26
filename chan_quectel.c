@@ -73,11 +73,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Rev: " PACKAGE_REVISION " $")
 #include "error.h"
 #include "errno.h"
 
-EXPORT_DEF const char * const dev_state_strs[4] = { "stop", "restart", "remove", "start" };
-EXPORT_DEF public_state_t * gpublic;
+const char * const dev_state_strs[4] = { "stop", "restart", "remove", "start" };
+public_state_t * gpublic;
 #if ASTERISK_VERSION_NUM >= 100000 && ASTERISK_VERSION_NUM < 130000 /* 10-13 */
-EXPORT_DEF struct ast_format chan_quectel_format;
-EXPORT_DEF struct ast_format_cap * chan_quectel_format_cap;
+struct ast_format chan_quectel_format;
+struct ast_format_cap * chan_quectel_format_cap;
 #endif /* ^10-13 */
 
 static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
@@ -271,7 +271,7 @@ static int lock_create(const char * lockfile)
 }
 
 #/* return pid of owner, 0 if free */
-EXPORT_DEF int lock_try(const char * devname, char ** lockname)
+int lock_try(const char * devname, char ** lockname)
 {
 	int fd;
 	int len;
@@ -316,7 +316,7 @@ EXPORT_DEF int lock_try(const char * devname, char ** lockname)
 }
 
 #/* */
-EXPORT_DEF void closetty(int fd, char ** lockfname)
+void closetty(int fd, char ** lockfname)
 {
 	close(fd);
 
@@ -326,7 +326,7 @@ EXPORT_DEF void closetty(int fd, char ** lockfname)
 	*lockfname = NULL;
 }
 
-EXPORT_DEF int opentty(const char* dev, char ** lockfile, int typ)
+int opentty(const char* dev, char ** lockfile, int typ)
 {
 	int flags;
 	int pid;
@@ -494,7 +494,7 @@ static int is_sms_inbox_index_valid(const struct pvt* pvt, int index)
 	return 1;
 }
 
-EXPORT_DEF int sms_inbox_set(struct pvt* pvt, int index)
+int sms_inbox_set(struct pvt* pvt, int index)
 {
 	if (!is_sms_inbox_index_valid(pvt, index)) {
 		return 0;
@@ -504,7 +504,7 @@ EXPORT_DEF int sms_inbox_set(struct pvt* pvt, int index)
 	return 1;
 }
 
-EXPORT_DEF int sms_inbox_clear(struct pvt* pvt, int index)
+int sms_inbox_clear(struct pvt* pvt, int index)
 {
 	if (!is_sms_inbox_index_valid(pvt, index)) {
 		return 0;
@@ -514,7 +514,7 @@ EXPORT_DEF int sms_inbox_clear(struct pvt* pvt, int index)
 	return 1;
 }
 
-EXPORT_DEF int is_sms_inbox_set(const struct pvt* pvt, int index)
+int is_sms_inbox_set(const struct pvt* pvt, int index)
 {
 	if (!is_sms_inbox_index_valid(pvt, index)) {
 		return 0;
@@ -528,7 +528,7 @@ EXPORT_DEF int is_sms_inbox_set(const struct pvt* pvt, int index)
 
 /* anybody wrote some to device before me, and not read results, clean pending results here */
 #/* */
-EXPORT_DEF void clean_read_data(const char * devname, int fd)
+void clean_read_data(const char * devname, int fd)
 {
 	char buf[2*1024];
 	struct ringbuffer rb;
@@ -987,7 +987,7 @@ static void discovery_stop(public_state_t * state)
 }
 
 #/* */
-EXPORT_DEF void pvt_on_create_1st_channel(struct pvt* pvt)
+void pvt_on_create_1st_channel(struct pvt* pvt)
 {
         if (!CONF_UNIQ(pvt, uac)) {
 	mixb_init (&pvt->a_write_mixb, pvt->a_write_buf, sizeof (pvt->a_write_buf));
@@ -1008,7 +1008,7 @@ EXPORT_DEF void pvt_on_create_1st_channel(struct pvt* pvt)
 }
 
 #/* */
-EXPORT_DEF void pvt_on_remove_last_channel(struct pvt* pvt)
+void pvt_on_remove_last_channel(struct pvt* pvt)
 {
 	if (pvt->a_timer)
 	{
@@ -1020,7 +1020,7 @@ EXPORT_DEF void pvt_on_remove_last_channel(struct pvt* pvt)
 #define SET_BIT(dw_array,bitno)		do { (dw_array)[(bitno) >> 5] |= 1 << ((bitno) & 31) ; } while(0)
 #define TEST_BIT(dw_array,bitno)	((dw_array)[(bitno) >> 5] & 1 << ((bitno) & 31))
 #/* */
-EXPORT_DEF int pvt_get_pseudo_call_idx(const struct pvt * pvt)
+int pvt_get_pseudo_call_idx(const struct pvt * pvt)
 {
 	struct cpvt * cpvt;
 	int * bits;
@@ -1090,19 +1090,19 @@ static int is_dial_possible2(const struct pvt * pvt, int opts, const struct cpvt
 }
 
 #/* */
-EXPORT_DEF int is_dial_possible(const struct pvt * pvt, int opts)
+int is_dial_possible(const struct pvt * pvt, int opts)
 {
 	return is_dial_possible2(pvt, opts, NULL);
 }
 
 #/* */
-EXPORT_DECL int pvt_enabled(const struct pvt * pvt)
+int pvt_enabled(const struct pvt * pvt)
 {
 	return pvt->current_state == DEV_STATE_STARTED && (pvt->desired_state == pvt->current_state || pvt->restart_time == RESTATE_TIME_CONVENIENT);
 }
 
 #/* */
-EXPORT_DEF int ready4voice_call(const struct pvt* pvt, const struct cpvt * current_cpvt, int opts)
+int ready4voice_call(const struct pvt* pvt, const struct cpvt * current_cpvt, int opts)
 {
 	if(!pvt->connected
 		|| !pvt->initialized
@@ -1130,7 +1130,7 @@ static int can_dial(struct pvt* pvt, int opts, const struct ast_channel * reques
 }
 
 #/* return locked pvt or NULL */
-EXPORT_DEF struct pvt * find_device_ex(struct public_state * state, const char * name)
+struct pvt * find_device_ex(struct public_state * state, const char * name)
 {
 	struct pvt * pvt;
 
@@ -1150,7 +1150,7 @@ EXPORT_DEF struct pvt * find_device_ex(struct public_state * state, const char *
 }
 
 #/* return locked pvt or NULL */
-EXPORT_DEF struct pvt * find_device_ext (const char * name)
+struct pvt * find_device_ext (const char * name)
 {
 	struct pvt * pvt = find_device(name);
 
@@ -1167,7 +1167,7 @@ EXPORT_DEF struct pvt * find_device_ext (const char * name)
 }
 
 #/* like find_device but for resource spec; return locked! pvt or NULL */
-EXPORT_DEF struct pvt * find_device_by_resource_ex(struct public_state * state, const char * resource, int opts, const struct ast_channel * requestor, int * exists)
+struct pvt * find_device_by_resource_ex(struct public_state * state, const char * resource, int opts, const struct ast_channel * requestor, int * exists)
 {
 	int group;
 	size_t i;
@@ -1416,7 +1416,7 @@ static const char * pvt_state_base(const struct pvt * pvt)
 
 
 #/* */
-EXPORT_DEF const char* pvt_str_state(const struct pvt* pvt)
+const char* pvt_str_state(const struct pvt* pvt)
 {
 	const char * state = pvt_state_base(pvt);
 	if(!state) {
@@ -1446,7 +1446,7 @@ EXPORT_DEF const char* pvt_str_state(const struct pvt* pvt)
 }
 
 #/* */
-EXPORT_DEF struct ast_str* pvt_str_state_ex(const struct pvt* pvt)
+struct ast_str* pvt_str_state_ex(const struct pvt* pvt)
 {
 	struct ast_str* buf = ast_str_create (256);
 	const char * state = pvt_state_base(pvt);
@@ -1494,7 +1494,7 @@ EXPORT_DEF struct ast_str* pvt_str_state_ex(const struct pvt* pvt)
 }
 
 #/* */
-EXPORT_DEF const char* GSM_regstate2str(int gsm_reg_status)
+const char* GSM_regstate2str(int gsm_reg_status)
 {
 	static const char * const gsm_states[] = {
 		"Not registered, not searching",
@@ -1508,7 +1508,7 @@ EXPORT_DEF const char* GSM_regstate2str(int gsm_reg_status)
 }
 
 #/* */
-EXPORT_DEF const char * sys_act2str(int act)
+const char * sys_act2str(int act)
 {
 	static const char * const sys_acts[] = {
 		"No service",
@@ -1542,7 +1542,7 @@ EXPORT_DEF const char * sys_act2str(int act)
 }
 
 #/* BUGFIX of https://code.google.com/p/asterisk-chan-quectel/issues/detail?id=118 */
-EXPORT_DEF const char* rssi2dBm(int rssi, char* buf, size_t len)
+const char* rssi2dBm(int rssi, char* buf, size_t len)
 {
 	if(rssi <= 0) {
 		snprintf(buf, len, "<= -113 dBm");
@@ -1562,7 +1562,7 @@ EXPORT_DEF const char* rssi2dBm(int rssi, char* buf, size_t len)
 /* Module */
 
 #/* */
-EXPORT_DEF void pvt_dsp_setup(struct pvt * pvt, const char * id, dc_dtmf_setting_t dtmf_new)
+void pvt_dsp_setup(struct pvt * pvt, const char * id, dc_dtmf_setting_t dtmf_new)
 {
 	/* first remove dsp if off or changed */
 	if(dtmf_new != CONF_SHARED(pvt, dtmf))
@@ -1650,7 +1650,7 @@ static int pvt_time4restate(const struct pvt * pvt)
 }
 
 #/* */
-EXPORT_DEF void pvt_try_restate(struct pvt * pvt)
+void pvt_try_restate(struct pvt * pvt)
 {
 	if(pvt_time4restate(pvt))
 	{
@@ -1967,7 +1967,7 @@ static int unload_module()
 
 
 #/* */
-EXPORT_DEF void pvt_reload(restate_time_t when)
+void pvt_reload(restate_time_t when)
 {
 	unsigned dev_reload = 0;
 	reload_config(gpublic, 1, when, &dev_reload);
@@ -1996,7 +1996,7 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, MODULE_DESCRIPTION,
 
 //AST_MODULE_INFO_STANDARD (ASTERISK_GPL_KEY, MODULE_DESCRIPTION);
 
-EXPORT_DEF struct ast_module* self_module(void)
+struct ast_module* self_module(void)
 {
 	return ast_module_info->self;
 }

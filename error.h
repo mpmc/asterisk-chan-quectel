@@ -4,7 +4,7 @@
 
 #ifndef ERROR_H_INCLUDED
 #define ERROR_H_INCLUDED
-#include "export.h"				/* EXPORT_DECL EXPORT_DEF */
+
 #include "mutils.h"
 
 enum error {
@@ -36,7 +36,7 @@ enum error {
 	E_2BIG
 };
 
-INLINE_DECL const char *error2str(int err)
+static inline const char *error2str(int err)
 {
 	static const char * const errors[] = {
 		"Unknown error", "Device disbaled", "Device not found", "Device disconnected", "Invalid USSD", "Invalid phone number",
@@ -47,6 +47,6 @@ INLINE_DECL const char *error2str(int err)
 	return enum2str(err, errors, ITEMS_OF(errors));
 }
 
-EXPORT_DECL __thread int chan_quectel_err;
+extern __thread int chan_quectel_err;
 
 #endif

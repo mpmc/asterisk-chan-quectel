@@ -32,7 +32,7 @@ static int is_valid_ussd_string(const char* number)
 }
 
 #/* */
-EXPORT_DEF int is_valid_phone_number(const char *number)
+int is_valid_phone_number(const char *number)
 {
 	if (number[0] == '+') {
 		number++;
@@ -48,7 +48,7 @@ EXPORT_DEF int is_valid_phone_number(const char *number)
 
 
 #/* */
-EXPORT_DEF int get_at_clir_value (struct pvt* pvt, int clir)
+int get_at_clir_value (struct pvt* pvt, int clir)
 {
 	int res = 0;
 
@@ -108,7 +108,7 @@ struct pvt *get_pvt(const char *dev_name, int online)
 }
 
 #/* */
-EXPORT_DEF int send_ussd(const char *dev_name, const char *ussd)
+int send_ussd(const char *dev_name, const char *ussd)
 {
 	if (!is_valid_ussd_string(ussd)) {
 		chan_quectel_err = E_INVALID_USSD;
@@ -125,7 +125,7 @@ EXPORT_DEF int send_ussd(const char *dev_name, const char *ussd)
 }
 
 #/* */
-EXPORT_DEF int send_sms(const char *dev_name, const char *number, const char *message, const char *validity, const char *report, const char *payload, size_t payload_len)
+int send_sms(const char *dev_name, const char *number, const char *message, const char *validity, const char *report, const char *payload, size_t payload_len)
 {
 	if (!is_valid_phone_number(number)) {
 		chan_quectel_err = E_INVALID_PHONE_NUMBER;
@@ -150,7 +150,7 @@ EXPORT_DEF int send_sms(const char *dev_name, const char *number, const char *me
 }
 
 #/* */
-EXPORT_DEF int send_reset(const char *dev_name)
+int send_reset(const char *dev_name)
 {
 	struct pvt *pvt = get_pvt(dev_name, 0);
 	if (!pvt) {
@@ -162,7 +162,7 @@ EXPORT_DEF int send_reset(const char *dev_name)
 }
 
 #/* */
-EXPORT_DEF int send_ccwa_set(const char *dev_name, call_waiting_t enable)
+int send_ccwa_set(const char *dev_name, call_waiting_t enable)
 {
 	struct pvt *pvt = get_pvt(dev_name, 1);
 	if (!pvt) {
@@ -174,7 +174,7 @@ EXPORT_DEF int send_ccwa_set(const char *dev_name, call_waiting_t enable)
 }
 
 #/* */
-EXPORT_DEF int send_at_command(const char *dev_name, const char *command)
+int send_at_command(const char *dev_name, const char *command)
 {
 	struct pvt *pvt = get_pvt(dev_name, 0);
 	if (!pvt) {
@@ -185,7 +185,7 @@ EXPORT_DEF int send_at_command(const char *dev_name, const char *command)
 	return res;
 }
 
-EXPORT_DEF int schedule_restart_event(dev_state_t event, restate_time_t when, const char *dev_name)
+int schedule_restart_event(dev_state_t event, restate_time_t when, const char *dev_name)
 {
 	struct pvt *pvt = find_device(dev_name);
 

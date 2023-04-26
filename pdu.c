@@ -267,7 +267,7 @@
 #define CSMS_UCS2_MAX_LEN 67
 #define SMS_UCS2_MAX_LEN 70
 
-EXPORT_DEF void pdu_udh_init(pdu_udh_t *udh)
+void pdu_udh_init(pdu_udh_t *udh)
 {
 	udh->ref = 0;
 	udh->parts = 1;
@@ -457,7 +457,7 @@ static int pdu_parse_timestamp(uint8_t *pdu, size_t length, char *out)
 	return -1;
 }
 
-EXPORT_DEF int pdu_build_mult(pdu_part_t *pdus, const char *sca, const char *dst, const uint16_t* msg, size_t msg_len, unsigned valid_minutes, int srr, uint8_t csmsref)
+int pdu_build_mult(pdu_part_t *pdus, const char *sca, const char *dst, const uint16_t* msg, size_t msg_len, unsigned valid_minutes, int srr, uint8_t csmsref)
 {
 	uint16_t msg_gsm7[msg_len];
 	int gsm7_len = gsm7_encode(msg, msg_len, msg_gsm7);
@@ -542,7 +542,7 @@ EXPORT_DEF int pdu_build_mult(pdu_part_t *pdus, const char *sca, const char *dst
 }
 
 
-EXPORT_DEF ssize_t pdu_build(uint8_t *buffer, size_t length, size_t *tpdulen, const char *sca, const char *dst, int dcs, const uint16_t *msg, unsigned msg_reallen, unsigned msg_len, unsigned valid_minutes, int srr, const pdu_udh_t *udh)
+ssize_t pdu_build(uint8_t *buffer, size_t length, size_t *tpdulen, const char *sca, const char *dst, int dcs, const uint16_t *msg, unsigned msg_reallen, unsigned msg_len, unsigned valid_minutes, int srr, const pdu_udh_t *udh)
 {
 	int len = 0;
 
@@ -660,7 +660,7 @@ EXPORT_DEF ssize_t pdu_build(uint8_t *buffer, size_t length, size_t *tpdulen, co
  * \param timestamp -- 25 bytes for timestamp string
  * \return 0 on success
  */
-EXPORT_DEF int pdu_parse_sca(uint8_t *pdu, size_t pdu_length, char *sca, size_t sca_len)
+int pdu_parse_sca(uint8_t *pdu, size_t pdu_length, char *sca, size_t sca_len)
 {
 	int i = 0;
 	int sca_digits = (pdu[i++] - 1) * 2;
@@ -672,7 +672,7 @@ EXPORT_DEF int pdu_parse_sca(uint8_t *pdu, size_t pdu_length, char *sca, size_t 
 	i += field_len;
 	return i;
 }
-EXPORT_DEF int tpdu_parse_type(uint8_t *pdu, size_t pdu_length, int *type)
+int tpdu_parse_type(uint8_t *pdu, size_t pdu_length, int *type)
 {
 	if (pdu_length < 1) {
 		chan_quectel_err = E_INVALID_TPDU_TYPE;
@@ -681,7 +681,7 @@ EXPORT_DEF int tpdu_parse_type(uint8_t *pdu, size_t pdu_length, int *type)
 	*type = *pdu;
 	return 1;
 }
-EXPORT_DEF int tpdu_parse_status_report(uint8_t *pdu, size_t pdu_length, int *mr, char *ra, size_t ra_len, char *scts, char *dt, int *st)
+int tpdu_parse_status_report(uint8_t *pdu, size_t pdu_length, int *mr, char *ra, size_t ra_len, char *scts, char *dt, int *st)
 {
 	int i = 0;
 
@@ -708,7 +708,7 @@ EXPORT_DEF int tpdu_parse_status_report(uint8_t *pdu, size_t pdu_length, int *mr
 	*st = pdu[i++];
 	return 0;
 }
-EXPORT_DEF int tpdu_parse_deliver(uint8_t *pdu, size_t pdu_length, int tpdu_type, char *oa, size_t oa_len, char *scts, uint16_t *msg, pdu_udh_t *udh)
+int tpdu_parse_deliver(uint8_t *pdu, size_t pdu_length, int tpdu_type, char *oa, size_t oa_len, char *scts, uint16_t *msg, pdu_udh_t *udh)
 {
 	int i = 0, field_len, oa_digits, pid, dcs, alphabet, udl, udhl, msg_padding = 0;
 

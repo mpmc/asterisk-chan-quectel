@@ -24,7 +24,7 @@ struct mixbuffer {
 	};
 
 /* initialize mixbuffer */
-INLINE_DECL void mixb_init(struct mixbuffer * mb, void * buf, size_t len)
+static inline void mixb_init(struct mixbuffer * mb, void * buf, size_t len)
 {
 	AST_LIST_HEAD_INIT_NOLOCK(&mb->streams);
 	rb_init(&mb->rb, buf, len);
@@ -32,43 +32,43 @@ INLINE_DECL void mixb_init(struct mixbuffer * mb, void * buf, size_t len)
 }
 
 /* attach stream to mix buffer */
-EXPORT_DECL void mixb_attach(struct mixbuffer * mb, struct mixstream * stream);
+void mixb_attach(struct mixbuffer * mb, struct mixstream * stream);
 
 /* detach stream from mix buffer */
-EXPORT_DECL void mixb_detach(struct mixbuffer * mb, struct mixstream * stream);
+void mixb_detach(struct mixbuffer * mb, struct mixstream * stream);
 
 /* get amount of free bytes in buffer for specified stream */
-INLINE_DECL size_t mixb_free (const struct mixbuffer * mb, const struct mixstream * stream)
+static inline size_t mixb_free (const struct mixbuffer * mb, const struct mixstream * stream)
 {
 	return mb->rb.size - stream->used;
 }
 
 /* get bytes used i.e. now may bytes can read */
-INLINE_DECL size_t mixb_used(const struct mixbuffer * mb)
+static inline size_t mixb_used(const struct mixbuffer * mb)
 {
 	return rb_used(&mb->rb);
 }
 
 /* advice read position */
-EXPORT_DECL size_t mixb_read_upd(struct mixbuffer * mb, size_t len);
+size_t mixb_read_upd(struct mixbuffer * mb, size_t len);
 
 /* add data to mix buffer for specified stream */
-EXPORT_DECL size_t mixb_write(struct mixbuffer * mb, struct mixstream * stream, const char * data, size_t len);
+size_t mixb_write(struct mixbuffer * mb, struct mixstream * stream, const char * data, size_t len);
 
 /* get data pointer and sizes in iov for all available for reading data in buffer */
-INLINE_DECL int mixb_read_all_iov (const struct mixbuffer * mb, struct iovec iov[2])
+static inline int mixb_read_all_iov (const struct mixbuffer * mb, struct iovec iov[2])
 {
 	return rb_read_all_iov(&mb->rb, iov);
 }
 
 /* get data pointer and sizes in iov only for first len bytes */
-INLINE_DECL int mixb_read_n_iov (const struct mixbuffer * mb, struct iovec iov[2], size_t len)
+static inline int mixb_read_n_iov (const struct mixbuffer * mb, struct iovec iov[2], size_t len)
 {
 	return rb_read_n_iov(&mb->rb, iov, len);
 }
 
 /* get number of attached streams */
-INLINE_DECL int mixb_streams (const struct mixbuffer * mb)
+static inline int mixb_streams (const struct mixbuffer * mb)
 {
 	return mb->attached;
 }

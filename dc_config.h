@@ -8,7 +8,6 @@
 
 #include <asterisk/channel.h>		/* AST_MAX_CONTEXT MAX_LANGUAGE */
 
-#include "export.h"			/* EXPORT_DECL EXPORT_DEF */
 #include "mutils.h"
 
 #define CONFIG_FILE		"quectel.conf"
@@ -24,7 +23,8 @@ typedef enum {
 	DEV_STATE_REMOVED,
 	DEV_STATE_STARTED,
 } dev_state_t;
-EXPORT_DECL const char * const dev_state_strs[4];
+
+extern const char* const dev_state_strs[4];
 
 typedef enum {
 	CALL_WAITING_DISALLOWED = 0,
@@ -32,7 +32,7 @@ typedef enum {
 	CALL_WAITING_AUTO
 } call_waiting_t;
 
-INLINE_DECL const char * dc_cw_setting2str(call_waiting_t cw)
+static inline const char * dc_cw_setting2str(call_waiting_t cw)
 {
 	static const char * const options[] = { "disabled", "allowed", "auto" };
 	return enum2str(cw, options, ITEMS_OF(options));
@@ -129,12 +129,12 @@ typedef struct pvt_config
 #define SCONFIG(cfg,name)	((cfg)->shared.name)
 #define UCONFIG(cfg,name)	((cfg)->unique.name)
 
-EXPORT_DECL int dc_dtmf_str2setting(const char * str);
-EXPORT_DECL const char * dc_dtmf_setting2str(dc_dtmf_setting_t dtmf);
-EXPORT_DECL void dc_sconfig_fill_defaults(struct dc_sconfig * config);
-EXPORT_DECL void dc_sconfig_fill(struct ast_config * cfg, const char * cat, struct dc_sconfig * config);
-EXPORT_DECL void dc_gconfig_fill(struct ast_config * cfg, const char * cat, struct dc_gconfig * config);
-EXPORT_DECL int dc_config_fill(struct ast_config * cfg, const char * cat, const struct dc_sconfig * parent, struct pvt_config * config);
+int dc_dtmf_str2setting(const char * str);
+const char * dc_dtmf_setting2str(dc_dtmf_setting_t dtmf);
+void dc_sconfig_fill_defaults(struct dc_sconfig * config);
+void dc_sconfig_fill(struct ast_config * cfg, const char * cat, struct dc_sconfig * config);
+void dc_gconfig_fill(struct ast_config * cfg, const char * cat, struct dc_gconfig * config);
+int dc_config_fill(struct ast_config * cfg, const char * cat, const struct dc_sconfig * parent, struct pvt_config * config);
 
 
 #endif /* CHAN_QUECTEL_DC_CONFIG_H_INCLUDED */

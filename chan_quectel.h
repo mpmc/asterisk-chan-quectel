@@ -22,7 +22,6 @@
 #include "mixbuffer.h"				/* struct mixbuffer */
 //#include "ringbuffer.h"				/* struct ringbuffer */
 #include "cpvt.h"				/* struct cpvt */
-#include "export.h"				/* EXPORT_DECL EXPORT_DEF */
 #include "dc_config.h"				/* pvt_config_t */
 #include "at_command.h"
 
@@ -43,12 +42,12 @@ static const snd_pcm_format_t format = SND_PCM_FORMAT_S16_BE;
 #define MODULE_DESCRIPTION	"Channel Driver for Mobile Telephony"
 #define MAXQUECTELDEVICES	128
 
-INLINE_DECL const char * dev_state2str(dev_state_t state)
+static inline const char * dev_state2str(dev_state_t state)
 {
 	return enum2str(state, dev_state_strs, ITEMS_OF(dev_state_strs));
 }
 
-INLINE_DECL const char * dev_state2str_msg(dev_state_t state)
+static inline const char * dev_state2str_msg(dev_state_t state)
 {
 	static const char * const states[] = { "Stop scheduled", "Restart scheduled", "Removal scheduled", "Start scheduled" };
 	return enum2str(state, states, ITEMS_OF(states));
@@ -56,8 +55,8 @@ INLINE_DECL const char * dev_state2str_msg(dev_state_t state)
 
 #if ASTERISK_VERSION_NUM >= 100000 && ASTERISK_VERSION_NUM < 130000 /* 10-13 */
 /* Only linear is allowed */
-EXPORT_DECL struct ast_format chan_quectel_format;
-EXPORT_DECL struct ast_format_cap * chan_quectel_format_cap;
+struct ast_format chan_quectel_format;
+struct ast_format_cap * chan_quectel_format_cap;
 #endif /* ^10-13 */
 
 typedef enum {
@@ -239,50 +238,50 @@ typedef struct public_state
 	struct dc_gconfig		global_settings;
 } public_state_t;
 
-EXPORT_DECL public_state_t * gpublic;
+extern public_state_t * gpublic;
 
-EXPORT_DEF int sms_inbox_set(struct pvt* pvt, int index);
-EXPORT_DEF int sms_inbox_clear(struct pvt* pvt, int index);
-EXPORT_DEF int is_sms_inbox_set(const struct pvt* pvt, int index);
+int sms_inbox_set(struct pvt* pvt, int index);
+int sms_inbox_clear(struct pvt* pvt, int index);
+int is_sms_inbox_set(const struct pvt* pvt, int index);
 
-EXPORT_DECL void clean_read_data(const char * devname, int fd);
-EXPORT_DECL int pvt_get_pseudo_call_idx(const struct pvt * pvt);
-EXPORT_DECL int ready4voice_call(const struct pvt* pvt, const struct cpvt * current_cpvt, int opts);
-EXPORT_DECL int is_dial_possible(const struct pvt * pvt, int opts);
+void clean_read_data(const char * devname, int fd);
+int pvt_get_pseudo_call_idx(const struct pvt * pvt);
+int ready4voice_call(const struct pvt* pvt, const struct cpvt * current_cpvt, int opts);
+int is_dial_possible(const struct pvt * pvt, int opts);
 
-EXPORT_DECL const char * pvt_str_state(const struct pvt* pvt);
-EXPORT_DECL struct ast_str * pvt_str_state_ex(const struct pvt* pvt);
-EXPORT_DECL const char * GSM_regstate2str(int gsm_reg_status);
-EXPORT_DECL const char * sys_act2str(int sys_submode);
-EXPORT_DECL const char* rssi2dBm(int rssi, char* buf, size_t len);
+const char * pvt_str_state(const struct pvt* pvt);
+struct ast_str * pvt_str_state_ex(const struct pvt* pvt);
+const char * GSM_regstate2str(int gsm_reg_status);
+const char * sys_act2str(int sys_submode);
+const char* rssi2dBm(int rssi, char* buf, size_t len);
 
-EXPORT_DECL void pvt_on_create_1st_channel(struct pvt* pvt);
-EXPORT_DECL void pvt_on_remove_last_channel(struct pvt* pvt);
-EXPORT_DECL void pvt_reload(restate_time_t when);
-EXPORT_DECL int pvt_enabled(const struct pvt * pvt);
-EXPORT_DECL void pvt_try_restate(struct pvt * pvt);
+void pvt_on_create_1st_channel(struct pvt* pvt);
+void pvt_on_remove_last_channel(struct pvt* pvt);
+void pvt_reload(restate_time_t when);
+int pvt_enabled(const struct pvt * pvt);
+void pvt_try_restate(struct pvt * pvt);
 int pvt_set_act(struct pvt* pvt, int act);
 
-EXPORT_DECL int opentty (const char* dev, char ** lockfile, int typ);
-EXPORT_DECL void closetty(int fd, char ** lockfname);
-EXPORT_DECL int lock_try(const char * devname, char ** lockname);
-EXPORT_DECL struct pvt * find_device_ex(struct public_state * state, const char * name);
+int opentty (const char* dev, char ** lockfile, int typ);
+void closetty(int fd, char ** lockfname);
+int lock_try(const char * devname, char ** lockname);
+struct pvt * find_device_ex(struct public_state * state, const char * name);
 
-INLINE_DECL struct pvt * find_device (const char* name)
+static inline struct pvt * find_device (const char* name)
 {
 	return find_device_ex(gpublic, name);
 }
 
-EXPORT_DECL struct pvt * find_device_ext(const char* name);
-EXPORT_DECL struct pvt * find_device_by_resource_ex(struct public_state * state, const char * resource, int opts, const struct ast_channel * requestor, int * exists);
-EXPORT_DECL void pvt_dsp_setup(struct pvt * pvt, const char * id, dc_dtmf_setting_t dtmf_new);
+struct pvt * find_device_ext(const char* name);
+struct pvt * find_device_by_resource_ex(struct public_state * state, const char * resource, int opts, const struct ast_channel * requestor, int * exists);
+void pvt_dsp_setup(struct pvt * pvt, const char * id, dc_dtmf_setting_t dtmf_new);
 
-INLINE_DECL struct pvt * find_device_by_resource(const char * resource, int opts, const struct ast_channel * requestor, int * exists)
+static inline struct pvt * find_device_by_resource(const char * resource, int opts, const struct ast_channel * requestor, int * exists)
 {
 	return find_device_by_resource_ex(gpublic, resource, opts, requestor, exists);
 }
 
-EXPORT_DECL struct ast_module * self_module();
+struct ast_module * self_module();
 
 #define PVT_NO_CHANS(pvt)		(PVT_STATE(pvt, chansno) == 0)
 

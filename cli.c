@@ -871,13 +871,13 @@ static struct ast_cli_entry cli[] = {
 };
 
 #/* */
-EXPORT_DEF void cli_register()
+void cli_register()
 {
 	ast_cli_register_multiple (cli, ITEMS_OF(cli));
 }
 
 #/* */
-EXPORT_DEF void cli_unregister()
+void cli_unregister()
 {
 	ast_cli_unregister_multiple (cli, ITEMS_OF(cli));
 }

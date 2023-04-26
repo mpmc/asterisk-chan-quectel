@@ -47,7 +47,7 @@ static const at_response_t at_responses_list[] = {
 	};
 
 
-EXPORT_DEF const at_responses_t at_responses = { at_responses_list, 2, ITEMS_OF(at_responses_list), RES_MIN, RES_MAX};
+const at_responses_t at_responses = { at_responses_list, 2, ITEMS_OF(at_responses_list), RES_MIN, RES_MAX};
 
 /*!
  * \brief Get the string representation of the given AT response
@@ -55,7 +55,7 @@ EXPORT_DEF const at_responses_t at_responses = { at_responses_list, 2, ITEMS_OF(
  * \return a string describing the given response
  */
 
-EXPORT_DEF const char* at_res2str (at_res_t res)
+const char* at_res2str (at_res_t res)
 {
 	if((int)res >= at_responses.name_first && (int)res <= at_responses.name_last)
 		return at_responses.responses[res - at_responses.name_first].name;

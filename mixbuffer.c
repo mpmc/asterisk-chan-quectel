@@ -8,7 +8,7 @@
 #include "mixbuffer.h"
 
 #/* */
-EXPORT_DEF void mixb_attach(struct mixbuffer * mb, struct mixstream * stream)
+void mixb_attach(struct mixbuffer * mb, struct mixstream * stream)
 {
 	stream->entry.next = NULL;
 	stream->used = 0;
@@ -18,7 +18,7 @@ EXPORT_DEF void mixb_attach(struct mixbuffer * mb, struct mixstream * stream)
 }
 
 #/* */
-EXPORT_DEF void mixb_detach(struct mixbuffer * mb, struct mixstream * stream)
+void mixb_detach(struct mixbuffer * mb, struct mixstream * stream)
 {
 	mb->attached--;
 	AST_LIST_REMOVE(&mb->streams, stream, entry);
@@ -63,7 +63,7 @@ static inline size_t mixb_mix_write(struct mixbuffer * mb, struct mixstream * st
 }
 
 #/* */
-EXPORT_DEF size_t mixb_write(struct mixbuffer * mb, struct mixstream * stream, const char * data, size_t len)
+size_t mixb_write(struct mixbuffer * mb, struct mixstream * stream, const char * data, size_t len)
 {
 	/* local state: how many data you fit? */
 	size_t max_mix = mixb_free(mb, stream);
@@ -96,7 +96,7 @@ EXPORT_DEF size_t mixb_write(struct mixbuffer * mb, struct mixstream * stream, c
 }
 
 #/* */
-EXPORT_DEF size_t mixb_read_upd(struct mixbuffer * mb, size_t len)
+size_t mixb_read_upd(struct mixbuffer * mb, size_t len)
 {
 	struct mixstream * stream;
 

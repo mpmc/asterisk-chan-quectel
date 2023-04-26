@@ -38,7 +38,7 @@ bad:
 }
 
 #/* */
-EXPORT_DEF struct cpvt * cpvt_alloc(struct pvt * pvt, int call_idx, unsigned dir, call_state_t state)
+struct cpvt * cpvt_alloc(struct pvt * pvt, int call_idx, unsigned dir, call_state_t state)
 {
 	int filedes[2];
 	struct cpvt * cpvt = NULL;
@@ -76,7 +76,7 @@ EXPORT_DEF struct cpvt * cpvt_alloc(struct pvt * pvt, int call_idx, unsigned dir
 }
 
 #/* */
-EXPORT_DEF void cpvt_free(struct cpvt* cpvt)
+void cpvt_free(struct cpvt* cpvt)
 {
 	pvt_t * pvt = cpvt->pvt;
 	struct cpvt * found;
@@ -115,7 +115,7 @@ EXPORT_DEF void cpvt_free(struct cpvt* cpvt)
 }
 
 #/* */
-EXPORT_DEF struct cpvt * pvt_find_cpvt(struct pvt * pvt, int call_idx)
+struct cpvt * pvt_find_cpvt(struct pvt * pvt, int call_idx)
 {
 	struct cpvt * cpvt;
 	AST_LIST_TRAVERSE(&pvt->chans, cpvt, entry) {
@@ -126,7 +126,7 @@ EXPORT_DEF struct cpvt * pvt_find_cpvt(struct pvt * pvt, int call_idx)
 	return 0;
 }
 
-EXPORT_DEF struct cpvt * active_cpvt(struct pvt * pvt)
+struct cpvt * active_cpvt(struct pvt * pvt)
 {
 	struct cpvt * cpvt;
 	AST_LIST_TRAVERSE(&pvt->chans, cpvt, entry) {
@@ -150,7 +150,7 @@ struct cpvt* last_initialized_cpvt(struct pvt * pvt)
 	return res;
 }
 
-EXPORT_DEF void voice_enable(struct pvt * pvt)
+void voice_enable(struct pvt * pvt)
 {
 	static const char cmd_atcpcmreg1[] = "AT+CPCMREG=1\r";
 	static const at_queue_cmd_t cmds1[] = {
@@ -159,7 +159,7 @@ EXPORT_DEF void voice_enable(struct pvt * pvt)
 	at_queue_insert_const(&pvt->sys_chan, cmds1, ITEMS_OF(cmds1), 1);
 }
 
-EXPORT_DEF void voice_disable(struct pvt * pvt)
+void voice_disable(struct pvt * pvt)
 {
 	static const char cmd_atcpcmreg0[] = "AT+CPCMREG=0\r";
 	static const at_queue_cmd_t cmds1[] = {
@@ -169,7 +169,7 @@ EXPORT_DEF void voice_disable(struct pvt * pvt)
 }
 
 #/* */
-EXPORT_DEF const char * pvt_call_dir(const struct pvt * pvt)
+const char * pvt_call_dir(const struct pvt * pvt)
 {
 	static const char * dirs[] = {
 		"Active",

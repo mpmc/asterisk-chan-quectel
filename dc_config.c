@@ -16,12 +16,12 @@ static struct ast_jb_conf jbconf_default =
 
 static const char * const dtmf_values[] = { "off", "inband", "relax" };
 
-EXPORT_DEF int dc_dtmf_str2setting(const char * value)
+int dc_dtmf_str2setting(const char * value)
 {
 	return str2enum(value, dtmf_values, ITEMS_OF(dtmf_values));
 }
 
-EXPORT_DEF const char * dc_dtmf_setting2str(dc_dtmf_setting_t dtmf)
+const char * dc_dtmf_setting2str(dc_dtmf_setting_t dtmf)
 {
 	return enum2str(dtmf, dtmf_values, ITEMS_OF(dtmf_values));
 }
@@ -83,7 +83,7 @@ static int dc_uconfig_fill(struct ast_config * cfg, const char * cat, struct dc_
 }
 
 #/* */
-EXPORT_DEF void dc_sconfig_fill_defaults(struct dc_sconfig * config)
+void dc_sconfig_fill_defaults(struct dc_sconfig * config)
 {
 	/* first set default values */
 	memset(config, 0, sizeof(*config));
@@ -104,7 +104,7 @@ EXPORT_DEF void dc_sconfig_fill_defaults(struct dc_sconfig * config)
 }
 
 #/* */
-EXPORT_DEF void dc_sconfig_fill(struct ast_config * cfg, const char * cat, struct dc_sconfig * config)
+void dc_sconfig_fill(struct ast_config * cfg, const char * cat, struct dc_sconfig * config)
 {
 	struct ast_variable * v;
 
@@ -223,7 +223,7 @@ EXPORT_DEF void dc_sconfig_fill(struct ast_config * cfg, const char * cat, struc
 }
 
 #/* */
-EXPORT_DEF void dc_gconfig_fill(struct ast_config * cfg, const char * cat, struct dc_gconfig * config)
+void dc_gconfig_fill(struct ast_config * cfg, const char * cat, struct dc_gconfig * config)
 {
 	struct ast_variable * v;
 	int tmp;
@@ -269,7 +269,7 @@ EXPORT_DEF void dc_gconfig_fill(struct ast_config * cfg, const char * cat, struc
 }
 
 #/* */
-EXPORT_DEF int dc_config_fill(struct ast_config * cfg, const char * cat, const struct dc_sconfig * parent, struct pvt_config * config)
+int dc_config_fill(struct ast_config * cfg, const char * cat, const struct dc_sconfig * parent, struct pvt_config * config)
 {
 	/* try set unique first */
 	int err = dc_uconfig_fill(cfg, cat, &config->unique);

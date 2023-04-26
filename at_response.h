@@ -4,8 +4,6 @@
 #ifndef CHAN_QUECTEL_AT_RESPONSE_H_INCLUDED
 #define CHAN_QUECTEL_AT_RESPONSE_H_INCLUDED
 
-#include "export.h"			/* EXPORT_DECL EXPORT_DEF */
-
 struct pvt;
 struct iovec;
 
@@ -99,9 +97,9 @@ typedef struct at_responses_t
 } at_responses_t;
 
 /*! responses description */
-EXPORT_DECL const at_responses_t at_responses;
-EXPORT_DECL const char* at_res2str (at_res_t res);
-EXPORT_DECL int at_response (struct pvt* pvt, const struct iovec * iov, int iovcnt, at_res_t at_res);
-EXPORT_DECL int at_poll_sms (struct pvt* pvt);
+extern const at_responses_t at_responses;
+const char* at_res2str (at_res_t res);
+int at_response (struct pvt* pvt, const struct iovec * iov, int iovcnt, at_res_t at_res);
+int at_poll_sms (struct pvt* pvt);
 
 #endif /* CHAN_QUECTEL_AT_RESPONSE_H_INCLUDED */
