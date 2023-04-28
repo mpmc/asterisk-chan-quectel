@@ -322,9 +322,6 @@ static void disactivate_call(struct cpvt* cpvt)
 
 		CPVT_RESET_FLAGS(cpvt, CALL_FLAG_ACTIVATED | CALL_FLAG_MASTER);
 
-		ast_channel_set_fd(cpvt->channel, 0, -1);
-		ast_channel_set_fd(cpvt->channel, 1, -1);
-
 		ast_debug(6, "[%s] call idx %d disactivated\n", PVT_ID(cpvt->pvt), cpvt->call_idx);
 	}
 }
@@ -343,22 +340,19 @@ static void activate_call(struct cpvt* cpvt)
 	pvt = cpvt->pvt;
 	AST_LIST_TRAVERSE(&pvt->chans, cpvt2, entry)
 	{
-		if(cpvt2 != cpvt)
-		{
-			if(CPVT_TEST_FLAG(cpvt, CALL_FLAG_MASTER))
-			{
-				ast_debug (6, "[%s] call idx %d gave master\n", PVT_ID(pvt), cpvt2->call_idx);
-			}
+		if (cpvt2 == cpvt) continue;
 
-			CPVT_RESET_FLAGS(cpvt2, CALL_FLAG_MASTER);
-			if(cpvt2->channel)
-			{
-				ast_channel_set_fd (cpvt2->channel, 1, -1);
-				if(CPVT_TEST_FLAG(cpvt, CALL_FLAG_ACTIVATED) && !CONF_UNIQ(pvt, uac))
-				{
-					ast_channel_set_fd (cpvt2->channel, 0, cpvt2->rd_pipe[PIPE_READ]);
-					ast_debug (6, "[%s] call idx %d still active fd %d\n", PVT_ID(pvt), cpvt2->call_idx, cpvt2->rd_pipe[PIPE_READ]);
-				}
+		if (CPVT_TEST_FLAG(cpvt, CALL_FLAG_MASTER)) {
+			ast_debug(6, "[%s] Call idx:%d gave master\n", PVT_ID(pvt), cpvt2->call_idx);
+		}
+
+		CPVT_RESET_FLAGS(cpvt2, CALL_FLAG_MASTER);
+
+		if (cpvt2->channel) {
+			ast_channel_set_fd(cpvt2->channel, 1, -1);
+			if (CPVT_TEST_FLAG(cpvt, CALL_FLAG_ACTIVATED)) {
+				ast_channel_set_fd(cpvt2->channel, 0, cpvt2->rd_pipe[PIPE_READ]);
+				ast_debug(6, "[%s] Call idx:%d FD:%d still active\n", PVT_ID(pvt), cpvt2->call_idx, cpvt2->rd_pipe[PIPE_READ]);
 			}
 		}
 	}
@@ -373,16 +367,9 @@ static void activate_call(struct cpvt* cpvt)
 
 	if (pvt->audio_fd >= 0) {
 		CPVT_SET_FLAGS(cpvt, CALL_FLAG_ACTIVATED | CALL_FLAG_MASTER);
-		if(cpvt->channel) {
-			ast_channel_set_fd(cpvt->channel, 0, pvt->audio_fd);
-			if (pvt->a_timer) {
-				ast_channel_set_fd(cpvt->channel, 1, ast_timer_fd(pvt->a_timer));
-				ast_timer_set_rate(pvt->a_timer, 50);
-			}
-		}
 		if(pvt->dsp) ast_dsp_digitreset(pvt->dsp);
 		pvt->dtmf_digit = 0;
-		ast_debug(6, "[%s] call idx %d was master\n", PVT_ID(pvt), cpvt->call_idx);
+		ast_debug(6, "[%s] Call idx:%d was master\n", PVT_ID(pvt), cpvt->call_idx);
 	}
 }
 
@@ -1431,8 +1418,7 @@ struct ast_channel* new_channel(
 	struct cpvt * cpvt;
 
 	cpvt = cpvt_alloc(pvt, call_idx, dir, state);
-	if (cpvt)
-	{
+	if (cpvt) {
 #if ASTERISK_VERSION_NUM >= 120000 /* 12+ */
 		channel = ast_channel_alloc(
 				1, ast_state, cid_num, PVT_ID(pvt), NULL, dnid,
@@ -1453,8 +1439,7 @@ struct ast_channel* new_channel(
 				"%s/%s-%02u%08lx", channel_tech.type, PVT_ID(pvt),
 				call_idx, pvt->channel_instance);
 #endif /* ^1.8- */
-		if (channel)
-		{
+		if (channel) {
 			cpvt->channel = channel;
 			pvt->channel_instance++;
 
@@ -1486,6 +1471,12 @@ struct ast_channel* new_channel(
 			channel->readformat	= AST_FORMAT_SLINEAR;
 			channel->writeformat	= AST_FORMAT_SLINEAR;
 #endif /* ^10- */
+
+			ast_channel_set_fd(channel, 0, pvt->audio_fd);
+			if (pvt->a_timer) {
+				ast_channel_set_fd(channel, 1, ast_timer_fd(pvt->a_timer));
+				ast_timer_set_rate(pvt->a_timer, 50);
+			}
 
 			set_channel_vars(pvt, channel);
 
