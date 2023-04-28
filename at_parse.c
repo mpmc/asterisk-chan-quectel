@@ -272,15 +272,8 @@ int at_parse_qnwinfo(char* str, int* act, int* oper, char** band, int* channel)
  * \retval  0 success
  * \retval -1 parse error
  */
-
-int at_parse_creg (char* str, unsigned len, int* gsm_reg, int* gsm_reg_status, char** lac, char** ci)
+int at_parse_creg(char* str, unsigned, int* gsm_reg, int* gsm_reg_status, char** lac, char** ci)
 {
-	unsigned	i;
-	int	state;
-	char*	p1 = NULL;
-	char*	p2 = NULL;
-	char*	p3 = NULL;
-	char*	p4 = NULL;
 	char* gsm_reg_str = NULL;
 
 	*gsm_reg = 0;
@@ -290,154 +283,58 @@ int at_parse_creg (char* str, unsigned len, int* gsm_reg, int* gsm_reg_status, c
 
 	/*
 	 * parse CREG response in the following formats:
-	 * +CREG: <n>,<stat>[,<LAC>,<ci>[,<Act>]] - response to AT+CREG?
-	 * +CREG: <stat>[,<LAC>,<ci>[,<Act>]] - URC after AT-CREG=2
+	 *
+	 *   +CREG: <n>,<stat>[,<LAC>,<ci>[,<Act>]] - response to AT+CREG?
+	 *   +CREG: <stat>[,<LAC>,<ci>[,<Act>]]     - URC after AT-CREG=2
 	 */
 
-	for (i = 0, state = 0; i < len && state < 11; i++)
-	{
-		switch (state)
-		{
-			case 0:
-				if (str[i] == ':')
-				{
-					state++;
-				}
-				break;
+	static const char delimiters[] = ":,,,,";
 
-			case 1:
-				if (str[i] != ' ' && str[i] != '"')
-				{
-					p1 = &str[i];
-					state++;
-				}
-				/* fall through */
+	char* marks[STRLEN(delimiters)];
+	const unsigned int n = mark_line(str, delimiters, marks);
+	switch (n) {
+		case 5:
+		marks[1][0] = '\000';
+		marks[2][0] = '\000';
+		marks[3][0] = '\000';
+		marks[4][0] = '\000';
+		*ci = strip_quoted(marks[3]+1);
+		*lac = strip_quoted(marks[2]+1);
+		gsm_reg_str = strip_quoted(marks[1]+1);
+		break;
 
-			case 2:
-				if (str[i] == ',')
-				{
-					str[i] = '\0';
-					state++;
-				}
-				break; // p1
-
-			case 3:
-				if (str[i] != ' ' && str[i] != '"')
-				{
-					p2 = &str[i];
-					state++;
-				}
-				/* fall through */
-			case 4:
-				if (str[i] == '"')
-				{
-					str[i] = '\0';
-				    break;
-				}
-
-				if (str[i] == ',')
-				{
-					str[i] = '\0';
-					state++;
-				}
-				break; // "p2"
-
-			case 5:
-				if (str[i] != ' ' && str[i] != '"')
-				{
-					p3 = &str[i];
-					state++;
-				}
-				/* fall through */
-
-			case 6:
-				if (str[i] == '"')
-				{
-					str[i] = '\0';
-				    break;
-				}
-
-				if (str[i] == ',')
-				{
-					str[i] = '\0';
-					state++;
-				}
-				break; // "p3"
-
-			case 7:
-				if (str[i] != ' ' && str[i] != '"')
-				{
-					p4 = &str[i];
-					state++;
-				}
-				break;
-			case 8:
-				if (str[i] == '"')
-				{
-					str[i] = '\0';
-					break;
-				}
-
-				if (str[i] == ',')
-				{
-					str[i] = '\0';
-					state++;
-				}
-				break; // "p4"
-
-			case 9:
-				if (str[i] != ' ' && str[i] != '"')
-				{
-					state++;
-				}
-				break;
-			case 10:
-				if (str[i] == '"')
-				{
-					break;
-				}
-
-				if (str[i] == ',')
-				{
-					state++;
-				}
-				break; // "p5"
+		case 4:
+		marks[1][0] = '\000';
+		marks[2][0] = '\000';
+		marks[3][0] = '\000';
+		if (marks[1][1] == '"') {
+			*ci = strip_quoted(marks[2]+1);
+			*lac = strip_quoted(marks[1]+1);
+			gsm_reg_str = strip_quoted(marks[0]+1);
 		}
-	}
+		else {
+			*ci = strip_quoted(marks[3]+1);
+			*lac = strip_quoted(marks[2]+1);
+			gsm_reg_str = strip_quoted(marks[1]+1);
+		}
+		break;
 
-	if (state < 2)
-	{
+		case 3:
 		return -1;
-	}
 
-	switch (state)
-	{
-		case 11: // five elements
-		case 10:
-		gsm_reg_str = p2;
-		*lac = p3;
-		*ci = p4;
+		case 2:
+		marks[1][0] = '\000';
+		gsm_reg_str = strip_quoted(marks[1]+1);
 		break;
 
-		case 8: // four elements
-		gsm_reg_str = p1;
-		*lac = p2;
-		*ci = p3;
-		break;
-
-		case 4: // two elements
-		gsm_reg_str = p2;
-		break;
-
-		case 2: // one element
-		gsm_reg_str = p1;
+		case 1:
+		gsm_reg_str = strip_quoted(marks[0]+1);
 		break;
 	}
 
-	if (gsm_reg_str)
-	{
+	if (gsm_reg_str) {
 		errno = 0;
-		*gsm_reg_status = (int)strtol (gsm_reg_str, (char**) NULL, 10);
+		*gsm_reg_status = (int)strtol(gsm_reg_str, (char**) NULL, 10);
 		if (*gsm_reg_status == 0 && errno == EINVAL)
 		{
 			*gsm_reg_status = -1;

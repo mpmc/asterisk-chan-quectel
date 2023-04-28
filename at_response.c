@@ -177,7 +177,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CREG_INIT:
-				ast_debug(1, "[%s] registration info enabled\n", PVT_ID(pvt));
+				ast_debug(1, "[%s] Registration info enabled\n", PVT_ID(pvt));
 				break;
 
 			case CMD_AT_CREG:
@@ -1716,16 +1716,17 @@ static int at_response_creg(struct pvt* pvt, char* str, size_t len)
 		}
 //#endif
 		pvt->gsm_registered = 1;
+		ast_string_field_set(pvt, location_area_code, lac);
+		ast_string_field_set(pvt, cell_id, ci);
 
-		ast_verb(1, "[%s] Location area code: %s\n", PVT_ID(pvt), pvt->location_area_code);
-		ast_verb(1, "[%s] Cell ID: %s\n", PVT_ID(pvt), pvt->cell_id);
+		ast_verb(1, "[%s] Location area code: %s\n", PVT_ID(pvt), S_OR(lac, ""));
+		ast_verb(1, "[%s] Cell ID: %s\n", PVT_ID(pvt), S_OR(ci, ""));
 	}
 	else {
 		pvt->gsm_registered = 0;
+		ast_string_field_set(pvt, location_area_code, NULL);
+		ast_string_field_set(pvt, cell_id, NULL);
 	}
-
-	ast_string_field_set(pvt, location_area_code, lac);
-	ast_string_field_set(pvt, cell_id, ci);
 
 	return 0;
 }
