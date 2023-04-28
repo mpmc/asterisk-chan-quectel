@@ -141,17 +141,10 @@ typedef struct pvt
 	char		* alock;			/*!< name of lockfile for audio */
 	char		* dlock;			/*!< name of lockfile for data */
 
-	struct ast_dsp*		dsp;				/*!< silence/DTMF detector - FIXME: must be in cpvt */
-	dc_dtmf_setting_t	real_dtmf;			/*!< real DTMF setting */
-
 	struct ast_timer*	a_timer;			/*!< audio write timer */
 
 	char			a_write_buf[FRAME_SIZE * 5];	/*!< audio write buffer */
 	struct mixbuffer	a_write_mixb;			/*!< audio mix buffer */
-
-	char			dtmf_digit;			/*!< last DTMF digit */
-	struct timeval		dtmf_begin_time;		/*!< time of begin of last DTMF digit */
-	struct timeval		dtmf_end_time;			/*!< time of end of last DTMF digit */
 
 	int			timeout;			/*!< used to set the timeout for data */
 #define DATA_READ_TIMEOUT	10000				/* 10 seconds */
@@ -274,7 +267,6 @@ static inline struct pvt * find_device (const char* name)
 
 struct pvt * find_device_ext(const char* name);
 struct pvt * find_device_by_resource_ex(struct public_state * state, const char * resource, int opts, const struct ast_channel * requestor, int * exists);
-void pvt_dsp_setup(struct pvt * pvt, const char * id, dc_dtmf_setting_t dtmf_new);
 
 static inline struct pvt * find_device_by_resource(const char * resource, int opts, const struct ast_channel * requestor, int * exists)
 {

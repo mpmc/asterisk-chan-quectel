@@ -63,6 +63,8 @@ struct iovec;
 	_( CCWA,        "+CCWA",        "+CCWA:") \
 	_( QSPN,        "+QSPN",        "+QSPN:") \
 	_( QNWINFO,		"+QNWINFO",		"+QNWINFO:") \
+	_( QTONEDET,	"+QTONEDET",	"+QTONEDET:")
+
 /* AT_RESPONSES_TABLE */
 
 typedef enum {

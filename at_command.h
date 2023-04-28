@@ -86,6 +86,8 @@
 	_( AT_QPCMV_0,		"AT+QPCMV=0") \
 	_( AT_QPCMV_TTY,	"AT+QPCMV=1,0") \
 	_( AT_QPCMV_UAC,	"AT+QPCMV=1,2") \
+	_( AT_QTONEDET_0,	"AT+QTONEDET=0") \
+	_( AT_QTONEDET_1,	"AT+QTONEDET=1") \
 /* AT_COMMANDS_TABLE */
 
 typedef enum {

@@ -308,7 +308,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 
 				/* TODO: move to +CMGS: handler */
 				ast_verb(3, "[%s] Successfully sent SMS message %p\n", PVT_ID(pvt), task);
-				ast_log(LOG_NOTICE, "[%s] Successfully sent SMS message %p\n", PVT_ID(pvt), task);
+					ast_log(LOG_NOTICE, "[%s] Successfully sent SMS message %p\n", PVT_ID(pvt), task);
 				break;
 
 			case CMD_AT_DTMF:
@@ -347,12 +347,20 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CMUT_0:
-			ast_debug(1, "[%s] Uplink voice unmuted\n", PVT_ID(pvt));
-			break;
+				ast_debug(1, "[%s] Uplink voice unmuted\n", PVT_ID(pvt));
+				break;
 
 			case CMD_AT_CMUT_1:			
-			ast_debug(1, "[%s] Uplink voice muted\n", PVT_ID(pvt));
-			break;
+				ast_debug(1, "[%s] Uplink voice muted\n", PVT_ID(pvt));
+				break;
+
+			case CMD_AT_QTONEDET_0:
+				ast_debug(1, "[%s] Tone detection disabled\n", PVT_ID(pvt));
+				break;
+
+			case CMD_AT_QTONEDET_1:
+				ast_debug(1, "[%s] Tone detection enabled\n", PVT_ID(pvt));
+				break;
 
 			case CMD_USER:
 				break;
@@ -646,6 +654,14 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 				ast_log(LOG_WARNING, "[%s] Cannot enable UAC\n", PVT_ID(pvt));
 				break;
 
+			case CMD_AT_QTONEDET_0:
+				ast_log(LOG_WARNING, "[%s] Cannot disable tone detection\n", PVT_ID(pvt));
+				break;
+
+			case CMD_AT_QTONEDET_1:
+				ast_log(LOG_WARNING, "[%s] Cannot enable tone detection\n", PVT_ID(pvt));
+				break;
+
 			default:
 				log_cmd_response_error(pvt, ecmd, "[%s] Received 'ERROR' for unhandled command '%s'\n", PVT_ID(pvt), at_cmd2str (ecmd->cmd));
 				break;
@@ -742,11 +758,17 @@ static void handle_clcc(struct pvt* pvt,
 			return;
 		}
 
-		if (mpty == 0 || mpty == 1) {
+		if (CONF_SHARED(pvt, multiparty)) {
 			if(mpty)
 				CPVT_SET_FLAGS(cpvt, CALL_FLAG_MULTIPARTY);
 			else
 				CPVT_RESET_FLAGS(cpvt, CALL_FLAG_MULTIPARTY);
+		}
+		else {
+			if (!CPVT_TEST_FLAG(cpvt, CALL_FLAG_MULTIPARTY) && mpty) {
+				ast_log(LOG_ERROR, "[%s] Rejecting multiparty call - idx:%d\n", PVT_ID(pvt), call_idx);
+				at_enqueue_hangup(&pvt->sys_chan, call_idx, AST_CAUSE_CALL_REJECTED);
+			}
 		}
 
 		if(state != cpvt->state) {
@@ -762,12 +784,18 @@ static void handle_clcc(struct pvt* pvt,
 			case CALL_STATE_DIALING:
 			case CALL_STATE_ALERTING:
 			cpvt = last_initialized_cpvt(pvt);
+			if (!CONF_SHARED(pvt, multiparty)) {
+				if (!CPVT_TEST_FLAG(cpvt, CALL_FLAG_MULTIPARTY) && mpty) {
+					cpvt = NULL;
+				}
+			}
+
 			if (cpvt) {
 				cpvt->call_idx = (short)call_idx;
 				change_channel_state(cpvt, state, 0);				
 			} else {
 				at_enqueue_hangup(&pvt->sys_chan, call_idx, AST_CAUSE_CALL_REJECTED);
-				ast_log(LOG_ERROR, "[%s] answered unexisting incoming call - idx:%d, hanging up!\n", PVT_ID(pvt), call_idx);
+				ast_log(LOG_ERROR, "[%s] Answered unexisting or multiparty incoming call - idx:%d, hanging up!\n", PVT_ID(pvt), call_idx);
 				return;
 			}
 			break;
@@ -1824,6 +1852,111 @@ static void at_response_busy(struct pvt* pvt, enum ast_control_frame_type contro
 	}
 }
 
+static struct ast_frame* prepare_dtmf_frame(struct cpvt* const cpvt, const char d, int begin)
+{
+	struct ast_frame* const f = &cpvt->a_dtmf_frame;
+	memset(f, 0, sizeof(struct ast_frame));
+	f->frametype = begin? AST_FRAME_DTMF_BEGIN : AST_FRAME_DTMF_END;
+	f->subclass.integer = d;
+	f->src = AST_MODULE;
+	return f;
+}
+
+static void at_response_qtonedet(struct pvt* pvt, char* str, size_t len)
+{
+	int dtmf;
+	char c = '\000';	
+
+	if (at_parse_qtonedet(str, &dtmf)) {
+		ast_log(LOG_ERROR, "[%s] Error parsing QTONEDET: '%.*s'\n", PVT_ID(pvt), (int)len, str);
+		return;
+	}
+
+	switch(dtmf) {
+		case 48:
+			c = '0';
+			break;
+
+		case 49:
+			c = '1';
+			break;
+
+		case 50:
+			c = '2';
+			break;
+
+		case 51:
+			c = '3';
+			break;
+
+		case 52:
+			c = '4';
+			break;
+
+		case 53:
+			c = '5';
+			break;
+
+		case 54:
+			c = '6';
+			break;
+
+		case 55:
+			c = '7';
+			break;
+
+		case 56:
+			c = '8';
+			break;
+
+		case 57:
+			c = '9';
+			break;
+
+		case 65:
+			c = 'A';
+			break;
+
+		case 66:
+			c = 'B';
+			break;
+
+		case 67:
+			c = 'C';
+			break;
+
+		case 68:
+			c = 'D';
+			break;
+
+		case 42:
+			c = '*';
+			break;
+
+		case 35:
+			c = '#';
+			break;
+	}
+
+	if (!c) {
+		ast_log(LOG_WARNING, "[%s] Detected unknown DTMF code: %d", PVT_ID(pvt), dtmf);
+		return;
+	}
+
+	struct cpvt* const cpvt = active_cpvt(pvt);
+	if (cpvt && cpvt->channel) {
+		struct ast_frame* f = prepare_dtmf_frame(cpvt, c, 1);
+		ast_queue_frame(cpvt->channel, f); // DTMF ON
+
+		f = prepare_dtmf_frame(cpvt, c, 0);
+		ast_queue_frame(cpvt->channel, f); // DTMF OFF
+		ast_verb(1, "[%s] Detected DTMF: %c", PVT_ID(pvt), c);
+	}
+	else {
+		ast_log(LOG_WARNING, "[%s] Detected DTMF: %c", PVT_ID(pvt), c);
+	}
+}
+
 /*!
  * \brief Do response
  * \param pvt -- pvt structure
@@ -2004,6 +2137,10 @@ int at_response(struct pvt* pvt, const struct iovec* iov, int iovcnt, at_res_t a
 			case RES_CSCA:
 				/* An error here is not fatal. Just keep going. */
 				at_response_csca (pvt, str);
+				return 0;
+
+			case RES_QTONEDET:
+				at_response_qtonedet(pvt, str, len);
 				return 0;
 
 			case RES_PARSE_ERROR:

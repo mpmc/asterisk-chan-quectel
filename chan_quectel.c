@@ -40,7 +40,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Rev: " PACKAGE_REVISION " $")
 
 #include <asterisk/stringfields.h>	/* AST_DECLARE_STRING_FIELDS for asterisk/manager.h */
 #include <asterisk/manager.h>
-#include <asterisk/dsp.h>
 #include <asterisk/callerid.h>
 #include <asterisk/module.h>		/* AST_MODULE_LOAD_DECLINE ... */
 #include <asterisk/timing.h>		/* ast_timer_open() ast_timer_fd() */
@@ -89,10 +88,11 @@ static snd_pcm_t *alsa_card_init(struct pvt* pvt, const char *dev, snd_pcm_strea
 	snd_pcm_sw_params_t *swparams = NULL;
 	snd_pcm_uframes_t period_size = PERIOD_FRAMES * 4;
 	snd_pcm_uframes_t buffer_size = PERIOD_FRAMES * 8;
+	snd_pcm_uframes_t boundary = 0u;
 	unsigned int rate = DESIRED_RATE;
-	snd_pcm_uframes_t start_threshold, stop_threshold;
+	snd_pcm_uframes_t start_threshold;
 
-	const char* const stream_str = (stream == SND_PCM_STREAM_CAPTURE)? "capture" : "playback";
+	const char* const stream_str = (stream == SND_PCM_STREAM_CAPTURE)? "CAPTURE" : "PLAYBACK";
 
 	res = snd_pcm_open(&handle, dev, stream, SND_PCM_NONBLOCK);
 	if (res < 0) {
@@ -157,8 +157,14 @@ static snd_pcm_t *alsa_card_init(struct pvt* pvt, const char *dev, snd_pcm_strea
 
 	swparams = ast_alloca(snd_pcm_sw_params_sizeof());
 	memset(swparams, 0, snd_pcm_sw_params_sizeof());
-
 	snd_pcm_sw_params_current(handle, swparams);
+
+	res = snd_pcm_sw_params_get_boundary(swparams, &boundary);
+	if (res < 0) {
+		ast_log(LOG_ERROR, "[%s][ALSA][%s] SW Couldn't get boundary: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
+		boundary = 0u;
+	}
+	ast_debug(2, "[%s][ALSA][%s] Boundary: %lu\n", PVT_ID(pvt), stream_str, boundary);
 
 	if (stream == SND_PCM_STREAM_PLAYBACK)
 		start_threshold = period_size;
@@ -170,14 +176,24 @@ static snd_pcm_t *alsa_card_init(struct pvt* pvt, const char *dev, snd_pcm_strea
 		ast_log(LOG_ERROR, "[%s][ALSA][%s] SW Couldn't set start threshold: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
 	}
 
-	if (stream == SND_PCM_STREAM_PLAYBACK)
-		stop_threshold = buffer_size;
-	else
-		stop_threshold = buffer_size;
+	if (boundary > 0u) {
+		res = snd_pcm_sw_params_set_stop_threshold(handle, swparams, boundary);
+		if (res < 0) {
+			ast_log(LOG_ERROR, "[%s][ALSA][%s] SW Couldn't set stop threshold: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
+		}
+	}
 
-	res = snd_pcm_sw_params_set_stop_threshold(handle, swparams, stop_threshold);
-	if (res < 0) {
-		ast_log(LOG_ERROR, "[%s][ALSA][%s] SW Couldn't set stop threshold: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
+	if (stream == SND_PCM_STREAM_PLAYBACK && boundary > 0u) {
+		res = snd_pcm_sw_params_set_silence_threshold(handle, swparams, 0);
+		if (res < 0) {
+			ast_log(LOG_ERROR, "[%s][ALSA][%s] SW Couldn't set silence threshold: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
+		}
+		else {
+			res = snd_pcm_sw_params_set_silence_size(handle, swparams, boundary);
+			if (res < 0) {
+				ast_log(LOG_ERROR, "[%s][ALSA][%s] SW Couldn't set silence size: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
+			}
+		}	
 	}
 
 	res = snd_pcm_sw_params(handle, swparams);
@@ -447,6 +463,7 @@ static void disconnect_quectel(struct pvt* pvt)
 	if (CONF_UNIQ(pvt, uac)) {
 		at_disable_uac_immediately(pvt);
 	}
+
 	at_queue_run_immediately(pvt);
 	at_queue_flush(pvt);
 
@@ -467,44 +484,37 @@ static void disconnect_quectel(struct pvt* pvt)
 	pvt->data_fd = -1;
 	pvt->audio_fd = -1;
 
-	if(pvt->dsp) {
-		ast_dsp_digitreset(pvt->dsp);
-	}
 	pvt_on_remove_last_channel(pvt);
 
 	ast_debug(1, "[%s] Quectel disconnecting - cleaning up\n", PVT_ID(pvt));
-	pvt->dtmf_digit = 0;
 
-//	else
-	{
-		/* unaffected in case of restart */
-		pvt->use_ucs2_encoding = 0;
-		pvt->gsm_reg_status = -1;
-		pvt->rssi = 0;
-		pvt->act = 0;
-		pvt->operator = 0;
-		
-		ast_string_field_set(pvt, manufacturer, NULL);
-		ast_string_field_set(pvt, model, NULL);
-		ast_string_field_set(pvt, firmware, NULL);
-		ast_string_field_set(pvt, imei, NULL);
-		ast_string_field_set(pvt, imsi, NULL);
-		ast_string_field_set(pvt, location_area_code, NULL);
-		ast_string_field_set(pvt, network_name, NULL);
-		ast_string_field_set(pvt, short_network_name, NULL);
-		ast_string_field_set(pvt, provider_name, "NONE");
-		ast_string_field_set(pvt, band, NULL);
-		ast_string_field_set(pvt, cell_id, NULL);
-		ast_string_field_set(pvt, sms_scenter, NULL);
-		ast_string_field_set(pvt, subscriber_number, "Unknown");
+	/* unaffected in case of restart */
+	pvt->use_ucs2_encoding = 0;
+	pvt->gsm_reg_status = -1;
+	pvt->rssi = 0;
+	pvt->act = 0;
+	pvt->operator = 0;
+	
+	ast_string_field_set(pvt, manufacturer, NULL);
+	ast_string_field_set(pvt, model, NULL);
+	ast_string_field_set(pvt, firmware, NULL);
+	ast_string_field_set(pvt, imei, NULL);
+	ast_string_field_set(pvt, imsi, NULL);
+	ast_string_field_set(pvt, location_area_code, NULL);
+	ast_string_field_set(pvt, network_name, NULL);
+	ast_string_field_set(pvt, short_network_name, NULL);
+	ast_string_field_set(pvt, provider_name, "NONE");
+	ast_string_field_set(pvt, band, NULL);
+	ast_string_field_set(pvt, cell_id, NULL);
+	ast_string_field_set(pvt, sms_scenter, NULL);
+	ast_string_field_set(pvt, subscriber_number, "Unknown");
 
-		pvt->has_subscriber_number = 0;
+	pvt->has_subscriber_number = 0;
 
-		pvt->gsm_registered	= 0;
-		pvt->has_sms = 0;
-		pvt->has_voice = 0;
-		pvt->has_call_waiting = 0;
-	}
+	pvt->gsm_registered	= 0;
+	pvt->has_sms = 0;
+	pvt->has_voice = 0;
+	pvt->has_call_waiting = 0;
 
 	pvt->connected		= 0;
 	pvt->initialized	= 0;
@@ -523,10 +533,10 @@ static void disconnect_quectel(struct pvt* pvt)
 	/* clear statictics */
 	memset(&pvt->stat, 0, sizeof(pvt->stat));
 
-	ast_copy_string (PVT_STATE(pvt, data_tty),  CONF_UNIQ(pvt, data_tty), sizeof (PVT_STATE(pvt, data_tty)));
-	ast_copy_string (PVT_STATE(pvt, audio_tty), CONF_UNIQ(pvt, audio_tty), sizeof (PVT_STATE(pvt, audio_tty)));
+	ast_copy_string(PVT_STATE(pvt, data_tty),  CONF_UNIQ(pvt, data_tty), sizeof (PVT_STATE(pvt, data_tty)));
+	ast_copy_string(PVT_STATE(pvt, audio_tty), CONF_UNIQ(pvt, audio_tty), sizeof (PVT_STATE(pvt, audio_tty)));
 
-	ast_verb (3, "[%s] Quectel has disconnected\n", PVT_ID(pvt));
+	ast_verb(3, "[%s] Quectel has disconnected\n", PVT_ID(pvt));
 }
 
 #define SMS_INBOX_BIT(index)    ((sms_inbox_item_type)(1) << (index % SMS_INBOX_ITEM_BITS))
@@ -911,8 +921,6 @@ cleanup_datafd:
 static void pvt_free(struct pvt * pvt)
 {
 	at_queue_flush(pvt);
-	if(pvt->dsp)
-		ast_dsp_free(pvt->dsp);
 
 	ast_string_field_free_memory(pvt);
 
@@ -1037,29 +1045,22 @@ static void discovery_stop(public_state_t * state)
 #/* */
 void pvt_on_create_1st_channel(struct pvt* pvt)
 {
-	if (!CONF_UNIQ(pvt, uac)) {
-		mixb_init(&pvt->a_write_mixb, pvt->a_write_buf, sizeof(pvt->a_write_buf));
-		// rb_init (&pvt->a_write_rb, pvt->a_write_buf, sizeof (pvt->a_write_buf));
-
-		if(!pvt->a_timer) pvt->a_timer = ast_timer_open();
+	if (CONF_SHARED(pvt, multiparty)) {
+		if (CONF_UNIQ(pvt, uac)) {
+			ast_log(LOG_ERROR, "[%s] Multiparty mode not supported in UAC mode\n", PVT_ID(pvt));
+		}
+		else {
+			mixb_init(&pvt->a_write_mixb, pvt->a_write_buf, sizeof(pvt->a_write_buf));
+			// rb_init (&pvt->a_write_rb, pvt->a_write_buf, sizeof (pvt->a_write_buf));
+			if(!pvt->a_timer) pvt->a_timer = ast_timer_open();
+		}
 	}
-
-	/* FIXME: do on each channel switch */
-	if(pvt->dsp)
-		ast_dsp_digitreset (pvt->dsp);
-
-	pvt->dtmf_digit = 0;
-	pvt->dtmf_begin_time.tv_sec = 0;
-	pvt->dtmf_begin_time.tv_usec = 0;
-	pvt->dtmf_end_time.tv_sec = 0;
-	pvt->dtmf_end_time.tv_usec = 0;
 }
 
 #/* */
 void pvt_on_remove_last_channel(struct pvt* pvt)
 {
-	if (pvt->a_timer)
-	{
+	if (pvt->a_timer) {
 		ast_timer_close(pvt->a_timer);
 		pvt->a_timer = NULL;
 	}
@@ -1609,40 +1610,6 @@ const char* rssi2dBm(int rssi, char* buf, size_t len)
 
 /* Module */
 
-#/* */
-void pvt_dsp_setup(struct pvt * pvt, const char * id, dc_dtmf_setting_t dtmf_new)
-{
-	/* first remove dsp if off or changed */
-	if(dtmf_new != CONF_SHARED(pvt, dtmf))
-	{
-		if(pvt->dsp)
-		{
-			ast_dsp_free(pvt->dsp);
-			pvt->dsp = NULL;
-		}
-	}
-
-	/* wake up and initialize dsp */
-	if(dtmf_new != DC_DTMF_SETTING_OFF)
-	{
-		pvt->dsp = ast_dsp_new();
-		if(pvt->dsp)
-		{
-			int digitmode = DSP_DIGITMODE_DTMF;
-			if(dtmf_new == DC_DTMF_SETTING_RELAX)
-				digitmode |= DSP_DIGITMODE_RELAXDTMF;
-
-			ast_dsp_set_features(pvt->dsp, DSP_FEATURE_DIGIT_DETECT);
-			ast_dsp_set_digitmode(pvt->dsp, digitmode);
-		}
-		else
-		{
-			ast_log(LOG_ERROR, "[%s] Can't setup dsp for dtmf detection, ignored\n", id);
-		}
-	}
-	pvt->real_dtmf = dtmf_new;
-}
-
 static struct pvt * pvt_create(const pvt_config_t * settings)
 {
 	struct pvt * pvt = ast_calloc (1, sizeof (*pvt));
@@ -1670,10 +1637,7 @@ static struct pvt * pvt_create(const pvt_config_t * settings)
 		ast_string_field_set(pvt, subscriber_number, "Unknown");
 		
 		pvt->has_subscriber_number = 0;
-
 		pvt->desired_state = SCONFIG(settings, initstate);
-
-		pvt_dsp_setup(pvt, UCONFIG(settings, id), SCONFIG(settings, dtmf));
 
 		/* and copy settings */
 		memcpy(&pvt->settings, settings, sizeof(pvt->settings));
@@ -1741,8 +1705,6 @@ static int pvt_reconfigure(struct pvt * pvt, const pvt_config_t * settings, rest
 			rv = pvt_time4restate(pvt);
 			pvt->restart_time = rv ? RESTATE_TIME_NOW : when;
 		}
-
-		pvt_dsp_setup(pvt, UCONFIG(settings, id), SCONFIG(settings, dtmf));
 
 		/* and copy settings */
 		memcpy(&pvt->settings, settings, sizeof(pvt->settings));

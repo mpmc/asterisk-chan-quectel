@@ -143,10 +143,6 @@ static char* cli_show_device_settings (struct ast_cli_entry* e, int cmd, struct 
 		ast_cli (a->fd, "  Disable SMS             : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, disablesms)));
 		ast_cli (a->fd, "  Reset Quectel           : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, resetquectel)));
 		ast_cli (a->fd, "  Call Waiting            : %s\n", dc_cw_setting2str(CONF_SHARED(pvt, callwaiting)));
-		ast_cli (a->fd, "  DTMF                    : %s\n", dc_dtmf_setting2str(CONF_SHARED(pvt, dtmf)));
-		ast_cli (a->fd, "  Minimal DTMF Gap        : %d\n", CONF_SHARED(pvt, mindtmfgap));
-		ast_cli (a->fd, "  Minimal DTMF Duration   : %d\n", CONF_SHARED(pvt, mindtmfduration));
-		ast_cli (a->fd, "  Minimal DTMF Interval   : %d\n", CONF_SHARED(pvt, mindtmfinterval));
 		ast_cli (a->fd, "  Initial device state    : %s\n\n", dev_state2str(CONF_SHARED(pvt, initstate)));
 
 		ast_mutex_unlock (&pvt->lock);

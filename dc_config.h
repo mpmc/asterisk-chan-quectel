@@ -38,12 +38,6 @@ static inline const char * dc_cw_setting2str(call_waiting_t cw)
 	return enum2str(cw, options, ITEMS_OF(options));
 }
 
-typedef enum {
-	DC_DTMF_SETTING_OFF = 0,
-	DC_DTMF_SETTING_INBAND,
-	DC_DTMF_SETTING_RELAX,
-} dc_dtmf_setting_t;
-
 /*
  Config API
  Operations
@@ -67,29 +61,21 @@ typedef struct dc_sconfig
 	char			context[AST_MAX_CONTEXT];	/*!< the context for incoming calls; 'default '*/
 	char			exten[AST_MAX_EXTENSION];	/*!< exten, not overwrite valid subscriber_number */
 	char			language[MAX_LANGUAGE];		/*!< default language 'en' */
-	int			group;				/*!< group number for group dialling 0 */
-	int			rxgain;				/*!< increase the incoming volume 0 */
-	int			txgain;				/*!< increase the outgoint volume 0 */
-	int			callingpres;			/*!< calling presentation */
 
-	unsigned int		usecallingpres:1;		/*! -1 */
-	unsigned int		autodeletesms:1;		/*! 0 */
-	unsigned int		resetquectel:1;			/*! 1 */
-	unsigned int		disablesms:1;			/*! 0 */
+	int				group;						/*!< group number for group dialling 0 */
+	int				rxgain;						/*!< increase the incoming volume 0 */
+	int				txgain;						/*!< increase the outgoint volume 0 */
+	int				callingpres;				/*!< calling presentation */
+
+	unsigned int	usecallingpres:1;		/*! -1 */
+	unsigned int	autodeletesms:1;		/*! 0 */
+	unsigned int	resetquectel:1;			/*! 1 */
+	unsigned int	disablesms:1;			/*! 0 */
+	unsigned int	multiparty:1;			/*! 0 */
+	unsigned int	dtmf:1;					/*! 0 */
+
 	dev_state_t		initstate;			/*! DEV_STATE_STARTED */
-//	unsigned int		disable:1;			/*! 0 */
-
-	call_waiting_t		callwaiting;			/*!< enable/disable/auto call waiting CALL_WAITING_AUTO */
-	dc_dtmf_setting_t	dtmf;				/*!< off/inband/relax incoming DTMF detection, default DC_DTMF_SETTING_RELAX */
-
-	int			mindtmfgap;			/*!< minimal time in ms from end of previews DTMF and begining of next */
-#define DEFAULT_MINDTMFGAP	45
-
-	int			mindtmfduration;		/*!< minimal DTMF duration in ms */
-#define DEFAULT_MINDTMFDURATION	80
-
-	int			mindtmfinterval;		/*!< minimal DTMF interval beetween ends in ms, applied only on same digit */
-#define DEFAULT_MINDTMFINTERVAL	200
+	call_waiting_t	callwaiting;		/*!< enable/disable/auto call waiting CALL_WAITING_AUTO */
 } dc_sconfig_t;
 
 /* Global settings */
@@ -129,8 +115,6 @@ typedef struct pvt_config
 #define SCONFIG(cfg,name)	((cfg)->shared.name)
 #define UCONFIG(cfg,name)	((cfg)->unique.name)
 
-int dc_dtmf_str2setting(const char * str);
-const char * dc_dtmf_setting2str(dc_dtmf_setting_t dtmf);
 void dc_sconfig_fill_defaults(struct dc_sconfig * config);
 void dc_sconfig_fill(struct ast_config * cfg, const char * cat, struct dc_sconfig * config);
 void dc_gconfig_fill(struct ast_config * cfg, const char * cat, struct dc_gconfig * config);

@@ -70,7 +70,8 @@ typedef struct cpvt {
 
 	struct mixstream	mixstream;			/*!< mix stream */
 	char			a_read_buf[FRAME_SIZE*2 + AST_FRIENDLY_OFFSET];/*!< audio read buffer */
-	struct ast_frame	a_read_frame;			/*!< read frame buffer */
+	struct ast_frame	a_read_frame;			/*!< voice frame */
+	struct ast_frame	a_dtmf_frame;			/*!< DTMF frame */
 
 //	size_t			write;				/*!< write position in pvt->a_write_buf */
 //	size_t			used;				/*!< bytes used in pvt->a_write_buf */

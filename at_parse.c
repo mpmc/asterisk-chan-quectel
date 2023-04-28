@@ -864,3 +864,14 @@ int at_parse_ccwa(char* str, unsigned * class)
 
 	return -1;
 }
+
+int at_parse_qtonedet(char* str, int* dtmf)
+{
+	/*
+		Example:
+
+		+QTONEDET: 56
+	*/
+
+	return sscanf(str, "+QTONEDET:%d,", dtmf) == 1 ? 0 : -1;	
+}
