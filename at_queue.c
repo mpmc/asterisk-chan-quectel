@@ -296,7 +296,7 @@ int at_queue_run(struct pvt* pvt)
 		}
 		else {
 			ast_str_trim_blanks(buf);
-			ast_debug(1, "[%s] Combined command '%s' length %lu\n", PVT_ID(pvt), ast_str_buffer(buf), ast_str_strlen(buf));
+			ast_debug(4, "[%s] Combined command '%s' length %lu\n", PVT_ID(pvt), ast_str_buffer(buf), ast_str_strlen(buf));
 			ast_free(buf);
 
 			for(unsigned i=0; i<t->cmdsno; ++i) {

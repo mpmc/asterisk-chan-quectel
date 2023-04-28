@@ -322,7 +322,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 
 			case CMD_AT_COPS:
 			case CMD_AT_QSPN:
-				ast_debug (1, "[%s] Provider query successfully\n", PVT_ID(pvt));
+				ast_debug (3, "[%s] Provider query successfully\n", PVT_ID(pvt));
 				break;
 
 			case CMD_AT_CMGR:
@@ -995,7 +995,7 @@ static int at_response_qind(struct pvt* pvt, char* str)
 		return -1;
 	}
 
-	ast_debug(1, "[%s] QIND(%s) - %s\n", PVT_ID(pvt), at_qind2str(qind), params);
+	ast_debug(4, "[%s] QIND(%s) - %s\n", PVT_ID(pvt), at_qind2str(qind), params);
 
 	switch(qind) {
 		case QIND_CSQ:
@@ -1005,7 +1005,7 @@ static int at_response_qind(struct pvt* pvt, char* str)
 
 			res = at_parse_qind_csq(params, &rssi);
 			if (res < 0) {
-				ast_debug(1, "[%s] Failed to parse CSQ - %s\n", PVT_ID(pvt), params);
+				ast_debug(3, "[%s] Failed to parse CSQ - %s\n", PVT_ID(pvt), params);
 				break;
 			}
 			ast_verb(1, "[%s] RSSI: %s\n", PVT_ID(pvt), rssi2dBm(rssi, buf, sizeof(buf)));
@@ -1018,7 +1018,7 @@ static int at_response_qind(struct pvt* pvt, char* str)
 			int act;
 			res = at_parse_qind_act(params, &act);
 			if (res < 0) {
-				ast_debug(1, "[%s] Failed to parse ACT - %s\n", PVT_ID(pvt), params);
+				ast_debug(3, "[%s] Failed to parse ACT - %s\n", PVT_ID(pvt), params);
 				break;
 			}
 			ast_verb(1, "[%s] Access technology: %s\n", PVT_ID(pvt), sys_act2str(act));
