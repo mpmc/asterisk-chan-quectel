@@ -308,6 +308,7 @@ int at_queue_run(struct pvt* pvt)
 	}
 	else {
 		at_queue_cmd_t* cmd = &(t->cmds[t->cindex]);
+		if (cmd->length == 0u) return fail;
 
 		ast_debug(4, "[%s] write command '%s' expected response '%s' length %u\n",
 				PVT_ID(pvt), at_cmd2str(cmd->cmd), at_res2str(cmd->res), cmd->length);
