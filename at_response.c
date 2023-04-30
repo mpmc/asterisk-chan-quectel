@@ -1663,9 +1663,11 @@ static int at_response_qnwinfo(struct pvt* pvt, char* str)
 	int channel; // channel ID
 
 	if (at_parse_qnwinfo(str, &act, &oper, &band, &channel)) {
-		ast_debug(1, "[%s] Error parsing QNWINFO response - '%s'", PVT_ID(pvt), str);
+		ast_log(LOG_WARNING, "[%s] Error parsing QNWINFO response - '%s'", PVT_ID(pvt), str);
 		return -1;
 	}
+
+	if (act < 0) return 0;
 
 	pvt_set_act(pvt, act);
 	pvt->operator = oper;

@@ -218,14 +218,17 @@ int at_parse_qnwinfo(char* str, int* act, int* oper, char** band, int* channel)
 {
 	/*
 		+QNWINFO: <Act>,<oper>,<band>,<channel>
+		+QNWINFO: No Service
 	*/
 
 	static const char delimiters[] = ":,,,";
+	static const char NO_SERVICE[] = "No Service";
 
 	char* marks[STRLEN(delimiters)];
 
 	/* parse URC only here */
-	if (mark_line(str, delimiters, marks) == ITEMS_OF(marks)) {
+	const int nmarks = mark_line(str, delimiters, marks);
+	if (nmarks == ITEMS_OF(marks)) {
 		marks[0]++;
 		if (marks[0][0] == ' ') marks[0]++;
 
@@ -254,6 +257,13 @@ int at_parse_qnwinfo(char* str, int* act, int* oper, char** band, int* channel)
 
 		*act = act2int(strip_quoted(marks[0]));
 		return 0;
+	}
+	else if (nmarks == 1) {
+		const char* s = ast_strip(marks[0]+1);
+		if (!strncmp(s, NO_SERVICE, STRLEN(NO_SERVICE))) {
+			*act = -1;
+			return 0;
+		}
 	}
 
 	return -1;
