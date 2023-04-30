@@ -71,15 +71,6 @@ static void at_queue_remove (struct pvt * pvt)
 	}
 }
 
-#/* */
-static at_queue_cmd_t* at_queue_head_cmd_nc(const struct pvt* pvt)
-{
-	at_queue_task_t * e = AST_LIST_FIRST(&pvt->at_queue);
-	if(e)
-		return &e->cmds[e->cindex];
-	return NULL;
-}
-
 /*!
  * \brief Add an list of commands (task) to the back of the queue
  * \param cpvt -- cpvt structure
