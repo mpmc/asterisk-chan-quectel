@@ -159,9 +159,8 @@ int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_command)
 
 	static const at_queue_cmd_t st_cmds[] = {
 		ATQ_CMD_DECLARE_ST(CMD_AT, cmd_at),
-		ATQ_CMD_DECLARE_ST(CMD_AT_E, cmd_ate0),			/* Disable echo */
-
 		ATQ_CMD_DECLARE_ST(CMD_AT_Z, cmd_z),			/* Restore default settings */
+		ATQ_CMD_DECLARE_ST(CMD_AT_E, cmd_ate0),			/* Disable echo */
 
 		ATQ_CMD_DECLARE_ST(CMD_AT_CGMI, cmd_cgmi),		/* Getting manufacturer info */
 		ATQ_CMD_DECLARE_ST(CMD_AT_CGMM, cmd_cgmm),		/* Get Product name */
