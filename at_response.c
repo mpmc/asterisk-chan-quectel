@@ -597,17 +597,7 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 					ssize_t payload_len = smsdb_outgoing_clear(task->uid, dst, payload);
 					if (payload_len >= 0) {
 						ast_verb(3, "[%s] Error payload: %.*s\n", PVT_ID(pvt), (int) payload_len, payload);
-						const channel_var_t vars[] =
-						{
-							{ "SMS_REPORT_PAYLOAD", payload },
-							{ "SMS_REPORT_TS", "" },
-							{ "SMS_REPORT_DT", "" },
-							{ "SMS_REPORT_SUCCESS", "0" },
-							{ "SMS_REPORT_TYPE", "i" },
-							{ "SMS_REPORT", "" },
-							{ NULL, NULL },
-						};
-						start_local_channel(pvt, "report", dst, vars);
+						start_local_report_channel(pvt, dst, payload, NULL, NULL, 0, 'i', NULL);
 					}
 				}
 
@@ -1351,17 +1341,7 @@ static int at_response_cmgr(struct pvt* pvt, char* str, size_t len)
 					status_report_str[srroff] = '\0';
 					ast_verb(1, "[%s] Success: %d; Payload: %.*s; Report string: %s\n", PVT_ID(pvt), success, (int) payload_len, payload, status_report_str);
 					payload[payload_len] = '\0';
-					const channel_var_t vars[] =
-					{
-						{ "SMS_REPORT_PAYLOAD", payload } ,
-						{ "SMS_REPORT_TS", scts },
-						{ "SMS_REPORT_DT", dt },
-						{ "SMS_REPORT_SUCCESS", success ? "1" : "0" },
-						{ "SMS_REPORT_TYPE", "e" },
-						{ "SMS_REPORT", status_report_str },
-						{ NULL, NULL },
-					};
-					start_local_channel(pvt, "report", oa, vars);
+					start_local_report_channel(pvt, oa, payload, scts, dt, success, 'e', status_report_str);
 				}
 				break;
 			case PDUTYPE_MTI_SMS_DELIVER:
@@ -2008,17 +1988,7 @@ int at_response(struct pvt* pvt, const struct iovec* iov, int iovcnt, at_res_t a
 					ssize_t payload_len = smsdb_outgoing_part_put(task->uid, res, dst, payload);
 					if (payload_len >= 0) {
 						ast_verb (3, "[%s] Error payload: %.*s\n", PVT_ID(pvt), (int) payload_len, payload);
-						const channel_var_t vars[] =
-						{
-							{ "SMS_REPORT_PAYLOAD", payload },
-							{ "SMS_REPORT_TS", "" },
-							{ "SMS_REPORT_DT", "" },
-							{ "SMS_REPORT_SUCCESS", "1" },
-							{ "SMS_REPORT_TYPE", "i" },
-							{ "SMS_REPORT", "" },
-							{ NULL, NULL },
-						};
-						start_local_channel(pvt, "report", dst, vars);
+						start_local_report_channel(pvt, dst, payload, NULL, NULL, 1, 'i', NULL);
 					}
 				}
 				return 0;

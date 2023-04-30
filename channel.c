@@ -1454,6 +1454,31 @@ int queue_hangup(struct ast_channel* channel, int hangupcause)
 	return rv;
 }
 
+void start_local_report_channel(
+	struct pvt* pvt,
+	const char* number, 
+	const char* payload,
+	const char* ts,
+	const char* dt,
+	int success,
+	const char report_type,
+	const char* str
+)
+{
+	const char report_type_str[2] = {report_type, '\000'};
+	const channel_var_t vars[] =
+	{
+		{ "SMS_REPORT_PAYLOAD", S_OR(payload, "") } ,
+		{ "SMS_REPORT_TS", S_OR(ts, "") },
+		{ "SMS_REPORT_DT", S_OR(dt, "") },
+		{ "SMS_REPORT_SUCCESS", S_COR(success, "1", "0") },
+		{ "SMS_REPORT_TYPE", report_type_str },
+		{ "SMS_REPORT", S_OR(str, "") },
+		{ NULL, NULL },
+	};
+	start_local_channel(pvt, "report", number, vars);
+}
+
 #/* NOTE: bg: called from device level with pvt locked */
 void start_local_channel (struct pvt* pvt, const char* exten, const char* number, const channel_var_t* vars)
 {
