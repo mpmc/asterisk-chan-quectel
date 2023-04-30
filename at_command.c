@@ -214,10 +214,10 @@ int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_command)
 		if(st_cmds[in].cmd == CMD_AT_Z && !CONF_SHARED(pvt, resetquectel))
 			continue;
 
-		if(st_cmds[in].cmd == CMD_AT_QTONEDET_0 && !CONF_SHARED(pvt, dtmf))
+		if(st_cmds[in].cmd == CMD_AT_QTONEDET_0 && CONF_SHARED(pvt, dtmf))
 			continue;
 
-		if(st_cmds[in].cmd == CMD_AT_QTONEDET_1 && CONF_SHARED(pvt, dtmf))
+		if(st_cmds[in].cmd == CMD_AT_QTONEDET_1 && !CONF_SHARED(pvt, dtmf))
 			continue;
 
 		memcpy(&cmds[out], &st_cmds[in], sizeof(st_cmds[in]));
