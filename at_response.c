@@ -1159,33 +1159,26 @@ static int at_response_ccwa(struct pvt* pvt, char* str)
 		return 0;
 
 	n = sscanf (str, "+CCWA:%d,%d", &status, &class);
-	if(n == 1)
-		return 0;
-	else if (n == 2)
-	{
-		if ((class & CCWA_CLASS_VOICE) && (status == CCWA_STATUS_NOT_ACTIVE || status == CCWA_STATUS_ACTIVE))
-		{
+	if(n == 1) return 0;
+	else if (n == 2) {
+		if ((class & CCWA_CLASS_VOICE) && (status == CCWA_STATUS_NOT_ACTIVE || status == CCWA_STATUS_ACTIVE)) {
 			pvt->has_call_waiting = status == CCWA_STATUS_ACTIVE ? 1 : 0;
-			ast_log (LOG_NOTICE, "Call waiting is %s on device %s\n", status ? "enabled" : "disabled", PVT_ID(pvt));
+			ast_verb(1, "[%s] Call waiting is %s\n", PVT_ID(pvt), status ? "enabled" : "disabled");
 		}
 		return 0;
 	}
 
-	if (pvt->initialized)
-	{
-//		if (sscanf (str, "+CCWA: \"%*[+0-9*#ABCabc]\",%*d,%d", &class) == 1)
-		if (at_parse_ccwa(str, &class) == 0)
-		{
-//			if (CONF_SHARED(pvt, callwaiting) != CALL_WAITING_DISALLOWED && class == CCWA_CLASS_VOICE)
-			if (class == CCWA_CLASS_VOICE)
-			{
+	if (pvt->initialized) {
+		if (at_parse_ccwa(str, &class) == 0) {
+			if (class == CCWA_CLASS_VOICE) {
 				pvt->cwaiting = 1;
 				request_clcc(pvt);
 			}
 		}
 		else
-			ast_log (LOG_ERROR, "[%s] can't parse CCWA line '%s'\n", PVT_ID(pvt), str);
+			ast_log (LOG_ERROR, "[%s] Can't parse CCWA line '%s'\n", PVT_ID(pvt), str);
 	}
+	
 	return 0;
 }
 
