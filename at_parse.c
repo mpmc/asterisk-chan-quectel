@@ -873,5 +873,29 @@ int at_parse_qtonedet(char* str, int* dtmf)
 		+QTONEDET: 56
 	*/
 
-	return sscanf(str, "+QTONEDET:%d,", dtmf) == 1 ? 0 : -1;	
+	return sscanf(str, "+QTONEDET:%d,", dtmf) == 1 ? 0 : -1;
+}
+
+int at_parse_qpcmv(char* str, int* enabled, int* mode)
+{
+	/*
+		Example:
+
+		+QPCMV: 1,2
+	*/
+
+	const int sr = sscanf(str, "+QPCMV:%d,%d", enabled, mode);
+	switch (sr) {
+		case 2:
+			break;
+
+		case 1:
+			*mode = -1;
+			break;
+
+		default:
+			return -1;
+	}
+
+	return 0;
 }

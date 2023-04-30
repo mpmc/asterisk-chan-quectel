@@ -1930,6 +1930,29 @@ static void at_response_qtonedet(struct pvt* pvt, char* str, size_t len)
 	}
 }
 
+static const char* qpcmv2str(int qpcmv)
+{
+	const char* const names[3] = {
+		"USB NMEA port",
+		"Debug UART",
+		"USB sound card"
+	};
+	return enum2str_def((unsigned)qpcmv, names, ITEMS_OF(names), "Unknown");
+}
+
+static void at_response_qpcmv(struct pvt* pvt, char* str, size_t len)
+{
+	int enabled;
+	int mode;
+
+	if (at_parse_qpcmv(str, &enabled, &mode)) {
+		ast_log(LOG_ERROR, "[%s] Error parsing QPCMV: '%.*s'\n", PVT_ID(pvt), (int)len, str);
+		return;
+	}
+
+	ast_debug(1, "[%s] Voice configuration %s: %s\n", PVT_ID(pvt), S_COR(enabled, "enabled", "disabled"), qpcmv2str(mode));
+}
+
 /*!
  * \brief Do response
  * \param pvt -- pvt structure
@@ -2104,6 +2127,10 @@ int at_response(struct pvt* pvt, const struct iovec* iov, int iovcnt, at_res_t a
 
 			case RES_QTONEDET:
 				at_response_qtonedet(pvt, str, len);
+				return 0;
+
+			case RES_QPCMV:
+				at_response_qpcmv(pvt, str, len);
 				return 0;
 
 			case RES_PARSE_ERROR:
