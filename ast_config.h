@@ -23,7 +23,7 @@
 #undef PACKAGE_URL
 #undef PACKAGE_VERSION
 
-#include "config.h"
+#include <config.h>
 
 #endif /* HAVE_CONFIG_H */
 
