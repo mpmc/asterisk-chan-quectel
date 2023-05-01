@@ -1,90 +1,51 @@
 #
-# Copyright (C) 2017 - 2018 OpenWrt.org
+# aterisk-chan-quectel
 #
-# This is free software, licensed under the GNU General Public License v2.
-# See /LICENSE for more information.
+# OpenWRT package
 #
-
 include $(TOPDIR)/rules.mk
-
+ 
 PKG_NAME:=asterisk-chan-quectel
-PKG_VERSION:=2.1-20211201
-PKG_RELEASE:=1
-
-PKG_FIXUP:=autoreconf
+ 
+PKG_SOURCE_PROTO:=git
+PKG_SOURCE_URL:=https://github.com/RoEdAl/asterisk-chan-quectel
+PKG_SOURCE_DATE:=2023-05-01
+PKG_RELEASE:=$(AUTORELEASE)
+PKG_SOURCE_VERSION:=ddd73373f94df04045ac28ec1d9b8e0495b48ed7
 
 PKG_LICENSE:=GPL-2.0
 PKG_LICENSE_FILES:=COPYRIGHT.txt LICENSE.txt
-PKG_MAINTAINER:=Jiri Slachta <jiri@slachta.eu>
-
-define Build/Prepare
-PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(BUILD_VARIANT)/$(PKG_NAME)-$(PKG_VERSION)
-$(CP) ./src/* $(PKG_BUILD_DIR)/
-endef
-
-
+PKG_MAINTAINER:=Edmunt Pienkowsky <roed@onet.eu>
 
 MODULES_DIR:=/usr/lib/asterisk/modules
+PKG_INSTALL:=1
 
 include $(INCLUDE_DIR)/package.mk
-# asterisk-chan-quectel needs iconv
-include $(INCLUDE_DIR)/nls.mk
-
-define Package/asterisk-chan-quectel/Default
+include $(INCLUDE_DIR)/cmake.mk
+ 
+define Package/asterisk-chan-quectel
   SUBMENU:=Telephony
   SECTION:=net
   CATEGORY:=Utilities
-  URL:=https://github.com/IchthysMaranatha/asterisk-chan-quectel
-  DEPENDS:=$(ICONV_DEPENDS) +kmod-usb-acm +kmod-usb-serial +kmod-usb-serial-option +libusb-1.0 +usb-modeswitch +alsa-lib
+  URL:=http://github.com/RoEdAl/asterisk-chan-quectel
+  DEPENDS:=$(ICONV_DEPENDS) +kmod-usb-acm +kmod-usb-serial +kmod-usb-serial-option +libusb-1.0 +usb-modeswitch +alsa-lib +libsqlite3
   TITLE:=Asterisk Mobile Telephony Module
 endef
-
-define Package/asterisk16-chan-quectel
-$(call Package/asterisk-chan-quectel/Default)
-  DEPENDS+=asterisk16
-  VARIANT:=asterisk16
+ 
+define Package/asterisk-chan-quectel/description
+Asterisk channel driver for Mobile Telephony.
 endef
 
-define Package/description/Default
- Asterisk channel driver for mobile telephony.
-endef
-
-Package/asterisk16-chan-quectel/description = $(Package/description/Default)
-
-ifeq ($(BUILD_VARIANT),asterisk16)
-  CHAN_quectel_AST_HEADERS:=$(STAGING_DIR)/usr/include/asterisk-16/include
-  CONFIGURE_ARGS+= \
-	  --with-astversion=16
-endif
-
-
-CONFIGURE_ARGS+= \
-	--with-asterisk=$(CHAN_quectel_AST_HEADERS)
-
-TARGET_CFLAGS+= \
-	-I$(CHAN_quectel_AST_HEADERS)
-
-MAKE_FLAGS+=LD="$(TARGET_CC)"
-
-CONFIGURE_VARS += \
-	DESTDIR="$(MODULES_DIR)" \
-	ac_cv_type_size_t=yes \
-	ac_cv_type_ssize_t=yes
-
-
-define Package/conffiles/Default
+define Package/asterisk-chan-quectel/conffiles
 /etc/asterisk/quectel.conf
 endef
 
-Package/asterisk16-chan-quectel/conffiles = $(Package/conffiles/Default)
-
-define Package/Install/Default
+define Package/asterisk-chan-quectel/install
 	$(INSTALL_DIR) $(1)/etc/asterisk
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/etc/quectel.conf $(1)/etc/asterisk
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/ipkg-install/etc/asterisk/quectel.conf $(1)/etc/asterisk
 	$(INSTALL_DIR) $(1)$(MODULES_DIR)
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/chan_quectel.so $(1)$(MODULES_DIR)
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/ipkg-install/$(MODULES_DIR)/chan_quectel.so $(1)$(MODULES_DIR)
 endef
+ 
+$(eval $(call BuildPackage,asterisk-chan-quectel))
 
-Package/asterisk16-chan-quectel/install = $(Package/Install/Default)
-
-$(eval $(call BuildPackage,asterisk16-chan-quectel))
