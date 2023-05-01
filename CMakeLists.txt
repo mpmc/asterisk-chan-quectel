@@ -7,7 +7,7 @@ CMAKE_MINIMUM_REQUIRED(VERSION 3.14)
 SET(ASTERISK_VERSION_NUM 180000 CACHE STRING "Asterisk version")
 OPTION(ICONV_CONST "iconv() const declaration of input buffer" OFF)
 SET(ICONV_T iconv_t CACHE STRING "iconv type")
-SET(AST_MODULE chan-quectel)
+SET(AST_MODULE chan_quectel)
 
 INCLUDE(CheckIncludeFile)
 INCLUDE(CheckIncludeFiles)
@@ -97,7 +97,7 @@ ELSE()
     SET(HAVE_AST_CONTROL_SRCCHANGE_STR "/**/")
 ENDIF()
 
-CONFIGURE_FILE(config.h.cmake include/config.h)
+CONFIGURE_FILE(config.h.in include/config.h)
 
 ADD_LIBRARY(asterisk-chan-quectel SHARED ${SOURCES})
 TARGET_COMPILE_FEATURES(asterisk-chan-quectel PUBLIC c_std_99)
@@ -112,9 +112,9 @@ TARGET_COMPILE_DEFINITIONS(asterisk-chan-quectel PRIVATE
 
 TARGET_LINK_LIBRARIES(asterisk-chan-quectel PRIVATE
     Threads::Threads
-    Iconv::Iconv
     ALSA::ALSA
     SQLite::SQLite3
+    Iconv::Iconv
 )
 
 SET_TARGET_PROPERTIES(asterisk-chan-quectel PROPERTIES
@@ -127,4 +127,7 @@ SET_TARGET_PROPERTIES(asterisk-chan-quectel PROPERTIES
 
 INCLUDE(GNUInstallDirs)
 INSTALL(TARGETS asterisk-chan-quectel DESTINATION ${CMAKE_INSTALL_LIBDIR}/asterisk/modules)
-INSTALL(FILES quectel.conf DESTINATION ${CMAKE_INSTALL_SYSCONFDIR}/asterisk)
+INSTALL(FILES quectel.conf DESTINATION ${CMAKE_INSTALL_FULL_SYSCONFDIR}/asterisk)
+
+
+

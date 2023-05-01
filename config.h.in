@@ -18,7 +18,7 @@
 #define PACKAGE_URL "@PROJECT_HOMEPAGE_URL@"
 
 /* Define to the address where bug reports for this package should be sent */
-#define MODULE_BUGREPORT "PROJECT_HOMEPAGE_URL"
+#define MODULE_BUGREPORT "@PROJECT_HOMEPAGE_URL@"
 
 /* Define to the address where bug reports for this package should be sent. */
 #define PACKAGE_BUGREPORT "@PROJECT_HOMEPAGE_URL@"
