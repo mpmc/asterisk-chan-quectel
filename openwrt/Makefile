@@ -46,6 +46,21 @@ define Package/asterisk-chan-quectel/install
 	$(INSTALL_DIR) $(1)$(MODULES_DIR)
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/ipkg-install/$(MODULES_DIR)/chan_quectel.so $(1)$(MODULES_DIR)
 endef
+
+define Package/asterisk-chan-quectel/postinst
+#!/bin/sh
+if [ -z "$${IPKG_INSTROOT}" ]; then
+  echo
+  echo 'o-------------------------------------------------------------------o'
+  echo '| asterisk-chan-quectel note                                        |'
+  echo 'o-------------------------------------------------------------------o'
+  echo '| Adding the "asterisk" user to the "dialout" group might be        |'
+  echo '| required for Asterisk to be able to access the module.            |''
+  echo 'o-------------------------------------------------------------=^_^=-o'
+  echo
+fi
+exit 0
+endef
  
 $(eval $(call BuildPackage,asterisk-chan-quectel))
 
