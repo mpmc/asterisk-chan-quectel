@@ -1111,21 +1111,25 @@ static int channel_indicate (struct ast_channel* channel, int condition, const v
 			break;
 
 		case AST_CONTROL_HOLD:
-			if (pvt) {
+			if (!pvt || CONF_SHARED(pvt, moh)) {
+				ast_moh_start(channel, data, NULL);
+			}
+			else {
 				ast_mutex_lock(&pvt->lock);
 				at_enqueue_mute(cpvt, 1);
 				ast_mutex_unlock(&pvt->lock);
 			}
-			ast_moh_start(channel, data, NULL);
 			break;
 
 		case AST_CONTROL_UNHOLD:
-			if (cpvt) {
+			if (!pvt || CONF_SHARED(pvt, moh)) {
+				ast_moh_stop(channel);
+			}
+			else {
 				ast_mutex_lock(&pvt->lock);
 				at_enqueue_mute(cpvt, 0);
 				ast_mutex_unlock(&pvt->lock);
 			}
-			ast_moh_stop(channel);
 			break;
 
 		default:

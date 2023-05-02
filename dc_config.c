@@ -83,6 +83,7 @@ void dc_sconfig_fill_defaults(struct dc_sconfig * config)
 	config->callingpres		= -1;
 	config->initstate		= DEV_STATE_STARTED;
 	config->callwaiting 	= CALL_WAITING_AUTO;
+	config->moh				= 1;
 }
 
 #/* */
@@ -153,7 +154,10 @@ void dc_sconfig_fill(struct ast_config * cfg, const char * cat, struct dc_sconfi
 		}
 		else if (!strcasecmp (v->name, "dtmf")) {
 			config->multiparty = ast_true (v->value);
-		}		
+		}
+		else if (!strcasecmp (v->name, "moh")) {
+			config->moh = ast_true(v->value);
+		}
 	}
 }
 

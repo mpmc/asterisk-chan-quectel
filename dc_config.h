@@ -73,6 +73,7 @@ typedef struct dc_sconfig
 	unsigned int	disablesms:1;			/*! 0 */
 	unsigned int	multiparty:1;			/*! 0 */
 	unsigned int	dtmf:1;					/*! 0 */
+	unsigned int	moh:1;					/*! 0 */
 
 	dev_state_t		initstate;			/*! DEV_STATE_STARTED */
 	call_waiting_t	callwaiting;		/*!< enable/disable/auto call waiting CALL_WAITING_AUTO */

@@ -145,6 +145,7 @@ static char* cli_show_device_settings (struct ast_cli_entry* e, int cmd, struct 
 		ast_cli (a->fd, "  Call Waiting            : %s\n", dc_cw_setting2str(CONF_SHARED(pvt, callwaiting)));
 		ast_cli (a->fd, "  Multiparty Calls        : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, multiparty)));
 		ast_cli (a->fd, "  DTMF Detection          : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, dtmf)));
+		ast_cli (a->fd, "  Hold/Unhold Action      : %s\n", S_COR(CONF_SHARED(pvt, dtmf), "MOH", "Mute"));
 		ast_cli (a->fd, "  Initial device state    : %s\n\n", dev_state2str(CONF_SHARED(pvt, initstate)));
 
 		ast_mutex_unlock (&pvt->lock);

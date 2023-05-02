@@ -26,6 +26,13 @@ I do not have acces to *SimCOM* module thus cannot fix this driver for now.
 
     DTMF detection is now performed by *Quectel* module itself (`AT+QTONEDET` command).
 
+* New `moh` option (**yes**/no).
+
+    Specify hold/unhold action:
+
+    * **yes** - play/stop MOH (previous default action),
+    * no - disable/enable uplink voice using `AT+CMUT` command.
+
 ### Commands changes
 
 * Additional fields in `show device status` command.
