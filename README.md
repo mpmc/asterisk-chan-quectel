@@ -127,9 +127,20 @@ cmake .. -DASTERISK_VERSION_NUM=162000
 * *EC2x&EG9x Voice Over USB and UAC Application Note* (2019-02-18).
 * *EC2x&EG2x&EG9x&EM05 Series QCFG AT Commands Manual* (2022-05-30).
 * *UC20 AT Commands Manual* (2014-09-26).
+* *SIM7500_SIM7600 Series AT Command Manual* (v3.0, 2021-11-18).
+* *SIM7100 SIM7500 SIM7600 Series USB AUDIO Application Note* (v1.03, 2017-07-13).
 
-### Links
+### Resources
 
 * [EC25 - Official downloads](//www.quectel.com/ProductDownload/EC25.html).
 * [EC25 - Documentation from Sixfab](//sixfab.com/product/quectel-ec25-mini-pcie-4g-lte-module/).
 * [EC25 - Documentation from Olimex](//github.com/OLIMEX/USB-gLINK/tree/master/DOCUMENTS).
+* [Waveshare - SIM7600E-H_4G_HAT](//www.waveshare.com/wiki/SIM7600E-H_4G_HAT).
+* [Waveshare - SIM7600G-H 4G HAT (B)](//www.waveshare.com/wiki/SIM7600G-H_4G_HAT_(B)).
+* [Waveshare - SIM7600G-H 4G DTU](//www.waveshare.com/wiki/SIM7600G-H_4G_DTU).
+* [Waveshare - SIM7600CE-T/CE-CNSE 4G Modules](//www.waveshare.com/wiki/SIM7600CE-T_4G_HAT).
+* [Waveshare - SIM7600X 4G DONGLE](//www.waveshare.com/wiki/SIM7600CE-JT1S_4G_Dongle).
+
+### Other links
+
+* [Using EC20 module with asterisk and FreePBX to realize SMS forwarding and VoIP (Chinese)](//sparktour.me/2022/10/08/quectel-ec20-asterisk-freepbx-gsm-gateway/)
