@@ -118,9 +118,10 @@ I do not have acces to *SimCOM* module thus cannot fix this driver for now.
     Non-printable characters are C escaped using `ast_escape_c` function. For example:
 
     ```
-    DEBUG[11643]: asterisk-chan-quectel/at_read.c:93 at_read: [quectel0] [1][\r\n+QIND: \"csq\",27,99\r\n]
-    DEBUG[11654]: asterisk-chan-quectel/at_read.c:93 at_read: [quectel0] [1][\r\n+CPMS: 0,25,0,25,0,25\r\n\r\nOK\r\n]
-    DEBUG[11654]: asterisk-chan-quectel/at_read.c:93 at_read: [quectel0] [1][\r\n+QPCMV: 0,2\r\n\r\nOK\r\n]    
+    DEBUG[11643]: at_read.c:93 at_read: [quectel0] [1][\r\n+QIND: \"csq\",27,99\r\n]
+    DEBUG[11654]: at_read.c:93 at_read: [quectel0] [1][\r\n+CPMS: 0,25,0,25,0,25\r\n\r\nOK\r\n]
+    DEBUG[11654]: at_read.c:93 at_read: [quectel0] [1][\r\n+QPCMV: 0,2\r\n\r\nOK\r\n]
+    DEBUG[13411]: at_queue.c:181 at_write: [quectel0] [AT+QSPN;+QNWINFO\r]
     ```
 
 * Many small optimizations.
