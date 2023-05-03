@@ -65,6 +65,8 @@ struct iovec;
 	_( QNWINFO,		"+QNWINFO",		"+QNWINFO:") \
 	_( QTONEDET,	"+QTONEDET",	"+QTONEDET:") \
 	_( QPCMV,		"+QPCMV",		"+QPCMV:") \
+	_( QLTS,		"+QLTS",		"+QLTS:") \
+	_( CCLK,		"+CCLK",		"+CCLK:") \
 
 /* AT_RESPONSES_TABLE */
 

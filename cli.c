@@ -146,6 +146,7 @@ static char* cli_show_device_settings (struct ast_cli_entry* e, int cmd, struct 
 		ast_cli (a->fd, "  Multiparty Calls        : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, multiparty)));
 		ast_cli (a->fd, "  DTMF Detection          : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, dtmf)));
 		ast_cli (a->fd, "  Hold/Unhold Action      : %s\n", S_COR(CONF_SHARED(pvt, dtmf), "MOH", "Mute"));
+		ast_cli (a->fd, "  Query Time              : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, query_time)));
 		ast_cli (a->fd, "  Initial device state    : %s\n\n", dev_state2str(CONF_SHARED(pvt, initstate)));
 
 		ast_mutex_unlock (&pvt->lock);
@@ -217,10 +218,12 @@ static char* cli_show_device_state (struct ast_cli_entry* e, int cmd, struct ast
 		ast_cli (a->fd, "  Cell ID                 : %s\n", pvt->cell_id);
 		ast_cli (a->fd, "  Subscriber Number       : %s\n", pvt->subscriber_number);
 		ast_cli (a->fd, "  SMS Service Center      : %s\n", pvt->sms_scenter);
+		if (CONF_SHARED(pvt, query_time))
+		ast_cli (a->fd, "  Module time             : %s\n", pvt->module_time);
 		ast_cli (a->fd, "  Use UCS-2 encoding      : %s\n", AST_CLI_YESNO(pvt->use_ucs2_encoding));
 		ast_cli (a->fd, "  Tasks in queue          : %u\n", PVT_STATE(pvt, at_tasks));
 		ast_cli (a->fd, "  Commands in queue       : %u\n", PVT_STATE(pvt, at_cmds));
-		ast_cli (a->fd, "  Call Waiting            : %s\n", pvt->has_call_waiting ? "Enabled" : "Disabled" );
+		ast_cli (a->fd, "  Call Waiting            : %s\n", AST_CLI_ONOFF(pvt->has_call_waiting));
 		ast_cli (a->fd, "  Current device state    : %s\n", dev_state2str(pvt->current_state) );
 		ast_cli (a->fd, "  Desired device state    : %s\n", dev_state2str(pvt->desired_state) );
 		ast_cli (a->fd, "  When change state       : %s\n", restate2str_msg(pvt->restart_time) );

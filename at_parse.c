@@ -909,3 +909,37 @@ int at_parse_qpcmv(char* str, int* enabled, int* mode)
 
 	return 0;
 }
+
+int at_parse_qlts(char* str, char** ts)
+{
+	/*
+		+QLTS: "2017/10/13,03:40:48+32,0"
+	*/
+
+	static const char delimiters[] = ":";
+	char* marks[STRLEN(delimiters)];
+
+	if (mark_line(str, delimiters, marks) == 1) {
+		*ts = strip_quoted(marks[0]+1);
+		return 0;
+	}
+
+	return -1;
+}
+
+int at_parse_cclk(char* str, char** ts)
+{
+	/*
+		+CCLK: “08/11/26,10:15:02+32”
+	*/
+
+	static const char delimiters[] = ":";
+	char* marks[STRLEN(delimiters)];
+
+	if (mark_line(str, delimiters, marks) == 1) {
+		*ts = strip_quoted(marks[0]+1);
+		return 0;
+	}
+
+	return -1;
+}

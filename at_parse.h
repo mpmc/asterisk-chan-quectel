@@ -44,5 +44,7 @@ int at_parse_clcc(char* str, unsigned* call_idx, unsigned* dir, unsigned* state,
 int at_parse_ccwa(char* str, unsigned * class);
 int at_parse_qtonedet(char* str, int* dtmf);
 int at_parse_qpcmv(char* str, int* enabled, int* mode);
+int at_parse_qlts(char* str, char** ts);
+int at_parse_cclk(char* str, char** ts);
 
 #endif /* CHAN_QUECTEL_AT_PARSE_H_INCLUDED */

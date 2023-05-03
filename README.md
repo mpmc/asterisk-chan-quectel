@@ -33,6 +33,15 @@ I do not have acces to *SimCOM* module thus cannot fix this driver for now.
     * **yes** - play/stop MOH (previous default action),
     * no - disable/enable uplink voice using `AT+CMUT` command.
 
+* New `query_time` option (yes/**no**).
+
+    * yes - *ping* module with `AT+QLTS` (or `AT+CCLK` for *SimCOM* modules) command.
+
+        `AT+QLTS` : Obtain the Latest Time Synchronized Through Network
+        `AT+CCLK` : Real time clock management
+
+    * **no** - *ping* module with standard `AT` command.
+
 ### Commands changes
 
 * Additional fields in `show device status` command.

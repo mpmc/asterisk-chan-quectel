@@ -508,6 +508,7 @@ static void disconnect_quectel(struct pvt* pvt)
 	ast_string_field_set(pvt, cell_id, NULL);
 	ast_string_field_set(pvt, sms_scenter, NULL);
 	ast_string_field_set(pvt, subscriber_number, "Unknown");
+	ast_string_field_set(pvt, module_time, NULL);
 
 	pvt->has_subscriber_number = 0;
 
@@ -1631,7 +1632,7 @@ static struct pvt * pvt_create(const pvt_config_t * settings)
 		pvt->gsm_reg_status		= -1;
 		pvt->incoming_sms_index	= -1U;
 
-		ast_string_field_init(pvt, 13);
+		ast_string_field_init(pvt, 14);
 
 		ast_string_field_set(pvt, provider_name, "NONE");
 		ast_string_field_set(pvt, subscriber_number, "Unknown");

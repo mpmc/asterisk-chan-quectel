@@ -169,6 +169,8 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 			case CMD_AT_QINDCFG_RING:
 			case CMD_AT_QINDCFG_CC:
 			case CMD_AT_DSCI:
+			case CMD_AT_QLTS:
+			case CMD_AT_CCLK:
 				ast_debug (3, "[%s] %s sent successfully\n", PVT_ID(pvt), at_cmd2str (ecmd->cmd));
 				break;
 
@@ -612,6 +614,11 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 			case CMD_AT_COPS:
 			case CMD_AT_QSPN:
 				ast_debug(1, "[%s] Could not get provider name\n", PVT_ID(pvt));
+				break;
+
+			case CMD_AT_QLTS:
+			case CMD_AT_CCLK:
+				ast_debug(1, "[%s] Could not query time\n", PVT_ID(pvt));
 				break;
 
 			case CMD_AT_CLVL:
@@ -1955,6 +1962,32 @@ static void at_response_qpcmv(struct pvt* pvt, char* str, size_t len)
 	ast_debug(1, "[%s] Voice configuration %s: %s\n", PVT_ID(pvt), S_COR(enabled, "enabled", "disabled"), qpcmv2str(mode));
 }
 
+static void at_response_qlts(struct pvt* pvt, char* str, size_t len)
+{
+	char* ts;
+
+	if (at_parse_qlts(str, &ts)) {
+		ast_log(LOG_ERROR, "[%s] Error parsing '%.*s'\n", PVT_ID(pvt), (int)len, str);
+		return;
+	}
+
+	ast_verb(3, "[%s] Module time: %s\n", PVT_ID(pvt), ts);
+	ast_string_field_set(pvt, module_time, ts);	
+}
+
+static void at_response_cclk(struct pvt* pvt, char* str, size_t len)
+{
+	char* ts;
+
+	if (at_parse_cclk(str, &ts)) {
+		ast_log(LOG_ERROR, "[%s] Error parsing '%.*s'\n", PVT_ID(pvt), (int)len, str);
+		return;
+	}
+
+	ast_verb(3, "[%s] Module time: %s\n", PVT_ID(pvt), ts);
+	ast_string_field_set(pvt, module_time, ts);
+}
+
 /*!
  * \brief Do response
  * \param pvt -- pvt structure
@@ -2133,6 +2166,14 @@ int at_response(struct pvt* pvt, const struct iovec* iov, int iovcnt, at_res_t a
 
 			case RES_QPCMV:
 				at_response_qpcmv(pvt, str, len);
+				return 0;
+
+			case RES_QLTS:
+				at_response_qlts(pvt, str, len);
+				return 0;
+
+			case RES_CCLK:
+				at_response_cclk(pvt, str, len);
 				return 0;
 
 			case RES_PARSE_ERROR:

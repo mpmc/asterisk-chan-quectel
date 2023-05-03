@@ -88,6 +88,8 @@
 	_( AT_QPCMV_UAC,	"AT+QPCMV=1,2") \
 	_( AT_QTONEDET_0,	"AT+QTONEDET=0") \
 	_( AT_QTONEDET_1,	"AT+QTONEDET=1") \
+	_( AT_QLTS,			"AT+QLTS") \
+	_( AT_CCLK,			"AT+CCLK") \
 /* AT_COMMANDS_TABLE */
 
 typedef enum {
@@ -103,6 +105,7 @@ struct pvt;
 struct cpvt;
 
 const char *at_cmd2str(at_cmd_t cmd);
+int at_enqueue_at(struct cpvt* cpvt);
 int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_command);
 int at_enqueue_ping(struct cpvt *cpvt);
 int at_enqueue_cops(struct cpvt *cpvt);
@@ -130,5 +133,7 @@ int at_enqueue_enable_tty(struct cpvt *cpvt);
 int at_enqueue_enable_uac(struct cpvt *cpvt);
 int at_enqueue_mute(struct cpvt *cpvt, int mute);
 int at_enqueue_qcrcind(struct cpvt* cpvt);
+int at_enqueue_qlts(struct cpvt* cpvt, int mode);
+int at_enqueue_cclk_query(struct cpvt* cpvt);
 
 #endif /* CHAN_QUECTEL_AT_SEND_H_INCLUDED */

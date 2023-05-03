@@ -114,6 +114,17 @@ static int __attribute__ ((format(printf, 4, 5))) at_enqueue_generic(struct cpvt
 	return rv;
 }
 
+int at_enqueue_at(struct cpvt* cpvt)
+{
+	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_STIT(CMD_AT, cmd_at, ATQ_CMD_TIMEOUT_SHORT, 0);
+
+	if (at_queue_insert_const(cpvt, &cmd, 1, 1) != 0) {
+		chan_quectel_err = E_QUEUE;
+		return -1;
+	}
+	return 0;
+}
+
 /*!
  * \brief Enqueue initialization commands
  * \param cpvt -- cpvt structure
@@ -680,6 +691,13 @@ int at_enqueue_flip_hold(struct cpvt *cpvt)
 	return 0;
 }
 
+enum at_ping_method_t
+{
+	PING_AT,
+	PING_QUECTEL,
+	PING_SIMCOM
+};
+
 /*!
  * \brief Enqueue ping command
  * \param pvt -- pvt structure
@@ -687,13 +705,25 @@ int at_enqueue_flip_hold(struct cpvt *cpvt)
  */
 int at_enqueue_ping(struct cpvt *cpvt)
 {
-	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_STIT(CMD_AT, cmd_at, ATQ_CMD_TIMEOUT_SHORT, 0);
+	struct pvt* pvt = cpvt->pvt;
+	enum at_ping_method_t ping_cmd = PING_AT;
 
-	if (at_queue_insert_const(cpvt, &cmd, 1, 1) != 0) {
-		chan_quectel_err = E_QUEUE;
-		return -1;
+	if (CONF_SHARED(pvt, query_time)) {
+		ping_cmd = pvt->is_simcom? PING_SIMCOM : PING_QUECTEL;
 	}
-	return 0;
+
+	switch (ping_cmd) {
+		case PING_AT:
+		return at_enqueue_at(cpvt);
+
+		case PING_QUECTEL:
+		return at_enqueue_qlts(cpvt, 1);
+
+		case PING_SIMCOM:
+		return at_enqueue_cclk_query(cpvt);
+	}
+
+	return -1;
 }
 
 /*!
@@ -1050,6 +1080,37 @@ int at_enqueue_enable_uac(struct cpvt* cpvt)
 	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_ST(CMD_AT_QPCMV_UAC, cmd_atqpcmv);
 
 	if (at_queue_insert_const(cpvt, &cmd, 1, 0) != 0) {
+		chan_quectel_err = E_QUEUE;
+		return -1;
+	}
+
+	return 0;
+}
+
+int at_enqueue_qlts(struct cpvt* cpvt, int mode)
+{
+	at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_QLTS);
+
+	const int err = at_fill_generic_cmd(&cmd, "AT+QLTS=%d\r", mode);
+	if (err) {
+		chan_quectel_err = E_UNKNOWN;
+		return err;
+	}
+
+	if (at_queue_insert(cpvt, &cmd, 1, 1) != 0) {
+		chan_quectel_err = E_QUEUE;
+		return -1;
+	}
+
+	return 0;
+}
+
+int at_enqueue_cclk_query(struct cpvt* cpvt)
+{
+	static const char cmd_cclk[] = "AT+CCLK?\r";
+	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_ST(CMD_AT_CCLK, cmd_cclk);
+
+	if (at_queue_insert_const(cpvt, &cmd, 1, 1) != 0) {
 		chan_quectel_err = E_QUEUE;
 		return -1;
 	}

@@ -174,6 +174,8 @@ typedef struct pvt
 		AST_STRING_FIELD(band);
 		AST_STRING_FIELD(sms_scenter);
 		AST_STRING_FIELD(subscriber_number);
+		AST_STRING_FIELD(module_time);
+
 	);
 
 	unsigned int		incoming_sms_index;

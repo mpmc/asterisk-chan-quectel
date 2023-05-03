@@ -158,6 +158,9 @@ void dc_sconfig_fill(struct ast_config * cfg, const char * cat, struct dc_sconfi
 		else if (!strcasecmp (v->name, "moh")) {
 			config->moh = ast_true(v->value);
 		}
+		else if (!strcasecmp (v->name, "query_time")) {
+			config->query_time = ast_true(v->value);
+		}		
 	}
 }
 
