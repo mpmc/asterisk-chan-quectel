@@ -125,6 +125,10 @@ SET_TARGET_PROPERTIES(asterisk-chan-quectel PROPERTIES
     C_STANDARD_REQUIRED ON
 )
 
+TARGET_COMPILE_OPTIONS(asterisk-chan-quectel PRIVATE
+    $<$<AND:$<C_COMPILER_ID:GNU>,$<VERSION_GREATER_EQUAL:$<C_COMPILER_VERSION>,8>>:-ffile-prefix-map=${CMAKE_SOURCE_DIR}=. -ffile-prefix-map=${CMAKE_BINARY_DIR}=.>            
+)
+
 INCLUDE(GNUInstallDirs)
 INSTALL(TARGETS asterisk-chan-quectel DESTINATION ${CMAKE_INSTALL_LIBDIR}/asterisk/modules)
 INSTALL(FILES quectel.conf DESTINATION ${CMAKE_INSTALL_FULL_SYSCONFDIR}/asterisk)
