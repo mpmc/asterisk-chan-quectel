@@ -35,18 +35,17 @@ I do not have acces to *SimCOM* module thus cannot fix this driver for now.
 
 * New `query_time` option (yes/**no**).
 
-    * yes - *ping* module with `AT+QLTS` (or `AT+CCLK` for *SimCOM* modules) command.
-
-        `AT+QLTS` : Obtain the Latest Time Synchronized Through Network
-        `AT+CCLK` : Real time clock management
-
+    * yes - *ping* module with `AT+QLTS` (or `AT+CCLK` for *SimCOM* modules) command.[^2]
     * **no** - *ping* module with standard `AT` command.
+
+[^2]:`AT+QLTS` : Obtain the Latest Time Synchronized Through Network
+  `AT+CCLK` : Real time clock management
 
 ### Commands changes
 
 * Additional fields in `show device status` command.
 
-    Added `Access technology`, `Network Name`, `Short Network Name`, `Registered PLMN` and `Band` fields:
+    Added `Access technology`, `Network Name`, `Short Network Name`, `Registered PLMN`, `Band` and `Module Time` fields:
 
     ```
         -------------- Status -------------
@@ -73,6 +72,7 @@ I do not have acces to *SimCOM* module thus cannot fix this driver for now.
     Cell ID                 : AAAAAAA
     Subscriber Number       : Unknown
     SMS Service Center      : +99000111222
+    Module Time             : 2000/01/01,00:00:00+08,1
     Use UCS-2 encoding      : Yes
     Tasks in queue          : 0
     Commands in queue       : 0
