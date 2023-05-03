@@ -11,7 +11,7 @@ PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/RoEdAl/asterisk-chan-quectel
 PKG_SOURCE_DATE:=2023-05-03
 PKG_RELEASE:=$(AUTORELEASE)
-PKG_SOURCE_VERSION:=6b7a06001218b774f14783816e579c98974a1aeb
+PKG_SOURCE_VERSION:=57c820a7108f893c9fd436a25cd380398155be45
 
 PKG_LICENSE:=GPL-2.0
 PKG_LICENSE_FILES:=COPYRIGHT.txt LICENSE.txt
@@ -55,7 +55,7 @@ if [ -z "$${IPKG_INSTROOT}" ]; then
   echo '| asterisk-chan-quectel note                                        |'
   echo 'o-------------------------------------------------------------------o'
   echo '| Adding the "asterisk" user to the "dialout" group might be        |'
-  echo '| required for Asterisk to be able to access the module.            |''
+  echo '| required for Asterisk to be able to access the module.            |'
   echo 'o-------------------------------------------------------------=^_^=-o'
   echo
 fi
