@@ -224,14 +224,39 @@ static int db_create_smsdb(void)
 	return res;
 }
 
+static int db_name_in_memory(const char* db)
+{
+	static const char SQLITE_IN_MEMORY_SPECIAL_NAME[] = ":memory:";
+
+	if (db == NULL) return 0;
+	return !strncmp(db, SQLITE_IN_MEMORY_SPECIAL_NAME, STRLEN(SQLITE_IN_MEMORY_SPECIAL_NAME));
+}
+
+static int db_name_temporary(const char* db)
+{
+	static const char SQLITE_TMP_SPECIAL_NAME[] = ":temporary:";
+
+	if (db == NULL) return 0;
+	return !strncmp(db, SQLITE_TMP_SPECIAL_NAME, STRLEN(SQLITE_TMP_SPECIAL_NAME));
+}
+
 static int db_open(void)
 {
+	static const char SQLITE_DB_EXT[] = ".sqlite3";
+
 	char *dbname;
-	if (!(dbname = ast_alloca(strlen(CONF_GLOBAL(sms_db)) + sizeof(".sqlite3")))) {
-		return -1;
+	if (db_name_in_memory(CONF_GLOBAL(sms_db))) {
+		dbname = CONF_GLOBAL(sms_db);
 	}
-	strcpy(dbname, CONF_GLOBAL(sms_db));
-	strcat(dbname, ".sqlite3");
+	else if (db_name_temporary(CONF_GLOBAL(sms_db))) {
+		dbname = "";
+	}
+	else {
+		if (!(dbname = ast_alloca(strlen(CONF_GLOBAL(sms_db)) + STRLEN(SQLITE_DB_EXT) + 1u)))
+			return -1;
+		strcpy(dbname, CONF_GLOBAL(sms_db));
+		strcat(dbname, SQLITE_DB_EXT);
+	}
 
 	ast_mutex_lock(&dblock);
 	if (sqlite3_open(dbname, &smsdb) != SQLITE_OK) {

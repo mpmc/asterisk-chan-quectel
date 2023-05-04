@@ -87,7 +87,7 @@ typedef struct dc_gconfig
 	int			discovery_interval;		/*!< The device discovery interval */
 #define DEFAULT_DISCOVERY_INT	60
 	char sms_db[PATHLEN];
-#define DEFAULT_SMS_DB "/var/lib/asterisk/smsdb"
+#define DEFAULT_SMS_DB ":memory:"
 	int csms_ttl;
 #define DEFAULT_CSMS_TTL 600
 
