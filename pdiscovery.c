@@ -488,37 +488,40 @@ static int pdiscovery_handle_response(const struct pdiscovery_request * req, con
 #/* return zero on sucess */
 static int pdiscovery_do_cmd(const struct pdiscovery_request * req, int fd, const char * name, const char * cmd, unsigned length, struct pdiscovery_result * res)
 {
-	int timeout;
-	char buf[1024 + 1];
+	static const size_t RINGBUFFER_SIZE = 1024 + 1;
+
 	struct ringbuffer rb;
-	struct iovec iov[2];
-	int iovcnt;
-	size_t wrote;
 
 	ast_debug(4, "[%s discovery] use %s for IMEI/IMSI discovery\n", req->name, name);
 
-	clean_read_data(req->name, fd);
-	wrote = write_all(fd, cmd, length);
-	if(wrote == length) {
-		timeout = PDISCOVERY_TIMEOUT;
-		rb_init(&rb, buf, sizeof(buf) - 1);
+	void* const buf = ast_malloc(RINGBUFFER_SIZE);
+	rb_init(&rb, buf, RINGBUFFER_SIZE);
+	clean_read_data(req->name, fd, &rb);
+
+	const size_t wrote = write_all(fd, cmd, length);
+	if (wrote == length) {
+		int timeout = PDISCOVERY_TIMEOUT;
 		while(timeout > 0 && at_wait(fd, &timeout) != 0) {
-			iovcnt = at_read(fd, name, &rb);
-			if(iovcnt > 0) {
+			int iovcnt = at_read(fd, name, &rb);
+			if (iovcnt > 0) {
+				struct iovec iov[2];
 				iovcnt = rb_read_all_iov(&rb, iov);
-				if(pdiscovery_handle_response(req, iov, iovcnt, res))
+				if(pdiscovery_handle_response(req, iov, iovcnt, res)) {
+					ast_free(buf);
 					return 0;
+				}
 			} else {
-				snprintf(buf, sizeof(buf), "Read Failed\r\nErrorCode: %d", errno);
-				ast_log (LOG_ERROR, "[%s discovery] read from %s failed: %s\n", req->name, name, strerror(errno));
+				ast_log(LOG_ERROR, "[%s discovery] read from %s failed: %s\n", req->name, name, strerror(errno));
+				ast_free(buf);
 				return -1;
 			}
 		}
-		ast_log (LOG_ERROR, "[%s discovery] failed to get valid response from %s in %d msec\n", req->name, name, PDISCOVERY_TIMEOUT);
+		ast_log(LOG_ERROR, "[%s discovery] failed to get valid response from %s in %d msec\n", req->name, name, PDISCOVERY_TIMEOUT);
 	} else {
-		snprintf(buf, sizeof(buf), "Write Failed\r\nErrorCode: %d", errno);
-		ast_log (LOG_ERROR, "[%s discovery] write to %s failed: %s\n", req->name, name, strerror(errno));
+		ast_log(LOG_ERROR, "[%s discovery] write to %s failed: %s\n", req->name, name, strerror(errno));
 	}
+
+	ast_free(buf);
 	return 1;
 }
 

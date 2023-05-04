@@ -29,6 +29,7 @@ int at_parse_creg(char* str, unsigned len, int* gsm_reg, int* gsm_reg_status, ch
 int at_parse_cmti(const char* str);
 int at_parse_cdsi(const char* str);
 int at_parse_cmgr(char *str, size_t len, int *tpdu_type, char *sca, size_t sca_len, char *oa, size_t oa_len, char *scts, int *mr, int *st, char *dt, char *msg, size_t *msg_len, pdu_udh_t *udh);
+int at_parse_cmgl(char *str, size_t len, int* idx, int *tpdu_type, char *sca, size_t sca_len, char *oa, size_t oa_len, char *scts, int *mr, int *st, char *dt, char *msg, size_t *msg_len, pdu_udh_t *udh);
 int at_parse_cmgs(const char* str);
 int at_parse_cusd(char* str, int * type, char ** cusd, int * dcs);
 int at_parse_cpin(char* str, size_t len);

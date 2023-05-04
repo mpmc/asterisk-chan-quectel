@@ -68,7 +68,6 @@ typedef struct at_queue_cmd
 #define ATQ_CMD_DECLARE_DYN(cmd)		ATQ_CMD_DECLARE_DYNF(cmd, RES_OK, ATQ_CMD_FLAG_DEFAULT)
 #define ATQ_CMD_DECLARE_DYNI(cmd)		ATQ_CMD_DECLARE_DYNF(cmd, RES_OK, ATQ_CMD_FLAG_IGNORE)
 #define ATQ_CMD_DECLARE_DYNIT(cmd,s,u)		ATQ_CMD_DECLARE_DYNFT(cmd, RES_OK, ATQ_CMD_FLAG_IGNORE,s,u)
-#define ATQ_CMD_DECLARE_DYN2(cmd,res)		ATQ_CMD_DECLARE_DYNF(cmd, res, ATQ_CMD_FLAG_DEFAULT)
 
 typedef struct at_queue_task
 {
@@ -94,11 +93,6 @@ const at_queue_cmd_t* at_queue_head_cmd(const struct pvt* pvt);
 int at_queue_timeout(const struct pvt* pvt);
 int at_queue_run(struct pvt* pvt);
 int at_queue_run_immediately(struct pvt* pvt);
-
-static inline at_cmd_suppress_error_t at_cmd_suppress_error_mode(int flags)
-{
-	return ((flags & ATQ_CMD_FLAG_SUPPRESS_ERROR) ? SUPPRESS_ERROR_ENABLED : SUPPRESS_ERROR_DISABLED);
-}
 
 static inline const at_queue_cmd_t* at_queue_task_cmd(const at_queue_task_t* task)
 {

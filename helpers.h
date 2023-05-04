@@ -20,5 +20,6 @@ int schedule_restart_event(dev_state_t event, restate_time_t when, const char *d
 int is_valid_phone_number(const char * number);
 
 struct ast_str* escape_nstr(const char*, size_t);
+struct ast_str* escape_str(const struct ast_str* const);
 
 #endif /* CHAN_QUECTEL_HELPERS_H_INCLUDED */

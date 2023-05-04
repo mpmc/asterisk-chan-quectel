@@ -12,7 +12,13 @@ struct iovec;
 
 int at_wait (int fd, int* ms);
 ssize_t at_read (int fd, const char * dev, struct ringbuffer* rb);
-int at_read_result_iov (const char * dev, int * read_result, struct ringbuffer* rb, struct iovec * iov);
-at_res_t at_read_result_classification (struct ringbuffer * rb, size_t len);
+
+size_t at_get_iov_size(const struct iovec* iov);
+size_t at_get_iov_size_n(const struct iovec* iov, int iovcnt);
+
+size_t prepare_result(struct ast_str* const, const struct iovec* const, int);
+
+int at_read_result_iov(const char* dev, int* read_result, size_t* skip, struct ringbuffer* rb, struct iovec * iov);
+at_res_t at_str2res(const struct ast_str* const);
 
 #endif /* CHAN_QUECTEL_AT_READ_H_INCLUDED */

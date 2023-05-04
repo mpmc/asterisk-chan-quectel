@@ -526,7 +526,7 @@ static void disconnect_quectel(struct pvt* pvt)
 	pvt->ring = 0;
 	pvt->cwaiting = 0;
 	pvt->outgoing_sms = 0;
-	pvt->incoming_sms_index = -1U;
+	pvt->incoming_sms_index = -1;
 	pvt->volume_sync_step = VOLUME_SYNC_BEGIN;
 
 	pvt->current_state = DEV_STATE_STOPPED;
@@ -540,69 +540,17 @@ static void disconnect_quectel(struct pvt* pvt)
 	ast_verb(3, "[%s] Quectel has disconnected\n", PVT_ID(pvt));
 }
 
-#define SMS_INBOX_BIT(index)    ((sms_inbox_item_type)(1) << (index % SMS_INBOX_ITEM_BITS))
-#define SMS_INBOX_INDEX(index)  (index / SMS_INBOX_ITEM_BITS)
-
-static int is_sms_inbox_index_valid(const struct pvt* pvt, int index)
-{
-	if (index < 0 || index >= (int) SMS_INDEX_MAX) {
-		ast_log(LOG_WARNING, "[%s] SMS index [%d] out of range\n", PVT_ID(pvt), index);
-		return 0;
-	}
-
-	return 1;
-}
-
-int sms_inbox_set(struct pvt* pvt, int index)
-{
-	if (!is_sms_inbox_index_valid(pvt, index)) {
-		return 0;
-	}
-
-	pvt->incoming_sms_inbox[SMS_INBOX_INDEX(index)] |= SMS_INBOX_BIT(index);
-	return 1;
-}
-
-int sms_inbox_clear(struct pvt* pvt, int index)
-{
-	if (!is_sms_inbox_index_valid(pvt, index)) {
-		return 0;
-	}
-
-	pvt->incoming_sms_inbox[SMS_INBOX_INDEX(index)] &= ~SMS_INBOX_BIT(index);
-	return 1;
-}
-
-int is_sms_inbox_set(const struct pvt* pvt, int index)
-{
-	if (!is_sms_inbox_index_valid(pvt, index)) {
-		return 0;
-	}
-
-	return pvt->incoming_sms_inbox[SMS_INBOX_INDEX(index)] & SMS_INBOX_BIT(index);
-}
-
-#undef SMS_INBOX_INDEX
-#undef SMS_INBOX_BIT
-
 /* anybody wrote some to device before me, and not read results, clean pending results here */
 #/* */
-void clean_read_data(const char * devname, int fd)
+void clean_read_data(const char* devname, int fd, struct ringbuffer* const rb)
 {
-	char buf[2*1024];
-	struct ringbuffer rb;
-	int iovcnt;
-	int t;
-
-	rb_init (&rb, buf, sizeof (buf));
-	for (t = 0; at_wait(fd, &t); t = 0)
-	{
-		iovcnt = at_read (fd, devname, &rb);
-		ast_debug (4, "[%s] drop %u bytes of pending data before initialization\n", devname, (unsigned)rb_used(&rb));
+	rb_reset(rb);
+	for (int t = 0; at_wait(fd, &t); t = 0) {
+		const int iovcnt = at_read(fd, devname, rb);
+		if (iovcnt) ast_debug(4, "[%s] Drop %u bytes of pending data\n", devname, (unsigned)rb_used(rb));
 		/* drop read */
-		rb_init (&rb, buf, sizeof (buf));
-		if (iovcnt == 0)
-			break;
+		rb_reset(rb);
+		if (!iovcnt) break;
 	}
 }
 
@@ -627,7 +575,6 @@ static void handle_expired_reports(struct pvt *pvt)
 	}
 }
 
-
 /*!
  * \brief Check if the module is unloading.
  * \retval 0 not unloading
@@ -636,45 +583,41 @@ static void handle_expired_reports(struct pvt *pvt)
 
 static void* do_monitor_phone(void* data)
 {
-	struct pvt*	pvt = (struct pvt*) data;
-	at_res_t	at_res;
-	const struct at_queue_cmd * ecmd;
-	int		t;
-	char buf[2*1024];
+	static const size_t RINGBUFFER_SIZE = 2 * 1024;
+
+	struct pvt*	const pvt = (struct pvt*)data;
+	char dev[sizeof(PVT_ID(pvt))];
+
 	struct ringbuffer rb;
-	struct iovec	iov[2];
-	int		iovcnt;
-	char		dev[sizeof(PVT_ID(pvt))];
-	int 		fd;
-	int		read_result = 0;
+
+	void* const buf = ast_malloc(RINGBUFFER_SIZE);
+	struct ast_str* result = ast_str_create(RINGBUFFER_SIZE);
+	rb_init(&rb, buf, RINGBUFFER_SIZE);
 
 	pvt->timeout = DATA_READ_TIMEOUT;
-	rb_init(&rb, buf, sizeof (buf));
-
 	ast_mutex_lock(&pvt->lock);
 
 	/* 4 reduce locking time make copy of this readonly fields */
-	fd = pvt->data_fd;
+	const int fd = pvt->data_fd;
 	ast_copy_string(dev, PVT_ID(pvt), sizeof(dev));
 
-	clean_read_data(dev, fd);
+	clean_read_data(dev, fd, &rb);
 
 	/* schedule quectel initilization  */
 	if (at_enqueue_initialization(&pvt->sys_chan, CMD_AT)) {
-		ast_log (LOG_ERROR, "[%s] Error adding initialization commands to queue\n", dev);
+		ast_log(LOG_ERROR, "[%s] Error adding initialization commands to queue\n", dev);
 		goto e_cleanup;
 	}
 
 	/* Poll first SMS, if any */
 	if (at_poll_sms(pvt) == 0) {
-		ast_debug (1, "[%s] Polling first SMS message\n", PVT_ID(pvt));
+		ast_debug(1, "[%s] Polling first SMS message\n", PVT_ID(pvt));
 	}
 
-	ast_mutex_unlock (&pvt->lock);
+	ast_mutex_unlock(&pvt->lock);
 
-	while (1)
-	{
-		ast_mutex_lock (&pvt->lock);
+	while (1) {
+		ast_mutex_lock(&pvt->lock);
 
 		handle_expired_reports(pvt);
 		if (port_status(pvt->data_fd)) {
@@ -694,14 +637,14 @@ static void* do_monitor_phone(void* data)
 			goto e_restart;
 		}
 
-		t = at_queue_timeout(pvt);
+		int t = at_queue_timeout(pvt);
 		if(t < 0) t = pvt->timeout;
 
 		ast_mutex_unlock(&pvt->lock);
 
 		if (!at_wait(fd, &t)) {
 			ast_mutex_lock(&pvt->lock);
-			ecmd = at_queue_head_cmd(pvt);
+			const struct at_queue_cmd* const ecmd = at_queue_head_cmd(pvt);
 			if(ecmd) {
 				ast_log(LOG_ERROR, "[%s] timedout while waiting '%s' in response to '%s'\n", dev, at_res2str (ecmd->res), at_cmd2str (ecmd->cmd));
 				goto e_cleanup;
@@ -712,7 +655,7 @@ static void* do_monitor_phone(void* data)
 		}
 
 		/* FIXME: access to device not locked */
-		iovcnt = at_read(fd, dev, &rb);
+		int iovcnt = at_read(fd, dev, &rb);
 		if (iovcnt < 0) {
 			break;
 		}
@@ -721,23 +664,32 @@ static void* do_monitor_phone(void* data)
 		PVT_STAT(pvt, d_read_bytes) += iovcnt;
 		ast_mutex_unlock (&pvt->lock);
 
-		while ((iovcnt = at_read_result_iov(dev, &read_result, &rb, iov)) > 0)
-		{
-			at_res = at_read_result_classification(&rb, iov[0].iov_len + iov[1].iov_len);
+		struct iovec iov[2];
+		int	read_result = 0;
+		size_t skip = 0u;
 
-			ast_mutex_lock (&pvt->lock);
+		while ((iovcnt = at_read_result_iov(dev, &read_result, &skip, &rb, iov)) > 0) {
+			const size_t len = prepare_result(result, iov, iovcnt);
+			const at_res_t res = at_str2res(result);
+			if (res != RES_UNKNOWN) ast_str_trim_blanks(result);
+			rb_read_upd(&rb, len + skip);
+			skip = 0u;
+
+			ast_mutex_lock(&pvt->lock);
 			PVT_STAT(pvt, at_responses) ++;
-			if (at_response (pvt, iov, iovcnt, at_res)) {
+			if (at_response(pvt, result, res)) {
 				ast_log(LOG_ERROR, "[%s] Fail to handle response\n", dev);
 				goto e_cleanup;
 			}
-
-			if (at_queue_run(pvt)) {
-				ast_log(LOG_ERROR, "[%s] Fail to handle run\n", dev);
-				goto e_cleanup;
-			}
-			ast_mutex_unlock (&pvt->lock);
+			ast_mutex_unlock(&pvt->lock);
 		}
+
+		ast_mutex_lock(&pvt->lock);
+		if (at_queue_run(pvt)) {
+			ast_log(LOG_ERROR, "[%s] Fail to handle run\n", dev);
+			goto e_cleanup;
+		}
+		ast_mutex_unlock(&pvt->lock);
 	}
 	ast_mutex_lock (&pvt->lock);
 
@@ -748,6 +700,8 @@ e_cleanup:
 	}
 	/* it real, unsolicited disconnect */
 	pvt->terminate_monitor = 0;
+	ast_free(buf);
+	ast_free(result);
 
 e_restart:
 	disconnect_quectel(pvt);
@@ -1487,7 +1441,7 @@ const char* pvt_str_state(const struct pvt* pvt)
 			state = pvt_call_dir(pvt);
 		else if(PVT_STATE(pvt, chan_count[CALL_STATE_ONHOLD]) > 0)
 			state = "Held";
-		else if(pvt->outgoing_sms || pvt->incoming_sms_index != -1U)
+		else if(pvt->outgoing_sms || pvt->incoming_sms_index >= 0)
 			state = "SMS";
 		else
 			state = "Free";
@@ -1525,7 +1479,7 @@ struct ast_str* pvt_str_state_ex(const struct pvt* pvt)
 		if(PVT_STATE(pvt, chan_count[CALL_STATE_ONHOLD]) > 0)
 			ast_str_append (&buf, 0, "Held %u ", PVT_STATE(pvt, chan_count[CALL_STATE_ONHOLD]));
 
-		if(pvt->incoming_sms_index != -1U)
+		if(pvt->incoming_sms_index >= 0)
 			ast_str_append (&buf, 0, "Incoming SMS ");
 
 		if(pvt->outgoing_sms)
@@ -1630,7 +1584,7 @@ static struct pvt * pvt_create(const pvt_config_t * settings)
 		pvt->data_fd			= -1;
 		pvt->timeout			= DATA_READ_TIMEOUT;
 		pvt->gsm_reg_status		= -1;
-		pvt->incoming_sms_index	= -1U;
+		pvt->incoming_sms_index	= -1;
 
 		ast_string_field_init(pvt, 14);
 
@@ -1656,7 +1610,7 @@ static int pvt_time4restate(const struct pvt * pvt)
 {
 	if(pvt->desired_state != pvt->current_state)
 	{
-		if(pvt->restart_time == RESTATE_TIME_NOW || (PVT_NO_CHANS(pvt) && !pvt->outgoing_sms && pvt->incoming_sms_index == -1U))
+		if(pvt->restart_time == RESTATE_TIME_NOW || (PVT_NO_CHANS(pvt) && !pvt->outgoing_sms && pvt->incoming_sms_index >= 0))
 			return 1;
 	}
 	return 0;

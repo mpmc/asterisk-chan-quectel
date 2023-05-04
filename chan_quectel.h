@@ -116,11 +116,6 @@ typedef struct pvt_stat
 
 struct at_queue_task;
 
-typedef unsigned int sms_inbox_item_type;
-
-#define SMS_INBOX_ITEM_BITS     (sizeof(sms_inbox_item_type) * 8)
-#define SMS_INBOX_ARRAY_SIZE    ((SMS_INDEX_MAX + SMS_INBOX_ITEM_BITS - 1) / SMS_INBOX_ITEM_BITS)
-
 typedef struct pvt
 {
 	AST_LIST_ENTRY (pvt)	entry;				/*!< linked list pointers */
@@ -155,11 +150,15 @@ typedef struct pvt
 	unsigned int		use_ucs2_encoding:1;
 
 	/* device state */
-	int			gsm_reg_status;
-	int			act;
-	int			operator;
-	int			rssi;
+	int				gsm_reg_status;
+	int				act;
+	int				operator;
+	int				rssi;
 
+	/* SMS support */
+	int	incoming_sms_index;
+
+	/* string fields */
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(manufacturer);
 		AST_STRING_FIELD(model);
@@ -178,9 +177,8 @@ typedef struct pvt
 
 	);
 
-	unsigned int		incoming_sms_index;
-	sms_inbox_item_type	incoming_sms_inbox[SMS_INBOX_ARRAY_SIZE];
 
+	/* flags */
 	volatile unsigned int	connected:1;			/*!< do we have an connection to a device */
 	unsigned int			initialized:1;			/*!< whether a service level connection exists or not */
 	unsigned int			gsm_registered:1;		/*!< do we have an registration to a GSM */
@@ -235,11 +233,7 @@ typedef struct public_state
 
 extern public_state_t * gpublic;
 
-int sms_inbox_set(struct pvt* pvt, int index);
-int sms_inbox_clear(struct pvt* pvt, int index);
-int is_sms_inbox_set(const struct pvt* pvt, int index);
-
-void clean_read_data(const char * devname, int fd);
+void clean_read_data(const char* devname, int fd, struct ringbuffer* const rb);
 int pvt_get_pseudo_call_idx(const struct pvt * pvt);
 int ready4voice_call(const struct pvt* pvt, const struct cpvt * current_cpvt, int opts);
 int is_dial_possible(const struct pvt * pvt, int opts);

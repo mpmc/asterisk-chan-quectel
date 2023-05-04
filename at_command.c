@@ -745,33 +745,33 @@ int at_enqueue_user_cmd(struct cpvt *cpvt, const char *input)
  * \brief Start reading next SMS, if any
  * \param cpvt -- cpvt structure
  */
-void at_retrieve_next_sms(struct cpvt *cpvt, at_cmd_suppress_error_t suppress_error)
+void at_sms_retrieved(struct cpvt *cpvt, int confirm)
 {
 	pvt_t *pvt = cpvt->pvt;
-	unsigned int i;
+	if (confirm) {
+		if (pvt->incoming_sms_index >= 0) {
+			ast_log(LOG_WARNING, "[%s] Message ID:%d not retrieved\n", PVT_ID(pvt), pvt->incoming_sms_index);
+		}
+	}
+	pvt->incoming_sms_index = -1;
+}
 
-	if (pvt->incoming_sms_index != -1U)
-	{
-		/* clear SMS index */
-		i = pvt->incoming_sms_index;
-		pvt->incoming_sms_index = -1U;
+int at_enqueue_list_messages(struct cpvt* cpvt, enum msg_status_t stat)
+{
+	at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_CMGL);
 
-		/* clear this message index from inbox */
-		sms_inbox_clear(pvt, i);
+	const int err = at_fill_generic_cmd(&cmd, "AT+CMGL=%d\r", (int)stat);
+	if (err) {
+		chan_quectel_err = E_UNKNOWN;
+		return err;
 	}
 
-	/* get next message to fetch from inbox */
-	for (i = 0; i != SMS_INDEX_MAX; i++)
-	{
-		if (is_sms_inbox_set(pvt, i))
-			break;
+	if (at_queue_insert(cpvt, &cmd, 1, 0) != 0) {
+		chan_quectel_err = E_QUEUE;
+		return -1;
 	}
 
-	if (i == SMS_INDEX_MAX ||
-	    at_enqueue_retrieve_sms(cpvt, i, suppress_error) != 0)
-	{
-		pvt_try_restate(pvt);
-	}
+	return 0;
 }
 
 /*!
@@ -780,45 +780,32 @@ void at_retrieve_next_sms(struct cpvt *cpvt, at_cmd_suppress_error_t suppress_er
  * \param index -- index of message in store
  * \return 0 on success
  */
-int at_enqueue_retrieve_sms(struct cpvt *cpvt, int index, at_cmd_suppress_error_t suppress_error)
+int at_enqueue_retrieve_sms(struct cpvt *cpvt, int index)
 {
-	pvt_t *pvt = cpvt->pvt;
-	int err;
-	at_queue_cmd_t cmds[] = {
-		ATQ_CMD_DECLARE_DYN2(CMD_AT_CMGR, RES_CMGR),
-	};
-	unsigned cmdsno = ITEMS_OF(cmds);
-
-	if (suppress_error == SUPPRESS_ERROR_ENABLED) {
-		cmds[0].flags |= ATQ_CMD_FLAG_SUPPRESS_ERROR;
-	}
-
-	/* set that we want to receive this message */
-	if (!sms_inbox_set(pvt, index)) {
-		chan_quectel_err = E_UNKNOWN;
-		return -1;
-	}
+	struct pvt *pvt = cpvt->pvt;
+	at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_CMGR);
 
 	/* check if message is already being received */
-	if (pvt->incoming_sms_index != -1U) {
-		ast_debug (4, "[%s] SMS retrieve of [%d] already in progress\n",
-		    PVT_ID(pvt), pvt->incoming_sms_index);
+	if (pvt->incoming_sms_index >= 0) {
+		ast_debug(4, "[%s] SMS retrieve of [%d] already in progress\n", PVT_ID(pvt), pvt->incoming_sms_index);
 		return 0;
 	}
 
 	pvt->incoming_sms_index = index;
 
-	err = at_fill_generic_cmd (&cmds[0], "AT+CMGR=%d\r", index);
+	int err = at_fill_generic_cmd(&cmd, "AT+CMGR=%d\r", index);
 	if (err)
 		goto error;
 
-	err = at_queue_insert (cpvt, cmds, cmdsno, 0);
+	err = at_queue_insert(cpvt, &cmd, 1, 0);
 	if (err)
 		goto error;
+
 	return 0;
+
 error:
-	ast_log (LOG_WARNING, "[%s] SMS command error %d\n", PVT_ID(pvt), err);
-	pvt->incoming_sms_index = -1U;
+	ast_log(LOG_WARNING, "[%s] SMS command error %d\n", PVT_ID(pvt), err);
+	pvt->incoming_sms_index = -1;
 	chan_quectel_err = E_UNKNOWN;
 	return -1;
 }
@@ -831,22 +818,20 @@ error:
  */
 int at_enqueue_delete_sms(struct cpvt *cpvt, int index)
 {
-	int err;
-	at_queue_cmd_t cmds[] = {
-		ATQ_CMD_DECLARE_DYN(CMD_AT_CMGD)
-	};
-	unsigned cmdsno = ITEMS_OF(cmds);
+	at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_CMGD);
 
-	err = at_fill_generic_cmd (&cmds[0], "AT+CMGD=%d\r", index);
+	int err = at_fill_generic_cmd(&cmd, "AT+CMGD=%d\r", index);
 	if (err) {
 		chan_quectel_err = E_UNKNOWN;
 		return err;
 	}
 
-	if (at_queue_insert(cpvt, cmds, cmdsno, 0) != 0) {
+	err = at_queue_insert(cpvt, &cmd, 1, 0);
+	if (err) {
 		chan_quectel_err = E_QUEUE;
-		return -1;
+		return err;
 	}
+
 	return 0;
 }
 

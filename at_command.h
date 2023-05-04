@@ -39,6 +39,7 @@
 	_( AT_CMGD,         "AT+CMGD") \
 	_( AT_CMGF,         "AT+CMGF") \
 	_( AT_CMGR,         "AT+CMGR") \
+	_( AT_CMGL,         "AT+CMGL") \
 \
 	_( AT_CMGS,         "AT+CMGS") \
 	_( AT_SMSTEXT,      "SMSTEXT") \
@@ -100,10 +101,13 @@ typedef enum {
 	AT_COMMANDS_TABLE(AT_CMD_AS_ENUM)
 } at_cmd_t;
 
-typedef enum {
-	SUPPRESS_ERROR_DISABLED,
-	SUPPRESS_ERROR_ENABLED
-} at_cmd_suppress_error_t;
+enum msg_status_t {
+	MSG_STAT_REC_UNREAD,
+	MSG_STAT_REC_READ,
+	MSG_STAT_STO_UNSENT,
+	MSG_STAT_STO_SENT,
+	MSG_STAT_ALL
+};
 
 struct pvt;
 struct cpvt;
@@ -122,8 +126,9 @@ int at_enqueue_reset(struct cpvt *cpvt);
 int at_enqueue_dial(struct cpvt *cpvt, const char *number, int clir);
 int at_enqueue_answer(struct cpvt *cpvt);
 int at_enqueue_user_cmd(struct cpvt *cpvt, const char *input);
-void at_retrieve_next_sms(struct cpvt *cpvt, at_cmd_suppress_error_t suppress_error);
-int at_enqueue_retrieve_sms(struct cpvt *cpvt, int index, at_cmd_suppress_error_t suppress_error);
+int at_enqueue_list_messages(struct cpvt* cpvt, enum msg_status_t stat);
+int at_enqueue_retrieve_sms(struct cpvt *cpvt, int index);
+void at_sms_retrieved(struct cpvt *cpvt, int confirm);
 int at_enqueue_delete_sms(struct cpvt *cpvt, int index);
 int at_enqueue_hangup(struct cpvt *cpvt, int call_idx, int release_cause);
 int at_enqueue_volsync(struct cpvt *cpvt);

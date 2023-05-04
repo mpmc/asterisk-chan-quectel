@@ -33,6 +33,13 @@ static inline void rb_init (struct ringbuffer* rb, void* buf, size_t size)
 	rb->write  = 0;
 }
 
+static inline void rb_reset(struct ringbuffer* const rb)
+{
+	rb->used   = 0;
+	rb->read   = 0;
+	rb->write  = 0;
+}
+
 static inline size_t rb_used (const struct ringbuffer* rb)
 {
 	return rb->used;

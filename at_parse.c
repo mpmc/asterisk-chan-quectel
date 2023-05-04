@@ -393,7 +393,7 @@ int at_parse_cmti(const char* str)
  * \return -1 on error (parse error) or the index of the new sms message
  */
 
-int at_parse_cdsi (const char* str)
+int at_parse_cdsi(const char* str)
 {
 	int index;
 
@@ -402,10 +402,66 @@ int at_parse_cdsi (const char* str)
 	 * +CMTI: <mem>,<index>
 	 */
 
-	return sscanf (str, "+CDSI: %*[^,],%u", &index) == 1 ? index : -1;
+	return sscanf(str, "+CDSI:%*[^,],%u", &index) == 1 ? index : -1;
 }
 
+static int parse_pdu(const char *str, size_t len, int *tpdu_type, char *sca, size_t sca_len, char *oa, size_t oa_len, char *scts, int *mr, int *st, char *dt, char *msg, size_t *msg_len, pdu_udh_t *udh)
+{
+	uint16_t msg16_tmp[256];
 
+	int pdu_length = (unhex(str, (uint8_t*)str) + 1) / 2;
+	if (pdu_length < 0) {
+		chan_quectel_err = E_MALFORMED_HEXSTR;
+		return -1;
+	}
+
+	int i = 0;
+	int res = pdu_parse_sca((uint8_t*)(str + i), pdu_length - i, sca, sca_len);
+	if (res < 0) {
+		/* tpdu_parse_sca sets chan_quectel_err */
+		return -1;
+	}
+	i += res;
+	if (len > (size_t)(pdu_length - i)) {
+		chan_quectel_err = E_INVALID_TPDU_LENGTH;
+		return -1;
+	}
+	res = tpdu_parse_type((uint8_t*)(str + i), pdu_length - i, tpdu_type);
+	if (res < 0) {
+		/* tpdu_parse_type sets chan_quectel_err */
+		return -1;
+	}
+	i += res;
+	switch (PDUTYPE_MTI(*tpdu_type)) {
+		case PDUTYPE_MTI_SMS_STATUS_REPORT:
+		res = tpdu_parse_status_report((uint8_t*)(str + i), pdu_length - i, mr, oa, oa_len, scts, dt, st);
+		if (res < 0) {
+			/* tpdu_parse_status_report sets chan_quectel_err */
+			return -1;
+		}
+		break;
+
+		case PDUTYPE_MTI_SMS_DELIVER:
+		res = tpdu_parse_deliver((uint8_t*)(str + i), pdu_length - i, *tpdu_type, oa, oa_len, scts, msg16_tmp, udh);
+		if (res < 0) {
+			/* tpdu_parse_deliver sets chan_quectel_err */
+			return -1;
+		}
+		res = ucs2_to_utf8(msg16_tmp, res, msg, *msg_len);
+		if (res < 0) {
+			chan_quectel_err = E_PARSE_UCS2;
+			return -1;
+		}
+		*msg_len = res;
+		msg[res] = '\0';
+		break;
+
+		default:
+		chan_quectel_err = E_INVALID_TPDU_TYPE;
+		return -1;
+	}
+	return 0;
+}
 
 /*!
  * \brief Parse a CMGR message
@@ -452,71 +508,80 @@ int at_parse_cmgr(char *str, size_t len, int *tpdu_type, char *sca, size_t sca_l
 	* OK<CR><LF>
 	*/
 
-	char delimiters[] = ",,\n";
+	static const char delimiters[] = ",,\n";
+
 	char *marks[STRLEN(delimiters)];
 	char *end;
-	size_t tpdu_length;
-	uint16_t msg16_tmp[256];
 
 	if (mark_line(str, delimiters, marks) != ITEMS_OF(marks)) {
 		chan_quectel_err = E_PARSE_CMGR_LINE;
 	}
-	tpdu_length = strtol(marks[1] + 1, &end, 10);
+
+	const size_t tpdu_length = strtol(marks[1] + 1, &end, 10);
 	if (tpdu_length <= 0 || end[0] != '\r') {
 		chan_quectel_err = E_INVALID_TPDU_LENGTH;
 		return -1;
 	}
-	str = marks[2] + 1;
 
-	int pdu_length = (unhex(str, (uint8_t*)str) + 1) / 2;
-	if (pdu_length < 0) {
-		chan_quectel_err = E_MALFORMED_HEXSTR;
+	return parse_pdu(marks[2] + 1, tpdu_length, tpdu_type, sca, sca_len, oa, oa_len, scts, mr, st, dt, msg, msg_len, udh);
+}
+
+int at_parse_cmgl(char *str, size_t len, int* idx, int *tpdu_type, char *sca, size_t sca_len, char *oa, size_t oa_len, char *scts, int *mr, int *st, char *dt, char *msg, size_t *msg_len, pdu_udh_t *udh)
+{
+	/* skip "+CMGL:" */
+	str += 6;
+	len -= 6;
+
+	/* skip leading spaces */
+	while (len > 0 && *str == ' ') {
+		++str;
+		--len;
+	}
+
+	if (len <= 0) {
+		chan_quectel_err = E_PARSE_CMGR_LINE;
 		return -1;
 	}
-	int res, i = 0;
-	res = pdu_parse_sca((uint8_t*)(str + i), pdu_length - i, sca, sca_len);
-	if (res < 0) {
-		/* tpdu_parse_sca sets chan_quectel_err */
+	if (str[0] == '"') {
+		chan_quectel_err = E_DEPRECATED_CMGR_TEXT;
 		return -1;
 	}
-	i += res;
-	if (tpdu_length > (size_t)(pdu_length - i)) {
+
+
+	/*
+	* parse cmgr info in the following PDU format
+	* +CMGL: idx,message_status,[address_text],TPDU_length<CR><LF>
+	* SMSC_number_and_TPDU<CR><LF><CR><LF>
+	* OK<CR><LF>
+	*
+	*	Exanoke
+	* +CMGL: 0,1,,31
+	* 07911234567890F3040B911234556780F20008012150220040210C041F04400438043204350442<CR><LF><CR><LF>
+	* OK<CR><LF>
+	*/
+
+	static const char delimiters[] = ",,,\n";
+
+	char *marks[STRLEN(delimiters)];
+	char *end;
+
+	if (mark_line(str, delimiters, marks) != ITEMS_OF(marks)) {
+		chan_quectel_err = E_PARSE_CMGR_LINE;
+	}
+
+	*idx = strtol(str, &end, 10);
+	if (*idx < 0 || end[0] != ',') {
+		chan_quectel_err = E_UNKNOWN;
+		return -1;		
+	}
+	
+	const size_t tpdu_length = strtol(marks[2] + 1, &end, 10);
+	if (tpdu_length <= 0 || end[0] != '\r') {
 		chan_quectel_err = E_INVALID_TPDU_LENGTH;
 		return -1;
 	}
-	res = tpdu_parse_type((uint8_t*)(str + i), pdu_length - i, tpdu_type);
-	if (res < 0) {
-		/* tpdu_parse_type sets chan_quectel_err */
-		return -1;
-	}
-	i += res;
-	switch (PDUTYPE_MTI(*tpdu_type)) {
-	case PDUTYPE_MTI_SMS_STATUS_REPORT:
-		res = tpdu_parse_status_report((uint8_t*)(str + i), pdu_length - i, mr, oa, oa_len, scts, dt, st);
-		if (res < 0) {
-			/* tpdu_parse_status_report sets chan_quectel_err */
-			return -1;
-		}
-		break;
-	case PDUTYPE_MTI_SMS_DELIVER:
-		res = tpdu_parse_deliver((uint8_t*)(str + i), pdu_length - i, *tpdu_type, oa, oa_len, scts, msg16_tmp, udh);
-		if (res < 0) {
-			/* tpdu_parse_deliver sets chan_quectel_err */
-			return -1;
-		}
-		res = ucs2_to_utf8(msg16_tmp, res, msg, *msg_len);
-		if (res < 0) {
-			chan_quectel_err = E_PARSE_UCS2;
-			return -1;
-		}
-		*msg_len = res;
-		msg[res] = '\0';
-		break;
-	default:
-		chan_quectel_err = E_INVALID_TPDU_TYPE;
-		return -1;
-	}
-	return 0;
+
+	return parse_pdu(marks[3] + 1, tpdu_length, tpdu_type, sca, sca_len, oa, oa_len, scts, mr, st, dt, msg, msg_len, udh);
 }
 
 /*!
