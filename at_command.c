@@ -908,7 +908,7 @@ int at_enqueue_hangup(struct cpvt *cpvt, int call_idx, int release_cause)
 		}
 	}
 	else { // AT+QHUP=<cause>,<idx>
-		at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_QHUP);
+		at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYNFT(CMD_AT_QHUP, RES_OK, ATQ_CMD_FLAG_DEFAULT, ATQ_CMD_TIMEOUT_LONG, 0);
 
 		const int err = at_fill_generic_cmd(&cmd, "AT+QHUP=%d,%d\r", map_hangup_cause(release_cause), call_idx);
 		if (err) {
