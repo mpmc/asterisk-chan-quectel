@@ -1238,33 +1238,27 @@ at_poll_sms (struct pvt *pvt)
  * \retval -1 error
  */
 
-static int at_response_cmti (struct pvt* pvt, const char* str)
+static int at_response_cmti(struct pvt* pvt, const char* str)
 {
 // FIXME: check format in PDU mode
-	int index = at_parse_cmti (str);
+	int idx = at_parse_cmti(str);
 
-	if (CONF_SHARED(pvt, disablesms))
-	{
+	if (CONF_SHARED(pvt, disablesms)) {
 		ast_log (LOG_WARNING, "[%s] SMS reception has been disabled in the configuration.\n", PVT_ID(pvt));
 		return 0;
 	}
 
-	if (index > -1)
-	{
-		ast_debug (1, "[%s] Incoming SMS message\n", PVT_ID(pvt));
+	if (idx > -1) {
+		ast_debug(1, "[%s] Incoming SMS message - IDX:%d\n", PVT_ID(pvt), idx);
 
-		if (at_enqueue_retrieve_sms(&pvt->sys_chan, index, SUPPRESS_ERROR_DISABLED))
+		if (at_enqueue_retrieve_sms(&pvt->sys_chan, idx, SUPPRESS_ERROR_DISABLED))
 		{
 			ast_log (LOG_ERROR, "[%s] Error sending CMGR to retrieve SMS message\n", PVT_ID(pvt));
 			return -1;
 		}
 	}
-	else
-	{
-		/* Not sure why this happens, but we don't want to disconnect standing calls.
-		 * [Jun 14 19:57:57] ERROR[3056]: at_response.c:1173 at_response_cmti:
-		 *   [m1-1] Error parsing incoming sms message alert '+CMTI: "SM",-1' */
-		ast_log(LOG_WARNING, "[%s] Error parsing incoming sms message alert '%s', ignoring\n", PVT_ID(pvt), str);
+	else {
+		ast_log(LOG_WARNING, "[%s] Error parsing incoming SMS message alert '%s' (ignoring)\n", PVT_ID(pvt), str);
 	}
 
 	return 0;

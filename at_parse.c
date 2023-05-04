@@ -368,16 +368,21 @@ int at_parse_creg(char* str, unsigned, int* gsm_reg, int* gsm_reg_status, char**
  * \return -1 on error (parse error) or the index of the new sms message
  */
 
-int at_parse_cmti (const char* str)
+int at_parse_cmti(const char* str)
 {
-	int index;
+	int idx;
 
 	/*
-	 * parse cmti info in the following format:
-	 * +CMTI: <mem>,<index>
+	 * Parse cmti info in the following format:
+	 *
+	 *   +CMTI: <mem>,<index>
+	 * 
+	 * Example:
+	 * 
+	 *   +CMTI: ,2
 	 */
 
-	return sscanf (str, "+CMTI: %*[^,],%u", &index) == 1 ? index : -1;
+	return sscanf(str, "+CMTI:%*[^,],%u", &idx) == 1 ? idx : -1;
 }
 
 /*!
