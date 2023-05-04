@@ -33,6 +33,12 @@ I do not have acces to *SimCOM* module thus cannot fix this driver for now.
     * **yes** - play/stop MOH (previous default action),
     * no - disable/enable uplink voice using `AT+CMUT` command.
 
+* `txgain` and `rxgain` options reimplented.
+
+    * TX/RX gain is performed by module itself. This channel driver just sends proper `AT` commands.
+    * New default value: **-1** - use current module setting, do not send `AT` command.
+    * Range: **0-65535**.
+
 * New `query_time` option (yes/**no**).
 
     * yes - *ping* module with `AT+QLTS` (or `AT+CCLK` for *SimCOM* modules) command.[^2]

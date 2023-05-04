@@ -90,6 +90,10 @@
 	_( AT_QTONEDET_1,	"AT+QTONEDET=1") \
 	_( AT_QLTS,			"AT+QLTS") \
 	_( AT_CCLK,			"AT+CCLK") \
+	_( AT_QMIC,			"AT+QMIC") \
+	_( AT_QRXGAIN,		"AT+QRXGAIN") \
+	_( AT_CTXVOL,		"AT+CTXVOL") \
+	_( AT_CRXVOL,		"AT+CRXVOL") \
 /* AT_COMMANDS_TABLE */
 
 typedef enum {
@@ -135,5 +139,7 @@ int at_enqueue_mute(struct cpvt *cpvt, int mute);
 int at_enqueue_qcrcind(struct cpvt* cpvt);
 int at_enqueue_qlts(struct cpvt* cpvt, int mode);
 int at_enqueue_cclk_query(struct cpvt* cpvt);
+int at_enqueue_qgains(struct cpvt* cpvt, int txgain, int rxdgain);
+int at_enqueue_cgains(struct cpvt* cpvt, int txgain, int rxgain);
 
 #endif /* CHAN_QUECTEL_AT_SEND_H_INCLUDED */

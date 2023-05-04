@@ -943,3 +943,15 @@ int at_parse_cclk(char* str, char** ts)
 
 	return -1;
 }
+
+int at_parse_qrxgain(char* str, int* rxgain)
+{
+	/*
+		Example:
+
+		+QRXGAIN: 20577
+	*/
+
+	return sscanf(str, "+QRXGAIN:%d,", rxgain) == 1 ? 0 : -1;
+}
+

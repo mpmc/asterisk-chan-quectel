@@ -778,15 +778,6 @@ static struct ast_frame* channel_read(struct ast_channel* channel)
 		f = channel_read_tty(cpvt, pvt);
     }
 
-	if (f && f->frametype == AST_FRAME_VOICE) {
-		const int rxgain = CONF_SHARED(pvt, rxgain);
-		if (rxgain) {
-			if (ast_frame_adjust_volume(f, rxgain) == -1) {
-				ast_debug(1, "[%s] Volume could not be adjusted!\n", PVT_ID(pvt));
-			}
-		}
-	}
-
 	m_unlock:
 	ast_mutex_unlock (&pvt->lock);
 
@@ -825,19 +816,7 @@ static int channel_write_tty(struct ast_channel* channel, struct ast_frame* f, s
 		if(gains[1] < 1 || pvt->a_timer == NULL)
 			gains[1] = 1;
 
-		gains[0] = CONF_SHARED(pvt, txgain);
-		if(gains[0] <= -2) {
-			gains[0] *= gains[1];
-			gains[1] = 0;
-		}
-		else if(gains[0] <= 1) {
-			gains[0] = - gains[1];
-			gains[1] = 0;
-		}
-		else if(gains[0] % gains[1] == 0) {
-			gains[0] /= gains[1];
-			gains[1] = 0;
-		}
+		gains[0] = 0;
 
 		for(size_t count = 0; count < ITEMS_OF(gains); ++count) {
 			if(gains[count] > 1 || gains[count] < -1) {

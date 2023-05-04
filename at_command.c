@@ -1117,3 +1117,83 @@ int at_enqueue_cclk_query(struct cpvt* cpvt)
 
 	return 0;
 }
+
+int at_enqueue_qgains(struct cpvt* cpvt, int txgain, int rxgain)
+{
+	int pos = 0;
+	int cnt = 0;
+	at_queue_cmd_t cmds[] = {
+		ATQ_CMD_DECLARE_DYN(CMD_AT_QMIC),
+		ATQ_CMD_DECLARE_DYN(CMD_AT_QRXGAIN)
+	};
+
+	if (txgain >= 0) {
+		const int err = at_fill_generic_cmd(&cmds[0], "+QMIC=%d", txgain);
+		if (err) {
+			chan_quectel_err = E_UNKNOWN;
+			return err;
+		}
+
+		cnt += 1;
+	}
+	else {
+		pos += 1;
+	}
+
+	if (rxgain >= 0) {
+		const int err = at_fill_generic_cmd(&cmds[1], "+QRXGAIN=%d", rxgain);
+		if (err) {
+			chan_quectel_err = E_UNKNOWN;
+			return err;
+		}
+
+		cnt += 1;
+	}
+
+	if (at_queue_add(cpvt, &cmds[pos], cnt, 0, 1u) == NULL) {
+		chan_quectel_err = E_QUEUE;
+		return -1;
+	}
+
+	return 0;
+}
+
+int at_enqueue_cgains(struct cpvt* cpvt, int txgain, int rxgain)
+{
+	int pos = 0;
+	int cnt = 0;
+	at_queue_cmd_t cmds[] = {
+		ATQ_CMD_DECLARE_DYN(CMD_AT_CTXVOL),
+		ATQ_CMD_DECLARE_DYN(CMD_AT_CRXVOL)
+	};
+
+	if (txgain >= 0) {
+		const int err = at_fill_generic_cmd(&cmds[0], "+CTXVOL=0x%x", txgain);
+		if (err) {
+			chan_quectel_err = E_UNKNOWN;
+			return err;
+		}
+
+		cnt += 1;
+	}
+	else {
+		pos += 1;
+	}
+
+	if (rxgain >= 0) {
+		const int err = at_fill_generic_cmd(&cmds[1], "+CRXVOL=0x%x", rxgain);
+		if (err) {
+			chan_quectel_err = E_UNKNOWN;
+			return err;
+		}
+
+		cnt += 1;
+	}
+
+	if (at_queue_add(cpvt, &cmds[pos], cnt, 0, 1u) == NULL) {
+		chan_quectel_err = E_QUEUE;
+		return -1;
+	}
+
+	return 0;
+}

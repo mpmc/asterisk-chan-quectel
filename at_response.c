@@ -221,6 +221,12 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				ast_debug(3, "[%s] %s sent successfully\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
 
 				pvt->has_voice = 1;
+				if (pvt->is_simcom) {
+					at_enqueue_cgains(&pvt->sys_chan, CONF_SHARED(pvt, txgain), CONF_SHARED(pvt, rxgain));
+				}
+				else {
+					at_enqueue_qgains(&pvt->sys_chan, CONF_SHARED(pvt, txgain), CONF_SHARED(pvt, rxgain));
+				}
 				break;
 
 /*
@@ -362,6 +368,13 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 
 			case CMD_AT_QTONEDET_1:
 				ast_debug(1, "[%s] Tone detection enabled\n", PVT_ID(pvt));
+				break;
+
+			case CMD_AT_QMIC:
+			case CMD_AT_QRXGAIN:
+			case CMD_AT_CTXVOL:
+			case CMD_AT_CRXVOL:
+				ast_debug(1, "[%s] TX/RX gains updated\n", PVT_ID(pvt));
 				break;
 
 			case CMD_USER:
@@ -657,6 +670,13 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 
 			case CMD_AT_QTONEDET_1:
 				ast_log(LOG_WARNING, "[%s] Cannot enable tone detection\n", PVT_ID(pvt));
+				break;
+
+			case CMD_AT_QMIC:
+			case CMD_AT_QRXGAIN:
+			case CMD_AT_CTXVOL:
+			case CMD_AT_CRXVOL:
+				ast_log(LOG_WARNING, "[%s] Cannot update TX/RG gains\n", PVT_ID(pvt));
 				break;
 
 			default:
@@ -1988,6 +2008,18 @@ static void at_response_cclk(struct pvt* pvt, char* str, size_t len)
 	ast_string_field_set(pvt, module_time, ts);
 }
 
+static void at_response_qrxgain(struct pvt* pvt, char* str, size_t len)
+{
+	int rxgain;
+
+	if (at_parse_qrxgain(str, &rxgain)) {
+		ast_log(LOG_ERROR, "[%s] Error parsing '%.*s'\n", PVT_ID(pvt), (int)len, str);
+		return;
+	}
+
+	ast_verb(3, "[%s] RX Gain: %d\n", PVT_ID(pvt), rxgain);
+}
+
 /*!
  * \brief Do response
  * \param pvt -- pvt structure
@@ -2174,6 +2206,10 @@ int at_response(struct pvt* pvt, const struct iovec* iov, int iovcnt, at_res_t a
 
 			case RES_CCLK:
 				at_response_cclk(pvt, str, len);
+				return 0;
+
+			case RES_QRXGAIN:
+				at_response_qrxgain(pvt, str, len);
 				return 0;
 
 			case RES_PARSE_ERROR:

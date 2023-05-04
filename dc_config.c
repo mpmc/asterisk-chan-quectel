@@ -84,6 +84,8 @@ void dc_sconfig_fill_defaults(struct dc_sconfig * config)
 	config->initstate		= DEV_STATE_STARTED;
 	config->callwaiting 	= CALL_WAITING_AUTO;
 	config->moh				= 1;
+	config->rxgain			= -1;
+	config->txgain			= -1;
 }
 
 #/* */
