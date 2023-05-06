@@ -13,6 +13,80 @@ static struct ast_jb_conf jbconf_default =
 	.target_extra		= -1,
 };
 
+const char * dc_cw_setting2str(call_waiting_t cw)
+{
+	static const char* const options[] = { "disabled", "allowed", "auto" };
+	return enum2str(cw, options, ITEMS_OF(options));
+}
+
+tristate_bool_t dc_str23stbool(const char* str)
+{
+	if (!str) return TRIBOOL_NONE;
+	if (!strcasecmp(str, "on") || !strcasecmp(str, "true")) {
+		return TRIBOOL_TRUE;
+	}
+	else if (!strcasecmp(str, "off") || !strcasecmp(str, "false")) {
+		return TRIBOOL_FALSE;
+	}
+	else {
+		return TRIBOOL_NONE;
+	}
+}
+
+static unsigned int int23statebool(int v)
+{
+	if (!v) {
+		return 1;
+	}
+	else {
+		return (v < 0)? 0 : 2;
+	}
+}
+
+const char* dc_3stbool2str(int v)
+{
+	static const char* const strs[] = {
+		"off",
+		"none",
+		"on"
+	};
+
+	unsigned b = int23statebool(v);
+	return enum2str_def(b, strs, ITEMS_OF(strs), "none");	
+}
+
+const char* dc_3stbool2str_capitalized(int v)
+{
+	static const char* const strs[] = {
+		"Off",
+		"None",
+		"On"
+	};
+
+	unsigned b = int23statebool(v);
+	return enum2str_def(b, strs, ITEMS_OF(strs), "None");
+}
+
+static const char* const msgstor_strs[] = {
+	"AUTO",
+	"SM",
+	"ME",
+	"MT",
+	"SR"
+};
+
+message_storage_t dc_str2msgstor(const char* stor)
+{
+	const int res = str2enum(stor, msgstor_strs, ITEMS_OF(msgstor_strs));
+	if (res < 0) return MESSAGE_STORAGE_AUTO;
+	return (message_storage_t)res;
+}
+
+const char* dc_msgstor2str(message_storage_t stor)
+{
+	return enum2str_def(stor, msgstor_strs, ITEMS_OF(msgstor_strs), "AUTO");
+}
+
 #/* assume config is zerofill */
 static int dc_uconfig_fill(struct ast_config * cfg, const char * cat, struct dc_uconfig * config)
 {
@@ -86,6 +160,7 @@ void dc_sconfig_fill_defaults(struct dc_sconfig * config)
 	config->moh				= 1;
 	config->rxgain			= -1;
 	config->txgain			= -1;
+	config->msg_service		= -1;
 }
 
 #/* */
@@ -162,7 +237,16 @@ void dc_sconfig_fill(struct ast_config * cfg, const char * cat, struct dc_sconfi
 		}
 		else if (!strcasecmp (v->name, "query_time")) {
 			config->query_time = ast_true(v->value);
-		}		
+		}
+		else if (!strcasecmp (v->name, "msg_direct")) {
+			config->msg_direct = dc_str23stbool(v->value);
+		}
+		else if (!strcasecmp (v->name, "msg_storage")) {
+			config->msg_storage = dc_str2msgstor(v->value);
+		}
+		else if (!strcasecmp (v->name, "msg_service")) {
+			config->msg_service = (int)strtol(v->value, (char**)NULL, 10);
+		}
 	}
 }
 

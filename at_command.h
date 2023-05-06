@@ -17,7 +17,7 @@
 #define AT_CMD_AS_STRING(cmd, str) str,
 
 #define AT_COMMANDS_TABLE(_) \
-	_( USER,            "USER'S") \
+	_( USER,            "USER") \
 	_( AT,              "AT") \
 	_( AT_A,            "ATA") \
 	_( AT_CCWA_STATUS,  "AT+CCWA?") \
@@ -95,6 +95,8 @@
 	_( AT_QRXGAIN,		"AT+QRXGAIN") \
 	_( AT_CTXVOL,		"AT+CTXVOL") \
 	_( AT_CRXVOL,		"AT+CRXVOL") \
+	_( AT_CNMA,			"AT+CNMA") \
+	_( AT_CSMS,			"AT+CSMS") \
 /* AT_COMMANDS_TABLE */
 
 typedef enum {
@@ -146,5 +148,7 @@ int at_enqueue_qlts(struct cpvt* cpvt, int mode);
 int at_enqueue_cclk_query(struct cpvt* cpvt);
 int at_enqueue_qgains(struct cpvt* cpvt, int txgain, int rxdgain);
 int at_enqueue_cgains(struct cpvt* cpvt, int txgain, int rxgain);
+int at_enqueue_msg_ack(struct cpvt* cpvt);
+int at_enqueue_msg_ack_n(struct cpvt* cpvt, int n);
 
 #endif /* CHAN_QUECTEL_AT_SEND_H_INCLUDED */

@@ -139,8 +139,11 @@ static char* cli_show_device_settings (struct ast_cli_entry* e, int cmd, struct 
 		ast_cli (a->fd, "  TX gain                 : %d\n", CONF_SHARED(pvt, txgain));
 		ast_cli (a->fd, "  Use CallingPres         : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, usecallingpres)));
 		ast_cli (a->fd, "  Default CallingPres     : %s\n", CONF_SHARED(pvt, callingpres) < 0 ? "<Not set>" : ast_describe_caller_presentation (CONF_SHARED(pvt, callingpres)));
-		ast_cli (a->fd, "  Auto delete SMS         : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, autodeletesms)));
 		ast_cli (a->fd, "  Disable SMS             : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, disablesms)));
+		ast_cli (a->fd, "  Message Service         : %d\n", CONF_SHARED(pvt, msg_service));
+		ast_cli (a->fd, "  Message Storage         : %s\n", dc_msgstor2str(CONF_SHARED(pvt, msg_storage)));
+		ast_cli (a->fd, "  Direct Message          : %s\n", dc_3stbool2str_capitalized(CONF_SHARED(pvt, msg_direct)));
+		ast_cli (a->fd, "  Auto delete SMS         : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, autodeletesms)));
 		ast_cli (a->fd, "  Reset Quectel           : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, resetquectel)));
 		ast_cli (a->fd, "  Call Waiting            : %s\n", dc_cw_setting2str(CONF_SHARED(pvt, callwaiting)));
 		ast_cli (a->fd, "  Multiparty Calls        : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, multiparty)));

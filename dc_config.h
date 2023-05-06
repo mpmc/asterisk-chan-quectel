@@ -18,6 +18,12 @@
 #define DEVPATHLEN		256
 
 typedef enum {
+	TRIBOOL_NONE = 0,
+	TRIBOOL_FALSE = -1,
+	TRIBOOL_TRUE = 1
+} tristate_bool_t;
+
+typedef enum {
 	DEV_STATE_STOPPED	= 0,
 	DEV_STATE_RESTARTED,
 	DEV_STATE_REMOVED,
@@ -32,11 +38,22 @@ typedef enum {
 	CALL_WAITING_AUTO
 } call_waiting_t;
 
-static inline const char * dc_cw_setting2str(call_waiting_t cw)
-{
-	static const char * const options[] = { "disabled", "allowed", "auto" };
-	return enum2str(cw, options, ITEMS_OF(options));
-}
+typedef enum {
+	MESSAGE_STORAGE_AUTO = 0,
+	MESSAGE_STORAGE_SM,
+	MESSAGE_STORAGE_ME,
+	MESSAGE_STORAGE_MT,
+	MESSAGE_STORAGE_SR,
+} message_storage_t;
+
+const char * dc_cw_setting2str(call_waiting_t);
+
+tristate_bool_t dc_str23stbool(const char*);
+const char* dc_3stbool2str(int);
+const char* dc_3stbool2str_capitalized(int);
+
+message_storage_t dc_str2msgstor(const char*);
+const char* dc_msgstor2str(message_storage_t);
 
 /*
  Config API
@@ -76,8 +93,12 @@ typedef struct dc_sconfig
 	unsigned int	moh:1;					/*! 0 */
 	unsigned int	query_time:1;			/*! 0 */
 
-	dev_state_t		initstate;			/*! DEV_STATE_STARTED */
-	call_waiting_t	callwaiting;		/*!< enable/disable/auto call waiting CALL_WAITING_AUTO */
+	dev_state_t			initstate;			/*! DEV_STATE_STARTED */
+	call_waiting_t		callwaiting;		/*!< enable/disable/auto call waiting CALL_WAITING_AUTO */
+
+	int					msg_service;
+	tristate_bool_t		msg_direct;
+	message_storage_t 	msg_storage;		/*! MESSAGE_STORAGE_AUTO */
 } dc_sconfig_t;
 
 /* Global settings */

@@ -254,16 +254,15 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CNMI:
-				ast_debug(1, "[%s] SMS new message indication enabled\n", PVT_ID(pvt));
-				ast_debug(1, "[%s] Quectel has SMS support\n", PVT_ID(pvt));
+				ast_debug(1, "[%s] SMS supported\n", PVT_ID(pvt));
+				ast_debug(1, "[%s] SMS new message indication mode enabled\n", PVT_ID(pvt));
 
 				pvt->has_sms = 1;
 
-				if (!pvt->initialized)
-				{
+				if (!pvt->initialized) {
 					pvt->timeout = DATA_READ_TIMEOUT;
 					pvt->initialized = 1;
-					ast_verb(3, "[%s] Quectel initialized and ready\n", PVT_ID(pvt));
+					ast_verb(3, "[%s] Module initialized and ready\n", PVT_ID(pvt));
 				}
 				break;
 
@@ -380,6 +379,14 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 
 			case CMD_AT_CMGL:
 				ast_debug(1, "[%s] Messages listed\n", PVT_ID(pvt));
+				break;
+
+			case CMD_AT_CNMA:
+				ast_debug(1, "[%s] Message confirmed\n", PVT_ID(pvt));
+				break;
+
+			case CMD_AT_CSMS:
+				ast_debug(1, "[%s] Message service channel configured\n", PVT_ID(pvt));
 				break;
 
 			case CMD_USER:
@@ -515,8 +522,8 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 			case CMD_AT_CMGF:
 			case CMD_AT_CPMS:
 			case CMD_AT_CNMI:
-				ast_debug (1, "[%s] Command '%s' failed\n", PVT_ID(pvt), at_cmd2str (ecmd->cmd));
 				ast_debug (1, "[%s] No SMS support\n", PVT_ID(pvt));
+				ast_debug (1, "[%s] Command '%s' failed\n", PVT_ID(pvt), at_cmd2str (ecmd->cmd));
 
 				pvt->has_sms = 0;
 
@@ -670,6 +677,17 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 
 			case CMD_AT_CMGL:
 				ast_debug(1, "[%s] Cannot list messages\n", PVT_ID(pvt));
+				break;
+
+			case CMD_AT_CNMA:
+				ast_log(LOG_WARNING, "[%s] Cannot confirm message reception\n", PVT_ID(pvt));
+				break;
+
+			case CMD_AT_CSMS:
+				ast_log(LOG_WARNING, "[%s] Message service channel not configured\n", PVT_ID(pvt));
+				break;
+
+			case CMD_USER:
 				break;
 
 			default:
@@ -1016,8 +1034,6 @@ static int at_response_qind(struct pvt* pvt, char* str)
 	qind_t qind;
 	char* params;
 
-	ast_debug(2, "[%s] QIND - %s\n", PVT_ID(pvt), str);
-
 	res = at_parse_qind(str, &qind, &params);
 	if (res < 0) {
 		return -1;
@@ -1278,144 +1294,180 @@ static int at_response_cdsi (struct pvt* pvt, const char* str)
  * \retval -1 error
  */
 
-static int at_response_cmgr(struct pvt* pvt, const struct ast_str* const response, int cmgl)
+static int at_response_msg(struct pvt* pvt, const struct ast_str* const response, at_res_t cmd)
 {
 	static const size_t MAX_MSG_LEN = 4096;
+
+	const char* const resp_str = at_res2str(cmd);
 
 	char scts[64], dt[64];
 	int mr, st;
 	int res;
 	int tpdu_type, idx;
 	pdu_udh_t udh;
+	tristate_bool_t ack = TRIBOOL_NONE;
 
 	pdu_udh_init(&udh);
-	const struct at_queue_cmd * ecmd = at_queue_head_cmd(pvt);
 
-	if (ecmd) {
-		if (ecmd->res == RES_OK || ecmd->cmd == CMD_USER) {
+	struct ast_str* msg = ast_str_create(MAX_MSG_LEN);
+	struct ast_str* oa = ast_str_create(512);
+	struct ast_str* sca = ast_str_create(512);
+	size_t msg_len = ast_str_size(msg);
 
-			struct ast_str* msg = ast_str_create(MAX_MSG_LEN);
-			struct ast_str* oa = ast_str_create(512);
-			struct ast_str* sca = ast_str_create(512);
-			size_t msg_len = ast_str_size(msg);
+	switch (cmd) {
+		case RES_CMGR:
+		res = at_parse_cmgr(ast_str_buffer(response), ast_str_strlen(response), &tpdu_type, ast_str_buffer(sca), ast_str_size(sca), ast_str_buffer(oa), ast_str_size(oa), scts, &mr, &st, dt, ast_str_buffer(msg), &msg_len, &udh);
+		break;
 
-			res = cmgl?
-				at_parse_cmgl(ast_str_buffer(response), ast_str_strlen(response), &idx, &tpdu_type, ast_str_buffer(sca), ast_str_size(sca), ast_str_buffer(oa), ast_str_size(oa), scts, &mr, &st, dt, ast_str_buffer(msg), &msg_len, &udh) :
-				at_parse_cmgr(ast_str_buffer(response), ast_str_strlen(response), &tpdu_type, ast_str_buffer(sca), ast_str_size(sca), ast_str_buffer(oa), ast_str_size(oa), scts, &mr, &st, dt, ast_str_buffer(msg), &msg_len, &udh);
-			if (res < 0) {
-				ast_str_reset(msg);
-				ast_str_reset(oa);
-				ast_str_reset(sca);
-				ast_free(msg);
-				ast_free(oa);
-				ast_free(sca);
-				ast_log(LOG_WARNING, "[%s] Error parsing incoming message: %s\n", PVT_ID(pvt), error2str(chan_quectel_err));
-				goto receive_next_no_delete;
-			}
-			ast_str_update(msg);
-			switch (PDUTYPE_MTI(tpdu_type)) {
-				case PDUTYPE_MTI_SMS_STATUS_REPORT: {
-					static const size_t STATUS_REPORT_STR_LEN = 255 * 4 + 1;
-					ast_verb(1, "[%s] Got status report with ref %d from %s and status code %d\n", PVT_ID(pvt), mr, ast_str_buffer(oa), st);
+		case RES_CMGL:
+		res = at_parse_cmgl(ast_str_buffer(response), ast_str_strlen(response), &idx, &tpdu_type, ast_str_buffer(sca), ast_str_size(sca), ast_str_buffer(oa), ast_str_size(oa), scts, &mr, &st, dt, ast_str_buffer(msg), &msg_len, &udh);
+		break;
 
-					int* const status_report = (int*)ast_malloc(sizeof(int)*256);
-					struct ast_str* status_report_str = ast_str_create(STATUS_REPORT_STR_LEN);
-					struct ast_str* payload = ast_str_create(SMSDB_PAYLOAD_MAX_LEN);
-					const ssize_t payload_len = smsdb_outgoing_part_status(pvt->imsi, ast_str_buffer(oa), mr, st, status_report, ast_str_buffer(payload));
-					if (payload_len >= 0) {
-						int success = 1;
-						int srroff = 0;
-						for (int i = 0; status_report[i] != -1; ++i) {
-							success &= !(status_report[i] & 0x40);
-							ast_str_append(&status_report_str, STATUS_REPORT_STR_LEN, "%03d,", status_report[i]);
-							srroff += 4;
-						}
-						ast_verb(1, "[%s] Success: %d; Payload: %.*s; Report string: %s\n", PVT_ID(pvt), success, (int)payload_len, ast_str_buffer(payload), ast_str_buffer(status_report_str));
-						*(ast_str_buffer(payload) + payload_len) = '\0';
-						ast_str_update(payload);
-						start_local_report_channel(pvt, ast_str_buffer(oa), ast_str_buffer(payload), scts, dt, success, 'e', ast_str_buffer(status_report_str));
-					}
+		case RES_CMT:
+		res = at_parse_cmt(ast_str_buffer(response), ast_str_strlen(response), &tpdu_type, ast_str_buffer(sca), ast_str_size(sca), ast_str_buffer(oa), ast_str_size(oa), scts, &mr, &st, dt, ast_str_buffer(msg), &msg_len, &udh);
+		break;
 
-					ast_free(status_report);
-					ast_free(status_report_str);
-					ast_free(payload);
-					break;
+		case RES_CBM:
+		res = at_parse_cbm(ast_str_buffer(response), ast_str_strlen(response), &tpdu_type, ast_str_buffer(sca), ast_str_size(sca), ast_str_buffer(oa), ast_str_size(oa), scts, &mr, &st, dt, ast_str_buffer(msg), &msg_len, &udh);
+		break;
+
+		case RES_CDS:
+		res = at_parse_cds(ast_str_buffer(response), ast_str_strlen(response), &tpdu_type, ast_str_buffer(sca), ast_str_size(sca), ast_str_buffer(oa), ast_str_size(oa), scts, &mr, &st, dt, ast_str_buffer(msg), &msg_len, &udh);
+		break;
+
+		default:
+		res = -1;
+		break;
+	}
+
+	if (res < 0) {
+		ast_str_reset(msg);
+		ast_str_reset(oa);
+		ast_str_reset(sca);
+		ast_free(msg);
+		ast_free(oa);
+		ast_free(sca);
+		ast_log(LOG_WARNING, "[%s] Error parsing incoming message: %s\n", PVT_ID(pvt), error2str(chan_quectel_err));
+		ack = TRIBOOL_FALSE;
+		goto msg_done_ack;
+	}
+
+	ast_str_update(msg);
+	switch (PDUTYPE_MTI(tpdu_type)) {
+		case PDUTYPE_MTI_SMS_STATUS_REPORT: {
+			static const size_t STATUS_REPORT_STR_LEN = 255 * 4 + 1;
+			ast_verb(1, "[%s] Got status report with ref %d from %s and status code %d\n", PVT_ID(pvt), mr, ast_str_buffer(oa), st);
+
+			int* const status_report = (int*)ast_malloc(sizeof(int)*256);
+			struct ast_str* status_report_str = ast_str_create(STATUS_REPORT_STR_LEN);
+			struct ast_str* payload = ast_str_create(SMSDB_PAYLOAD_MAX_LEN);
+			const ssize_t payload_len = smsdb_outgoing_part_status(pvt->imsi, ast_str_buffer(oa), mr, st, status_report, ast_str_buffer(payload));
+			if (payload_len >= 0) {
+				int success = 1;
+				int srroff = 0;
+				for (int i = 0; status_report[i] != -1; ++i) {
+					success &= !(status_report[i] & 0x40);
+					ast_str_append(&status_report_str, STATUS_REPORT_STR_LEN, "%03d,", status_report[i]);
+					srroff += 4;
 				}
+				*(ast_str_buffer(payload) + payload_len) = '\0';
+				ast_str_update(payload);
+				ast_verb(2, "[%s] Success: %d; Payload: %.*s; Report string: %s\n", PVT_ID(pvt), success, (int)payload_len, ast_str_buffer(payload), ast_str_buffer(status_report_str));
+				ack = TRIBOOL_TRUE;
+				start_local_report_channel(pvt, ast_str_buffer(oa), ast_str_buffer(payload), scts, dt, success, 'e', ast_str_buffer(status_report_str));
+			}
 
-				case PDUTYPE_MTI_SMS_DELIVER: {
-					ast_debug(1, "[%s] Successfully read SM\n", PVT_ID(pvt));
-					struct ast_str* fullmsg = ast_str_create(MAX_MSG_LEN);
-					if (udh.parts > 1) {
-						ast_verb(2, "[%s] Got SM part from %s: '%s'; [ref=%d, parts=%d, order=%d]\n", PVT_ID(pvt), ast_str_buffer(oa), ast_str_buffer(msg), udh.ref, udh.parts, udh.order);
-						int csms_cnt = smsdb_put(pvt->imsi, ast_str_buffer(oa), udh.ref, udh.parts, udh.order, ast_str_buffer(msg), ast_str_buffer(fullmsg));
-						if (csms_cnt <= 0) {
-							ast_log(LOG_ERROR, "[%s] Error putting SMS to SMSDB\n", PVT_ID(pvt));
-							goto receive_as_is;
-						}
-						if (csms_cnt < udh.parts) {
-							ast_verb(1, "[%s] Waiting for following parts\n", PVT_ID(pvt));
-							goto receive_next;
-						}
-						ast_str_update(fullmsg);
-					} else {
-	receive_as_is:
-						ast_verb(2, "[%s] Got single SM from %s: '%s'\n", PVT_ID(pvt), ast_str_buffer(oa), ast_str_buffer(msg));
-						ast_str_copy_string(&fullmsg, msg);
-					}
+			ast_free(status_report);
+			ast_free(status_report_str);
+			ast_free(payload);
+			break;
+		}
 
-					ast_verb(1, "[%s] Got full SMS from %s: '%s'\n", PVT_ID(pvt), ast_str_buffer(oa), ast_str_buffer(fullmsg));
-
-					struct ast_str* b64 = ast_str_create(40800);
-					ast_base64encode(ast_str_buffer(b64), (unsigned char*)ast_str_buffer(fullmsg), ast_str_strlen(fullmsg), ast_str_size(b64));
-					ast_str_update(b64);
-
-					const channel_var_t vars[] =
-					{
-						{ "SMS", ast_str_buffer(fullmsg) } ,
-						{ "SMS_BASE64", ast_str_buffer(b64) },
-						{ "SMS_TS", scts },
-						{ NULL, NULL },
-					};
-					start_local_channel(pvt, "sms", ast_str_buffer(oa), vars);
-
-					ast_free(b64);
-					ast_free(fullmsg);
-					break;
+		case PDUTYPE_MTI_SMS_DELIVER: {
+			struct ast_str* fullmsg = ast_str_create(MAX_MSG_LEN);
+			if (udh.parts > 1) {
+				ast_verb(2, "[%s] Got SM part from %s: '%s'; [ref=%d, parts=%d, order=%d]\n", PVT_ID(pvt), ast_str_buffer(oa), ast_str_buffer(msg), udh.ref, udh.parts, udh.order);
+				int csms_cnt = smsdb_put(pvt->imsi, ast_str_buffer(oa), udh.ref, udh.parts, udh.order, ast_str_buffer(msg), ast_str_buffer(fullmsg));
+				if (csms_cnt <= 0) {
+					ast_log(LOG_ERROR, "[%s] Error putting SMS to SMSDB\n", PVT_ID(pvt));
+					goto receive_as_is;
 				}
+				if (csms_cnt < udh.parts) {
+					ast_verb(1, "[%s] Waiting for following parts\n", PVT_ID(pvt));
+					ack = (udh.order == 1)? TRIBOOL_TRUE : TRIBOOL_NONE;
+					goto msg_done;
+				}
+				ast_str_update(fullmsg);
+			} else {
+receive_as_is:
+				ack = TRIBOOL_TRUE;
+				ast_verb(2, "[%s] Got single SM from %s: '%s'\n", PVT_ID(pvt), ast_str_buffer(oa), ast_str_buffer(msg));
+				ast_str_copy_string(&fullmsg, msg);
 			}
-			ast_free(msg);
-			ast_free(oa);
-			ast_free(sca);
+
+			ast_verb(1, "[%s] Got SMS from %s: '%s'\n", PVT_ID(pvt), ast_str_buffer(oa), ast_str_buffer(fullmsg));
+
+			struct ast_str* b64 = ast_str_create(40800);
+			ast_base64encode(ast_str_buffer(b64), (unsigned char*)ast_str_buffer(fullmsg), ast_str_strlen(fullmsg), ast_str_size(b64));
+			ast_str_update(b64);
+
+			const channel_var_t vars[] =
+			{
+				{ "SMS", ast_str_buffer(fullmsg) } ,
+				{ "SMS_BASE64", ast_str_buffer(b64) },
+				{ "SMS_TS", scts },
+				{ NULL, NULL },
+			};
+			start_local_channel(pvt, "sms", ast_str_buffer(oa), vars);
+
+			ast_free(b64);
+			ast_free(fullmsg);
+			break;
 		}
-		else {
-			ast_log(LOG_ERROR, "[%s] Received '+%s' when expecting '%s' response to '%s', ignoring\n", PVT_ID(pvt),
-				S_COR(cmgl, "CMGL", "CMGR"),
-				at_res2str(ecmd->res), at_cmd2str(ecmd->cmd));
+	}
+
+msg_done:
+
+	ast_free(msg);
+	ast_free(oa);
+	ast_free(sca);
+
+	if (CONF_SHARED(pvt, autodeletesms)) {
+		switch(cmd) {
+			case RES_CMGR:
+			at_enqueue_delete_sms(&pvt->sys_chan, pvt->incoming_sms_index);
+			break;
+
+			case RES_CMGL:
+			at_enqueue_delete_sms(&pvt->sys_chan, idx);
+			break;
 		}
-receive_next:
-		if (CONF_SHARED(pvt, autodeletesms)) {
-			if (!cmgl && pvt->incoming_sms_index >= 0) {
-				at_enqueue_delete_sms(&pvt->sys_chan, pvt->incoming_sms_index);
-			}
-			if (cmgl && idx >= 0) {
-				at_enqueue_delete_sms(&pvt->sys_chan, idx);
-			}
-		}
-receive_next_no_delete:
+	}
+
+msg_done_ack:
+	switch(cmd) {
+		case RES_CMGR:
 		at_sms_retrieved(&pvt->sys_chan, 0);
-	}
-	else {
-		ast_log(LOG_WARNING, "[%s] Received unexpected '+%s'\n", PVT_ID(pvt), S_COR(cmgl, "CMGL", "CMGR"));
+		break;
+
+		case RES_CMT:
+		case RES_CDS:
+		if (CONF_SHARED(pvt, msg_service) > 0) {
+			switch(ack) {
+				case TRIBOOL_FALSE: // negative ACT
+				at_enqueue_msg_ack(&pvt->sys_chan);
+				// at_enqueue_msg_ack_n(&pvt->sys_chan, 2);
+				break;
+
+				case TRIBOOL_TRUE: // positive ACK
+				at_enqueue_msg_ack(&pvt->sys_chan);
+				// at_enqueue_msg_ack_n(&pvt->sys_chan, 1);
+				break;
+			}
+		}
+		break;
 	}
 
-	return 0;
-}
-
-static int at_response_cmgl(struct pvt* pvt, char* str, size_t len)
-{
-	struct ast_str* response = escape_nstr(str, len);
-	ast_verb(1, "[%s] %s\n", PVT_ID(pvt), ast_str_buffer(response));
-	ast_free(response);
 	return 0;
 }
 
@@ -1972,12 +2024,12 @@ static void at_response_qpcmv(struct pvt* pvt, char* str, size_t len)
 	ast_debug(1, "[%s] Voice configuration %s: %s\n", PVT_ID(pvt), S_COR(enabled, "enabled", "disabled"), qpcmv2str(mode));
 }
 
-static void at_response_qlts(struct pvt* pvt, char* str, size_t len)
+static void at_response_qlts(struct pvt* pvt, const struct ast_str* const result)
 {
 	char* ts;
 
-	if (at_parse_qlts(str, &ts)) {
-		ast_log(LOG_ERROR, "[%s] Error parsing '%.*s'\n", PVT_ID(pvt), (int)len, str);
+	if (at_parse_qlts(ast_str_buffer(result), &ts)) {
+		ast_log(LOG_ERROR, "[%s] Error parsing '%s'\n", PVT_ID(pvt), ast_str_buffer(result));
 		return;
 	}
 
@@ -2010,7 +2062,13 @@ static void at_response_qrxgain(struct pvt* pvt, char* str, size_t len)
 	ast_verb(3, "[%s] RX Gain: %d\n", PVT_ID(pvt), rxgain);
 }
 
-static int at_res_ok_error(at_res_t at_res)
+static int at_response_csms(struct pvt*, const struct ast_str* const)
+{
+	// nothing to do?
+	return 0;
+}
+
+static int check_at_res(at_res_t at_res)
 {
 	switch (at_res)
 	{
@@ -2026,15 +2084,27 @@ static int at_res_ok_error(at_res_t at_res)
 
 static void show_response(const struct pvt* const pvt, const at_queue_cmd_t* const ecmd, const struct ast_str* const result, at_res_t at_res)
 {
-	struct ast_str* str_esc = escape_str(result);
+	struct ast_str* const resc = escape_str(result);
 	if (ecmd && ecmd->cmd == CMD_USER) {
-		if (!at_res_ok_error(at_res)) ast_log(LOG_NOTICE, "[%s] USER Response [%s]\n", PVT_ID(pvt), ast_str_buffer(str_esc));
+		if (check_at_res(at_res)) {
+			ast_verb(2, "[%s][%s] <-- [%s][%s]\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd), at_res2str(at_res), ast_str_buffer(resc));			
+		}
+		else {
+			ast_verb(1, "[%s][%s] <-- [%s][%s]\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd), at_res2str(at_res), ast_str_buffer(resc));
+		}
+		goto show_done;
+	}
+
+	const int lvl = check_at_res(at_res)? 4 : 2;
+	if (ecmd) {
+		ast_debug(lvl, "[%s][%s] <-- [%s][%s]\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd), at_res2str(at_res), ast_str_buffer(resc));
 	}
 	else {
-		const int lvl = at_res_ok_error(at_res)? 4 : 2;
-		ast_debug(lvl, "[%s] AT Response [%s]\n", PVT_ID(pvt), ast_str_buffer(str_esc));
+		ast_debug(lvl, "[%s] <-- [%s][%s]\n", PVT_ID(pvt), at_res2str(at_res), ast_str_buffer(resc));
 	}
-	ast_free(str_esc);
+
+show_done:
+	ast_free(resc);
 }
 
 /*!
@@ -2144,10 +2214,11 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 				return at_response_cmti (pvt, str);
 
 			case RES_CMGR:
-				return at_response_cmgr(pvt, result, 0);
-
 			case RES_CMGL:
-				return at_response_cmgr(pvt, result, 1);
+			case RES_CMT:
+			case RES_CBM:
+			case RES_CDS:
+				return at_response_msg(pvt, result, at_res);
 
 			case RES_SMS_PROMPT:
 				return at_response_sms_prompt (pvt);
@@ -2203,7 +2274,7 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 				return 0;
 
 			case RES_QLTS:
-				at_response_qlts(pvt, str, len);
+				at_response_qlts(pvt, result);
 				return 0;
 
 			case RES_CCLK:
@@ -2213,6 +2284,9 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 			case RES_QRXGAIN:
 				at_response_qrxgain(pvt, str, len);
 				return 0;
+
+			case RES_CSMS:
+				return at_response_csms(pvt, result);
 
 			case RES_PARSE_ERROR:
 				ast_log (LOG_ERROR, "[%s] Error parsing result\n", PVT_ID(pvt));

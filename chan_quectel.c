@@ -591,7 +591,7 @@ static void* do_monitor_phone(void* data)
 	struct ringbuffer rb;
 
 	void* const buf = ast_malloc(RINGBUFFER_SIZE);
-	struct ast_str* result = ast_str_create(RINGBUFFER_SIZE);
+	struct ast_str* const result = ast_str_create(RINGBUFFER_SIZE);
 	rb_init(&rb, buf, RINGBUFFER_SIZE);
 
 	pvt->timeout = DATA_READ_TIMEOUT;
@@ -633,7 +633,7 @@ static void* do_monitor_phone(void* data)
 		}
 
 		if(pvt->terminate_monitor) {
-			ast_log(LOG_NOTICE, "[%s] stopping by %s request\n", dev, dev_state2str(pvt->desired_state));
+			ast_log(LOG_NOTICE, "[%s] Stopping by %s request\n", dev, dev_state2str(pvt->desired_state));
 			goto e_restart;
 		}
 
@@ -646,7 +646,7 @@ static void* do_monitor_phone(void* data)
 			ast_mutex_lock(&pvt->lock);
 			const struct at_queue_cmd* const ecmd = at_queue_head_cmd(pvt);
 			if(ecmd) {
-				ast_log(LOG_ERROR, "[%s] timedout while waiting '%s' in response to '%s'\n", dev, at_res2str (ecmd->res), at_cmd2str (ecmd->cmd));
+				ast_log(LOG_ERROR, "[%s][%s] Timeout [%s]\n", dev, at_cmd2str(ecmd->cmd), at_res2str(ecmd->res));
 				goto e_cleanup;
 			}
 			at_enqueue_ping(&pvt->sys_chan);
@@ -668,16 +668,16 @@ static void* do_monitor_phone(void* data)
 		int	read_result = 0;
 		size_t skip = 0u;
 
-		while ((iovcnt = at_read_result_iov(dev, &read_result, &skip, &rb, iov)) > 0) {
-			const size_t len = prepare_result(result, iov, iovcnt);
-			const at_res_t res = at_str2res(result);
-			if (res != RES_UNKNOWN) ast_str_trim_blanks(result);
+		while ((iovcnt = at_read_result_iov(dev, &read_result, &skip, &rb, iov, result)) > 0) {
+			const size_t len = at_combine_iov(result, iov, iovcnt);
+			const at_res_t at_res = at_str2res(result);
+			if (at_res != RES_UNKNOWN) ast_str_trim_blanks(result);
 			rb_read_upd(&rb, len + skip);
 			skip = 0u;
 
 			ast_mutex_lock(&pvt->lock);
 			PVT_STAT(pvt, at_responses) ++;
-			if (at_response(pvt, result, res)) {
+			if (at_response(pvt, result, at_res)) {
 				ast_log(LOG_ERROR, "[%s] Fail to handle response\n", dev);
 				goto e_cleanup;
 			}
@@ -685,9 +685,11 @@ static void* do_monitor_phone(void* data)
 		}
 
 		ast_mutex_lock(&pvt->lock);
-		if (at_queue_run(pvt)) {
-			ast_log(LOG_ERROR, "[%s] Fail to handle run\n", dev);
-			goto e_cleanup;
+		if (!pvt->terminate_monitor) {
+			if (at_queue_run(pvt)) {
+				ast_log(LOG_ERROR, "[%s] Fail to run command from queue\n", dev);
+				goto e_cleanup;
+			}
 		}
 		ast_mutex_unlock(&pvt->lock);
 	}
@@ -696,17 +698,18 @@ static void* do_monitor_phone(void* data)
 e_cleanup:
 	if (!pvt->initialized) {
 		// TODO: send monitor event
-		ast_verb(3, "[%s] Error initializing Quectel\n", dev);
+		ast_verb(3, "[%s] Error initializing channel\n", dev);
 	}
 	/* it real, unsolicited disconnect */
 	pvt->terminate_monitor = 0;
-	ast_free(buf);
-	ast_free(result);
 
 e_restart:
 	disconnect_quectel(pvt);
 //	pvt->monitor_running = 0;
 	ast_mutex_unlock(&pvt->lock);
+
+	ast_free(buf);
+	ast_free(result);
 
 	/* TODO: wakeup discovery thread after some delay */
 	return NULL;
@@ -1920,10 +1923,8 @@ static void public_state_fini(struct public_state * state)
 
 static int unload_module()
 {
-
 	public_state_fini(gpublic);
 	pdiscovery_fini();
-
 	ast_free(gpublic);
 	smsdb_atexit();
 	gpublic = NULL;

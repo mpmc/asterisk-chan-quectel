@@ -515,6 +515,7 @@ int at_parse_cmgr(char *str, size_t len, int *tpdu_type, char *sca, size_t sca_l
 
 	if (mark_line(str, delimiters, marks) != ITEMS_OF(marks)) {
 		chan_quectel_err = E_PARSE_CMGR_LINE;
+		return -1;
 	}
 
 	const size_t tpdu_length = strtol(marks[1] + 1, &end, 10);
@@ -524,6 +525,141 @@ int at_parse_cmgr(char *str, size_t len, int *tpdu_type, char *sca, size_t sca_l
 	}
 
 	return parse_pdu(marks[2] + 1, tpdu_length, tpdu_type, sca, sca_len, oa, oa_len, scts, mr, st, dt, msg, msg_len, udh);
+}
+
+int at_parse_cmt(char *str, size_t len, int *tpdu_type, char *sca, size_t sca_len, char *oa, size_t oa_len, char *scts, int *mr, int *st, char *dt, char *msg, size_t *msg_len, pdu_udh_t *udh)
+{
+	/* skip "+CMT:" */
+	str += 5;
+	len -= 5;
+
+	/* skip leading spaces */
+	while (len > 0 && *str == ' ') {
+		++str;
+		--len;
+	}
+
+	if (len <= 0) {
+		chan_quectel_err = E_PARSE_CMGR_LINE;
+		return -1;
+	}
+	if (str[0] == '"') {
+		chan_quectel_err = E_DEPRECATED_CMGR_TEXT;
+		return -1;
+	}
+
+
+	/*
+	 * +CMT: [<alpha>],<length><CR><LF><pdu>
+	 */
+
+	static const char delimiters[] = ",\n";
+
+	char *marks[STRLEN(delimiters)];
+	char *end;
+
+	if (mark_line(str, delimiters, marks) != ITEMS_OF(marks)) {
+		chan_quectel_err = E_PARSE_CMGR_LINE;
+		return -1;
+	}
+
+	const size_t tpdu_length = strtol(marks[0] + 1, &end, 10);
+	if (tpdu_length <= 0 || end[0] != '\r') {
+		chan_quectel_err = E_INVALID_TPDU_LENGTH;
+		return -1;
+	}
+
+	return parse_pdu(marks[1] + 1, tpdu_length, tpdu_type, sca, sca_len, oa, oa_len, scts, mr, st, dt, msg, msg_len, udh);
+}
+
+int at_parse_cbm(char *str, size_t len, int *tpdu_type, char *sca, size_t sca_len, char *oa, size_t oa_len, char *scts, int *mr, int *st, char *dt, char *msg, size_t *msg_len, pdu_udh_t *udh)
+{
+	/* skip "+CBM:" */
+	str += 5;
+	len -= 5;
+
+	/* skip leading spaces */
+	while (len > 0 && *str == ' ') {
+		++str;
+		--len;
+	}
+
+	if (len <= 0) {
+		chan_quectel_err = E_PARSE_CMGR_LINE;
+		return -1;
+	}
+	if (str[0] == '"') {
+		chan_quectel_err = E_DEPRECATED_CMGR_TEXT;
+		return -1;
+	}
+
+
+	/*
+	 * +CBM: <length><CR><LF><pdu>
+	 */
+
+	static const char delimiters[] = "\n";
+
+	char *marks[STRLEN(delimiters)];
+	char *end;
+
+	if (mark_line(str, delimiters, marks) != ITEMS_OF(marks)) {
+		chan_quectel_err = E_PARSE_CMGR_LINE;
+		return -1;
+	}
+
+	const size_t tpdu_length = strtol(str, &end, 10);
+	if (tpdu_length <= 0 || end[0] != '\r') {
+		chan_quectel_err = E_INVALID_TPDU_LENGTH;
+		return -1;
+	}
+
+	return parse_pdu(marks[0] + 1, tpdu_length, tpdu_type, sca, sca_len, oa, oa_len, scts, mr, st, dt, msg, msg_len, udh);
+}
+
+int at_parse_cds(char *str, size_t len, int *tpdu_type, char *sca, size_t sca_len, char *oa, size_t oa_len, char *scts, int *mr, int *st, char *dt, char *msg, size_t *msg_len, pdu_udh_t *udh)
+{
+	/* skip "+CDS:" */
+	str += 5;
+	len -= 5;
+
+	/* skip leading spaces */
+	while (len > 0 && *str == ' ') {
+		++str;
+		--len;
+	}
+
+	if (len <= 0) {
+		chan_quectel_err = E_PARSE_CMGR_LINE;
+		return -1;
+	}
+	if (str[0] == '"') {
+		chan_quectel_err = E_DEPRECATED_CMGR_TEXT;
+		return -1;
+	}
+
+
+	/*
+	 * +CDS: <length><CR><LF><pdu>
+	 */
+
+	static const char delimiters[] = "\n";
+
+	char *marks[STRLEN(delimiters)];
+	char *end;
+
+	if (mark_line(str, delimiters, marks) != ITEMS_OF(marks)) {
+		chan_quectel_err = E_PARSE_CMGR_LINE;
+		return -1;
+	}
+
+	const size_t tpdu_length = strtol(str, &end, 10);
+	if (tpdu_length <= 0 || end[0] != '\r') {
+		chan_quectel_err = E_INVALID_TPDU_LENGTH;
+		return -1;
+	}
+
+	return parse_pdu(marks[0] + 1, tpdu_length, tpdu_type, sca, sca_len, oa, oa_len, scts, mr, st, dt, msg, msg_len, udh);
 }
 
 int at_parse_cmgl(char *str, size_t len, int* idx, int *tpdu_type, char *sca, size_t sca_len, char *oa, size_t oa_len, char *scts, int *mr, int *st, char *dt, char *msg, size_t *msg_len, pdu_udh_t *udh)
@@ -567,6 +703,7 @@ int at_parse_cmgl(char *str, size_t len, int* idx, int *tpdu_type, char *sca, si
 
 	if (mark_line(str, delimiters, marks) != ITEMS_OF(marks)) {
 		chan_quectel_err = E_PARSE_CMGR_LINE;
+		return -1;
 	}
 
 	*idx = strtol(str, &end, 10);

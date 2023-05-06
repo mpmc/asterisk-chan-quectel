@@ -277,36 +277,45 @@ int at_queue_run(struct pvt* pvt)
 				(i < (t->cmdsno - 1u)) ? ";" : "\r", 1);
 		}
 
-		fail = at_write(pvt, ast_str_buffer(buf), ast_str_size(buf));
+		if (DEBUG_ATLEAST(2)) {
+			struct ast_str* const ebuf = escape_str(buf);
+			ast_debug(2, "[%s][%s] --> [%s]\n", PVT_ID(pvt), at_cmd2str(t->cmds[0].cmd), ast_str_buffer(ebuf));
+			ast_free(ebuf);
+		}
+
+		fail = at_write(pvt, ast_str_buffer(buf), ast_str_strlen(buf));
 		if (fail) {
-			ast_str_trim_blanks(buf);
-			ast_log(LOG_WARNING, "[%s] Error write combinded command '%s' length %lu\n", PVT_ID(pvt), ast_str_buffer(buf), buflen);
-			ast_free(buf);
+			struct ast_str* const ebuf = escape_str(buf);
+			ast_log(LOG_WARNING, "[%s][%s] !-> [%s]\n", PVT_ID(pvt), at_cmd2str(t->cmds[0].cmd), ast_str_buffer(ebuf));
+			ast_free(ebuf);
 
 			at_queue_remove_task_at_once(pvt);
 		}
 		else {
-			ast_str_trim_blanks(buf);
-			ast_debug(4, "[%s] Combined command '%s' length %lu\n", PVT_ID(pvt), ast_str_buffer(buf), ast_str_strlen(buf));
-			ast_free(buf);
-
 			for(unsigned i=0; i<t->cmdsno; ++i) {
 				at_queue_free_data(&t->cmds[i]);
 			}
 			at_queue_cmd_t* cmd = &(t->cmds[0]);
 			cmd->timeout = ast_tvadd(ast_tvnow(), cmd->timeout);
 		}
+		ast_free(buf);
 	}
 	else {
 		at_queue_cmd_t* cmd = &(t->cmds[t->cindex]);
 		if (cmd->length == 0u) return fail;
 
-		ast_debug(4, "[%s] write command '%s' expected response '%s' length %u\n",
-				PVT_ID(pvt), at_cmd2str(cmd->cmd), at_res2str(cmd->res), cmd->length);
+		if (DEBUG_ATLEAST(2)) {
+			struct ast_str* const ebuf = escape_nstr(cmd->data, cmd->length);
+			ast_debug(2, "[%s][%s] --> [%s]\n", PVT_ID(pvt), at_cmd2str(cmd->cmd), ast_str_buffer(ebuf));
+			ast_free(ebuf);
+		}
 
 		fail = at_write(pvt, cmd->data, cmd->length);
 		if(fail) {
-			ast_log(LOG_ERROR, "[%s] Error write command '%s' expected response '%s' length %u, cancel\n", PVT_ID(pvt), at_cmd2str(cmd->cmd), at_res2str(cmd->res), cmd->length);
+			struct ast_str* const ebuf = escape_nstr(cmd->data, cmd->length);
+			ast_log(LOG_ERROR, "[%s][%s] !-> [%s]\n", PVT_ID(pvt), at_cmd2str(cmd->cmd), ast_str_buffer(ebuf));
+			ast_free(ebuf);
+
 			at_queue_remove_cmd(pvt, cmd->res + 1);
 		}
 		else {
@@ -351,18 +360,20 @@ int at_queue_run_immediately(struct pvt* pvt)
 		}
 	}
 
-	fail = at_write(pvt, ast_str_buffer(buf), ast_str_size(buf));
-	if (fail) {
-		ast_str_trim_blanks(buf);
-		ast_log(LOG_WARNING, "[%s] Error write combined command '%s' length %lu\n", PVT_ID(pvt), ast_str_buffer(buf), ast_str_strlen(buf));
-		ast_free(buf);
-	}
-	else {
-		ast_str_trim_blanks(buf);
-		ast_debug(1, "[%s] Combined command '%s' length %lu\n", PVT_ID(pvt), ast_str_buffer(buf), ast_str_strlen(buf));
-		ast_free(buf);
+	if (DEBUG_ATLEAST(2)) {
+		struct ast_str* const ebuf = escape_str(buf);
+		ast_debug(2, "[%s] ==> [%s]\n", PVT_ID(pvt), ast_str_buffer(ebuf));
+		ast_free(ebuf);
 	}
 
+	fail = at_write(pvt, ast_str_buffer(buf), ast_str_strlen(buf));
+	if (fail) {
+		struct ast_str* const ebuf = escape_str(buf);
+		ast_log(LOG_WARNING, "[%s] !=> [%s]\n", PVT_ID(pvt), ast_str_buffer(ebuf));
+		ast_free(ebuf);
+	}
+
+	ast_free(buf);
 	return fail;
 }
 

@@ -158,9 +158,6 @@ int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_command)
 	static const char cmd_cmgf[] = "AT+CMGF=0\r";
 	static const char cmd_cscs[] = "AT+CSCS=\"UCS2\"\r";
 
-	static const char cmd_cpms[] = "AT+CPMS=\"SM\",\"SM\",\"SM\"\r";
-	static const char cmd_cnmi[] = "AT+CNMI=2,1,0,2,0\r";
-
 	static const char cmd_at_qindcfg_csq[] = "AT+QINDCFG=\"csq\",1,0\r";
 	static const char cmd_at_qindcfg_act[] = "AT+QINDCFG=\"act\",1,0\r";
 	static const char cmd_at_qindcfg_ring[] = "AT+QINDCFG=\"ring\",0,0\r";
@@ -196,10 +193,11 @@ int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_command)
 		ATQ_CMD_DECLARE_ST(CMD_AT_CSSN, cmd_cssn),		/* activate Supplementary Service Notification with CSSI and CSSU */
 		ATQ_CMD_DECLARE_ST(CMD_AT_CMGF, cmd_cmgf),		/* Set Message Format */
 
-		ATQ_CMD_DECLARE_ST(CMD_AT_CPMS, cmd_cpms),		/* SMS Storage Selection */
+		ATQ_CMD_DECLARE_DYN(CMD_AT_CNMI),				/* SMS Event Reporting Configuration */
+		ATQ_CMD_DECLARE_DYN(CMD_AT_CPMS),				/* SMS Storage Selection */
+		ATQ_CMD_DECLARE_DYN(CMD_AT_CSMS),				/* Select Message Service */
 
 		/* pvt->initialized = 1 after successful of CMD_AT_CNMI */
-		ATQ_CMD_DECLARE_ST(CMD_AT_CNMI, cmd_cnmi),		/* New SMS Notification Setting +CNMI=[<mode>[,<mt>[,<bm>[,<ds>[,<bfr>]]]]] */
 		ATQ_CMD_DECLARE_ST(CMD_AT_QINDCFG_CC, cmd_at_qindcfg_cc), 		/* Enable call status notifications */		
 		ATQ_CMD_DECLARE_ST(CMD_AT_QINDCFG_CSQ, cmd_at_qindcfg_csq),
 		ATQ_CMD_DECLARE_ST(CMD_AT_QINDCFG_ACT, cmd_at_qindcfg_act),
@@ -212,6 +210,8 @@ int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_command)
 	int begin = -1;
 	pvt_t * pvt = cpvt->pvt;
 	at_queue_cmd_t cmds[ITEMS_OF(st_cmds)];
+	at_queue_cmd_t dyn_cmd;
+	int dyn_handled;
 
 	/* customize list */
 	for(in = out = 0; in < ITEMS_OF(st_cmds); ++in) {
@@ -231,7 +231,66 @@ int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_command)
 		if(st_cmds[in].cmd == CMD_AT_QTONEDET_1 && !CONF_SHARED(pvt, dtmf))
 			continue;
 
-		memcpy(&cmds[out], &st_cmds[in], sizeof(st_cmds[in]));
+		if (!(st_cmds[in].flags & ATQ_CMD_FLAG_STATIC)) {
+			dyn_cmd = st_cmds[in];
+			dyn_handled = 0;
+
+			if(st_cmds[in].cmd == CMD_AT_CPMS) {
+				if (CONF_SHARED(pvt, msg_storage) == MESSAGE_STORAGE_AUTO) continue;
+
+				const char* const stor = dc_msgstor2str(CONF_SHARED(pvt, msg_storage));
+				const int err = at_fill_generic_cmd(&dyn_cmd, "AT+CPMS=\"%s\",\"%s\",\"%s\"\r", stor, stor, stor);
+				if (err) {
+					ast_log(LOG_ERROR, "[%s] Device initialization - unable to create AT+CPMS command\n", PVT_ID(pvt));
+					continue;
+				}
+				dyn_handled = 1;
+			}
+
+			if(st_cmds[in].cmd == CMD_AT_CNMI) {
+				int err = 0;
+				if (!CONF_SHARED(pvt, msg_direct)) continue;
+
+				if (CONF_SHARED(pvt, msg_direct) > 0) {
+					err = at_fill_generic_cmd(&dyn_cmd, "AT+CNMI=2,2,2,1,%d\r", CONF_SHARED(pvt, resetquectel)? 1 : 0);
+				}
+				else {
+					err = at_fill_generic_cmd(&dyn_cmd, "AT+CNMI=2,1,0,2,%d\r", CONF_SHARED(pvt, resetquectel)? 1 : 0);
+				}
+
+				if (err) {
+					ast_log(LOG_ERROR, "[%s] Device initialization - unable to create AT+CNMI command\n", PVT_ID(pvt));
+					continue;
+				}
+
+				dyn_handled = 1;
+			}
+
+			if(st_cmds[in].cmd == CMD_AT_CSMS) {
+				if (!CONF_SHARED(pvt, msg_service) < 0) continue;
+
+				const int err = at_fill_generic_cmd(&dyn_cmd, "AT+CSMS=%d\r", CONF_SHARED(pvt, msg_service));
+				if (err) {
+					ast_log(LOG_ERROR, "[%s] Device initialization - unable to create AT+CSMS command\n", PVT_ID(pvt));
+					continue;
+				}
+
+				dyn_handled = 1;				
+			}
+		}
+
+		if (st_cmds[in].flags & ATQ_CMD_FLAG_STATIC) {
+			cmds[out] = st_cmds[in];
+		}
+		else {
+			if (dyn_handled) {
+				cmds[out] = dyn_cmd;
+			}
+			else {
+				ast_log(LOG_ERROR, "[%s] Device initialization - unhanled dynamic command: [%u] %s\n", PVT_ID(pvt), in, at_cmd2str(dyn_cmd.cmd));
+				continue;
+			}
+		}
 		if(cmds[out].cmd == from_command) begin = out;
 		out++;
 	}
@@ -820,6 +879,8 @@ int at_enqueue_delete_sms(struct cpvt *cpvt, int index)
 {
 	at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_CMGD);
 
+	if (index < 0) return 0;
+
 	int err = at_fill_generic_cmd(&cmd, "AT+CMGD=%d\r", index);
 	if (err) {
 		chan_quectel_err = E_UNKNOWN;
@@ -830,6 +891,36 @@ int at_enqueue_delete_sms(struct cpvt *cpvt, int index)
 	if (err) {
 		chan_quectel_err = E_QUEUE;
 		return err;
+	}
+
+	return 0;
+}
+
+int at_enqueue_msg_ack(struct cpvt *cpvt)
+{
+	static const char cmd_cnma[] = "AT+CNMA\r";
+	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_ST(CMD_AT_CNMA, cmd_cnma);
+
+	if (at_queue_insert_const(cpvt, &cmd, 1, 1) != 0) {
+		chan_quectel_err = E_QUEUE;
+		return -1;
+	}
+	return 0;
+}
+
+int at_enqueue_msg_ack_n(struct cpvt *cpvt, int n)
+{
+	at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_CNMA);
+
+	int err = at_fill_generic_cmd(&cmd, "AT+CNMA=%d\r", n);
+	if (err) {
+		chan_quectel_err = E_UNKNOWN;
+		return err;
+	}
+
+	if (at_queue_insert(cpvt, &cmd, 1, 1) != 0) {
+		chan_quectel_err = E_QUEUE;
+		return -1;
 	}
 
 	return 0;

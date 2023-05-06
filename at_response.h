@@ -12,8 +12,8 @@ struct iovec;
 #define AT_RES_AS_STRUCTLIST(res, desc, str) {RES_ ## res, desc, str, (sizeof(str)-1)},
 
 #define AT_RESPONSES_TABLE(_) \
-	_( PARSE_ERROR, "PARSE ERROR",  "") \
-	_( UNKNOWN,     "UNKNOWN",      "") \
+	_( PARSE_ERROR,	"PARSE ERROR",	"") \
+	_( UNKNOWN,		"UNK",			"") \
 \
 	_( BOOT,        "^BOOT",        "^BOOT:") \
 	_( BUSY,        "BUSY",         "BUSY\r") \
@@ -23,7 +23,10 @@ struct iovec;
 	_( CMGL,		"+CMGL",		"+CMGL:") \
 	_( CMS_ERROR,   "+CMS ERROR",   "+CMS ERROR:") \
 	_( CMTI,        "+CMTI",        "+CMTI:") \
+	_( CMT,			"+CMT",			"+CMT:") \
 	_( CDSI,        "+CDSI",        "+CDSI:") \
+	_( CDS,			"+CDS",			"+CDS:") \
+	_( CBM,			"+CBM",			"+CBM:") \
 \
 	_( CNUM,        "+CNUM",        "+CNUM:") \
 		/* and "ERROR+CNUM:", hacked later on */ \
@@ -55,6 +58,7 @@ struct iovec;
 	_( SRVST,       "^SRVST",       "^SRVST:") \
 \
 	_( CVOICE,      "^CVOICE",      "^CVOICE:") \
+	_( CSMS,		"+CSMS",		"+CSMS:") \
 	_( CMGS,        "+CMGS",        "+CMGS:") \
 	_( CPMS,        "+CPMS",        "+CPMS:") \
 	_( CSCA,        "+CSCA",        "+CSCA:") \
@@ -81,7 +85,7 @@ typedef enum {
 
 	/* Hackish way to maintain MAX and MIN responses for compatibility */
 	RES_MIN = RES_PARSE_ERROR,
-	RES_MAX = RES_CCWA,
+	RES_MAX = RES_QRXGAIN,
 } at_res_t;
 
 /*! response description */
