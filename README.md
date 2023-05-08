@@ -26,6 +26,38 @@ I do not have acces to *SimCOM* module thus cannot fix this driver for now.
 
     DTMF detection is now performed by *Quectel* module itself (`AT+QTONEDET` command).
 
+* New `msg_direct` option (**none**/on/off).
+
+    Specify how to receive messages (`AT+CNMI` command):
+
+    | value | meaning |
+    | :---: | ------- |
+    | **none** | **do not change** |
+    | on | messages are received directly by `+CMT:` *URI*  |
+    | off | messages are received by `AT+CMGR` command in response to `+CMTI` *URI* |
+
+* New `msg_storage` option (**auto**/sm/me/mt/sr).
+
+    Setting prefered message storage (`AT+CPMS` command):
+
+    | value | meaning |
+    | :---: | ------- |
+    | **auto** | **do not change** |
+    | sm | (U)SIM message storage |
+    | *me* | mobile equipment message storage |
+    | mt | same as *me* storage |
+    | sr | SMS status report storage location |
+
+* New `msg_service` option (**-1**/0/1).
+
+    Selecting `Message Service` (`AT+CSMS` command):
+
+    | value | meaning |
+    | :---: | ------ |
+    | **-1** | **do not change** |
+    | 0 | SMS AT commands are compatible with *GSM phase 2* |
+    | 1 | SMS AT commands are compatible with *GSM phase 2+* |
+
 * New `moh` option (**yes**/no).
 
     Specify hold/unhold action:
@@ -36,7 +68,7 @@ I do not have acces to *SimCOM* module thus cannot fix this driver for now.
 * `txgain` and `rxgain` options reimplented.
 
     * TX/RX gain is performed by module itself. This channel driver just sends proper `AT` commands.
-    * New default value: **-1** - use current module setting, do not send `AT` command.
+    * New default value: **-1** - use current module setting, do not send `AT` command at all.
     * Range: **0-65535**.
 
 * New `query_time` option (yes/**no**).
