@@ -6,23 +6,26 @@ This should work with *Quectel* modules such as EC20, EC21, EC25, EG9x ~~and *Si
 Tested with the **EC25-E** mini-PCIe module ~~and Waveshare SIM7600G-H dongle~~.
 If the product page of your *Quectel* module contains the *Voice Over USB and UAC Application Note*, you should be good to go.
 
-*SimCOM* support is **probably broken**. If you are using *SimCOM* module I stronly recomended using [original](//github.com/IchthysMaranatha/asterisk-chan-quectel) driver.
+*SimCOM* support is **probably broken**. If you are using *SimCOM* module I strongly recomended using [original](//github.com/IchthysMaranatha/asterisk-chan-quectel) driver.
 I do not have acces to *SimCOM* module thus cannot fix this driver for now.
 
 ## Changes
 
 ### Configuration changes
 
-* `quectel_uac` option renamed to `uac` and it's a yes/**no** switch now. `alsadev` is also defaulted to `hw:Android`.
-* New `multiparty` option (yes/**no**).
+* `quectel_uac` option renamed to `uac` and it's a on/**off** switch now.
+    
+    `alsadev` option is also defaulted to `hw:Android`.
+
+* New `multiparty` option (on/**off**).
 
     Ability to handle multiparty calls wastly complicates audio handling.
     Without multiparty calls audio handling is much simpler and uses less resources (CPU, memory, synchronization objects).
     I decided to turn off multiparty calls support by default.
-    You can enable it but remember that multiparty calls were never working on UAC mode and even in TTY (serial) mode this support should be considered as **unstable** and **untested**.
+    You can enable it but remember that multiparty calls were never working on UAC mode and even in TTY (serial) mode this support should be considered as **unstable**.
     When `mutliparty` is *off* all multiparty calls are **activley rejected**.
 
-* `dtmf` option is a yes/**no** switch now.
+* `dtmf` option is a on/**off** switch now.
 
     DTMF detection is now performed by *Quectel* module itself (`AT+QTONEDET` command).
 
@@ -30,9 +33,9 @@ I do not have acces to *SimCOM* module thus cannot fix this driver for now.
 
     Specify how to receive messages (`AT+CNMI` command):
 
-    | value | meaning |
+    | value | description |
     | :---: | ------- |
-    | **none** | **do not change** |
+    | **none** | do not change |
     | on | messages are received directly by `+CMT:` *URI*  |
     | off | messages are received by `AT+CMGR` command in response to `+CMTI` *URI* |
 
@@ -40,9 +43,9 @@ I do not have acces to *SimCOM* module thus cannot fix this driver for now.
 
     Setting prefered message storage (`AT+CPMS` command):
 
-    | value | meaning |
+    | value | description |
     | :---: | ------- |
-    | **auto** | **do not change** |
+    | **auto** | do not change |
     | sm | (U)SIM message storage |
     | *me* | mobile equipment message storage |
     | mt | same as *me* storage |
@@ -52,32 +55,36 @@ I do not have acces to *SimCOM* module thus cannot fix this driver for now.
 
     Selecting `Message Service` (`AT+CSMS` command):
 
-    | value | meaning |
+    | value | description |
     | :---: | ------ |
-    | **-1** | **do not change** |
+    | **-1** | do not change |
     | 0 | SMS AT commands are compatible with *GSM phase 2* |
     | 1 | SMS AT commands are compatible with *GSM phase 2+* |
 
-* New `moh` option (**yes**/no).
+* New `moh` option (**on**/ott).
 
     Specify hold/unhold action:
 
-    * **yes** - play/stop MOH (previous default action),
-    * no - disable/enable uplink voice using `AT+CMUT` command.
+    | value  | description |
+    | :----: | ----------- |
+    | **on** | play/stop MOH (previous default action) |
+    | off    | disable/enable uplink voice using `AT+CMUT` command |
 
 * `txgain` and `rxgain` options reimplented.
 
-    * TX/RX gain is performed by module itself. This channel driver just sends proper `AT` commands.
-    * New default value: **-1** - use current module setting, do not send `AT` command at all.
+    * TX/RX gain is performed by module itself.
+        
+        This channel driver just sends `AT+QMIC`/`AT+QRXGAIN` (`AT+CTXVOL`/`AT+CRXVOL` for *SimCOM* module) commands.
+
+    * New default value: **-1** - use current module setting, do not send *AT* commands at all.
     * Range: **0-65535**.
 
-* New `query_time` option (yes/**no**).
+* New `query_time` option (on/**off**).
 
-    * yes - *ping* module with `AT+QLTS` (or `AT+CCLK` for *SimCOM* modules) command.[^2]
-    * **no** - *ping* module with standard `AT` command.
-
-[^2]:`AT+QLTS` : Obtain the Latest Time Synchronized Through Network
-  `AT+CCLK` : Real time clock management
+    | value | description |
+    | :----------: | ------- |
+    | on | *ping* module with `AT+QLTS` (or `AT+CCLK` for *SimCOM* module) command |
+    | **off** | *ping* module with standard `AT` command |
 
 ### Commands changes
 
@@ -130,28 +137,74 @@ I do not have acces to *SimCOM* module thus cannot fix this driver for now.
     ```
 
     Some of theese fields are constantly updated via `act` and `csq` notifications (see `AT+QINDCFG` command).
+
+    Additional channel vaiables are also defined:
+    
+    - `QUECTELNETWORKNAME`
+    - `QUECTELSHORTNETWORKNAME`
+    - `QUECTELPROVIDER`
+    - `QUECTELPLMN`
+    - `QUECTELMCC`
+    - `QUECTELMNC`
+
+    `PLMN` (*Public Land Mobile Network Code*) combines `MCC` (*Mobile Country Code*) and `MNC` (*Mobile Network Code*).
+
     `SMS Service Center` is now decoded from *UCS-2*.
 
-    Additional channel vaiables are also defined: `QUECTELNETWORKNAME`, `QUECTELSHORTNETWORKNAME`, `QUECTELPROVIDER`, `QUECTELPLMN`, `QUECTELMCC` and `QUECTELMNC`.[^1]
+* Additional fields ins `quectel show device settings` command.
 
-    [^1]: `PLMN` (*Public Land Mobile Network Code*) combines `MCC` (*Mobile Country Code*) and `MNC` (*Mobile Network Code*).
+    Displaying new configuration options:
+
+    ````
+        ------------- Settings ------------
+    Device                  : quectel0
+    Audio UAC               : hw:Android
+    Data                    : /dev/ttyUSB2
+    IMEI                    : 
+    IMSI                    : 
+    Channel Language        : en
+    Context                 : quectel-incoming
+    Exten                   : 
+    Group                   : 0
+    RX gain                 : -1
+    TX gain                 : -1
+    Use CallingPres         : Yes
+    Default CallingPres     : Presentation Allowed, Passed Screen
+    Disable SMS             : No
+    Message Service         : 1
+    Message Storage         : ME
+    Direct Message          : On
+    Auto delete SMS         : Yes
+    Reset Quectel           : No
+    Call Waiting            : auto
+    Multiparty Calls        : No
+    DTMF Detection          : No
+    Hold/Unhold Action      : Mute
+    Query Time              : Yes
+    Initial device state    : start
+    ````
 
 ## Internal changes
 
 * Hanging-up calls using `AT+QHUP` command with specific *release cause*.
 * Handling calls is based on `ccinfo` notifications (see `AT+QINDCFG="ccinfo"` command) instead of `DSCI` (`AT^DSCI` command) call status notifications.
+* Improved/extended *AT* commands response handler.
+
+    Changes required to properly handle `AT+CMGL` command response.
+    This command is now executed at initialization stage in order to receive unread messages.
+
 * Simplyfying audio handling (when `mutliparty` is off, see above) in UAC and TTY mode.
 
-    - Using less resources.
-    - Much simpler error handling.
-    - More debug messages.
-    - Reorganized, improved and simplified code.
+    * Using less resources.
+    * Much simpler error handling.
+    * More debug messages.
+    * Reorganized, improved and simplified code.
 
 * Using `CMake` build system. 
 
     Updated `Makefile` of *OpenWRT* package.
 
-* Improved debug messages in `at_read` and `at_write` functions (log level 5).
+* Improved debug messages.
 
     Non-printable characters are C escaped using `ast_escape_c` function. For example:
 
@@ -192,7 +245,7 @@ cmake .. -DASTERISK_VERSION_NUM=162000
 * *EC2x&EG9x Voice Over USB and UAC Application Note* (2019-02-18).
 * *EC2x&EG2x&EG9x&EM05 Series QCFG AT Commands Manual* (2022-05-30).
 * *UC20 AT Commands Manual* (2014-09-26).
-* *SIM7500_SIM7600 Series AT Command Manual* (v3.0, 2021-11-18).
+* *SIM7500 SIM7600 Series AT Command Manual* (v3.0, 2021-11-18).
 * *SIM7100 SIM7500 SIM7600 Series USB AUDIO Application Note* (v1.03, 2017-07-13).
 
 ### Resources
