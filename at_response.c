@@ -389,6 +389,14 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				ast_debug(1, "[%s] Message service channel configured\n", PVT_ID(pvt));
 				break;
 
+			case CMD_AT_QAUDLOOP:
+				ast_debug(1, "[%s] Audio loop configured\n", PVT_ID(pvt));
+				break;
+
+			case CMD_AT_QAUDMOD:
+				ast_debug(1, "[%s] Audio mode configured\n", PVT_ID(pvt));
+				break;
+
 			case CMD_USER:
 				break;
 
@@ -685,6 +693,14 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 
 			case CMD_AT_CSMS:
 				ast_log(LOG_WARNING, "[%s] Message service channel not configured\n", PVT_ID(pvt));
+				break;
+
+			case CMD_AT_QAUDLOOP:
+				ast_log(LOG_WARNING, "[%s] Audio loop not configured\n", PVT_ID(pvt));
+				break;
+
+			case CMD_AT_QAUDMOD:
+				ast_log(LOG_WARNING, "[%s] Audio mode not configured\n", PVT_ID(pvt));
 				break;
 
 			case CMD_USER:
@@ -2068,6 +2084,34 @@ static int at_response_csms(struct pvt*, const struct ast_str* const)
 	return 0;
 }
 
+static int at_response_qaudloop(struct pvt* pvt, const struct ast_str* const response)
+{
+	int aloop;
+	if (at_parse_qaudloop(ast_str_buffer(response), &aloop)) {
+		ast_log(LOG_ERROR, "[%s] Error parsing '%s'\n", PVT_ID(pvt), ast_str_buffer(response));
+		return -1;
+	}
+
+	ast_verb(1, "[%s] Audio loop is %s\n", PVT_ID(pvt), S_COR(aloop, "enabled", "disabled"));
+	return 0;
+}
+
+static int at_response_qaudmod(struct pvt* pvt, const struct ast_str* const response)
+{
+	static const char* const amodes[] = {
+		"handset", "headset", "speaker", "off", "bluetooth", "none"
+	};
+
+	int amode;
+	if (at_parse_qaudmod(ast_str_buffer(response), &amode)) {
+		ast_log(LOG_ERROR, "[%s] Error parsing '%s'\n", PVT_ID(pvt), ast_str_buffer(response));
+		return -1;
+	}
+
+	ast_verb(1, "[%s] Audio mode is %s\n", PVT_ID(pvt), enum2str_def((unsigned)amode, amodes, ITEMS_OF(amodes),"unknown"));
+	return 0;	
+}
+
 static int check_at_res(at_res_t at_res)
 {
 	switch (at_res)
@@ -2287,6 +2331,12 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 
 			case RES_CSMS:
 				return at_response_csms(pvt, result);
+
+			case RES_QAUDMOD:
+				return at_response_qaudmod(pvt, result);
+
+			case RES_QAUDLOOP:
+				return at_response_qaudloop(pvt, result);
 
 			case RES_PARSE_ERROR:
 				ast_log (LOG_ERROR, "[%s] Error parsing result\n", PVT_ID(pvt));

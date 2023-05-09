@@ -1162,3 +1162,25 @@ int at_parse_qrxgain(char* str, int* rxgain)
 	return sscanf(str, "+QRXGAIN:%d,", rxgain) == 1 ? 0 : -1;
 }
 
+int at_parse_qaudloop(const char* str, int* aloop)
+{
+	/*
+		Example:
+
+		+QAUDLOOP: 0
+	*/
+
+	return sscanf(str, "+QAUDLOOP:%d,", aloop) == 1 ? 0 : -1;
+}
+
+int at_parse_qaudmod(const char* str, int* amode)
+{
+	/*
+		Example:
+
+		+QAUDMOD: 3
+	*/
+
+	return sscanf(str, "+QAUDMOD:%d,", amode) == 1 ? 0 : -1;
+}
+

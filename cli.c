@@ -852,7 +852,121 @@ static char * cli_discovery(struct ast_cli_entry * e, int cmd, struct ast_cli_ar
 	return CLI_SUCCESS;
 }
 
+static char* cli_audio_loop(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
+{
+	static const char * const choices[] = { "on", "off", NULL };
+	int aloop = 0;
 
+	switch (cmd)
+	{
+		case CLI_INIT:
+			e->command = "quectel audio loop";
+			e->usage =
+				"Usage: quectel audio loop <device> [on|off]\n"
+				"       Query/disable/enable audio loop on <device>\n";
+			return NULL;
+
+		case CLI_GENERATE:
+			if (a->pos == 4)
+			{
+				return ast_cli_complete(a->word, (ast_cli_complete2_t)choices, a->n);
+			}
+			if (a->pos == 3)
+			{
+				return complete_device(a->word, a->n);
+			}
+			return NULL;
+	}
+
+	if (a->argc < 4) {
+		return CLI_SHOWUSAGE;
+	}	
+
+	if (a->argc == 4) { // query
+		int res = query_qaudloop(a->argv[3]);
+		ast_cli(a->fd, "[%s] %s\n", a->argv[3], res < 0 ? error2str(chan_quectel_err) : "Command queued for execute");
+		return CLI_SUCCESS;
+	}
+
+	// write
+	if (strcasecmp(choices[1], a->argv[4]) == 0)
+		aloop = 0;
+	else if (strcasecmp(choices[0], a->argv[4]) == 0)
+		aloop = 1;
+	else
+		return CLI_SHOWUSAGE;
+
+	int res = send_qaudloop(a->argv[3], aloop);
+	ast_cli(a->fd, "[%s] %s\n", a->argv[3], res < 0 ? error2str(chan_quectel_err) : "Command queued for execute");
+
+	return CLI_SUCCESS;
+}
+
+static char* cli_audio_mode(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
+{
+	static const char * const choices[] = {
+		"handset",
+		"headset",
+		"speaker",
+		"off",
+		"bluetooth",
+		"general",
+		NULL
+	};
+	int amode = -1;
+
+	switch (cmd)
+	{
+		case CLI_INIT:
+			e->command = "quectel audio mode";
+			e->usage =
+				"Usage: quectel audio loop <device> [off|general|handset|headset|speaker|bluetooth]\n"
+				"       Gets/sets audio mode on <device>\n";
+			return NULL;
+
+		case CLI_GENERATE:
+			if (a->pos == 4)
+			{
+				return ast_cli_complete(a->word, (ast_cli_complete2_t)choices, a->n);
+			}
+			if (a->pos == 3)
+			{
+				return complete_device(a->word, a->n);
+			}
+			return NULL;
+	}
+
+	if (a->argc < 4) {
+		return CLI_SHOWUSAGE;
+	}
+
+	if (a->argc == 4) { // query
+		int res = query_qaudmod(a->argv[3]);
+		ast_cli(a->fd, "[%s] %s\n", a->argv[3], res < 0 ? error2str(chan_quectel_err) : "Command queued for execute");		
+		return CLI_SUCCESS;
+	}
+
+	// write
+	if (strcasecmp(choices[0], a->argv[4]) == 0)
+		amode = 0;
+	else if (strcasecmp(choices[1], a->argv[4]) == 0)
+		amode = 1;
+	else if (strcasecmp(choices[2], a->argv[4]) == 0)
+		amode = 2;
+	else if (strcasecmp(choices[3], a->argv[4]) == 0)
+		amode = 3;
+	else if (strcasecmp(choices[4], a->argv[4]) == 0)
+		amode = 4;
+	else if (strcasecmp(choices[5], a->argv[4]) == 0)
+		amode = 5;
+	else
+		return CLI_SHOWUSAGE;
+
+	int res = send_qaudmod(a->argv[3], amode);
+	ast_cli(a->fd, "[%s] %s\n", a->argv[3], res < 0 ? error2str(chan_quectel_err) : "Command queued for execute");
+
+	return CLI_SUCCESS;
+}
 
 static struct ast_cli_entry cli[] = {
 	AST_CLI_DEFINE (cli_show_devices,	"Show Quectel devices state"),
@@ -873,6 +987,8 @@ static struct ast_cli_entry cli[] = {
 
 	AST_CLI_DEFINE (cli_start,		"Start quectel"),
 	AST_CLI_DEFINE (cli_discovery,		"Discovery devices and create config"),
+	AST_CLI_DEFINE (cli_audio_loop,		"Enable/disable audio loop test"),
+	AST_CLI_DEFINE (cli_audio_mode,		"Set audio mode"),
 };
 
 #/* */

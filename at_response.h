@@ -69,6 +69,8 @@ struct iovec;
 	_( QSPN,        "+QSPN",        "+QSPN:") \
 	_( QNWINFO,		"+QNWINFO",		"+QNWINFO:") \
 	_( QTONEDET,	"+QTONEDET",	"+QTONEDET:") \
+	_( QAUDLOOP,	"+QAUDLOOP",	"+QAUDLOOP:") \
+	_( QAUDMOD,		"+QAUDMOD",		"+QAUDMOD:") \
 	_( QPCMV,		"+QPCMV",		"+QPCMV:") \
 	_( QLTS,		"+QLTS",		"+QLTS:") \
 	_( CCLK,		"+CCLK",		"+CCLK:") \

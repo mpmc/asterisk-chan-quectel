@@ -97,6 +97,8 @@
 	_( AT_CRXVOL,		"AT+CRXVOL") \
 	_( AT_CNMA,			"AT+CNMA") \
 	_( AT_CSMS,			"AT+CSMS") \
+	_( AT_QAUDLOOP,		"AT+QAUDLOOP") \
+	_( AT_QAUDMOD,		"AT+QAUDMOD") \
 /* AT_COMMANDS_TABLE */
 
 typedef enum {
@@ -150,5 +152,9 @@ int at_enqueue_qgains(struct cpvt* cpvt, int txgain, int rxdgain);
 int at_enqueue_cgains(struct cpvt* cpvt, int txgain, int rxgain);
 int at_enqueue_msg_ack(struct cpvt* cpvt);
 int at_enqueue_msg_ack_n(struct cpvt* cpvt, int n);
+int at_enqueue_query_qaudloop(struct cpvt* cpvt);
+int at_enqueue_qaudloop(struct cpvt* cpvt, int aloop);
+int at_enqueue_query_qaudmod(struct cpvt* cpvt);
+int at_enqueue_qaudmod(struct cpvt* cpvt, int amode);
 
 #endif /* CHAN_QUECTEL_AT_SEND_H_INCLUDED */

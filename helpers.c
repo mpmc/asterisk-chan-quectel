@@ -174,6 +174,54 @@ int send_ccwa_set(const char *dev_name, call_waiting_t enable)
 }
 
 #/* */
+int query_qaudloop(const char *dev_name)
+{
+	struct pvt *pvt = get_pvt(dev_name, 1);
+	if (!pvt) {
+		return -1;
+	}
+	int res = at_enqueue_query_qaudloop(&pvt->sys_chan);
+	free_pvt(pvt);
+	return res;
+}
+
+#/* */
+int send_qaudloop(const char *dev_name, int aloop)
+{
+	struct pvt *pvt = get_pvt(dev_name, 1);
+	if (!pvt) {
+		return -1;
+	}
+	int res = at_enqueue_qaudloop(&pvt->sys_chan, aloop);
+	free_pvt(pvt);
+	return res;
+}
+
+#/* */
+int query_qaudmod(const char *dev_name)
+{
+	struct pvt *pvt = get_pvt(dev_name, 1);
+	if (!pvt) {
+		return -1;
+	}
+	int res = at_enqueue_query_qaudmod(&pvt->sys_chan);
+	free_pvt(pvt);
+	return res;
+}
+
+#/* */
+int send_qaudmod(const char *dev_name, int amod)
+{
+	struct pvt *pvt = get_pvt(dev_name, 1);
+	if (!pvt) {
+		return -1;
+	}
+	int res = at_enqueue_qaudmod(&pvt->sys_chan, amod);
+	free_pvt(pvt);
+	return res;
+}
+
+#/* */
 int send_at_command(const char *dev_name, const char *command)
 {
 	struct pvt *pvt = get_pvt(dev_name, 0);
