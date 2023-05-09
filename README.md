@@ -184,6 +184,17 @@ I do not have acces to *SimCOM* module thus cannot fix this driver for now.
     Initial device state    : start
     ````
 
+* New `quectel audio` commands:
+
+    Theese are just wrappers around few audio-related AT commands:
+
+    | command | *AT* command |
+    | :------ | ------------ |
+    | `quectel audio mode` | `AT+QAUDMOD` |
+    | `quectel audio gain tx` | `AT+QMIC` |
+    | `quectel audio gain rx` | `AT+QRXGAIN` |
+    | `quectel audio loop` | `AT+QAUDLOOP` |
+
 ## Internal changes
 
 * Hanging-up calls using `AT+QHUP` command with specific *release cause*.
