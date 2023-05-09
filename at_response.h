@@ -74,6 +74,7 @@ struct iovec;
 	_( QPCMV,		"+QPCMV",		"+QPCMV:") \
 	_( QLTS,		"+QLTS",		"+QLTS:") \
 	_( CCLK,		"+CCLK",		"+CCLK:") \
+	_( QMIC,		"+QMIC",		"+QMIC:") \
 	_( QRXGAIN, 	"+QRXGAIN",		"+QRXGAIN:") \
 
 /* AT_RESPONSES_TABLE */

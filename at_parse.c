@@ -1151,7 +1151,7 @@ int at_parse_cclk(char* str, char** ts)
 	return -1;
 }
 
-int at_parse_qrxgain(char* str, int* rxgain)
+int at_parse_qrxgain(const char* str, int* gain)
 {
 	/*
 		Example:
@@ -1159,7 +1159,18 @@ int at_parse_qrxgain(char* str, int* rxgain)
 		+QRXGAIN: 20577
 	*/
 
-	return sscanf(str, "+QRXGAIN:%d,", rxgain) == 1 ? 0 : -1;
+	return sscanf(str, "+QRXGAIN:%d,", gain) == 1 ? 0 : -1;
+}
+
+int at_parse_qmic(const char* str, int* gain, int* dgain)
+{
+	/*
+		Example:
+
+		+QMIC: 20577,16001
+	*/
+
+	return sscanf(str, "+QMIC:%d,%d", gain, dgain) == 2 ? 0 : -1;
 }
 
 int at_parse_qaudloop(const char* str, int* aloop)

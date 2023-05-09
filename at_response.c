@@ -2066,16 +2066,28 @@ static void at_response_cclk(struct pvt* pvt, char* str, size_t len)
 	ast_string_field_set(pvt, module_time, ts);
 }
 
-static void at_response_qrxgain(struct pvt* pvt, char* str, size_t len)
+static void at_response_qrxgain(struct pvt* pvt, const struct ast_str* const response)
 {
-	int rxgain;
+	int gain;
 
-	if (at_parse_qrxgain(str, &rxgain)) {
-		ast_log(LOG_ERROR, "[%s] Error parsing '%.*s'\n", PVT_ID(pvt), (int)len, str);
+	if (at_parse_qrxgain(ast_str_buffer(response), &gain)) {
+		ast_log(LOG_ERROR, "[%s] Error parsing '%s'\n", PVT_ID(pvt), ast_str_buffer(response));
 		return;
 	}
 
-	ast_verb(3, "[%s] RX Gain: %d\n", PVT_ID(pvt), rxgain);
+	ast_verb(1, "[%s] RX Gain: %d\n", PVT_ID(pvt), gain);
+}
+
+static void at_response_qmic(struct pvt* pvt, const struct ast_str* const response)
+{
+	int gain, dgain;
+
+	if (at_parse_qmic(ast_str_buffer(response), &gain, &dgain)) {
+		ast_log(LOG_ERROR, "[%s] Error parsing '%s'\n", PVT_ID(pvt), ast_str_buffer(response));
+		return;
+	}
+
+	ast_verb(1, "[%s] Microphone Gain: %d,%d\n", PVT_ID(pvt), gain, dgain);
 }
 
 static int at_response_csms(struct pvt*, const struct ast_str* const)
@@ -2326,7 +2338,11 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 				return 0;
 
 			case RES_QRXGAIN:
-				at_response_qrxgain(pvt, str, len);
+				at_response_qrxgain(pvt, result);
+				return 0;
+
+			case RES_QMIC:
+				at_response_qmic(pvt, result);
 				return 0;
 
 			case RES_CSMS:

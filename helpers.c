@@ -222,6 +222,54 @@ int send_qaudmod(const char *dev_name, int amod)
 }
 
 #/* */
+int query_qmic(const char* dev_name)
+{
+	struct pvt *pvt = get_pvt(dev_name, 1);
+	if (!pvt) {
+		return -1;
+	}
+	int res = at_enqueue_query_qmic(&pvt->sys_chan);
+	free_pvt(pvt);
+	return res;
+}
+
+#/* */
+int send_qmic(const char* dev_name, int gain)
+{
+	struct pvt *pvt = get_pvt(dev_name, 1);
+	if (!pvt) {
+		return -1;
+	}
+	int res = at_enqueue_qmic(&pvt->sys_chan, gain);
+	free_pvt(pvt);
+	return res;
+}
+
+#/* */
+int query_qrxgain(const char* dev_name)
+{
+	struct pvt *pvt = get_pvt(dev_name, 1);
+	if (!pvt) {
+		return -1;
+	}
+	int res = at_enqueue_query_qrxgain(&pvt->sys_chan);
+	free_pvt(pvt);
+	return res;
+}
+
+#/* */
+int send_qrxgain(const char* dev_name, int gain)
+{
+	struct pvt *pvt = get_pvt(dev_name, 1);
+	if (!pvt) {
+		return -1;
+	}
+	int res = at_enqueue_qrxgain(&pvt->sys_chan, gain);
+	free_pvt(pvt);
+	return res;
+}
+
+#/* */
 int send_at_command(const char *dev_name, const char *command)
 {
 	struct pvt *pvt = get_pvt(dev_name, 0);

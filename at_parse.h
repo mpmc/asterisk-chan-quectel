@@ -50,7 +50,8 @@ int at_parse_qtonedet(char* str, int* dtmf);
 int at_parse_qpcmv(char* str, int* enabled, int* mode);
 int at_parse_qlts(char* str, char** ts);
 int at_parse_cclk(char* str, char** ts);
-int at_parse_qrxgain(char* str, int* rxgain);
+int at_parse_qrxgain(const char* str, int* gain);
+int at_parse_qmic(const char* str, int* gain, int* dgain);
 int at_parse_qaudloop(const char*, int*);
 int at_parse_qaudmod(const char*, int*);
 

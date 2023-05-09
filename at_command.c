@@ -1335,3 +1335,66 @@ int at_enqueue_qaudmod(struct cpvt* cpvt, int amode)
 
 	return 0;
 }
+
+int at_enqueue_query_qmic(struct cpvt* cpvt)
+{
+	static const char cmd_qmic[] = "AT+QMIC?\r";
+	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_ST(CMD_AT_QMIC, cmd_qmic);
+
+	if (at_queue_insert_const(cpvt, &cmd, 1, 0) != 0) {
+		chan_quectel_err = E_QUEUE;
+		return -1;
+	}
+
+	return 0;	
+}
+
+int at_enqueue_qmic(struct cpvt* cpvt, int gain)
+{
+	at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_QMIC);
+
+	const int err = at_fill_generic_cmd(&cmd, "AT+QMIC=%d\r", gain);
+	if (err) {
+		chan_quectel_err = E_UNKNOWN;
+		return err;
+	}
+
+	if (at_queue_insert(cpvt, &cmd, 1, 0) != 0) {
+		chan_quectel_err = E_QUEUE;
+		return -1;
+	}
+
+	return 0;
+}
+
+
+int at_enqueue_query_qrxgain(struct cpvt* cpvt)
+{
+	static const char cmd_qrxgain[] = "AT+QRXGAIN?\r";
+	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_ST(CMD_AT_QRXGAIN, cmd_qrxgain);
+
+	if (at_queue_insert_const(cpvt, &cmd, 1, 0) != 0) {
+		chan_quectel_err = E_QUEUE;
+		return -1;
+	}
+
+	return 0;	
+}
+
+int at_enqueue_qrxgain(struct cpvt* cpvt, int gain)
+{
+	at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_QRXGAIN);
+
+	const int err = at_fill_generic_cmd(&cmd, "AT+QRXGAIN=%d\r", gain);
+	if (err) {
+		chan_quectel_err = E_UNKNOWN;
+		return err;
+	}
+
+	if (at_queue_insert(cpvt, &cmd, 1, 0) != 0) {
+		chan_quectel_err = E_QUEUE;
+		return -1;
+	}
+
+	return 0;
+}

@@ -156,5 +156,9 @@ int at_enqueue_query_qaudloop(struct cpvt* cpvt);
 int at_enqueue_qaudloop(struct cpvt* cpvt, int aloop);
 int at_enqueue_query_qaudmod(struct cpvt* cpvt);
 int at_enqueue_qaudmod(struct cpvt* cpvt, int amode);
+int at_enqueue_query_qmic(struct cpvt* cpvt);
+int at_enqueue_qmic(struct cpvt* cpvt, int gain);
+int at_enqueue_query_qrxgain(struct cpvt* cpvt);
+int at_enqueue_qrxgain(struct cpvt* cpvt, int gain);
 
 #endif /* CHAN_QUECTEL_AT_SEND_H_INCLUDED */

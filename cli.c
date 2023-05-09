@@ -968,6 +968,145 @@ static char* cli_audio_mode(struct ast_cli_entry* e, int cmd, struct ast_cli_arg
 	return CLI_SUCCESS;
 }
 
+static const char * const audio_gain_choices[] = {
+	"off", "mute",
+	"full",
+	"half",
+	"0%", "10%", "20%", "25%",
+	"30%", "40%", "50%", "60%",
+	"70%", "75%", "80%", "90%",
+	"100%",
+	NULL
+};
+
+static int str2gain(const char* s, int* gain)
+{
+	if (!s) return -1;
+
+	const size_t len = strlen(s);
+	if (!len) return -1;
+
+	if (!strcasecmp(s, "off") || !strcasecmp(s, "mute")) {
+		*gain = 0;
+		return 0;
+	}
+	else if (!strcasecmp(s, "half")) {
+		*gain = 32767;
+		return 0;
+	}
+	else if (!strcasecmp(s, "full")) {
+		*gain = 65535;
+		return 0;
+	}
+
+	if (s[len-1] == '%') {
+		char* const ss = ast_strndup(s, len-1);
+		const unsigned long p = strtoul(ss, NULL, 10);
+		if (errno == ERANGE) {
+			ast_free(ss);
+			return -1;
+		}
+		ast_free(ss);
+		*gain = (int)(65535.0f * p / 100.0f);
+		return 0;
+	}
+
+
+	*gain = (int)strtol(s, NULL, 10);
+	if (errno == ERANGE) return -1;
+	return 0;
+}
+
+static char* cli_audio_gain_tx(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
+{
+	switch (cmd)
+	{
+		case CLI_INIT:
+			e->command = "quectel audio gain tx";
+			e->usage =
+				"Usage: quectel audio gain tx <device> [level]\n"
+				"       Query/set microphone audio gain on <device>\n";
+			return NULL;
+
+		case CLI_GENERATE:
+			if (a->pos == 5)
+			{
+				return ast_cli_complete(a->word, (ast_cli_complete2_t)audio_gain_choices, a->n);
+			}
+			if (a->pos == 4)
+			{
+				return complete_device(a->word, a->n);
+			}
+			return NULL;
+	}
+
+	if (a->argc < 5) {
+		return CLI_SHOWUSAGE;
+	}	
+
+	if (a->argc == 5) { // query
+		int res = query_qmic(a->argv[4]);
+		ast_cli(a->fd, "[%s] %s\n", a->argv[4], res < 0 ? error2str(chan_quectel_err) : "Command queued for execute");
+		return CLI_SUCCESS;
+	}
+
+	// write
+	int gain;
+	if (str2gain(a->argv[5], &gain)) {
+		return CLI_SHOWUSAGE;
+	}
+
+	int res = send_qmic(a->argv[4], gain);
+	ast_cli(a->fd, "[%s] %s\n", a->argv[4], res < 0 ? error2str(chan_quectel_err) : "Command queued for execute");
+
+	return CLI_SUCCESS;
+}
+
+static char* cli_audio_gain_rx(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
+{
+	switch (cmd)
+	{
+		case CLI_INIT:
+			e->command = "quectel audio gain rx";
+			e->usage =
+				"Usage: quectel audio gain rx <device> [level]\n"
+				"       Query/set RX audio gain on <device>\n";
+			return NULL;
+
+		case CLI_GENERATE:
+			if (a->pos == 5)
+			{
+				return ast_cli_complete(a->word, (ast_cli_complete2_t)audio_gain_choices, a->n);
+			}
+			if (a->pos == 4)
+			{
+				return complete_device(a->word, a->n);
+			}
+			return NULL;
+	}
+
+	if (a->argc < 5) {
+		return CLI_SHOWUSAGE;
+	}	
+
+	if (a->argc == 5) { // query
+		int res = query_qrxgain(a->argv[4]);
+		ast_cli(a->fd, "[%s] %s\n", a->argv[4], res < 0 ? error2str(chan_quectel_err) : "Command queued for execute");
+		return CLI_SUCCESS;
+	}
+
+	// write
+	int gain;
+	if (str2gain(a->argv[5], &gain)) {
+		return CLI_SHOWUSAGE;
+	}
+
+	int res = send_qrxgain(a->argv[4], gain);
+	ast_cli(a->fd, "[%s] %s\n", a->argv[4], res < 0 ? error2str(chan_quectel_err) : "Command queued for execute");
+
+	return CLI_SUCCESS;
+}
+
 static struct ast_cli_entry cli[] = {
 	AST_CLI_DEFINE (cli_show_devices,	"Show Quectel devices state"),
 	AST_CLI_DEFINE (cli_show_device_settings,"Show Quectel device settings"),
@@ -989,6 +1128,8 @@ static struct ast_cli_entry cli[] = {
 	AST_CLI_DEFINE (cli_discovery,		"Discovery devices and create config"),
 	AST_CLI_DEFINE (cli_audio_loop,		"Enable/disable audio loop test"),
 	AST_CLI_DEFINE (cli_audio_mode,		"Set audio mode"),
+	AST_CLI_DEFINE (cli_audio_gain_rx,	"Set RX audio gain"),
+	AST_CLI_DEFINE (cli_audio_gain_tx,	"Set TX audio gain"),
 };
 
 #/* */
