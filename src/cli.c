@@ -57,7 +57,7 @@ static char* cli_show_devices (struct ast_cli_entry* e, int cmd, struct ast_cli_
 		case CLI_INIT:
 			e->command =	"quectel show devices";
 			e->usage   =	"Usage: quectel show devices\n"
-					"       Shows the state of Quectel devices.\n";
+					"       Shows the state of devices.\n";
 			return NULL;
 
 		case CLI_GENERATE:
@@ -103,7 +103,7 @@ static char* cli_show_device_settings (struct ast_cli_entry* e, int cmd, struct 
 		case CLI_INIT:
 			e->command =	"quectel show device settings";
 			e->usage   =	"Usage: quectel show device settings <device>\n"
-					"       Shows the settings of Quectel device.\n";
+					"       Shows the settings device.\n";
 			return NULL;
 
 		case CLI_GENERATE:
@@ -143,8 +143,8 @@ static char* cli_show_device_settings (struct ast_cli_entry* e, int cmd, struct 
 		ast_cli (a->fd, "  Message Service         : %d\n", CONF_SHARED(pvt, msg_service));
 		ast_cli (a->fd, "  Message Storage         : %s\n", dc_msgstor2str(CONF_SHARED(pvt, msg_storage)));
 		ast_cli (a->fd, "  Direct Message          : %s\n", dc_3stbool2str_capitalized(CONF_SHARED(pvt, msg_direct)));
-		ast_cli (a->fd, "  Auto delete SMS         : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, autodeletesms)));
-		ast_cli (a->fd, "  Reset Quectel           : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, resetquectel)));
+		ast_cli (a->fd, "  Auto Delete SMS         : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, autodeletesms)));
+		ast_cli (a->fd, "  Reset Modem             : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, resetquectel)));
 		ast_cli (a->fd, "  Call Waiting            : %s\n", dc_cw_setting2str(CONF_SHARED(pvt, callwaiting)));
 		ast_cli (a->fd, "  Multiparty Calls        : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, multiparty)));
 		ast_cli (a->fd, "  DTMF Detection          : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, dtmf)));
@@ -173,7 +173,7 @@ static char* cli_show_device_state (struct ast_cli_entry* e, int cmd, struct ast
 		case CLI_INIT:
 			e->command =	"quectel show device state";
 			e->usage   =	"Usage: quectel show device state <device>\n"
-					"       Shows the state of Quectel device.\n";
+					"       Shows the state of device.\n";
 			return NULL;
 
 		case CLI_GENERATE:
@@ -289,7 +289,7 @@ static char* cli_show_device_statistics (struct ast_cli_entry* e, int cmd, struc
 		case CLI_INIT:
 			e->command =	"quectel show device statistics";
 			e->usage   =	"Usage: quectel show device statistics <device>\n"
-					"       Shows the statistics of Quectel device.\n";
+					"       Shows the statistics of device.\n";
 			return NULL;
 
 		case CLI_GENERATE:
@@ -558,7 +558,7 @@ static char* cli_reset (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a
 			e->command = "quectel reset";
 			e->usage =
 				"Usage: quectel reset <device>\n"
-				"       Reset quectel <device>\n";
+				"       Reset <device>\n";
 			return NULL;
 
 		case CLI_GENERATE:
@@ -600,13 +600,13 @@ static char* cli_restart_event(struct ast_cli_entry* e, int cmd, struct ast_cli_
 		};
 	static const char * const usage[] = {
 		"Usage: quectel stop < now | gracefully | when convenient > <device>\n"
-		"       Stop quectel <device>\n",
+		"       Stop <device>\n",
 
 		"Usage: quectel restart < now | gracefully | when convenient > <device>\n"
-		"       Restart quectel <device>\n",
+		"       Restart <device>\n",
 
 		"Usage: quectel remove < now | gracefully | when convenient > <device>\n"
-		"       Remove quectel <device>\n",
+		"       Remove <device>\n",
 		};
 
 	const char * device = NULL;
@@ -696,7 +696,7 @@ static char* cli_start(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 		case CLI_INIT:
 			e->command =	"quectel start";
 			e->usage   =	"Usage: quectel start <device>\n"
-					"       Start quectel <device>\n";
+					"       Start <device>\n";
 			return NULL;
 
 		case CLI_GENERATE:
@@ -726,7 +726,7 @@ static char * cli_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 		case CLI_INIT:
 			e->command =	"quectel reload";
 			e->usage   =	"Usage: quectel reload < now | gracefully | when convenient >\n"
-					"       Reloads the chan_quectel configuration\n";
+					"       Reloads the configuration\n";
 			return NULL;
 
 		case CLI_GENERATE:
@@ -921,7 +921,7 @@ static char* cli_audio_mode(struct ast_cli_entry* e, int cmd, struct ast_cli_arg
 			e->command = "quectel audio mode";
 			e->usage =
 				"Usage: quectel audio loop <device> [off|general|handset|headset|speaker|bluetooth]\n"
-				"       Gets/sets audio mode on <device>\n";
+				"       Query/set audio mode on <device>\n";
 			return NULL;
 
 		case CLI_GENERATE:
@@ -1108,28 +1108,29 @@ static char* cli_audio_gain_rx(struct ast_cli_entry* e, int cmd, struct ast_cli_
 }
 
 static struct ast_cli_entry cli[] = {
-	AST_CLI_DEFINE (cli_show_devices,	"Show Quectel devices state"),
-	AST_CLI_DEFINE (cli_show_device_settings,"Show Quectel device settings"),
-	AST_CLI_DEFINE (cli_show_device_state,	 "Show Quectel device state"),
-	AST_CLI_DEFINE (cli_show_device_statistics,"Show Quectel device statistics"),
-	AST_CLI_DEFINE (cli_show_version,	"Show module version"),
-	AST_CLI_DEFINE (cli_cmd,		"Send commands to port for debugging"),
-	AST_CLI_DEFINE (cli_ussd,		"Send USSD commands to the quectel"),
-	AST_CLI_DEFINE (cli_sms,		"Send SMS from the quectel"),
-	AST_CLI_DEFINE (cli_ccwa_set,		"Enable/Disable Call-Waiting on the quectel"),
-	AST_CLI_DEFINE (cli_reset,		"Reset quectel now"),
+	AST_CLI_DEFINE (cli_show_devices,			"Show devices state"),
+	AST_CLI_DEFINE (cli_show_device_settings,	"Show device settings"),
+	AST_CLI_DEFINE (cli_show_device_state,	 	"Show device state"),
+	AST_CLI_DEFINE (cli_show_device_statistics,	"Show device statistics"),
+	AST_CLI_DEFINE (cli_show_version,			"Show module version"),
+	AST_CLI_DEFINE (cli_cmd,					"Send commands to port for debugging"),
+	AST_CLI_DEFINE (cli_ussd,					"Send USSD commands"),
+	AST_CLI_DEFINE (cli_sms,					"Send SMS"),
+	AST_CLI_DEFINE (cli_ccwa_set,				"Enable/Disable Call-Waiting"),
+	AST_CLI_DEFINE (cli_reset,					"Reset modem"),
 
-	AST_CLI_DEFINE (cli_stop,		"Stop quectel"),
-	AST_CLI_DEFINE (cli_restart,		"Restart quectel"),
-	AST_CLI_DEFINE (cli_remove,		"Remove quectel"),
-	AST_CLI_DEFINE (cli_reload,		"Reload quectel"),
+	AST_CLI_DEFINE (cli_stop,					"Stop channel"),
+	AST_CLI_DEFINE (cli_restart,				"Restart channel"),
+	AST_CLI_DEFINE (cli_remove,					"Remove channel"),
+	AST_CLI_DEFINE (cli_reload,					"Reload channel"),
 
-	AST_CLI_DEFINE (cli_start,		"Start quectel"),
-	AST_CLI_DEFINE (cli_discovery,		"Discovery devices and create config"),
-	AST_CLI_DEFINE (cli_audio_loop,		"Enable/disable audio loop test"),
-	AST_CLI_DEFINE (cli_audio_mode,		"Set audio mode"),
-	AST_CLI_DEFINE (cli_audio_gain_rx,	"Set RX audio gain"),
-	AST_CLI_DEFINE (cli_audio_gain_tx,	"Set TX audio gain"),
+	AST_CLI_DEFINE (cli_start,					"Start channel"),
+	AST_CLI_DEFINE (cli_discovery,				"Discovery devices and create config"),
+
+	AST_CLI_DEFINE (cli_audio_loop,				"Query/enable/disable audio loop test"),
+	AST_CLI_DEFINE (cli_audio_mode,				"Query/set audio mode"),
+	AST_CLI_DEFINE (cli_audio_gain_rx,			"Query/set RX audio gain"),
+	AST_CLI_DEFINE (cli_audio_gain_tx,			"Query/set TX audio gain"),
 };
 
 #/* */
