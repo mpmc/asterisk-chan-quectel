@@ -2,6 +2,8 @@
 
 See original [README](//github.com/IchthysMaranatha/asterisk-chan-quectel/blob/master/README.md) of this project.
 
+----
+
 This should work with *Quectel* modules such as EC20, EC21, EC25, EG9x ~~and *SimCOM* SIM7600~~ and possibly other models with *voice over USB* capability.
 Tested with the **EC25-E** mini-PCIe module ~~and Waveshare SIM7600G-H dongle~~.
 If the product page of your *Quectel* module contains the *Voice Over USB and UAC Application Note*, you should be good to go.
@@ -9,9 +11,9 @@ If the product page of your *Quectel* module contains the *Voice Over USB and UA
 *SimCOM* support is **probably broken**. If you are using *SimCOM* module I strongly recomended using [original](//github.com/IchthysMaranatha/asterisk-chan-quectel) driver.
 I do not have acces to *SimCOM* module thus cannot fix this driver for now.
 
-## Changes
+# Changes
 
-### Configuration changes
+## Configuration
 
 * `quectel_uac` option renamed to `uac` and it's a on/**off** switch now.
     
@@ -22,7 +24,7 @@ I do not have acces to *SimCOM* module thus cannot fix this driver for now.
     Ability to handle multiparty calls wastly complicates audio handling.
     Without multiparty calls audio handling is much simpler and uses less resources (CPU, memory, synchronization objects).
     I decided to turn off multiparty calls support by default.
-    You can enable it but remember that multiparty calls were never working on UAC mode and even in TTY (serial) mode this support should be considered as **unstable**.
+    You can enable it but remember that multiparty calls were never working in UAC mode and even in TTY (serial) mode this support should be considered as **unstable**.
     When `mutliparty` is *off* all multiparty calls are **activley rejected**.
 
 * `dtmf` option is a on/**off** switch now.
@@ -79,14 +81,16 @@ I do not have acces to *SimCOM* module thus cannot fix this driver for now.
     * New default value: **-1** - use current module setting, do not send *AT* commands at all.
     * Range: **0-65535**.
 
+    See also `quectel autio gain tx` and `quectel audio gain rx` commands below.
+
 * New `query_time` option (on/**off**).
 
     | value | description |
-    | :----------: | ------- |
+    | :---: | ----------- |
     | on | *ping* module with `AT+QLTS` (or `AT+CCLK` for *SimCOM* module) command |
     | **off** | *ping* module with standard `AT` command |
 
-### Commands changes
+## Commands
 
 * Additional fields in `show device status` command.
 
@@ -186,7 +190,7 @@ I do not have acces to *SimCOM* module thus cannot fix this driver for now.
 
 * New `quectel audio` commands:
 
-    Theese are just wrappers around few audio-related AT commands:
+    These are just wrappers around few audio-related *AT* commands:
 
     | command | *AT* command |
     | :------ | ------------ |
@@ -195,7 +199,7 @@ I do not have acces to *SimCOM* module thus cannot fix this driver for now.
     | `quectel audio gain rx` | `AT+QRXGAIN` |
     | `quectel audio loop` | `AT+QAUDLOOP` |
 
-## Internal changes
+## Internal
 
 * Hanging-up calls using `AT+QHUP` command with specific *release cause*.
 * Handling calls is based on `ccinfo` notifications (see `AT+QINDCFG="ccinfo"` command) instead of `DSCI` (`AT^DSCI` command) call status notifications.
@@ -228,9 +232,9 @@ I do not have acces to *SimCOM* module thus cannot fix this driver for now.
 
 * Many small optimizations.
 
-# Building:
+# Building
 
-As noted before *CMake* is now used as build system:
+As noted before [CMake](//cmake.org/) is now used as build system:
 
 
 ```
@@ -242,15 +246,15 @@ cmake --build build
 cmake --install build --prefix=<install location>
 ```
 
-You may specify Asterisk version by `ASTERISK_VERSION_NUM` command:
+You may specify *Asterisk* version by `ASTERISK_VERSION_NUM` variable:
 
 ```
 cmake .. -DASTERISK_VERSION_NUM=162000
 ```
 
-## Documentation
+# Documentation
 
-### Essential documents
+## Essential documents
 
 * *EC2x&EC9x&EG2x-G&EM05 Series AT Commands Manual* (2021-02-24).
 * *EC2x&EG9x Voice Over USB and UAC Application Note* (2019-02-18).
@@ -259,7 +263,7 @@ cmake .. -DASTERISK_VERSION_NUM=162000
 * *SIM7500 SIM7600 Series AT Command Manual* (v3.0, 2021-11-18).
 * *SIM7100 SIM7500 SIM7600 Series USB AUDIO Application Note* (v1.03, 2017-07-13).
 
-### Resources
+## Resources
 
 * [EC25 - Official downloads](//www.quectel.com/ProductDownload/EC25.html).
 * [EC25 - Documentation from Sixfab](//sixfab.com/product/quectel-ec25-mini-pcie-4g-lte-module/).
@@ -270,6 +274,7 @@ cmake .. -DASTERISK_VERSION_NUM=162000
 * [Waveshare - SIM7600CE-T/CE-CNSE 4G Modules](//www.waveshare.com/wiki/SIM7600CE-T_4G_HAT).
 * [Waveshare - SIM7600X 4G DONGLE](//www.waveshare.com/wiki/SIM7600CE-JT1S_4G_Dongle).
 
-### Other links
+## Other links
 
-* [Using EC20 module with asterisk and FreePBX to realize SMS forwarding and VoIP (Chinese)](//sparktour.me/2022/10/08/quectel-ec20-asterisk-freepbx-gsm-gateway/)
+* [Using EC20 module with asterisk and FreePBX to realize SMS forwarding and VoIP (Chinese)](//sparktour.me/2022/10/08/quectel-ec20-asterisk-freepbx-gsm-gateway/).
+* [Asterisk Chan_Dongle (Blogspot)](//chan-dongle.blogspot.com/).
