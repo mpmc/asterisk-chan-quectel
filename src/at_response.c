@@ -1314,8 +1314,6 @@ static int at_response_msg(struct pvt* pvt, const struct ast_str* const response
 {
 	static const size_t MAX_MSG_LEN = 4096;
 
-	const char* const resp_str = at_res2str(cmd);
-
 	char scts[64], dt[64];
 	int mr, st;
 	int res;
@@ -1457,6 +1455,9 @@ msg_done:
 			case RES_CMGL:
 			at_enqueue_delete_sms(&pvt->sys_chan, idx);
 			break;
+
+			default:
+			break;
 		}
 	}
 
@@ -1479,8 +1480,14 @@ msg_done_ack:
 				at_enqueue_msg_ack(&pvt->sys_chan);
 				// at_enqueue_msg_ack_n(&pvt->sys_chan, 1);
 				break;
+
+				default:
+				break;
 			}
 		}
+		break;
+
+		default:
 		break;
 	}
 
@@ -2386,6 +2393,9 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 					}
 				}
 				ast_debug (1, "[%s] Ignoring unknown result: '%.*s'\n", PVT_ID(pvt), (int) len, str);
+				break;
+			
+			case COMPATIBILITY_RES_START_AT_MINUSONE:
 				break;
 		}
 	}

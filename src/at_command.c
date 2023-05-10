@@ -267,7 +267,7 @@ int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_command)
 			}
 
 			if(st_cmds[in].cmd == CMD_AT_CSMS) {
-				if (!CONF_SHARED(pvt, msg_service) < 0) continue;
+				if (CONF_SHARED(pvt, msg_service) < 0) continue;
 
 				const int err = at_fill_generic_cmd(&dyn_cmd, "AT+CSMS=%d\r", CONF_SHARED(pvt, msg_service));
 				if (err) {

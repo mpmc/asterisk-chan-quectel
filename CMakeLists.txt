@@ -63,28 +63,6 @@ FIND_PACKAGE(ALSA REQUIRED)
 FIND_PACKAGE(SQLite3 REQUIRED)
 FIND_PACKAGE(Iconv REQUIRED)
 
-SET(SOURCES
-    at_command.h at_command.c
-    at_parse.h at_parse.c
-    at_queue.h at_queue.c
-    at_read.h at_read.c
-    at_response.h at_response.c
-    chan_quectel.h chan_quectel.c
-    channel.h channel.c
-    char_conv.h char_conv.c
-    cli.h cli.c
-    helpers.h helpers.c
-    memmem.h memmem.c
-    ringbuffer.h ringbuffer.c
-    cpvt.h cpvt.c
-    dc_config.h dc_config.c
-    pdu.h pdu.c
-    mixbuffer.h mixbuffer.c
-    pdiscovery.h pdiscovery.c
-    error.h error.c
-    smsdb.h smsdb.c
-)
-
 IF(ICONV_CONST)
     SET(ICONV_CONST_STR "const")
 ELSE()
@@ -99,39 +77,13 @@ ENDIF()
 
 CONFIGURE_FILE(config.h.in include/config.h)
 
-ADD_LIBRARY(asterisk-chan-quectel SHARED ${SOURCES})
-TARGET_COMPILE_FEATURES(asterisk-chan-quectel PUBLIC c_std_99)
-
-TARGET_INCLUDE_DIRECTORIES(asterisk-chan-quectel BEFORE PRIVATE ${CMAKE_BINARY_DIR}/include)
-
-TARGET_COMPILE_DEFINITIONS(asterisk-chan-quectel PRIVATE 
-    _GNU_SOURCE
-    AST_MODULE_SELF_SYM=__internal_chan_quectel_self
-    HAVE_CONFIG_H
-)
-
-TARGET_LINK_LIBRARIES(asterisk-chan-quectel PRIVATE
-    Threads::Threads
-    ALSA::ALSA
-    SQLite::SQLite3
-    Iconv::Iconv
-)
-
-SET_TARGET_PROPERTIES(asterisk-chan-quectel PROPERTIES
-    LIBRARY_OUTPUT_NAME ${AST_MODULE}
-    PREFIX ""
-    C_VISIBILITY_PRESET hidden
-    C_STANDARD 99
-    C_STANDARD_REQUIRED ON
-)
-
-TARGET_COMPILE_OPTIONS(asterisk-chan-quectel PRIVATE
-    $<$<AND:$<C_COMPILER_ID:GNU>,$<VERSION_GREATER_EQUAL:$<C_COMPILER_VERSION>,8>>:-ffile-prefix-map=${CMAKE_SOURCE_DIR}=. -ffile-prefix-map=${CMAKE_BINARY_DIR}=.>            
-)
-
 INCLUDE(GNUInstallDirs)
-INSTALL(TARGETS asterisk-chan-quectel DESTINATION ${CMAKE_INSTALL_LIBDIR}/asterisk/modules)
+
+ADD_SUBDIRECTORY(src)
+
+# install configuration file
 INSTALL(FILES quectel.conf DESTINATION ${CMAKE_INSTALL_FULL_SYSCONFDIR}/asterisk)
+
 
 
 
