@@ -299,6 +299,57 @@ int schedule_restart_event(dev_state_t event, restate_time_t when, const char *d
 	return 0;
 }
 
+static const int MAX_GAIN = 65535;
+static const float MAX_GAIN_F = 65535.0f;
+
+int str2gain(const char* s, int* gain)
+{
+	if (!s) return -1;
+
+	const size_t len = strlen(s);
+	if (!len) return -1;
+
+	if (!strcasecmp(s, "off") || !strcasecmp(s, "mute")) {
+		*gain = 0;
+		return 0;
+	}
+	else if (!strcasecmp(s, "half")) {
+		*gain = 32767;
+		return 0;
+	}
+	else if (!strcasecmp(s, "full")) {
+		*gain = 65535;
+		return 0;
+	}
+
+	if (s[len-1] == '%') {
+		char* const ss = ast_strndup(s, len-1);
+		const unsigned long p = strtoul(ss, NULL, 10);
+		if (errno == ERANGE || p > 100u) {
+			ast_free(ss);
+			return -1;
+		}
+		ast_free(ss);
+		*gain = (int)(MAX_GAIN_F * p / 100.0f);
+		return 0;
+	}
+
+
+	const int g = (int)strtol(s, NULL, 10);
+	if (errno == ERANGE || g < 0 || g > MAX_GAIN) {
+		return -1;
+	}
+	*gain = g;
+	return 0;
+}
+
+struct ast_str* const gain2str(int gain)
+{
+	struct ast_str* res = ast_str_create(5);
+	ast_str_set(&res, 5, "%.0f%%", gain * 100.0f / MAX_GAIN_F);
+	return res;
+}
+
 static size_t get_esc_str_buffer_size(size_t len)
 {
 	return (len * 2u) + 1u;
@@ -343,3 +394,4 @@ struct ast_str* escape_str(const struct ast_str* const str)
 
 	return ebuf;
 }
+

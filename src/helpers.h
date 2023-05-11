@@ -26,6 +26,8 @@ int send_qrxgain(const char* dev_name, int gain);
 int send_at_command(const char *dev_name, const char *command);
 int schedule_restart_event(dev_state_t event, restate_time_t when, const char *dev_name);
 int is_valid_phone_number(const char * number);
+int str2gain(const char*, int*);
+struct ast_str* const gain2str(int);
 
 struct ast_str* escape_nstr(const char*, size_t);
 struct ast_str* escape_str(const struct ast_str* const);

@@ -3,6 +3,7 @@
 */
 #include "dc_config.h"
 #include <asterisk/callerid.h>				/* ast_parse_caller_presentation() */
+#include "helpers.h"
 
 static struct ast_jb_conf jbconf_default =
 {
@@ -183,10 +184,14 @@ void dc_sconfig_fill(struct ast_config * cfg, const char * cat, struct dc_sconfi
 			config->group = (int) strtol (v->value, (char**) NULL, 10);		/* group is set to 0 if invalid */
 		}
 		else if (!strcasecmp (v->name, "rxgain")) {
-			config->rxgain = (int) strtol (v->value, (char**) NULL, 10);		/* rxgain is set to 0 if invalid */
+			if (str2gain(v->value, &config->rxgain)) {
+				config->rxgain = -1;
+			}
 		}
 		else if (!strcasecmp (v->name, "txgain")) {
-			config->txgain = (int) strtol (v->value, (char**) NULL, 10);		/* txgain is set to 0 if invalid */
+			if (str2gain(v->value, &config->txgain)) {
+				config->txgain = -1;
+			}
 		}
 		else if (!strcasecmp (v->name, "callingpres")) {
 			config->callingpres = ast_parse_caller_presentation (v->value);

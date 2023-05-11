@@ -1173,6 +1173,26 @@ int at_parse_qmic(const char* str, int* gain, int* dgain)
 	return sscanf(str, "+QMIC:%d,%d", gain, dgain) == 2 ? 0 : -1;
 }
 
+int at_parse_cxxvol(const char* str, int* gain)
+{
+	/*
+		Example:
+
+		+CTXVOL: 0x1234
+		+CRXVOL: 0x1234
+	*/
+
+	static const char CXXVOL[] = "+CXXVOL:";
+
+	const unsigned int g = (unsigned int)strtoul(str + STRLEN(CXXVOL), NULL, 0);
+	if (errno == ERANGE) {
+		return -1;
+	}
+
+	*gain = g;
+	return 0;
+}
+
 int at_parse_qaudloop(const char* str, int* aloop)
 {
 	/*

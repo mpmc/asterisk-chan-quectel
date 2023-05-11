@@ -52,6 +52,7 @@ int at_parse_qlts(char* str, char** ts);
 int at_parse_cclk(char* str, char** ts);
 int at_parse_qrxgain(const char* str, int* gain);
 int at_parse_qmic(const char* str, int* gain, int* dgain);
+int at_parse_cxxvol(const char*, int*);
 int at_parse_qaudloop(const char*, int*);
 int at_parse_qaudmod(const char*, int*);
 

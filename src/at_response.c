@@ -224,9 +224,11 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				pvt->has_voice = 1;
 				if (pvt->is_simcom) {
 					at_enqueue_cgains(&pvt->sys_chan, CONF_SHARED(pvt, txgain), CONF_SHARED(pvt, rxgain));
+					at_enqueue_query_cgains(&pvt->sys_chan);
 				}
 				else {
 					at_enqueue_qgains(&pvt->sys_chan, CONF_SHARED(pvt, txgain), CONF_SHARED(pvt, rxgain));
+					at_enqueue_query_qgains(&pvt->sys_chan);
 				}
 				break;
 
@@ -2082,7 +2084,9 @@ static void at_response_qrxgain(struct pvt* pvt, const struct ast_str* const res
 		return;
 	}
 
-	ast_verb(1, "[%s] RX Gain: %d\n", PVT_ID(pvt), gain);
+	struct ast_str* const sgain = gain2str(gain);
+	ast_verb(1, "[%s] RX Gain: %s [%d]\n", PVT_ID(pvt), ast_str_buffer(sgain), gain);
+	ast_free(sgain);
 }
 
 static void at_response_qmic(struct pvt* pvt, const struct ast_str* const response)
@@ -2094,7 +2098,37 @@ static void at_response_qmic(struct pvt* pvt, const struct ast_str* const respon
 		return;
 	}
 
-	ast_verb(1, "[%s] Microphone Gain: %d,%d\n", PVT_ID(pvt), gain, dgain);
+	struct ast_str* const sgain = gain2str(gain);
+	ast_verb(1, "[%s] Microphone Gain: %s [%d], %d\n", PVT_ID(pvt), ast_str_buffer(sgain), gain, dgain);
+	ast_free(sgain);
+}
+
+static void at_response_crxvol(struct pvt* pvt, const struct ast_str* const response)
+{
+	int gain;
+
+	if (at_parse_cxxvol(ast_str_buffer(response), &gain)) {
+		ast_log(LOG_ERROR, "[%s] Error parsing '%s'\n", PVT_ID(pvt), ast_str_buffer(response));
+		return;
+	}
+
+	struct ast_str* const sgain = gain2str(gain);
+	ast_verb(1, "[%s] RX Gain: %s [%d]\n", PVT_ID(pvt), ast_str_buffer(sgain), gain);
+	ast_free(sgain);
+}
+
+static void at_response_ctxvol(struct pvt* pvt, const struct ast_str* const response)
+{
+	int gain;
+
+	if (at_parse_cxxvol(ast_str_buffer(response), &gain)) {
+		ast_log(LOG_ERROR, "[%s] Error parsing '%s'\n", PVT_ID(pvt), ast_str_buffer(response));
+		return;
+	}
+
+	struct ast_str* const sgain = gain2str(gain);
+	ast_verb(1, "[%s] Microphone Gain: %s [%d]\n", PVT_ID(pvt), ast_str_buffer(sgain), gain);
+	ast_free(sgain);
 }
 
 static int at_response_csms(struct pvt*, const struct ast_str* const)
@@ -2350,6 +2384,14 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 
 			case RES_QMIC:
 				at_response_qmic(pvt, result);
+				return 0;
+
+			case RES_CTXVOL:
+				at_response_ctxvol(pvt, result);
+				return 0;
+
+			case RES_CRXVOL:
+				at_response_crxvol(pvt, result);
 				return 0;
 
 			case RES_CSMS:

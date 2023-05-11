@@ -76,6 +76,8 @@ struct iovec;
 	_( CCLK,		"+CCLK",		"+CCLK:") \
 	_( QMIC,		"+QMIC",		"+QMIC:") \
 	_( QRXGAIN, 	"+QRXGAIN",		"+QRXGAIN:") \
+	_( CTXVOL, 		"+CTXVOL",		"+CTXVOL:") \
+	_( CRXVOL, 		"+CRXVOL",		"+CRXVOL:") \
 
 /* AT_RESPONSES_TABLE */
 
@@ -88,7 +90,7 @@ typedef enum {
 
 	/* Hackish way to maintain MAX and MIN responses for compatibility */
 	RES_MIN = RES_PARSE_ERROR,
-	RES_MAX = RES_QRXGAIN,
+	RES_MAX = RES_CRXVOL,
 } at_res_t;
 
 /*! response description */

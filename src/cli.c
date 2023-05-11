@@ -979,44 +979,6 @@ static const char * const audio_gain_choices[] = {
 	NULL
 };
 
-static int str2gain(const char* s, int* gain)
-{
-	if (!s) return -1;
-
-	const size_t len = strlen(s);
-	if (!len) return -1;
-
-	if (!strcasecmp(s, "off") || !strcasecmp(s, "mute")) {
-		*gain = 0;
-		return 0;
-	}
-	else if (!strcasecmp(s, "half")) {
-		*gain = 32767;
-		return 0;
-	}
-	else if (!strcasecmp(s, "full")) {
-		*gain = 65535;
-		return 0;
-	}
-
-	if (s[len-1] == '%') {
-		char* const ss = ast_strndup(s, len-1);
-		const unsigned long p = strtoul(ss, NULL, 10);
-		if (errno == ERANGE) {
-			ast_free(ss);
-			return -1;
-		}
-		ast_free(ss);
-		*gain = (int)(65535.0f * p / 100.0f);
-		return 0;
-	}
-
-
-	*gain = (int)strtol(s, NULL, 10);
-	if (errno == ERANGE) return -1;
-	return 0;
-}
-
 static char* cli_audio_gain_tx(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
 	switch (cmd)
