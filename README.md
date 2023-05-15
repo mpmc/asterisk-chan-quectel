@@ -215,9 +215,9 @@ I do not have acces to *SimCOM* module thus cannot fix this driver for now.
     * More debug messages.
     * Reorganized, improved and simplified code.
 
-* Using `CMake` build system. 
+* Using `CMake` build system.
 
-    Updated `Makefile` of *OpenWRT* package.
+    See [Building](#building) section below.
 
 * Improved debug messages.
 
@@ -239,17 +239,30 @@ As noted before [CMake](//cmake.org/) is now used as build system:
 
 ```
 mkdir build
-cd build
-cmake ..
-cd ..
+cmake -B build
 cmake --build build
-cmake --install build --prefix=<install location>
+DESTDIR=$(pwd)/install cmake --install build
 ```
 
-You may specify *Asterisk* version by `ASTERISK_VERSION_NUM` variable:
+You may specify *Asterisk* version via `ASTERISK_VERSION_NUM` variable:
 
 ```
 cmake .. -DASTERISK_VERSION_NUM=162000
+```
+
+## Generating Makefile for *OpenWRT* package
+
+In order to generate `Makefile` for *OpenWRT* package one must install `openwrt` component:
+
+
+```
+DESTDIR=$(pwd)/install cmake --install build --component openwrt
+```
+
+## Building *Debian* package (*experimental*)
+
+```
+cmake --build build --target package
 ```
 
 # Documentation

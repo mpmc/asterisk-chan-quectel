@@ -77,4 +77,15 @@ TARGET_COMPILE_OPTIONS(asterisk-chan-quectel PRIVATE
     $<$<AND:$<C_COMPILER_ID:GNU>,$<VERSION_GREATER_EQUAL:$<C_COMPILER_VERSION>,4>>:-Wall>
 )
 
-INSTALL(TARGETS asterisk-chan-quectel DESTINATION ${CMAKE_INSTALL_LIBDIR}/asterisk/modules)
+INSTALL(
+    TARGETS asterisk-chan-quectel
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/asterisk/modules
+    COMPONENT chan-quectel
+)
+
+# install configuration file
+INSTALL(
+    FILES ${CMAKE_SOURCE_DIR}/quectel.conf
+    DESTINATION ${CMAKE_INSTALL_FULL_SYSCONFDIR}/asterisk
+    COMPONENT chan-quectel
+)
