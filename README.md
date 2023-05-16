@@ -241,7 +241,15 @@ As noted before [CMake](//cmake.org/) is now used as a build system:
 mkdir build
 cmake -B build
 cmake --build build
-DESTDIR=$(pwd)/install cmake --install build
+DESTDIR=$(pwd)/install/chan-quectel cmake --install build
+```
+
+or using helper scripts
+
+```
+./make-build-dir.cmake
+./build-chan-quectel.cmake
+./install-chan-quectel.cmake
 ```
 
 You may specify *Asterisk* version via `ASTERISK_VERSION_NUM` variable:
@@ -259,10 +267,24 @@ In order to generate `Makefile` for *OpenWRT* package one must install `openwrt`
 DESTDIR=$(pwd)/install cmake --install build --component openwrt
 ```
 
+or using helper script:
+
+```
+./install-openwrt-makefile.cmake
+```
+
 ## Building *Debian* package (*experimental*)
+
+*Debian* package may be created by *CPack* DEB generator:
 
 ```
 cmake --build build --target package
+```
+
+or using helper script:
+
+```
+./make-package.cmake
 ```
 
 # Documentation
