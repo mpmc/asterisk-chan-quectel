@@ -63,13 +63,13 @@ I do not have acces to *SimCOM* module thus cannot fix this driver for now.
     | 0 | SMS AT commands are compatible with *GSM phase 2* |
     | 1 | SMS AT commands are compatible with *GSM phase 2+* |
 
-* New `moh` option (**on**/ott).
+* New `moh` option (**on**/off).
 
     Specify hold/unhold action:
 
     | value  | description |
     | :----: | ----------- |
-    | **on** | play/stop MOH (previous default action) |
+    | **on** | play/stop MOH |
     | off    | disable/enable uplink voice using `AT+CMUT` command |
 
 * `txgain` and `rxgain` options reimplented.
@@ -78,8 +78,8 @@ I do not have acces to *SimCOM* module thus cannot fix this driver for now.
         
         This channel driver just sends `AT+QMIC`/`AT+QRXGAIN` (`AT+CTXVOL`/`AT+CRXVOL` for *SimCOM* module) commands.
 
-    * New default value: **-1** - use current module setting, do not send *AT* commands at all.
-    * Range: **0-65535**.
+    * Default value is **-1** now - use current module setting, do not change gain.
+    * Range: **0-65535** or **0-100%**.
 
     See also `quectel autio gain tx` and `quectel audio gain rx` commands below.
 
@@ -234,7 +234,7 @@ I do not have acces to *SimCOM* module thus cannot fix this driver for now.
 
 # Building
 
-As noted before [CMake](//cmake.org/) is now used as build system:
+As noted before [CMake](//cmake.org/) is now used as a build system:
 
 
 ```
@@ -247,7 +247,7 @@ DESTDIR=$(pwd)/install cmake --install build
 You may specify *Asterisk* version via `ASTERISK_VERSION_NUM` variable:
 
 ```
-cmake .. -DASTERISK_VERSION_NUM=162000
+cmake -B build -DASTERISK_VERSION_NUM=162000
 ```
 
 ## Generating Makefile for *OpenWRT* package
@@ -267,27 +267,27 @@ cmake --build build --target package
 
 # Documentation
 
-## Essential documents
+## Manuals and application notes
 
-* *EC2x&EC9x&EG2x-G&EM05 Series AT Commands Manual* (2021-02-24).
-* *EC2x&EG9x Voice Over USB and UAC Application Note* (2019-02-18).
-* *EC2x&EG2x&EG9x&EM05 Series QCFG AT Commands Manual* (2022-05-30).
-* *UC20 AT Commands Manual* (2014-09-26).
-* *SIM7500 SIM7600 Series AT Command Manual* (v3.0, 2021-11-18).
-* *SIM7100 SIM7500 SIM7600 Series USB AUDIO Application Note* (v1.03, 2017-07-13).
+* EC2x&EC9x&EG2x-G&EM05 Series AT Commands Manual (2021-02-24).
+* EC2x&EG9x Voice Over USB and UAC Application Note (2019-02-18).
+* EC2x&EG2x&EG9x&EM05 Series QCFG AT Commands Manual (2022-05-30).
+* UC20 AT Commands Manual (2014-09-26).
+* SIM7500 SIM7600 Series AT Command Manual (v3.0, 2021-11-18).
+* SIM7100 SIM7500 SIM7600 Series USB AUDIO Application Note (v1.03, 2017-07-13).
 
 ## Resources
 
 * [EC25 - Official downloads](//www.quectel.com/ProductDownload/EC25.html).
-* [EC25 - Documentation from Sixfab](//sixfab.com/product/quectel-ec25-mini-pcie-4g-lte-module/).
-* [EC25 - Documentation from Olimex](//github.com/OLIMEX/USB-gLINK/tree/master/DOCUMENTS).
-* [Waveshare - SIM7600E-H_4G_HAT](//www.waveshare.com/wiki/SIM7600E-H_4G_HAT).
-* [Waveshare - SIM7600G-H 4G HAT (B)](//www.waveshare.com/wiki/SIM7600G-H_4G_HAT_(B)).
-* [Waveshare - SIM7600G-H 4G DTU](//www.waveshare.com/wiki/SIM7600G-H_4G_DTU).
-* [Waveshare - SIM7600CE-T/CE-CNSE 4G Modules](//www.waveshare.com/wiki/SIM7600CE-T_4G_HAT).
-* [Waveshare - SIM7600X 4G DONGLE](//www.waveshare.com/wiki/SIM7600CE-JT1S_4G_Dongle).
+* [EC25 - Documentation from *Sixfab*](//sixfab.com/product/quectel-ec25-mini-pcie-4g-lte-module/).
+* [EC25 - Documentation from *Olimex*](//github.com/OLIMEX/USB-gLINK/tree/master/DOCUMENTS).
+* [*Waveshare* - SIM7600E-H 4G HAT](//www.waveshare.com/wiki/SIM7600E-H_4G_HAT).
+* [*Waveshare* - SIM7600G-H 4G HAT (B)](//www.waveshare.com/wiki/SIM7600G-H_4G_HAT_(B)).
+* [*Waveshare* - SIM7600G-H 4G DTU](//www.waveshare.com/wiki/SIM7600G-H_4G_DTU).
+* [*Waveshare* - SIM7600CE-T/CE-CNSE 4G Modules](//www.waveshare.com/wiki/SIM7600CE-T_4G_HAT).
+* [*Waveshare* - SIM7600X 4G DONGLE](//www.waveshare.com/wiki/SIM7600CE-JT1S_4G_Dongle).
 
 ## Other links
 
-* [Using EC20 module with asterisk and FreePBX to realize SMS forwarding and VoIP (Chinese)](//sparktour.me/2022/10/08/quectel-ec20-asterisk-freepbx-gsm-gateway/).
+* [Using EC20 module with *Asterisk* and *FreePBX* to realize SMS forwarding and VoIP (Chinese)](//sparktour.me/2022/10/08/quectel-ec20-asterisk-freepbx-gsm-gateway/).
 * [Asterisk Chan_Dongle (Blogspot)](//chan-dongle.blogspot.com/).
