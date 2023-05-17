@@ -4,11 +4,11 @@
 
 INSTALL(
   FILES diffconfig build-opk.sh
-  DESTINATION /openwrt
+  DESTINATION openwrt
   COMPONENT openwrt EXCLUDE_FROM_ALL
 )
 
-SET(OPENWRT_FEED /openwrt/feed/net/${PROJECT_NAME})
+SET(OPENWRT_FEED openwrt/feed/net/${PROJECT_NAME})
 
 IF(OPENWRT_PACKAGE_STANDALONE)
   INSTALL(

@@ -1,0 +1,102 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 22,
+    "patch": 1
+  },
+  "configurePresets": [
+    {
+      "name": "default",
+      "condition": {"type": "equals","lhs": "${hostSystemName}","rhs": "Linux"},
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_VISIBILITY_INLINES_HIDDEN": {
+            "type": "BOOL",
+            "value": true
+        },
+        "CMAKE_C_VISIBILITY_PRESET": {
+            "type": "STRING",
+            "value": "hidden"
+        },
+        "CMAKE_C_STANDARD": {
+            "type": "STRING",
+            "value": "99"
+        },
+        "CMAKE_C_STANDARD_REQUIRED": {
+            "type": "BOOL",
+            "value": true
+        },
+        "CMAKE_INSTALL_PREFIX": {
+            "type": "PATH",
+            "value": "/usr"
+        },
+        "CMAKE_INSTALL_DEFAULT_COMPONENT_NAME": {
+            "type": "STRING",
+            "value": "chan-quectel"
+        },
+        "CPACK_INSTALL_DEFAULT_DIRECTORY_PERMISSIONS": {
+          "type": "STRING",
+          "value": "OWNER_READ;OWNER_WRITE;OWNER_EXECUTE;GROUP_READ;GROUP_EXECUTE;WORLD_READ;WORLD_EXECUTE"
+        },
+        "CPACK_PACKAGE_VENDOR": {
+            "type": "STRING",
+            "value": "Undefined"
+        },
+        "CPACK_SET_DESTDIR": {
+            "type": "BOOL",
+            "value": true
+        },
+        "CPACK_RESOURCE_FILE_LICENSE": {
+            "type": "FILEPATH",
+            "value": "${sourceDir}/LICENSE.txt"
+        },
+        "CPACK_PACKAGE_CONTACT": {
+            "type": "STRING",
+            "value": "roed@onet.eu"
+        },
+        "CPACK_DEBIAN_PACKAGE_SHLIBDEPS": {
+            "type": "BOOL",
+            "value": true
+        },
+        "CPACK_PACKAGE_CHECKSUM": {
+            "type": "STRING",
+            "value": "SHA256"
+        },
+        "CPACK_STRIP_FILES": {
+            "type": "BOOL",
+            "value": true
+        },
+        "CPACK_THREADS": {
+            "type": "STRING",
+            "value": "0"
+        },
+        "CPACK_PACKAGE_DIRECTORY": {
+            "type": "PATH",
+            "value": "${sourceDir}/package"
+        },
+        "THREADS_PREFER_PTHREAD_FLAG": {
+            "type": "BOOL",
+            "value": true
+        }
+      },
+      "environment": {
+        "CMAKE_INSTALL_MODE": "COPY"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "default",
+      "configurePreset": "default",
+      "jobs": 0
+    },
+    {
+      "name": "package",
+      "configurePreset": "default",
+      "jobs": 0,
+      "cleanFirst": true,
+      "targets": "package"
+    }    
+  ]
+}
