@@ -167,7 +167,6 @@ int at_read_result_iov(
 	static const char M_CMGR[] =		"+CMGR:";
 	static const char M_CNUM[] =		"+CNUM:";
 	static const char M_ERROR_CNUM[] =	"ERROR+CNUM:";
-	static const char M_CLCC[] =		"+CLCC:";
 	static const char M_CMGL[] =		"+CMGL:";
 	static const char M_EOL[] =			"\r\n";
 	static const char M_SMS_PROMPT[] =	"> ";
@@ -225,7 +224,7 @@ int at_read_result_iov(
 				*read_result = 0;
 				return rb_read_n_iov(rb, iov, STRLEN(M_SMS_PROMPT));
 			}
-			else if (rb_memcmp(rb, M_CMGR, STRLEN(M_CMGR)) == 0 || rb_memcmp(rb, M_CNUM, STRLEN(M_CNUM)) == 0 || rb_memcmp(rb, M_ERROR_CNUM, STRLEN(M_ERROR_CNUM)) == 0 || rb_memcmp(rb, M_CLCC, STRLEN(M_CLCC)) == 0) {
+			else if (rb_memcmp(rb, M_CMGR, STRLEN(M_CMGR)) == 0 || rb_memcmp(rb, M_CNUM, STRLEN(M_CNUM)) == 0 || rb_memcmp(rb, M_ERROR_CNUM, STRLEN(M_ERROR_CNUM)) == 0) {
 				const int iovcnt = rb_read_until_mem_iov(rb, iov, T_OK, STRLEN(T_OK));
 				if (iovcnt) {
 					*skip += 4;

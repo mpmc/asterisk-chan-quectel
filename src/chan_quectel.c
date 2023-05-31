@@ -72,12 +72,39 @@ ASTERISK_FILE_VERSION(__FILE__, "$Rev: " PACKAGE_REVISION " $")
 #include "error.h"
 #include "errno.h"
 
-const char * const dev_state_strs[4] = { "stop", "restart", "remove", "start" };
+static const char* const dev_state_strs[4] = { "stop", "restart", "remove", "start" };
+
 public_state_t * gpublic;
 #if ASTERISK_VERSION_NUM >= 100000 && ASTERISK_VERSION_NUM < 130000 /* 10-13 */
 struct ast_format chan_quectel_format;
 struct ast_format_cap * chan_quectel_format_cap;
 #endif /* ^10-13 */
+
+const char* dev_state2str(dev_state_t state)
+{
+	return enum2str(state, dev_state_strs, ITEMS_OF(dev_state_strs));
+}
+
+dev_state_t str2dev_state(const char* str)
+{
+	if (!str) {
+		return DEV_STATE_STOPPED;
+	}
+	
+	const int res = str2enum(str, dev_state_strs, ITEMS_OF(dev_state_strs));
+	if (res < 0) {
+		return DEV_STATE_STOPPED;
+	}
+	else {
+		return (dev_state_t)res;
+	}
+}
+
+const char* dev_state2str_msg(dev_state_t state)
+{
+	static const char * const states[] = { "Stop scheduled", "Restart scheduled", "Removal scheduled", "Start scheduled" };
+	return enum2str(state, states, ITEMS_OF(states));
+}
 
 static snd_pcm_t *alsa_card_init(struct pvt* pvt, const char *dev, snd_pcm_stream_t stream)
 {
@@ -254,16 +281,20 @@ static int public_state_init(struct public_state * state);
  * \return 0 if device seems ok, non-0 if it seems not available
  */
 
-static int port_status (int fd)
+static int port_status(int fd, int* err)
 {
 	struct termios t;
 
-	if (fd < 0)
-	{
+	if (fd < 0) {
+		if (err) *err = EINVAL;
 		return -1;
 	}
 
-	return tcgetattr (fd, &t);
+	const int res = tcgetattr(fd, &t);
+	if (res) {
+		if (err) *err = errno;
+	}
+	return res;
 }
 
 #/* return length of lockname */
@@ -337,7 +368,7 @@ int lock_try(const char * devname, char ** lockname)
 			{
 				if(len == getpid() && assigned > 1)
 				{
-					if(port_status(fd2) == 0)
+					if(port_status(fd2, NULL) == 0)
 						pid = len;
 				}
 				else
@@ -448,6 +479,21 @@ static int pcm_close(snd_pcm_t** ad, snd_pcm_stream_t stream_type)
 	return res;
 }
 
+static int reopen_audio_port(struct pvt* pvt)
+{
+	closetty(pvt->audio_fd, &pvt->alock);
+	pvt->audio_fd = opentty(PVT_STATE(pvt, audio_tty), &pvt->alock, pvt->is_simcom);
+
+	if (!PVT_NO_CHANS(pvt)) {
+		struct cpvt* cpvt;
+		AST_LIST_TRAVERSE(&(pvt->chans), cpvt, entry) {
+			ast_channel_set_fd(cpvt->channel, 0, pvt->audio_fd);
+		}
+	}
+
+	return (pvt->audio_fd > 0);
+}
+
 #/* phone monitor thread pvt cleanup */
 static void disconnect_quectel(struct pvt* pvt)
 {
@@ -462,6 +508,10 @@ static void disconnect_quectel(struct pvt* pvt)
 
 	if (CONF_UNIQ(pvt, uac)) {
 		at_disable_uac_immediately(pvt);
+	}
+
+	if (pvt->is_simcom && pvt->has_voice) {
+		at_cpcmreg_immediately(pvt, 0);
 	}
 
 	at_queue_run_immediately(pvt);
@@ -604,7 +654,7 @@ static void* do_monitor_phone(void* data)
 	clean_read_data(dev, fd, &rb);
 
 	/* schedule quectel initilization  */
-	if (at_enqueue_initialization(&pvt->sys_chan, CMD_AT)) {
+	if (at_enqueue_initialization(&pvt->sys_chan)) {
 		ast_log(LOG_ERROR, "[%s] Error adding initialization commands to queue\n", dev);
 		goto e_cleanup;
 	}
@@ -620,15 +670,21 @@ static void* do_monitor_phone(void* data)
 		ast_mutex_lock(&pvt->lock);
 
 		handle_expired_reports(pvt);
-		if (port_status(pvt->data_fd)) {
-			ast_log(LOG_ERROR, "[%s] Lost connection to Quectel\n", dev);
+		int err;
+		if (port_status(pvt->data_fd, &err)) {
+			ast_log(LOG_ERROR, "[%s][DATA] Lost connection: %d\n", dev, err);
 			goto e_cleanup;
 		}
 
 		if (!CONF_UNIQ(pvt, uac)) {
-			if (port_status(pvt->audio_fd)) {
-				ast_log(LOG_ERROR, "[%s] Lost connection to Quectel\n", dev);
-				goto e_cleanup;
+			if (port_status(pvt->audio_fd, &err)) {
+				if (reopen_audio_port(pvt)) {
+					ast_log(LOG_WARNING, "[%s][AUDIO] Lost connection: %d\n", dev, err);
+				}
+				else {
+					ast_log(LOG_ERROR, "[%s][AUDIO] Lost connection: %d\n", dev, err);
+					goto e_cleanup;
+				}
 			}
 		}
 
@@ -1003,6 +1059,8 @@ static void discovery_stop(public_state_t * state)
 #/* */
 void pvt_on_create_1st_channel(struct pvt* pvt)
 {
+	memset(pvt->a_silence_buf, 0, sizeof(pvt->a_silence_buf));
+
 	if (CONF_SHARED(pvt, multiparty)) {
 		if (CONF_UNIQ(pvt, uac)) {
 			ast_log(LOG_ERROR, "[%s] Multiparty mode not supported in UAC mode\n", PVT_ID(pvt));
@@ -1804,6 +1862,30 @@ static void devices_destroy(public_state_t * state)
 	AST_RWLIST_UNLOCK(&state->devices);
 }
 
+const struct ast_format* pvt_get_audio_format(const struct pvt* const pvt)
+{
+	if (pvt->is_simcom) {
+		return CONF_UNIQ(pvt, slin16)? ast_format_slin16 : ast_format_slin;
+	}
+	else {
+		return ast_format_slin;
+	}
+}
+
+size_t pvt_get_audio_frame_size(const struct pvt* const pvt)
+{
+	if (pvt->is_simcom) {
+		return CONF_UNIQ(pvt, slin16)? FRAME_SIZE * 2 : FRAME_SIZE;
+	}
+	else {
+		return FRAME_SIZE;
+	}
+}
+
+void* pvt_get_silence_buffer(struct pvt* const pvt)
+{
+	return pvt->a_silence_buf;
+}
 
 static int load_module()
 {
@@ -1840,13 +1922,13 @@ static int public_state_init(struct public_state * state)
 		rv = AST_MODULE_LOAD_FAILURE;
 		if(discovery_restart(state) == 0)
 		{
-
 			/* set preferred capabilities */
 #if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
 			if (!(channel_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 				return AST_MODULE_LOAD_FAILURE;
 			}
 			ast_format_cap_append(channel_tech.capabilities, ast_format_slin, 0);
+			ast_format_cap_append(channel_tech.capabilities, ast_format_slin16, 0);
 #elif ASTERISK_VERSION_NUM >= 100000 /* 10-13 */
 			ast_format_set(&chan_quectel_format, AST_FORMAT_SLINEAR, 0);
 # if ASTERISK_VERSION_NUM >= 120000 /* 12+ */

@@ -128,6 +128,7 @@ static char* cli_show_device_settings (struct ast_cli_entry* e, int cmd, struct 
 		ast_cli (a->fd, "  Audio UAC               : %s\n", CONF_UNIQ(pvt, alsadev));
 		else
 		ast_cli (a->fd, "  Audio                   : %s\n", CONF_UNIQ(pvt, audio_tty));
+		ast_cli (a->fd, "  Audio format            : %s\n", CONF_UNIQ(pvt, slin16)? "slin16" : "slin");
 		ast_cli (a->fd, "  Data                    : %s\n", CONF_UNIQ(pvt, data_tty));
 		ast_cli (a->fd, "  IMEI                    : %s\n", CONF_UNIQ(pvt, imei));
 		ast_cli (a->fd, "  IMSI                    : %s\n", CONF_UNIQ(pvt, imsi));
@@ -1007,7 +1008,7 @@ static char* cli_audio_gain_tx(struct ast_cli_entry* e, int cmd, struct ast_cli_
 	}	
 
 	if (a->argc == 5) { // query
-		int res = query_qmic(a->argv[4]);
+		int res = query_micgain(a->argv[4]);
 		ast_cli(a->fd, "[%s] %s\n", a->argv[4], res < 0 ? error2str(chan_quectel_err) : "Command queued for execute");
 		return CLI_SUCCESS;
 	}
@@ -1018,7 +1019,7 @@ static char* cli_audio_gain_tx(struct ast_cli_entry* e, int cmd, struct ast_cli_
 		return CLI_SHOWUSAGE;
 	}
 
-	int res = send_qmic(a->argv[4], gain);
+	int res = send_micgain(a->argv[4], gain);
 	ast_cli(a->fd, "[%s] %s\n", a->argv[4], res < 0 ? error2str(chan_quectel_err) : "Command queued for execute");
 
 	return CLI_SUCCESS;
@@ -1052,7 +1053,7 @@ static char* cli_audio_gain_rx(struct ast_cli_entry* e, int cmd, struct ast_cli_
 	}	
 
 	if (a->argc == 5) { // query
-		int res = query_qrxgain(a->argv[4]);
+		int res = query_rxgain(a->argv[4]);
 		ast_cli(a->fd, "[%s] %s\n", a->argv[4], res < 0 ? error2str(chan_quectel_err) : "Command queued for execute");
 		return CLI_SUCCESS;
 	}
@@ -1063,7 +1064,7 @@ static char* cli_audio_gain_rx(struct ast_cli_entry* e, int cmd, struct ast_cli_
 		return CLI_SHOWUSAGE;
 	}
 
-	int res = send_qrxgain(a->argv[4], gain);
+	int res = send_rxgain(a->argv[4], gain);
 	ast_cli(a->fd, "[%s] %s\n", a->argv[4], res < 0 ? error2str(chan_quectel_err) : "Command queued for execute");
 
 	return CLI_SUCCESS;

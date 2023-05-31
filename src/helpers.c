@@ -218,53 +218,92 @@ int send_qaudmod(const char *dev_name, int amod)
 	}
 	int res = at_enqueue_qaudmod(&pvt->sys_chan, amod);
 	free_pvt(pvt);
+	
+	
 	return res;
 }
 
+static const int MAX_GAIN = 65535;
+static const float MAX_GAIN_F = 65535.0f;
+
+static const int MAX_GAIN_SIMCOM = 8;
+static const float MAX_GAIN_SIMCOM_F = 8.0f;
+
+static int to_simcom_gain(int gain)
+{
+	return gain * MAX_GAIN_SIMCOM / MAX_GAIN;
+}
+
 #/* */
-int query_qmic(const char* dev_name)
+int query_micgain(const char* dev_name)
 {
 	struct pvt *pvt = get_pvt(dev_name, 1);
 	if (!pvt) {
 		return -1;
 	}
-	int res = at_enqueue_query_qmic(&pvt->sys_chan);
+	int res;
+	if (pvt->is_simcom) {
+		res = at_enqueue_query_cmicgain(&pvt->sys_chan);
+	}
+	else {
+		res = at_enqueue_query_qmic(&pvt->sys_chan);
+	}
 	free_pvt(pvt);
 	return res;
 }
 
 #/* */
-int send_qmic(const char* dev_name, int gain)
+int send_micgain(const char* dev_name, int gain)
 {
 	struct pvt *pvt = get_pvt(dev_name, 1);
 	if (!pvt) {
 		return -1;
 	}
-	int res = at_enqueue_qmic(&pvt->sys_chan, gain);
+	int res;
+	if (pvt->is_simcom) {
+		res = at_enqueue_cmicgain(&pvt->sys_chan, to_simcom_gain(gain));
+	}
+	else {
+		res = at_enqueue_qmic(&pvt->sys_chan, gain);
+	}
 	free_pvt(pvt);
 	return res;
 }
 
 #/* */
-int query_qrxgain(const char* dev_name)
+int query_rxgain(const char* dev_name)
 {
 	struct pvt *pvt = get_pvt(dev_name, 1);
 	if (!pvt) {
 		return -1;
 	}
-	int res = at_enqueue_query_qrxgain(&pvt->sys_chan);
+
+	int res;
+	if (pvt->is_simcom) {
+		res = at_enqueue_query_coutgain(&pvt->sys_chan);
+	}
+	else {
+		res = at_enqueue_query_qrxgain(&pvt->sys_chan);
+	}
 	free_pvt(pvt);
 	return res;
 }
 
 #/* */
-int send_qrxgain(const char* dev_name, int gain)
+int send_rxgain(const char* dev_name, int gain)
 {
 	struct pvt *pvt = get_pvt(dev_name, 1);
 	if (!pvt) {
 		return -1;
 	}
-	int res = at_enqueue_qrxgain(&pvt->sys_chan, gain);
+
+	int res;
+	if (pvt->is_simcom) {
+		res = at_enqueue_coutgain(&pvt->sys_chan, to_simcom_gain(gain));
+	}
+	else {
+		res = at_enqueue_qrxgain(&pvt->sys_chan, gain);
+	}
 	free_pvt(pvt);
 	return res;
 }
@@ -298,9 +337,6 @@ int schedule_restart_event(dev_state_t event, restate_time_t when, const char *d
 
 	return 0;
 }
-
-static const int MAX_GAIN = 65535;
-static const float MAX_GAIN_F = 65535.0f;
 
 int str2gain(const char* s, int* gain)
 {
@@ -347,6 +383,54 @@ struct ast_str* const gain2str(int gain)
 {
 	struct ast_str* res = ast_str_create(5);
 	ast_str_set(&res, 5, "%.0f%%", gain * 100.0f / MAX_GAIN_F);
+	return res;
+}
+
+int str2gain_simcom(const char* s, int* gain)
+{
+	if (!s) return -1;
+
+	const size_t len = strlen(s);
+	if (!len) return -1;
+
+	if (!strcasecmp(s, "off") || !strcasecmp(s, "mute")) {
+		*gain = 0;
+		return 0;
+	}
+	else if (!strcasecmp(s, "half")) {
+		*gain = 4;
+		return 0;
+	}
+	else if (!strcasecmp(s, "full")) {
+		*gain = 8;
+		return 0;
+	}
+
+	if (s[len-1] == '%') {
+		char* const ss = ast_strndup(s, len-1);
+		const unsigned long p = strtoul(ss, NULL, 10);
+		if (errno == ERANGE || p > 100u) {
+			ast_free(ss);
+			return -1;
+		}
+		ast_free(ss);
+		*gain = (int)(MAX_GAIN_SIMCOM_F * p / 100.0f);
+		return 0;
+	}
+
+
+	const int g = (int)strtol(s, NULL, 10);
+	if (errno == ERANGE || g < 0 || g > MAX_GAIN_SIMCOM) {
+		return -1;
+	}
+	*gain = g;
+	return 0;
+}
+
+struct ast_str* const gain2str_simcom(int gain)
+{
+	struct ast_str* res = ast_str_create(5);
+	ast_str_set(&res, 5, "%.0f%%", gain * 100.0f / MAX_GAIN_SIMCOM_F);
 	return res;
 }
 

@@ -37,9 +37,6 @@
 #define ESTRPIPE EPIPE
 #endif
 
-
-static char silence_frame[FRAME_SIZE];
-
 #/* */
 static int parse_dial_string(char * dialstr, const char** number, int * opts)
 {
@@ -145,21 +142,47 @@ static struct ast_channel * channel_request(
 	int opts = CALL_FLAG_NONE;
 	int exists;
 
-	if (!data)
-	{
+	if (!data) {
 		ast_log (LOG_WARNING, "Channel requested with no data\n");
 		*cause = AST_CAUSE_INCOMPATIBLE_DESTINATION;
 		return NULL;
 	}
 
-#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
-	if (ast_format_cap_iscompatible_format(cap, ast_format_slin) != AST_FORMAT_CMP_EQUAL)
-	{
-		struct ast_str *codec_buf = ast_str_alloca(64);
-		ast_log(LOG_WARNING, "Asked to get a channel of unsupported format '%s'\n",
-				ast_format_cap_get_names(cap, &codec_buf));
-		*cause = AST_CAUSE_FACILITY_NOT_IMPLEMENTED;
+	dest_dev = ast_strdupa(data);
+
+	*cause = parse_dial_string(dest_dev, &dest_num, &opts);
+	if(*cause) {
 		return NULL;
+	}
+
+#if ASTERISK_VERSION_NUM >= 10800
+	pvt = find_device_by_resource(dest_dev, opts, requestor, &exists);
+#else /* 1.8- */
+	pvt = find_device_by_resource(dest_dev, opts, NULL, &exists);
+#endif /* ^1.8- */
+
+#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
+	if (pvt) {
+		const struct ast_format* const fmt = pvt_get_audio_format(pvt);
+		if (ast_format_cap_iscompatible_format(cap, fmt) != AST_FORMAT_CMP_EQUAL)
+		{
+			struct ast_str *codec_buf = ast_str_alloca(64);
+			ast_log(LOG_WARNING, "Asked to get a channel of unsupported format '%s'\n",
+					ast_format_cap_get_names(cap, &codec_buf));
+			*cause = AST_CAUSE_FACILITY_NOT_IMPLEMENTED;
+			ast_mutex_unlock(&pvt->lock);
+			return NULL;
+		}
+	}
+	else {
+		if (ast_format_cap_iscompatible_format(cap, ast_format_slin) != AST_FORMAT_CMP_EQUAL && ast_format_cap_iscompatible_format(cap, ast_format_slin16) != AST_FORMAT_CMP_EQUAL)
+		{
+			struct ast_str *codec_buf = ast_str_alloca(64);
+			ast_log(LOG_WARNING, "Asked to get a channel of unsupported format '%s'\n",
+					ast_format_cap_get_names(cap, &codec_buf));
+			*cause = AST_CAUSE_FACILITY_NOT_IMPLEMENTED;
+			return NULL;
+		}
 	}
 #elif ASTERISK_VERSION_NUM >= 100000 /* 10-13 */
 	if (!ast_format_cap_iscompatible(cap, &chan_quectel_format))
@@ -168,13 +191,14 @@ static struct ast_channel * channel_request(
 		ast_log(LOG_WARNING, "Asked to get a channel of unsupported format '%s'\n",
 				ast_getformatname_multiple(buf, 255, cap));
 		*cause = AST_CAUSE_FACILITY_NOT_IMPLEMENTED;
+		if (pvt) ast_mutex_unlock(&pvt->lock);
 		return NULL;
 	}
 #else /* 10- */
 	oldformat = format;
 	format &= AST_FORMAT_SLINEAR;
-	if (!format)
-	{
+
+	if (!format) {
 #if ASTERISK_VERSION_NUM >= 10800 /* 1.8+ */
 		ast_log(LOG_WARNING, "Asked to get a channel of unsupported format '%s'\n",
 				ast_getformatname(oldformat));
@@ -183,24 +207,12 @@ static struct ast_channel * channel_request(
 				oldformat);
 #endif /* ^1.8- */
 		*cause = AST_CAUSE_FACILITY_NOT_IMPLEMENTED;
+		if (pvt) ast_mutex_unlock(&pvt->lock);
 		return NULL;
 	}
 #endif /* ^10- */
 
-	dest_dev = ast_strdupa (data);
-
-	*cause = parse_dial_string(dest_dev, &dest_num, &opts);
-	if(*cause)
-		return NULL;
-
-#if ASTERISK_VERSION_NUM >= 10800
-	pvt = find_device_by_resource(dest_dev, opts, requestor, &exists);
-#else /* 1.8- */
-	pvt = find_device_by_resource(dest_dev, opts, NULL, &exists);
-#endif /* ^1.8- */
-
-	if(pvt)
-	{
+	if(pvt) {
 #if ASTERISK_VERSION_NUM >= 120000 /* 12+ */
 		channel = new_channel(pvt, AST_STATE_DOWN, NULL, pvt_get_pseudo_call_idx(pvt),
 				CALL_DIR_OUTGOING, CALL_STATE_INIT, NULL, assignedids, requestor);
@@ -213,11 +225,9 @@ static struct ast_channel * channel_request(
 		{
 			ast_log (LOG_WARNING, "Unable to allocate channel structure\n");
 			*cause = AST_CAUSE_REQUESTED_CHAN_UNAVAIL;
-
 		}
 	}
-	else
-	{
+	else {
 		ast_log (LOG_WARNING, "[%s] Request to call on device %s\n", dest_dev, exists ? "which can not make call at this moment" : "not exists");
 		*cause = AST_CAUSE_REQUESTED_CHAN_UNAVAIL;
 	}
@@ -494,7 +504,7 @@ static ssize_t iov_write(struct pvt* pvt, int fd, const struct iovec* const iov,
 	if (w < 0) {
 		const int err = errno;
 		if (err == EINTR || err == EAGAIN) {
-			ast_debug(1, "[%s][TTY] Write error: %d\n", PVT_ID(pvt), err);
+			ast_debug(3, "[%s][TTY] Write error: %d\n", PVT_ID(pvt), err);
 		}
 		else {
 			ast_log(LOG_WARNING, "[%s][TTY] Write error: %d\n", PVT_ID(pvt), err);
@@ -519,7 +529,7 @@ static inline void change_audio_endianness_to_le(
 }
 
 #/* */
-static void timing_write_tty(struct pvt* pvt)
+static void timing_write_tty(struct pvt* pvt, size_t frame_size)
 {
 	size_t			used;
 	int			iovcnt;
@@ -540,11 +550,11 @@ static void timing_write_tty(struct pvt* pvt)
 		used = mixb_used (&pvt->a_write_mixb);
 //		used = rb_used (&cpvt->a_write_rb);
 
-		if (used >= FRAME_SIZE)
+		if (used >= frame_size)
 		{
-			iovcnt = mixb_read_n_iov (&pvt->a_write_mixb, iov, FRAME_SIZE);
-			mixb_read_n_iov (&pvt->a_write_mixb, iov, FRAME_SIZE);
-			mixb_read_upd (&pvt->a_write_mixb, FRAME_SIZE);
+			iovcnt = mixb_read_n_iov (&pvt->a_write_mixb, iov, frame_size);
+			mixb_read_n_iov (&pvt->a_write_mixb, iov, frame_size);
+			mixb_read_upd (&pvt->a_write_mixb, frame_size);
 			change_audio_endianness_to_le(iov, iovcnt);
 		}
 		else if (used > 0)
@@ -556,8 +566,8 @@ static void timing_write_tty(struct pvt* pvt)
 			mixb_read_all_iov (&pvt->a_write_mixb, iov);
 			mixb_read_upd (&pvt->a_write_mixb, used);
 
-			iov[iovcnt].iov_base	= silence_frame;
-			iov[iovcnt].iov_len	= FRAME_SIZE - used;
+			iov[iovcnt].iov_base	= pvt_get_silence_buffer(pvt);
+			iov[iovcnt].iov_len	= frame_size - used;
 			iovcnt++;
 			change_audio_endianness_to_le(iov, iovcnt);
 		}
@@ -566,8 +576,8 @@ static void timing_write_tty(struct pvt* pvt)
 			PVT_STAT(pvt, write_sframes) ++;
 			msg = "[%s] write silence\n";
 
-			iov[0].iov_base		= silence_frame;
-			iov[0].iov_len		= FRAME_SIZE;
+			iov[0].iov_base		= pvt_get_silence_buffer(pvt);
+			iov[0].iov_len		= frame_size;
 			iovcnt			= 1;
 			// no need to change_audio_endianness_to_le for zeroes
 //			continue;
@@ -605,7 +615,7 @@ static void write_conference(struct pvt* pvt, const char* const buffer, size_t l
 
 }
 
-static struct ast_frame* prepare_voice_frame(struct cpvt* const cpvt, void* const buf, int samples)
+static struct ast_frame* prepare_voice_frame(struct cpvt* const cpvt, void* const buf, int samples, const struct ast_format* const fmt)
 {
 	struct ast_frame* const f = &cpvt->a_read_frame;
 
@@ -613,7 +623,7 @@ static struct ast_frame* prepare_voice_frame(struct cpvt* const cpvt, void* cons
 
 	f->frametype = AST_FRAME_VOICE;
 #if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
-	f->subclass.format = ast_format_slin;
+	f->subclass.format = (struct ast_format*)fmt;
 #elif ASTERISK_VERSION_NUM >= 100000 /* 10-13 */
 	ast_format_copy(&f->subclass.format, &chan_quectel_format);
 #else /* 10- */
@@ -628,14 +638,14 @@ static struct ast_frame* prepare_voice_frame(struct cpvt* const cpvt, void* cons
 	return f;
 }
 
-static struct ast_frame* channel_read_tty(struct cpvt* cpvt, struct pvt* pvt)
+static struct ast_frame* channel_read_tty(struct cpvt* cpvt, struct pvt* pvt, size_t frame_size, const struct ast_format* const fmt)
 {
 	char* const buf = cpvt->a_read_buf + AST_FRIENDLY_OFFSET;
 	const int fd = CPVT_IS_MASTER(cpvt) ? pvt->audio_fd : cpvt->rd_pipe[PIPE_READ];
 
 	if (fd < 0) return NULL;
 
-	const int res = read(fd, buf, FRAME_SIZE);
+	const int res = read(fd, buf, frame_size);
 	if (res <= 0) {
 		if (errno && errno != EAGAIN && errno != EINTR) {
 			ast_debug(1, "[%s][TTY] Read error: %d\n", PVT_ID(pvt), errno);
@@ -652,15 +662,15 @@ static struct ast_frame* channel_read_tty(struct cpvt* cpvt, struct pvt* pvt)
 
 		PVT_STAT(pvt, a_read_bytes) += res;
 		PVT_STAT(pvt, read_frames) ++;
-		if(res < FRAME_SIZE) PVT_STAT(pvt, read_sframes) ++;
+		if(res < frame_size) PVT_STAT(pvt, read_sframes) ++;
 	}
 
-	struct ast_frame* const f = prepare_voice_frame(cpvt, buf, res / 2);
+	struct ast_frame* const f = prepare_voice_frame(cpvt, buf, res / 2, fmt);
 	ast_frame_byteswap_le(f);
 	return f;
 }
 
-static struct ast_frame* channel_read_uac(struct cpvt* cpvt, struct pvt* pvt)
+static struct ast_frame* channel_read_uac(struct cpvt* cpvt, struct pvt* pvt, size_t frame_size2, const struct ast_format* const fmt)
 {
 	int res;
 	const snd_pcm_state_t state = snd_pcm_state(pvt->icard);
@@ -686,7 +696,7 @@ static struct ast_frame* channel_read_uac(struct cpvt* cpvt, struct pvt* pvt)
 	}
 
 	char* const buf = cpvt->a_read_buf + AST_FRIENDLY_OFFSET;
-	res = snd_pcm_readi(pvt->icard, buf, FRAME_SIZE2);
+	res = snd_pcm_readi(pvt->icard, buf, frame_size2);
 	switch (res) {
 		case -EAGAIN:
 			ast_log(LOG_WARNING, "[%s][ALSA][CAPTURE] Error - try again later\n", PVT_ID(pvt));
@@ -703,14 +713,14 @@ static struct ast_frame* channel_read_uac(struct cpvt* cpvt, struct pvt* pvt)
 
 					PVT_STAT(pvt, a_read_bytes) += res * sizeof(short);
 					PVT_STAT(pvt, read_frames) ++;
-					if (res < FRAME_SIZE2) PVT_STAT(pvt, read_sframes) ++;
+					if (res < frame_size2) PVT_STAT(pvt, read_sframes) ++;
 				}
 
-				if (res < FRAME_SIZE2) {
-					ast_log(LOG_WARNING, "[%s][ALSA][CAPTURE] Short frame: %d/%d\n", PVT_ID(pvt), res, FRAME_SIZE2);
+				if (res < frame_size2) {
+					ast_log(LOG_WARNING, "[%s][ALSA][CAPTURE] Short frame: %d/%d\n", PVT_ID(pvt), res, (int)frame_size2);
 				}
 
-				return prepare_voice_frame(cpvt, buf, res);
+				return prepare_voice_frame(cpvt, buf, res, fmt);
 			}
 			else if (res < 0) {
 				ast_log(LOG_ERROR, "[%s][ALSA][CAPTURE] Read error: %s\n", PVT_ID(pvt), snd_strerror(res));
@@ -735,14 +745,13 @@ static struct ast_frame* channel_read_uac(struct cpvt* cpvt, struct pvt* pvt)
 static struct ast_frame* channel_read(struct ast_channel* channel)
 {
 	struct cpvt* cpvt = ast_channel_tech_pvt(channel);
-	struct pvt* pvt = NULL;
 	struct ast_frame* f = NULL;
 
 	if (!cpvt || cpvt->channel != channel || !cpvt->pvt) {
 		return &ast_null_frame;
 	}
 
-	pvt = cpvt->pvt;
+	struct pvt* const pvt = cpvt->pvt;
 	while (ast_mutex_trylock(&pvt->lock)) {
 		CHANNEL_DEADLOCK_AVOIDANCE (channel);
 	}
@@ -755,6 +764,8 @@ static struct ast_frame* channel_read(struct ast_channel* channel)
 	}
 
 	const int fdno = ast_channel_fdno(channel);
+	const size_t frame_size = pvt_get_audio_frame_size(pvt);
+	const struct ast_format* const fmt = pvt_get_audio_format(pvt);
 
 	if (fdno == 1) {
 		ast_timer_ack(pvt->a_timer, 1);
@@ -764,18 +775,18 @@ static struct ast_frame* channel_read(struct ast_channel* channel)
 				ast_log(LOG_WARNING, "[%s] Multiparty calls not supported in UAC mode\n", PVT_ID(pvt));
 			}
 			else {
-				timing_write_tty(pvt);
+				timing_write_tty(pvt, frame_size);
 			}
 			ast_debug(7, "[%s] *** timing ***\n", PVT_ID(pvt));
 		}
 		goto m_unlock;
 	}
-	
+
 	if (CONF_UNIQ(pvt, uac) && CPVT_IS_MASTER(cpvt)) {
-		f = channel_read_uac(cpvt, pvt);
+		f = channel_read_uac(cpvt, pvt, frame_size/2, fmt);
     }
 	else {
-		f = channel_read_tty(cpvt, pvt);
+		f = channel_read_tty(cpvt, pvt, frame_size, fmt);
     }
 
 	m_unlock:
@@ -784,7 +795,7 @@ static struct ast_frame* channel_read(struct ast_channel* channel)
 	return (f == NULL || f->frametype == AST_FRAME_NULL)? &ast_null_frame : f;
 }
 
-static int channel_write_tty(struct ast_channel* channel, struct ast_frame* f, struct cpvt* cpvt, struct pvt* pvt)
+static int channel_write_tty(struct ast_channel* channel, struct ast_frame* f, struct cpvt* cpvt, struct pvt* pvt, size_t frame_size)
 {
 	if(CPVT_TEST_FLAG(cpvt, CALL_FLAG_MULTIPARTY) && !CPVT_TEST_FLAG(cpvt, CALL_FLAG_BRIDGE_CHECK)) {
 #if ASTERISK_VERSION_NUM >= 120000 /* 12+ */
@@ -851,19 +862,19 @@ static int channel_write_tty(struct ast_channel* channel, struct ast_frame* f, s
 
 		ast_frame_byteswap_le(f);
 		iov[0].iov_base = f->data.ptr;
-		iov[0].iov_len = FRAME_SIZE;
+		iov[0].iov_len = frame_size;
 
-		if (f->datalen < FRAME_SIZE) {
-			ast_log(LOG_WARNING, "[%s][TTY] Short voice frame: %d/%d\n", PVT_ID(pvt), f->datalen, FRAME_SIZE);
+		if (f->datalen < frame_size) {
+			ast_log(LOG_WARNING, "[%s][TTY] Short voice frame: %d/%d\n", PVT_ID(pvt), f->datalen, (int)frame_size);
 			iov[0].iov_len = f->datalen;
-			iov[1].iov_base = silence_frame;
-			iov[1].iov_len = FRAME_SIZE - f->datalen;
+			iov[1].iov_base = pvt_get_silence_buffer(pvt);
+			iov[1].iov_len = frame_size - f->datalen;
 			iovcnt = 2;
 			PVT_STAT(pvt, write_tframes) ++;
 		}
 		else {
-			if (f->datalen != FRAME_SIZE) {
-				ast_log(LOG_WARNING, "[%s][TTY] Big voice frame: %d/%d\n", PVT_ID(pvt), f->datalen, FRAME_SIZE);
+			if (f->datalen != frame_size) {
+				ast_log(LOG_WARNING, "[%s][TTY] Big voice frame: %d/%d\n", PVT_ID(pvt), f->datalen, (int)frame_size);
 			}
 			iovcnt = 1;
 		}
@@ -946,22 +957,7 @@ static int channel_write(struct ast_channel* channel, struct ast_frame* f)
 	struct pvt* pvt = NULL;
 	int res = -1;
 
-#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
-	if (f->frametype != AST_FRAME_VOICE
-			|| ast_format_cmp(f->subclass.format, ast_format_slin) != AST_FORMAT_CMP_EQUAL)
-#elif ASTERISK_VERSION_NUM >= 100000 /* 10-13 */
-	if (f->frametype != AST_FRAME_VOICE
-			|| f->subclass.format.id != AST_FORMAT_SLINEAR)
-#else /* 10- */
-	if (f->frametype != AST_FRAME_VOICE
-			|| f->subclass_codec != AST_FORMAT_SLINEAR)
-#endif /* ^10- */
-	{
-		return 0;
-	}
-
 	if (!cpvt || cpvt->channel != channel || !cpvt->pvt) {
-		ast_log(LOG_WARNING, "call on unreferenced %s\n", ast_channel_name(channel));
 		return 0;
 	}
 
@@ -974,6 +970,24 @@ static int channel_write(struct ast_channel* channel, struct ast_frame* f)
 
 	pvt = cpvt->pvt;
 
+	const struct ast_format* const fmt = pvt_get_audio_format(pvt);
+	const size_t frame_size = pvt_get_audio_frame_size(pvt);
+
+#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
+	if (!pvt || f->frametype != AST_FRAME_VOICE
+			|| ast_format_cmp(f->subclass.format, fmt) != AST_FORMAT_CMP_EQUAL)
+#elif ASTERISK_VERSION_NUM >= 100000 /* 10-13 */
+	if (f->frametype != AST_FRAME_VOICE
+			|| f->subclass.format.id != AST_FORMAT_SLINEAR)
+#else /* 10- */
+	if (f->frametype != AST_FRAME_VOICE
+			|| f->subclass_codec != AST_FORMAT_SLINEAR)
+#endif /* ^10- */
+	{
+		ast_debug(1, "[%s] Unsupported audio codec: %s\n", PVT_ID(pvt), ast_format_get_name(f->subclass.format));
+		return 0;
+	}
+
 	while (ast_mutex_trylock(&pvt->lock)) {
 		CHANNEL_DEADLOCK_AVOIDANCE (channel);
 	}
@@ -984,7 +998,7 @@ static int channel_write(struct ast_channel* channel, struct ast_frame* f)
 		res = channel_write_uac(channel, f, cpvt, pvt);
 	}
 	else {
-		res = channel_write_tty(channel, f, cpvt, pvt);
+		res = channel_write_tty(channel, f, cpvt, pvt, frame_size);
 	}
 
 	ast_mutex_unlock(&pvt->lock);
@@ -1002,7 +1016,7 @@ static int channel_fixup (struct ast_channel* oldchannel, struct ast_channel* ne
 
 	if (!cpvt || !cpvt->pvt)
 	{
-		ast_log (LOG_WARNING, "call on unreferenced %s\n", ast_channel_name(newchannel));
+		ast_log (LOG_WARNING, "Call on unreferenced %s\n", ast_channel_name(newchannel));
 		return -1;
 	}
 	pvt = cpvt->pvt;
@@ -1326,11 +1340,15 @@ struct ast_channel* new_channel(
 			ast_channel_tech_set(channel, &channel_tech);
 
 #if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
-			ast_channel_nativeformats_set(channel, channel_tech.capabilities);
-			ast_channel_set_rawreadformat(channel, ast_format_slin);
-			ast_channel_set_rawwriteformat(channel, ast_format_slin);
-			ast_channel_set_writeformat(channel, ast_format_slin);
-			ast_channel_set_readformat(channel, ast_format_slin);
+			struct ast_format* const fmt = (struct ast_format*)pvt_get_audio_format(pvt);
+			struct ast_format_cap* const cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+			ast_format_cap_append(cap, fmt, 0);
+			ast_channel_nativeformats_set(channel, cap);
+
+			ast_channel_set_rawreadformat(channel, fmt);
+			ast_channel_set_rawwriteformat(channel, fmt);
+			ast_channel_set_writeformat(channel, fmt);
+			ast_channel_set_readformat(channel, fmt);
 #elif ASTERISK_VERSION_NUM >= 110000 /* 11+ */
 		        ast_format_cap_add(ast_channel_nativeformats(channel), &chan_quectel_format);
 		        ast_format_copy(ast_channel_rawreadformat(channel), &chan_quectel_format);

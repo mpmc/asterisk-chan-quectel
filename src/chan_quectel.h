@@ -42,16 +42,9 @@ static const snd_pcm_format_t format = SND_PCM_FORMAT_S16_BE;
 #define MODULE_DESCRIPTION	"Channel Driver for Mobile Telephony"
 #define MAXQUECTELDEVICES	128
 
-static inline const char * dev_state2str(dev_state_t state)
-{
-	return enum2str(state, dev_state_strs, ITEMS_OF(dev_state_strs));
-}
-
-static inline const char * dev_state2str_msg(dev_state_t state)
-{
-	static const char * const states[] = { "Stop scheduled", "Restart scheduled", "Removal scheduled", "Start scheduled" };
-	return enum2str(state, states, ITEMS_OF(states));
-}
+const char* dev_state2str(dev_state_t state);
+dev_state_t str2dev_state(const char*);
+const char* dev_state2str_msg(dev_state_t state);
 
 #if ASTERISK_VERSION_NUM >= 100000 && ASTERISK_VERSION_NUM < 130000 /* 10-13 */
 /* Only linear is allowed */
@@ -137,6 +130,8 @@ typedef struct pvt
 	char		* dlock;			/*!< name of lockfile for data */
 
 	struct ast_timer*	a_timer;			/*!< audio write timer */
+
+	char			a_silence_buf[FRAME_SIZE * 2];
 
 	char			a_write_buf[FRAME_SIZE * 5];	/*!< audio write buffer */
 	struct mixbuffer	a_write_mixb;			/*!< audio mix buffer */
@@ -250,6 +245,10 @@ void pvt_reload(restate_time_t when);
 int pvt_enabled(const struct pvt * pvt);
 void pvt_try_restate(struct pvt * pvt);
 int pvt_set_act(struct pvt* pvt, int act);
+
+const struct ast_format* pvt_get_audio_format(const struct pvt* const);
+size_t pvt_get_audio_frame_size(const struct pvt* const);
+void* pvt_get_silence_buffer(struct pvt* const);
 
 int opentty (const char* dev, char ** lockfile, int typ);
 void closetty(int fd, char ** lockfname);

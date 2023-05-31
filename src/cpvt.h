@@ -69,9 +69,8 @@ typedef struct cpvt {
 #define PIPE_WRITE		1
 
 	struct mixstream	mixstream;			/*!< mix stream */
-	char			a_read_buf[FRAME_SIZE*2 + AST_FRIENDLY_OFFSET];/*!< audio read buffer */
+	char			a_read_buf[FRAME_SIZE*4 + AST_FRIENDLY_OFFSET];/*!< audio read buffer */
 	struct ast_frame	a_read_frame;			/*!< voice frame */
-	struct ast_frame	a_dtmf_frame;			/*!< DTMF frame */
 
 //	size_t			write;				/*!< write position in pvt->a_write_buf */
 //	size_t			used;				/*!< bytes used in pvt->a_write_buf */
@@ -95,8 +94,6 @@ void cpvt_free(struct cpvt* cpvt);
 struct cpvt * pvt_find_cpvt(struct pvt * pvt, int call_idx);
 struct cpvt * active_cpvt(struct pvt * pvt);
 struct cpvt* last_initialized_cpvt(struct pvt * pvt);
-void voice_enable(struct pvt * pvt);
-void voice_disable(struct pvt * pvt);
 const char * pvt_call_dir(const struct pvt * pvt);
 
 #/* */

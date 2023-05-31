@@ -36,6 +36,7 @@ struct iovec;
 	_( CPIN,        "+CPIN",        "+CPIN:") \
 \
 	_( CREG,        "+CREG",        "+CREG:") \
+	_( CEREG,       "+CEREG",       "+CEREG:") \
 	_( CSQ,         "+CSQ",         "+CSQ:") \
 	_( CSSI,        "+CSSI",        "+CSSI:") \
 	_( CSSU,        "+CSSU",        "+CSSU:") \
@@ -69,6 +70,7 @@ struct iovec;
 	_( QSPN,        "+QSPN",        "+QSPN:") \
 	_( QNWINFO,		"+QNWINFO",		"+QNWINFO:") \
 	_( QTONEDET,	"+QTONEDET",	"+QTONEDET:") \
+	_( RXDTMF,		"+RXDTMF",		"+RXDTMF:") \
 	_( QAUDLOOP,	"+QAUDLOOP",	"+QAUDLOOP:") \
 	_( QAUDMOD,		"+QAUDMOD",		"+QAUDMOD:") \
 	_( QPCMV,		"+QPCMV",		"+QPCMV:") \
@@ -76,8 +78,13 @@ struct iovec;
 	_( CCLK,		"+CCLK",		"+CCLK:") \
 	_( QMIC,		"+QMIC",		"+QMIC:") \
 	_( QRXGAIN, 	"+QRXGAIN",		"+QRXGAIN:") \
+	_( CMICGAIN, 	"+CMICGAIN",	"+CMICGAIN:") \
+	_( COUTGAIN, 	"+COUTGAIN",	"+COUTGAIN:") \
 	_( CTXVOL, 		"+CTXVOL",		"+CTXVOL:") \
 	_( CRXVOL, 		"+CRXVOL",		"+CRXVOL:") \
+	_( CGMR, 		"+CGMR",		"+CGMR:") \
+	_( CPCMREG,		"+CPCMREG",		"+CPCMREG:") \
+	_( CNSMOD,		"+CNSMOD",		"+CNSMOD:") \
 
 /* AT_RESPONSES_TABLE */
 
@@ -90,7 +97,7 @@ typedef enum {
 
 	/* Hackish way to maintain MAX and MIN responses for compatibility */
 	RES_MIN = RES_PARSE_ERROR,
-	RES_MAX = RES_CRXVOL,
+	RES_MAX = RES_CNSMOD,
 } at_res_t;
 
 /*! response description */

@@ -19,15 +19,19 @@ int query_qaudloop(const char *dev_name);
 int send_qaudloop(const char *dev_name, int aloop);
 int query_qaudmod(const char *dev_name);
 int send_qaudmod(const char *dev_name, int amode);
-int query_qmic(const char* dev_name);
-int send_qmic(const char* dev_name, int gain);
-int query_qrxgain(const char* dev_name);
-int send_qrxgain(const char* dev_name, int gain);
+int query_micgain(const char* dev_name);
+int send_micgain(const char* dev_name, int gain);
+int query_rxgain(const char* dev_name);
+int send_rxgain(const char* dev_name, int gain);
 int send_at_command(const char *dev_name, const char *command);
 int schedule_restart_event(dev_state_t event, restate_time_t when, const char *dev_name);
 int is_valid_phone_number(const char * number);
+
 int str2gain(const char*, int*);
 struct ast_str* const gain2str(int);
+
+int str2gain_simcom(const char*, int*);
+struct ast_str* const gain2str_simcom(int);
 
 struct ast_str* escape_nstr(const char*, size_t);
 struct ast_str* escape_str(const struct ast_str* const);

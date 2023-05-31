@@ -271,18 +271,19 @@ int at_parse_qnwinfo(char* str, int* act, int* oper, char** band, int* channel)
 
 
 /*!
- * \brief Parse a CREG response
+ * \brief Parse a C(E)REG response
  * \param str -- string to parse (null terminated)
  * \param len -- string lenght
  * \param gsm_reg -- a pointer to a int
  * \param gsm_reg_status -- a pointer to a int
  * \param lac -- a pointer to a char pointer which will store the location area code in hex format
  * \param ci  -- a pointer to a char pointer which will store the cell id in hex format
- * @note str will be modified when the CREG message is parsed
+ * \param act -- a pointer to an integer which will store access technology
+ * @note str will be modified when the C(E)REG message is parsed
  * \retval  0 success
  * \retval -1 parse error
  */
-int at_parse_creg(char* str, unsigned, int* gsm_reg, int* gsm_reg_status, char** lac, char** ci)
+int at_parse_creg(char* str, unsigned, int* gsm_reg, int* gsm_reg_status, char** lac, char** ci, int* act)
 {
 	char* gsm_reg_str = NULL;
 
@@ -290,12 +291,16 @@ int at_parse_creg(char* str, unsigned, int* gsm_reg, int* gsm_reg_status, char**
 	*gsm_reg_status = -1;
 	*lac = NULL;
 	*ci  = NULL;
+	*act = -1;
+	const char* act_str = NULL;
 
 	/*
-	 * parse CREG response in the following formats:
+	 * parse C(E)REG response in the following formats:
 	 *
 	 *   +CREG: <n>,<stat>[,<LAC>,<ci>[,<Act>]] - response to AT+CREG?
 	 *   +CREG: <stat>[,<LAC>,<ci>[,<Act>]]     - URC after AT-CREG=2
+	 *
+	 *   +CEREG: <stat>[,<tac>,<ci>[,<AcT>]]
 	 */
 
 	static const char delimiters[] = ":,,,,";
@@ -308,6 +313,7 @@ int at_parse_creg(char* str, unsigned, int* gsm_reg, int* gsm_reg_status, char**
 		marks[2][0] = '\000';
 		marks[3][0] = '\000';
 		marks[4][0] = '\000';
+		act_str = marks[4] + 1;
 		*ci = strip_quoted(marks[3]+1);
 		*lac = strip_quoted(marks[2]+1);
 		gsm_reg_str = strip_quoted(marks[1]+1);
@@ -323,6 +329,7 @@ int at_parse_creg(char* str, unsigned, int* gsm_reg, int* gsm_reg_status, char**
 			gsm_reg_str = strip_quoted(marks[0]+1);
 		}
 		else {
+			act_str = marks[3] + 1;
 			*ci = strip_quoted(marks[3]+1);
 			*lac = strip_quoted(marks[2]+1);
 			gsm_reg_str = strip_quoted(marks[1]+1);
@@ -330,7 +337,12 @@ int at_parse_creg(char* str, unsigned, int* gsm_reg, int* gsm_reg_status, char**
 		break;
 
 		case 3:
-		return -1;
+		marks[1][0] = '\000';
+		marks[2][0] = '\000';
+		*ci = strip_quoted(marks[2]+1);
+		*lac = strip_quoted(marks[1]+1);
+		gsm_reg_str = strip_quoted(marks[0]+1);
+		break;
 
 		case 2:
 		marks[1][0] = '\000';
@@ -344,16 +356,29 @@ int at_parse_creg(char* str, unsigned, int* gsm_reg, int* gsm_reg_status, char**
 
 	if (gsm_reg_str) {
 		errno = 0;
-		*gsm_reg_status = (int)strtol(gsm_reg_str, (char**) NULL, 10);
-		if (*gsm_reg_status == 0 && errno == EINVAL)
-		{
+		const int status = (int)strtol(gsm_reg_str, (char**) NULL, 10);
+		if (status == 0 && errno == EINVAL) {
 			*gsm_reg_status = -1;
 			return -1;
 		}
 
-		if (*gsm_reg_status == 1 || *gsm_reg_status == 5)
-		{
+		*gsm_reg_status = status;
+		if (status == 1 || status == 5) {
 			*gsm_reg = 1;
+		}
+		else {
+			*gsm_reg = status;
+		}
+	}
+
+	if (act_str) {
+		errno = 0;
+		const int lact = (int)strtol(act_str, (char**) NULL, 10);
+		if (errno == EINVAL) {
+			*act = -1;
+		}
+		else {
+			*act = lact;
 		}
 	}
 
@@ -541,10 +566,6 @@ int at_parse_cmt(char *str, size_t len, int *tpdu_type, char *sca, size_t sca_le
 
 	if (len <= 0) {
 		chan_quectel_err = E_PARSE_CMGR_LINE;
-		return -1;
-	}
-	if (str[0] == '"') {
-		chan_quectel_err = E_DEPRECATED_CMGR_TEXT;
 		return -1;
 	}
 
@@ -1082,7 +1103,7 @@ int at_parse_ccwa(char* str, unsigned * class)
 	return -1;
 }
 
-int at_parse_qtonedet(char* str, int* dtmf)
+int at_parse_qtonedet(const char* str, int* dtmf)
 {
 	/*
 		Example:
@@ -1091,6 +1112,25 @@ int at_parse_qtonedet(char* str, int* dtmf)
 	*/
 
 	return sscanf(str, "+QTONEDET:%d,", dtmf) == 1 ? 0 : -1;
+}
+
+int at_parse_rxdtmf(const char* str, char* dtmf)
+{
+	/*
+		Example:
+
+		+RXDTMF: 5
+	*/
+
+	static const char RXDTMF[] = "+RXDTMF:";
+	const char* d = str + STRLEN(RXDTMF);
+	if (*d == ' ') d += 1;
+	if (*d) {
+		*dtmf = *d;
+		return 0;
+	}
+
+	return -1;
 }
 
 int at_parse_qpcmv(char* str, int* enabled, int* mode)
@@ -1173,6 +1213,26 @@ int at_parse_qmic(const char* str, int* gain, int* dgain)
 	return sscanf(str, "+QMIC:%d,%d", gain, dgain) == 2 ? 0 : -1;
 }
 
+int at_parse_cxxxgain(const char* str, int* gain)
+{
+	/*
+		Example:
+
+		+CMICGAIN: 3
+		+COUTGAIN: 8
+	*/
+
+	static const char CXXVOL[] = "+CXXXGAIN:";
+
+	const unsigned int g = (unsigned int)strtoul(str + STRLEN(CXXVOL), NULL, 10);
+	if (errno == ERANGE) {
+		return -1;
+	}
+
+	*gain = g;
+	return 0;
+}
+
 int at_parse_cxxvol(const char* str, int* gain)
 {
 	/*
@@ -1215,3 +1275,31 @@ int at_parse_qaudmod(const char* str, int* amode)
 	return sscanf(str, "+QAUDMOD:%d,", amode) == 1 ? 0 : -1;
 }
 
+int at_parse_cgmr(const char* str, char** cgmr)
+{
+	static const char CGMR[] = "+CGMR: ";
+	*cgmr = ast_skip_blanks(str + STRLEN(CGMR));
+	return 0;	
+}
+
+int at_parse_cpcmreg(const char* str, int* pcmreg)
+{
+	/*
+		Example:
+
+		+CPCMREG: 0
+	*/
+
+	return sscanf(str, "+CPCMREG:%d,", pcmreg) == 1 ? 0 : -1;
+}
+
+int at_parse_cnsmod(const char* str, int* act)
+{
+	/*
+		Example:
+
+		+CNSMOD: 8
+	*/
+
+	return sscanf(str, "+CNSMOD:%d,", act) == 1 ? 0 : -1;
+}

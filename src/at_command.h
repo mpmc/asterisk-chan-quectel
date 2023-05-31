@@ -19,6 +19,7 @@
 #define AT_COMMANDS_TABLE(_) \
 	_( USER,            "USER") \
 	_( AT,              "AT") \
+	_( AT_FINAL,        "AT") \
 	_( AT_A,            "ATA") \
 	_( AT_CCWA_STATUS,  "AT+CCWA?") \
 	_( AT_CCWA_SET,     "AT+CCWA=") \
@@ -32,7 +33,7 @@
 	_( AT_CHUP,         "AT+CHUP") \
 	_( AT_QHUP,         "AT+QHUP") \
 	_( AT_CIMI,         "AT+CIMI") \
-	_( AT_CVOICE2,      "AT+CPCMREG?") \
+	_( AT_CPCMREG,      "AT+CPCMREG?") \
 	_( AT_CLIR,         "AT+CLIR") \
 \
 	_( AT_CLVL,         "AT+CLVL") \
@@ -54,8 +55,11 @@
 \
 	_( AT_CREG,         "AT+CREG?") \
 	_( AT_CREG_INIT,    "AT+CREG=") \
+	_( AT_CEREG,        "AT+CEREG?") \
+	_( AT_CEREG_INIT,   "AT+CREG=") \
 	_( AT_CSCS,         "AT+CSCS") \
 	_( AT_CSQ,          "AT+CSQ") \
+	_( AT_AUTOCSQ_INIT, "AT+AUTOCSQ=") \
 \
 	_( AT_CSSN,         "AT+CSSN") \
 	_( AT_CUSD,         "AT+CUSD") \
@@ -93,12 +97,18 @@
 	_( AT_CCLK,			"AT+CCLK") \
 	_( AT_QMIC,			"AT+QMIC") \
 	_( AT_QRXGAIN,		"AT+QRXGAIN") \
+	_( AT_CMICGAIN,		"AT+CMICGAIN") \
+	_( AT_COUTGAIN,		"AT+COUTGAIN") \
 	_( AT_CTXVOL,		"AT+CTXVOL") \
 	_( AT_CRXVOL,		"AT+CRXVOL") \
 	_( AT_CNMA,			"AT+CNMA") \
 	_( AT_CSMS,			"AT+CSMS") \
 	_( AT_QAUDLOOP,		"AT+QAUDLOOP") \
 	_( AT_QAUDMOD,		"AT+QAUDMOD") \
+	_( AT_CNSMOD_0,     "AT+CNSMOD=0") \
+	_( AT_CNSMOD_1,     "AT+CNSMOD=1") \
+	_( AT_CPCMFRM_8K,  "AT+CPCMFRM=0") \
+	_( AT_CPCMFRM_16K,  "AT+CPCMFRM=1") \
 /* AT_COMMANDS_TABLE */
 
 typedef enum {
@@ -118,7 +128,10 @@ struct cpvt;
 
 const char *at_cmd2str(at_cmd_t cmd);
 int at_enqueue_at(struct cpvt* cpvt);
-int at_enqueue_initialization(struct cpvt *cpvt, at_cmd_t from_command);
+int at_enqueue_initialization(struct cpvt *cpvt);
+int at_enqueue_initialization_quectel(struct cpvt*);
+int at_enqueue_initialization_simcom(struct cpvt*);
+int at_enqueue_initialization_other(struct cpvt*);
 int at_enqueue_ping(struct cpvt *cpvt);
 int at_enqueue_cops(struct cpvt *cpvt);
 int at_enqueue_qspn_qnwinfo(struct cpvt *cpvt);
@@ -162,5 +175,12 @@ int at_enqueue_query_qmic(struct cpvt* cpvt);
 int at_enqueue_qmic(struct cpvt* cpvt, int gain);
 int at_enqueue_query_qrxgain(struct cpvt* cpvt);
 int at_enqueue_qrxgain(struct cpvt* cpvt, int gain);
+int at_enqueue_query_cmicgain(struct cpvt* cpvt);
+int at_enqueue_cmicgain(struct cpvt* cpvt, int gain);
+int at_enqueue_query_coutgain(struct cpvt* cpvt);
+int at_enqueue_coutgain(struct cpvt* cpvt, int gain);
+int at_enqueue_cpcmreg(struct cpvt*, int);
+int at_cpcmreg_immediately(struct pvt*, int);
+int at_enqueue_cpcmfrm(struct cpvt*, int);
 
 #endif /* CHAN_QUECTEL_AT_SEND_H_INCLUDED */

@@ -151,24 +151,6 @@ struct cpvt* last_initialized_cpvt(struct pvt * pvt)
 	return res;
 }
 
-void voice_enable(struct pvt * pvt)
-{
-	static const char cmd_atcpcmreg1[] = "AT+CPCMREG=1\r";
-	static const at_queue_cmd_t cmds1[] = {
-		ATQ_CMD_DECLARE_STIT(CMD_AT_CPCMREG1, cmd_atcpcmreg1, ATQ_CMD_TIMEOUT_MEDIUM, 0),
-	};
-	at_queue_insert_const(&pvt->sys_chan, cmds1, ITEMS_OF(cmds1), 1);
-}
-
-void voice_disable(struct pvt * pvt)
-{
-	static const char cmd_atcpcmreg0[] = "AT+CPCMREG=0\r";
-	static const at_queue_cmd_t cmds1[] = {
-		ATQ_CMD_DECLARE_STIT(CMD_AT_CPCMREG0, cmd_atcpcmreg0, ATQ_CMD_TIMEOUT_MEDIUM, 0),
-	};
-	at_queue_insert_const(&pvt->sys_chan, cmds1, ITEMS_OF(cmds1), 1);
-}
-
 #/* */
 const char * pvt_call_dir(const struct pvt * pvt)
 {

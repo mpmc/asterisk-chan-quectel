@@ -95,7 +95,9 @@ static int dc_uconfig_fill(struct ast_config * cfg, const char * cat, struct dc_
 	const char * data_tty;
 	const char * imei;
 	const char * imsi;
+	const char * slin16_str;
 	const char * uac_str;
+	int slin16;
 	int uac;
 	const char * alsadev;
 
@@ -104,6 +106,7 @@ static int dc_uconfig_fill(struct ast_config * cfg, const char * cat, struct dc_
 	imei = ast_variable_retrieve (cfg, cat, "imei");
 	imsi = ast_variable_retrieve (cfg, cat, "imsi");
     uac_str = ast_variable_retrieve (cfg, cat, "uac");
+	slin16_str = ast_variable_retrieve(cfg, cat, "slin16");
     alsadev = ast_variable_retrieve (cfg, cat, "alsadev");
 
 	if(imei && strlen(imei) != IMEI_SIZE) {
@@ -122,6 +125,13 @@ static int dc_uconfig_fill(struct ast_config * cfg, const char * cat, struct dc_
 		uac = 0;
 	}
 
+	if (slin16_str) {
+		slin16 = ast_true(slin16_str);
+	}
+	else {
+		slin16 = 0;
+	}
+
 	if(!data_tty && !imei && !imsi)
 	{
 		ast_log (LOG_ERROR, "Skipping device %s. Missing required data_tty setting\n", cat);
@@ -133,6 +143,7 @@ static int dc_uconfig_fill(struct ast_config * cfg, const char * cat, struct dc_
 	ast_copy_string (config->audio_tty,	S_OR(audio_tty, ""), sizeof (config->audio_tty));
 	ast_copy_string (config->imei,		S_OR(imei, ""),	     sizeof (config->imei));
 	ast_copy_string (config->imsi,		S_OR(imsi, ""),	     sizeof (config->imsi));
+	config->slin16 = (unsigned int)slin16;
 	config->uac = (unsigned int)uac;
 	if (uac) {
 		ast_copy_string(config->alsadev, S_OR(alsadev, DEFAULT_ALSADEV), sizeof(config->alsadev));
@@ -221,7 +232,7 @@ void dc_sconfig_fill(struct ast_config * cfg, const char * cat, struct dc_sconfi
 			config->initstate = ast_true (v->value) ? DEV_STATE_REMOVED : DEV_STATE_STARTED;
 		}
 		else if (!strcasecmp (v->name, "initstate")) {
-			int val = str2enum(v->value, dev_state_strs, ITEMS_OF(dev_state_strs));
+			const dev_state_t val = str2dev_state(v->value);
 			if(val == DEV_STATE_STOPPED || val == DEV_STATE_STARTED || val == DEV_STATE_REMOVED)
 				config->initstate = val;
 			else
@@ -232,10 +243,10 @@ void dc_sconfig_fill(struct ast_config * cfg, const char * cat, struct dc_sconfi
 				config->callwaiting = ast_true (v->value);
 		}
 		else if (!strcasecmp (v->name, "multiparty")) {
-			config->multiparty = ast_true (v->value);
+			config->multiparty = ast_true(v->value);
 		}
 		else if (!strcasecmp (v->name, "dtmf")) {
-			config->multiparty = ast_true (v->value);
+			config->dtmf = ast_true(v->value);
 		}
 		else if (!strcasecmp (v->name, "moh")) {
 			config->moh = ast_true(v->value);

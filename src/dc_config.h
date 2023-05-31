@@ -30,8 +30,6 @@ typedef enum {
 	DEV_STATE_STARTED,
 } dev_state_t;
 
-extern const char* const dev_state_strs[4];
-
 typedef enum {
 	CALL_WAITING_DISALLOWED = 0,
 	CALL_WAITING_ALLOWED,
@@ -123,6 +121,7 @@ typedef struct dc_uconfig
 	char			data_tty[DEVPATHLEN];		/*!< tty for AT commands */
 	char			imei[IMEI_SIZE+1];		/*!< search device by imei */
 	char			imsi[IMSI_SIZE+1];		/*!< search device by imsi */
+	unsigned int	slin16:1;					/*!< SLIN16 audio format */
 	unsigned int	uac:1;					/*!< handle audio by audio device (UAC) */
     char			alsadev[DEVNAMELEN];	/*!< ALSA audio device name */
 } dc_uconfig_t;

@@ -70,6 +70,7 @@ static void request_clcc(struct pvt* pvt)
 	}
 }
 
+#ifdef HANDLE_RCEND
 static int at_response_rcend(struct pvt * pvt)
 {
 	int call_index = 0;
@@ -81,7 +82,7 @@ static int at_response_rcend(struct pvt * pvt)
 	cpvt = active_cpvt(pvt);
 	if (cpvt) {
 
-		if(CPVT_IS_SOUND_SOURCE(cpvt)) voice_disable(pvt);
+		if(CPVT_IS_SOUND_SOURCE(cpvt)) at_enqueue_cpcmreg(&pvt->sys_chan, 0);
 		call_index = cpvt->call_idx;
 		ast_debug(1, "[%s] CEND: call_index %d duration %d end_status %d cc_cause %d Line disconnected\n"
 			, PVT_ID(pvt), call_index, duration, end_status, cc_cause);
@@ -92,8 +93,10 @@ static int at_response_rcend(struct pvt * pvt)
 
 	return 0;
 }
+#endif
 
-static int at_response_cend (struct pvt * pvt, const char* str)
+#ifdef HANDLE_CEND
+static int at_response_cend(struct pvt * pvt, const char* str)
 {
 	int call_index = 0;
 	int duration   = 0;
@@ -120,7 +123,7 @@ static int at_response_cend (struct pvt * pvt, const char* str)
 
 	cpvt = active_cpvt(pvt);
 	if (cpvt) {
-		voice_disable(pvt);
+		at_enqueue_cpcmreg(&pvt->sys_chan, 0);
 		call_index = cpvt->call_idx;
 		ast_debug (1,	"[%s] CEND: call_index %d duration %d end_status %d cc_cause %d Line disconnected\n"
 			, PVT_ID(pvt), call_index, duration, end_status, cc_cause);
@@ -134,7 +137,7 @@ static int at_response_cend (struct pvt * pvt, const char* str)
  
 	return 0;
 }
-
+#endif
 
 static int at_response_ok(struct pvt* pvt, at_res_t res)
 {
@@ -175,11 +178,17 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				ast_debug (3, "[%s] %s sent successfully\n", PVT_ID(pvt), at_cmd2str (ecmd->cmd));
 				break;
 
+			case CMD_AT_FINAL:
+				ast_verb(3, "[%s] Channel initialized\n", PVT_ID(pvt));
+				pvt->initialized = 1;
+				break;
+
 			case CMD_AT_COPS_INIT:
 				ast_debug(1, "[%s] Operator select parameters set\n", PVT_ID(pvt));
 				break;
 
 			case CMD_AT_CREG_INIT:
+			case CMD_AT_CEREG_INIT:
 				ast_debug(1, "[%s] Registration info enabled\n", PVT_ID(pvt));
 				break;
 
@@ -194,8 +203,6 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 			case CMD_AT_CVOICE:
 				ast_debug(1, "[%s] Quectel has voice support\n", PVT_ID(pvt));
 
-				pvt->is_simcom = 0;
-
 				if (CONF_UNIQ(pvt, uac)) {
 					at_enqueue_enable_uac(&pvt->sys_chan);
 				} else {
@@ -203,11 +210,15 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				}
 				break;
 
-			case CMD_AT_CVOICE2:
-				ast_debug(1, "[%s] Simcom has voice support\n", PVT_ID(pvt));
+			case CMD_AT_CPCMREG:
+				ast_debug(1, "[%s] SimCom has voice support\n", PVT_ID(pvt));
 
-				pvt->is_simcom = 1;
-				at_enqueue_qcrcind(&pvt->sys_chan);
+				pvt->has_voice = 1;
+				//at_enqueue_qcrcind(&pvt->sys_chan);
+				at_enqueue_cpcmfrm(task->cpvt, CONF_UNIQ(pvt, slin16));
+				at_enqueue_cpcmreg(task->cpvt, 0);
+				at_enqueue_cgains(task->cpvt, CONF_SHARED(pvt, txgain), CONF_SHARED(pvt, rxgain));
+				at_enqueue_query_cgains(task->cpvt);
 				break;
 
 			case CMD_AT_QPCMV_0:
@@ -222,14 +233,8 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				ast_debug(3, "[%s] %s sent successfully\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
 
 				pvt->has_voice = 1;
-				if (pvt->is_simcom) {
-					at_enqueue_cgains(&pvt->sys_chan, CONF_SHARED(pvt, txgain), CONF_SHARED(pvt, rxgain));
-					at_enqueue_query_cgains(&pvt->sys_chan);
-				}
-				else {
-					at_enqueue_qgains(&pvt->sys_chan, CONF_SHARED(pvt, txgain), CONF_SHARED(pvt, rxgain));
-					at_enqueue_query_qgains(&pvt->sys_chan);
-				}
+				at_enqueue_qgains(&pvt->sys_chan, CONF_SHARED(pvt, txgain), CONF_SHARED(pvt, rxgain));
+				at_enqueue_query_qgains(&pvt->sys_chan);
 				break;
 
 /*
@@ -260,12 +265,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				ast_debug(1, "[%s] SMS new message indication mode enabled\n", PVT_ID(pvt));
 
 				pvt->has_sms = 1;
-
-				if (!pvt->initialized) {
-					pvt->timeout = DATA_READ_TIMEOUT;
-					pvt->initialized = 1;
-					ast_verb(3, "[%s] Module initialized and ready\n", PVT_ID(pvt));
-				}
+				pvt->timeout = DATA_READ_TIMEOUT;
 				break;
 
 			case CMD_AT_D:
@@ -293,7 +293,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				if (!pvt->initialized) {
 					pvt->timeout = DATA_READ_TIMEOUT;
 					pvt->initialized = 1;
-					ast_verb(3, "[%s] Quectel initialized and ready\n", PVT_ID(pvt));
+					ast_verb(3, "[%s] SimCom initialized and ready\n", PVT_ID(pvt));
 				}
 				break;
 
@@ -348,6 +348,10 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				ast_debug (1, "[%s] Got signal strength result\n", PVT_ID(pvt));
 				break;
 
+			case CMD_AT_AUTOCSQ_INIT:
+				ast_debug (1, "[%s] Signal change notifications enabled\n", PVT_ID(pvt));
+				break;				
+
 			case CMD_AT_CLVL:
 				pvt->volume_sync_step++;
 				if(pvt->volume_sync_step == VOLUME_SYNC_DONE) {
@@ -374,9 +378,14 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 
 			case CMD_AT_QMIC:
 			case CMD_AT_QRXGAIN:
-			case CMD_AT_CTXVOL:
-			case CMD_AT_CRXVOL:
+			case CMD_AT_CMICGAIN:
+			case CMD_AT_COUTGAIN:
 				ast_debug(1, "[%s] TX/RX gains updated\n", PVT_ID(pvt));
+				break;
+
+			case CMD_AT_CRXVOL:
+			case CMD_AT_CTXVOL:
+				ast_debug(3, "[%s] TX/RX volume updated\n", PVT_ID(pvt));
 				break;
 
 			case CMD_AT_CMGL:
@@ -397,6 +406,22 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 
 			case CMD_AT_QAUDMOD:
 				ast_debug(1, "[%s] Audio mode configured\n", PVT_ID(pvt));
+				break;
+
+			case CMD_AT_CNSMOD_0:
+				ast_debug(1, "[%s] Network mode notifications disabled\n", PVT_ID(pvt));
+				break;
+
+			case CMD_AT_CNSMOD_1:
+				ast_debug(1, "[%s] Network mode notifications enabled\n", PVT_ID(pvt));
+				break;
+
+			case CMD_AT_CPCMFRM_8K:
+				ast_log(LOG_NOTICE, "[%s] Audio sample rate set to 8kHz", PVT_ID(pvt));
+				break;
+
+			case CMD_AT_CPCMFRM_16K:
+				ast_log(LOG_NOTICE, "[%s] Audio sample rate set to 16kHz", PVT_ID(pvt));
 				break;
 
 			case CMD_USER:
@@ -447,6 +472,11 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 				/* mean disconnected from device */
 				goto e_return;
 
+			case CMD_AT_FINAL:
+				log_cmd_response_error(pvt, ecmd, "[%s] Channel not initialized\n", PVT_ID(pvt));
+				pvt->initialized = 0;
+				goto e_return;
+
 			/* not critical errors */
 			case CMD_AT_CCWA_SET:
 			case CMD_AT_CCWA_STATUS:
@@ -491,6 +521,14 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 				log_cmd_response_error(pvt, ecmd, "[%s] Error enabling registration info\n", PVT_ID(pvt));
 				goto e_return;
 
+			case CMD_AT_CEREG_INIT:
+				ast_debug(1, "[%s] Error enabling registration info\n", PVT_ID(pvt));
+				break;
+
+			case CMD_AT_AUTOCSQ_INIT:
+				ast_debug(1, "[%s] Error enabling CSQ report\n", PVT_ID(pvt));
+				break;
+
 			case CMD_AT_CREG:
 				ast_debug(1, "[%s] Error getting registration info\n", PVT_ID(pvt));
 				break;
@@ -509,17 +547,10 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 				pvt->has_voice = 0;
                 break;
 
-			case CMD_AT_CVOICE2:
-				ast_debug (1, "[%s] No Simcom voice support\n", PVT_ID(pvt));
-				pvt->is_simcom = 0;
-
-				if (!pvt->initialized) {
-					if (at_enqueue_initialization(task->cpvt, CMD_AT_CNMI)) {
-						log_cmd_response_error(pvt, ecmd, "[%s] Error schedule initialization commands\n", PVT_ID(pvt));
-						goto e_return;
-					}
-				}
-			break;
+			case CMD_AT_CPCMREG:
+				ast_debug(1, "[%s] No Simcom voice support\n", PVT_ID(pvt));
+				pvt->has_voice = 0;
+				break;
 /*
 			case CMD_AT_CLIP:
 				log_cmd_response_error(pvt, ecmd, "[%s] Error enabling calling line indication\n", PVT_ID(pvt));
@@ -536,21 +567,7 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 				ast_debug (1, "[%s] Command '%s' failed\n", PVT_ID(pvt), at_cmd2str (ecmd->cmd));
 
 				pvt->has_sms = 0;
-
-				if (!pvt->initialized) {
-					if (pvt->has_voice) {
-						if (at_enqueue_initialization(task->cpvt, CMD_AT_CNMI)) {
-							log_cmd_response_error(pvt, ecmd, "[%s] Error querying signal strength\n", PVT_ID(pvt));
-							goto e_return;
-						}
-
-						pvt->timeout = DATA_READ_TIMEOUT;
-						pvt->initialized = 1;
-						/* FIXME: say 'initialized and ready' but disconnect */
-						// ast_verb (3, "[%s] Quectel initialized and ready\n", PVT_ID(pvt));
-					}
-					goto e_return;
-				}
+				pvt->timeout = DATA_READ_TIMEOUT;
 				break;
 
 			case CMD_AT_CSCS:
@@ -585,11 +602,17 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CPCMREG1:
-				log_cmd_response_error(pvt, ecmd, "[%s] %s Enable audio failed\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
+				if (CPVT_IS_SOUND_SOURCE(task->cpvt)) {
+					ast_debug(3, "[%s] Trying to activate audio stream again\n", PVT_ID(pvt));
+					at_enqueue_cpcmreg(task->cpvt, 1);
+				}
+				else {
+					log_cmd_response_error(pvt, ecmd, "[%s] Could not activate audio stream\n", PVT_ID(pvt));
+				}
 				break;
 
 			case CMD_AT_CPCMREG0:
-				log_cmd_response_error(pvt, ecmd, "[%s] %s Disable audio failed\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
+				log_cmd_response_error(pvt, ecmd, "[%s] Could not deactivate audio stream\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
 				break;
 
 			case CMD_AT_CHUP:
@@ -680,9 +703,14 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 
 			case CMD_AT_QMIC:
 			case CMD_AT_QRXGAIN:
+			case CMD_AT_COUTGAIN:
+			case CMD_AT_CMICGAIN:
+				ast_log(LOG_WARNING, "[%s] Cannot update TX/RG gain\n", PVT_ID(pvt));
+				break;
+
 			case CMD_AT_CTXVOL:
 			case CMD_AT_CRXVOL:
-				ast_log(LOG_WARNING, "[%s] Cannot update TX/RG gains\n", PVT_ID(pvt));
+				ast_log(LOG_WARNING, "[%s] Cannot update TX/RG volume\n", PVT_ID(pvt));
 				break;
 
 			case CMD_AT_CMGL:
@@ -703,6 +731,19 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 
 			case CMD_AT_QAUDMOD:
 				ast_log(LOG_WARNING, "[%s] Audio mode not configured\n", PVT_ID(pvt));
+				break;
+
+			case CMD_AT_CNSMOD_0:
+				ast_log(LOG_WARNING, "[%s] Could not disable network mode notifications\n", PVT_ID(pvt));
+				break;
+
+			case CMD_AT_CNSMOD_1:
+				ast_log(LOG_WARNING, "[%s] Could not enable network mode notifications\n", PVT_ID(pvt));
+				break;
+
+			case CMD_AT_CPCMFRM_8K:
+			case CMD_AT_CPCMFRM_16K:
+				ast_log(LOG_WARNING, "[%s] Could not set audio sample rate\n", PVT_ID(pvt));
 				break;
 
 			case CMD_USER:
@@ -847,18 +888,16 @@ static void handle_clcc(struct pvt* pvt,
 
 	switch(state) {
 		case CALL_STATE_ACTIVE:
-		break; // do nothing
+			if (cpvt && pvt->is_simcom && pvt->has_voice) {
+				at_enqueue_cpcmreg(cpvt, 1);
+			}
+			break;
 
 		case CALL_STATE_DIALING:
 		{
 			pvt->dialing = 1;
 			pvt->cwaiting = 0;
 			pvt->ring = 0;
-
-			if (pvt->is_simcom) {
-				sleep(1);
-				voice_enable(pvt);
-			}
 			break;
 		}
 
@@ -924,6 +963,10 @@ static void handle_clcc(struct pvt* pvt,
 			pvt->ring = 0;
 			pvt->dialing = 0;
 			pvt->cwaiting = 0;
+
+			if (cpvt && pvt->is_simcom && pvt->has_voice) {
+				at_enqueue_cpcmreg(cpvt, 0);
+			}
 			break;
 		}
 
@@ -995,6 +1038,7 @@ static int at_response_clcc(struct pvt* pvt, char* str)
 	return 0;
 }
 
+#ifdef HANDLE_DSCI
 /*!
  * \brief Handle ^DSCI response
  * \param pvt -- pvt structure
@@ -1035,6 +1079,7 @@ static int at_response_dsci(struct pvt* pvt, char* str)
 	
 	return 0;
 }
+#endif
 
 /*!
  * \brief Handle +QIND response.
@@ -1718,16 +1763,16 @@ static int at_response_cops(struct pvt* pvt, char* str)
 {
 	char* provider_name = at_parse_cops(str);
 
-	if (provider_name) {
-		ast_string_field_set(pvt, provider_name, provider_name);
-		ast_verb(1, "[%s] COPS - '%s'\n", PVT_ID(pvt), pvt->provider_name);
-		return 0;
+	if (!provider_name) {
+		ast_string_field_set(pvt, provider_name, "NONE");
+		ast_verb(1, "[%s] Provider nama: %s\n", PVT_ID(pvt), pvt->provider_name);
+		return -1;
 	}
 
-	ast_string_field_set(pvt, provider_name, "NONE");
-	ast_verb(1, "[%s] COPS - '%s'\n", PVT_ID(pvt), pvt->provider_name);
 
-	return -1;
+	ast_string_field_set(pvt, provider_name, provider_name);
+	ast_verb(1, "[%s] Provider name: %s\n", PVT_ID(pvt), pvt->provider_name);
+	return 0;
 }
 
 static int at_response_qspn(struct pvt* pvt, char* str)
@@ -1786,8 +1831,9 @@ static int at_response_creg(struct pvt* pvt, char* str, size_t len)
 	int	gsm_reg;
 	char* lac;
 	char* ci;
+	int act;
 
-	if (at_parse_creg(str, len, &gsm_reg, &pvt->gsm_reg_status, &lac, &ci)) {
+	if (at_parse_creg(str, len, &gsm_reg, &pvt->gsm_reg_status, &lac, &ci, &act)) {
 		ast_log(LOG_ERROR, "[%s] Error parsing CREG: '%.*s'\n", PVT_ID(pvt), (int)len, str);
 		return 0;
 	}
@@ -1837,9 +1883,30 @@ static int at_response_creg(struct pvt* pvt, char* str, size_t len)
  * \retval -1 error
  */
 
-static int at_response_cgmi (struct pvt* pvt, const char* str)
+static int at_response_cgmi(struct pvt* pvt, const char* str)
 {
+	static const char MANUFACTURER_QUECTEL[] = "Quectel";
+	static const char MANUFACTURER_SIMCOM[] = "SimCom";
+
 	ast_string_field_set(pvt, manufacturer, str);
+
+	if (!strncasecmp(str, MANUFACTURER_QUECTEL, STRLEN(MANUFACTURER_QUECTEL))) {
+		ast_log(LOG_NOTICE, "[%s] Quectel module\n", PVT_ID(pvt));
+		pvt->is_simcom = 0;
+		pvt->has_voice = 0;
+		return at_enqueue_initialization_quectel(&pvt->sys_chan);
+	}
+	else if (!strncasecmp(str, MANUFACTURER_SIMCOM, STRLEN(MANUFACTURER_SIMCOM))) {
+		ast_log(LOG_NOTICE, "[%s] SimCom module\n", PVT_ID(pvt));
+		pvt->is_simcom = 1;
+		pvt->has_voice = 0;
+		return at_enqueue_initialization_simcom(&pvt->sys_chan);
+	}
+	else {
+		ast_log(LOG_WARNING, "[%s] Unknown module manufacturer: %s", PVT_ID(pvt), str);
+		pvt->has_voice = 0;
+		return at_enqueue_initialization_other(&pvt->sys_chan);
+	}
 
 	return 0;
 }
@@ -1921,23 +1988,37 @@ static void at_response_busy(struct pvt* pvt, enum ast_control_frame_type contro
 	}
 }
 
-static struct ast_frame* prepare_dtmf_frame(struct cpvt* const cpvt, const char d, int begin)
+static void send_dtmf_frame(struct pvt* const pvt, char c)
 {
-	struct ast_frame* const f = &cpvt->a_dtmf_frame;
-	memset(f, 0, sizeof(struct ast_frame));
-	f->frametype = begin? AST_FRAME_DTMF_BEGIN : AST_FRAME_DTMF_END;
-	f->subclass.integer = d;
-	f->src = AST_MODULE;
-	return f;
+	if (!CONF_SHARED(pvt, dtmf)) {
+		ast_debug(1, "[%s] Detected DTMF: %c", PVT_ID(pvt), c);
+		return;
+	}
+
+	struct cpvt* const cpvt = active_cpvt(pvt);
+	if (cpvt && cpvt->channel) {
+		struct ast_frame f = { AST_FRAME_DTMF, };
+		f.len = 120;
+		f.subclass.integer = c;
+		if (ast_queue_frame(cpvt->channel, &f)) {
+			ast_log(LOG_ERROR, "[%s] Fail to send detected DTMF: %c", PVT_ID(pvt), c);
+		}
+		else {
+			ast_verb(1, "[%s] Detected DTMF: %c", PVT_ID(pvt), c);
+		}
+	}
+	else {
+		ast_log(LOG_WARNING, "[%s] Detected DTMF: %c", PVT_ID(pvt), c);
+	}
 }
 
-static void at_response_qtonedet(struct pvt* pvt, char* str, size_t len)
+static void at_response_qtonedet(struct pvt* pvt, const struct ast_str* const result)
 {
 	int dtmf;
-	char c = '\000';	
+	char c = '\000';
 
-	if (at_parse_qtonedet(str, &dtmf)) {
-		ast_log(LOG_ERROR, "[%s] Error parsing QTONEDET: '%.*s'\n", PVT_ID(pvt), (int)len, str);
+	if (at_parse_qtonedet(ast_str_buffer(result), &dtmf)) {
+		ast_log(LOG_ERROR, "[%s] Error parsing QTONEDET: '%s'\n", PVT_ID(pvt), ast_str_buffer(result));
 		return;
 	}
 
@@ -2012,18 +2093,17 @@ static void at_response_qtonedet(struct pvt* pvt, char* str, size_t len)
 		return;
 	}
 
-	struct cpvt* const cpvt = active_cpvt(pvt);
-	if (cpvt && cpvt->channel) {
-		struct ast_frame* f = prepare_dtmf_frame(cpvt, c, 1);
-		ast_queue_frame(cpvt->channel, f); // DTMF ON
+	send_dtmf_frame(pvt, c);
+}
 
-		f = prepare_dtmf_frame(cpvt, c, 0);
-		ast_queue_frame(cpvt->channel, f); // DTMF OFF
-		ast_verb(1, "[%s] Detected DTMF: %c", PVT_ID(pvt), c);
+static void at_response_rxdtmf(struct pvt* pvt, const struct ast_str* const result)
+{
+	char c = '\000';
+	if (at_parse_rxdtmf(ast_str_buffer(result), &c)) {
+		ast_log(LOG_ERROR, "[%s] Error parsing RXDTMF: '%s'\n", PVT_ID(pvt), ast_str_buffer(result));
+		return;
 	}
-	else {
-		ast_log(LOG_WARNING, "[%s] Detected DTMF: %c", PVT_ID(pvt), c);
-	}
+	send_dtmf_frame(pvt, c);
 }
 
 static const char* qpcmv2str(int qpcmv)
@@ -2103,6 +2183,34 @@ static void at_response_qmic(struct pvt* pvt, const struct ast_str* const respon
 	ast_free(sgain);
 }
 
+static void at_response_cmicgain(struct pvt* pvt, const struct ast_str* const response)
+{
+	int gain;
+
+	if (at_parse_cxxxgain(ast_str_buffer(response), &gain)) {
+		ast_log(LOG_ERROR, "[%s] Error parsing '%s'\n", PVT_ID(pvt), ast_str_buffer(response));
+		return;
+	}
+
+	struct ast_str* const sgain = gain2str_simcom(gain);
+	ast_verb(1, "[%s] RX Gain: %s [%d]\n", PVT_ID(pvt), ast_str_buffer(sgain), gain);
+	ast_free(sgain);
+}
+
+static void at_response_coutgain(struct pvt* pvt, const struct ast_str* const response)
+{
+	int gain;
+
+	if (at_parse_cxxxgain(ast_str_buffer(response), &gain)) {
+		ast_log(LOG_ERROR, "[%s] Error parsing '%s'\n", PVT_ID(pvt), ast_str_buffer(response));
+		return;
+	}
+
+	struct ast_str* const sgain = gain2str_simcom(gain);
+	ast_verb(1, "[%s] TX Gain: %s [%d]\n", PVT_ID(pvt), ast_str_buffer(sgain), gain);
+	ast_free(sgain);
+}
+
 static void at_response_crxvol(struct pvt* pvt, const struct ast_str* const response)
 {
 	int gain;
@@ -2113,7 +2221,7 @@ static void at_response_crxvol(struct pvt* pvt, const struct ast_str* const resp
 	}
 
 	struct ast_str* const sgain = gain2str(gain);
-	ast_verb(1, "[%s] RX Gain: %s [%d]\n", PVT_ID(pvt), ast_str_buffer(sgain), gain);
+	ast_verb(1, "[%s] RX Volume: %s [%d]\n", PVT_ID(pvt), ast_str_buffer(sgain), gain);
 	ast_free(sgain);
 }
 
@@ -2127,7 +2235,7 @@ static void at_response_ctxvol(struct pvt* pvt, const struct ast_str* const resp
 	}
 
 	struct ast_str* const sgain = gain2str(gain);
-	ast_verb(1, "[%s] Microphone Gain: %s [%d]\n", PVT_ID(pvt), ast_str_buffer(sgain), gain);
+	ast_verb(1, "[%s] Microphone Volume: %s [%d]\n", PVT_ID(pvt), ast_str_buffer(sgain), gain);
 	ast_free(sgain);
 }
 
@@ -2163,6 +2271,49 @@ static int at_response_qaudmod(struct pvt* pvt, const struct ast_str* const resp
 
 	ast_verb(1, "[%s] Audio mode is %s\n", PVT_ID(pvt), enum2str_def((unsigned)amode, amodes, ITEMS_OF(amodes),"unknown"));
 	return 0;	
+}
+
+static int at_response_cgmr_ex(struct pvt* pvt, const struct ast_str* const response)
+{
+	char* cgmr;
+	if (at_parse_cgmr(ast_str_buffer(response), &cgmr)) {
+		ast_log(LOG_ERROR, "[%s] Error parsing '%s'\n", PVT_ID(pvt), ast_str_buffer(response));
+		return -1;
+	}
+
+	ast_verb(1, "[%s] Revision identification is %s\n", PVT_ID(pvt), cgmr);
+	ast_string_field_set(pvt, firmware, cgmr);
+	return 0;
+}
+
+static int at_response_cpcmreg(struct pvt* pvt, const struct ast_str* const response)
+{
+	int pcmreg;
+	if (at_parse_cpcmreg(ast_str_buffer(response), &pcmreg)) {
+		ast_log(LOG_ERROR, "[%s] Error parsing '%s'\n", PVT_ID(pvt), ast_str_buffer(response));
+		return -1;
+	}
+
+	if (pcmreg)
+		ast_log(LOG_NOTICE, "[%s] SimCom - Voice channel active", PVT_ID(pvt));
+	else
+		ast_log(LOG_NOTICE, "[%s] SimCom - Voice channel inactive", PVT_ID(pvt));
+	return 0;
+}
+
+static int at_response_cnsmod(struct pvt* pvt, const struct ast_str* const response)
+{
+	int act;
+	if (at_parse_cnsmod(ast_str_buffer(response), &act)) {
+		ast_log(LOG_ERROR, "[%s] Error parsing '%s'\n", PVT_ID(pvt), ast_str_buffer(response));
+		return -1;
+	}
+
+	if (act >=0) {
+		ast_verb(1, "[%s] Access technology: %s\n", PVT_ID(pvt), sys_act2str(act));
+		pvt_set_act(pvt, act);
+	}
+	return 0;
 }
 
 static int check_at_res(at_res_t at_res)
@@ -2259,17 +2410,32 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 				return 0;
 
 			case RES_DSCI:
+#ifdef HANDLE_DSCI			
 				return at_response_dsci(pvt, str);
+#else
+				return 0;
+#endif				
 
 			case RES_CEND:
+#ifdef HANDLE_CEND			
 				return at_response_cend (pvt, str);
+#else				
+				return 0;
+#endif				
 
 			case RES_RCEND:
+#ifdef HANDLE_RCEND			
 				return at_response_rcend(pvt);
+#else
+				return 0;
+#endif				
 
 			case RES_CREG:
 				/* An error here is not fatal. Just keep going. */
-				at_response_creg (pvt, str, len);
+				at_response_creg(pvt, str, len);
+				return 0;
+
+			case RES_CEREG:
 				return 0;
 
 			case RES_COPS:
@@ -2326,7 +2492,7 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 				break;
 
 			case RES_CLCC:
-				return at_response_clcc (pvt, str);
+				return at_response_clcc(pvt, str);
 
 			case RES_CCWA:
 				return at_response_ccwa (pvt, str);
@@ -2363,7 +2529,11 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 				return 0;
 
 			case RES_QTONEDET:
-				at_response_qtonedet(pvt, str, len);
+				at_response_qtonedet(pvt, result);
+				return 0;
+
+			case RES_RXDTMF:
+				at_response_rxdtmf(pvt, result);
 				return 0;
 
 			case RES_QPCMV:
@@ -2386,6 +2556,14 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 				at_response_qmic(pvt, result);
 				return 0;
 
+			case RES_CMICGAIN:
+				at_response_cmicgain(pvt, result);
+				return 0;
+
+			case RES_COUTGAIN:
+				at_response_coutgain(pvt, result);
+				return 0;
+
 			case RES_CTXVOL:
 				at_response_ctxvol(pvt, result);
 				return 0;
@@ -2402,6 +2580,15 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 
 			case RES_QAUDLOOP:
 				return at_response_qaudloop(pvt, result);
+
+			case RES_CGMR:
+				return at_response_cgmr_ex(pvt, result);
+
+			case RES_CPCMREG:
+				return at_response_cpcmreg(pvt, result);
+
+			case RES_CNSMOD:
+				return at_response_cnsmod(pvt, result);
 
 			case RES_PARSE_ERROR:
 				ast_log (LOG_ERROR, "[%s] Error parsing result\n", PVT_ID(pvt));
