@@ -175,7 +175,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 			case CMD_AT_DSCI:
 			case CMD_AT_QLTS:
 			case CMD_AT_CCLK:
-				ast_debug (3, "[%s] %s sent successfully\n", PVT_ID(pvt), at_cmd2str (ecmd->cmd));
+				ast_debug (4, "[%s] %s sent successfully\n", PVT_ID(pvt), at_cmd2str (ecmd->cmd));
 				break;
 
 			case CMD_AT_FINAL:
@@ -222,7 +222,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_QPCMV_0:
-				ast_debug(3, "[%s] %s sent successfully\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
+				ast_debug(4, "[%s] %s sent successfully\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
 
 				pvt->has_voice = 0;
 				break;
@@ -230,7 +230,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 			case CMD_AT_QPCMV_TTY:
 			case CMD_AT_QPCMV_UAC:
 			case CMD_AT_QCRCIND:
-				ast_debug(3, "[%s] %s sent successfully\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
+				ast_debug(4, "[%s] %s sent successfully\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
 
 				pvt->has_voice = 1;
 				at_enqueue_qgains(&pvt->sys_chan, CONF_SHARED(pvt, txgain), CONF_SHARED(pvt, rxgain));
@@ -278,7 +278,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				task->cpvt->needhangup = 1;
 */
 				CPVT_SET_FLAGS(task->cpvt, CALL_FLAG_NEED_HANGUP);
-				ast_debug(1, "[%s] %s sent successfully for call id %d\n", PVT_ID(pvt), at_cmd2str (ecmd->cmd), task->cpvt->call_idx);
+				ast_debug(4, "[%s] %s sent successfully for call id %d\n", PVT_ID(pvt), at_cmd2str (ecmd->cmd), task->cpvt->call_idx);
 				break;
 
 			case CMD_AT_CFUN:
@@ -289,7 +289,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CPCMREG1:
-				ast_debug(1, "[%s] %s sent successfully\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
+				ast_debug(4, "[%s] %s sent successfully\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
 				if (!pvt->initialized) {
 					pvt->timeout = DATA_READ_TIMEOUT;
 					pvt->initialized = 1;
@@ -298,7 +298,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CPCMREG0:
-				ast_debug(1, "[%s] %s sent successfully\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
+				ast_debug(4, "[%s] %s sent successfully\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
 				break;
 
 			case CMD_AT_CHUP:
@@ -318,21 +318,19 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 
 				/* TODO: move to +CMGS: handler */
 				ast_verb(3, "[%s] Successfully sent SMS message %p\n", PVT_ID(pvt), task);
-					ast_log(LOG_NOTICE, "[%s] Successfully sent SMS message %p\n", PVT_ID(pvt), task);
 				break;
 
 			case CMD_AT_DTMF:
-				ast_debug(1, "[%s] DTMF sent successfully for call idx %d\n", PVT_ID(pvt), task->cpvt->call_idx);
+				ast_debug(4, "[%s] DTMF sent successfully for call idx %d\n", PVT_ID(pvt), task->cpvt->call_idx);
 				break;
 
 			case CMD_AT_CUSD:
 				ast_verb(3, "[%s] Successfully sent USSD %p\n", PVT_ID(pvt), task);
-				ast_log(LOG_NOTICE, "[%s] Successfully sent USSD %p\n", PVT_ID(pvt), task);
 				break;
 
 			case CMD_AT_COPS:
 			case CMD_AT_QSPN:
-				ast_debug (3, "[%s] Provider query successfully\n", PVT_ID(pvt));
+				ast_debug (4, "[%s] Successfull provider query\n", PVT_ID(pvt));
 				break;
 
 			case CMD_AT_CMGR:
@@ -341,15 +339,15 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CMGD:
-				ast_debug (1, "[%s] SMS message deleted successfully\n", PVT_ID(pvt));
+				ast_debug(4, "[%s] SMS message deleted successfully\n", PVT_ID(pvt));
 				break;
 
 			case CMD_AT_CSQ:
-				ast_debug (1, "[%s] Got signal strength result\n", PVT_ID(pvt));
+				ast_debug(1, "[%s] Got signal strength result\n", PVT_ID(pvt));
 				break;
 
 			case CMD_AT_AUTOCSQ_INIT:
-				ast_debug (1, "[%s] Signal change notifications enabled\n", PVT_ID(pvt));
+				ast_debug(1, "[%s] Signal change notifications enabled\n", PVT_ID(pvt));
 				break;				
 
 			case CMD_AT_CLVL:
