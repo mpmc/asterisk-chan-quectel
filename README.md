@@ -4,12 +4,9 @@ See original [README](//github.com/IchthysMaranatha/asterisk-chan-quectel/blob/m
 
 ----
 
-This should work with *Quectel* modules such as EC20, EC21, EC25, EG9x ~~and *SimCOM* SIM7600~~ and possibly other models with *voice over USB* capability.
-Tested with the **EC25-E** mini-PCIe module ~~and Waveshare SIM7600G-H dongle~~.
+This should work with *Quectel* modules such as EC20, EC21, EC25, EG9x and *SimCOM* SIM7600 and possibly other models with *voice over USB* capability.
+Tested with the **EC25-E** mini-PCIe module and Waveshare **SIM7600G-H** mini-PCIe module.
 If the product page of your *Quectel* module contains the *Voice Over USB and UAC Application Note*, you should be good to go.
-
-*SimCOM* support is **probably broken**. If you are using *SimCOM* module I strongly recomended using [original](//github.com/IchthysMaranatha/asterisk-chan-quectel) driver.
-I do not have acces to *SimCOM* module thus cannot fix this driver for now.
 
 # Changes
 
@@ -76,7 +73,7 @@ I do not have acces to *SimCOM* module thus cannot fix this driver for now.
 
     * TX/RX gain is performed by module itself.
         
-        This channel driver just sends `AT+QMIC`/`AT+QRXGAIN` (`AT+CTXVOL`/`AT+CRXVOL` for *SimCOM* module) commands.
+        This channel driver just sends `AT+QMIC`/`AT+QRXGAIN` (`AT+CMICGAIN`/`AT+COUTGAIN` for *SimCOM* module) commands.
 
     * Default value is **-1** now - use current module setting, do not change gain.
     * Range: **0-65535** or **0-100%**.
@@ -89,6 +86,11 @@ I do not have acces to *SimCOM* module thus cannot fix this driver for now.
     | :---: | ----------- |
     | on | *ping* module with `AT+QLTS` (or `AT+CCLK` for *SimCOM* module) command |
     | **off** | *ping* module with standard `AT` command |
+
+* New `slin16` option (on/**off**).
+
+    Enable/disable 16kHz audio (default is 8kHz).\
+    Currently only *SimCOM* SIM7600X module handles 16kHz audio.
 
 ## Commands
 
