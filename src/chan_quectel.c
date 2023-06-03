@@ -113,8 +113,8 @@ static snd_pcm_t *alsa_card_init(struct pvt* pvt, const char *dev, snd_pcm_strea
 	snd_pcm_t *handle = NULL;
 	snd_pcm_hw_params_t *hwparams = NULL;
 	snd_pcm_sw_params_t *swparams = NULL;
-	snd_pcm_uframes_t period_size = PERIOD_FRAMES * 4;
-	snd_pcm_uframes_t buffer_size = PERIOD_FRAMES * 8;
+	snd_pcm_uframes_t period_size = FRAME_SIZE2;
+	snd_pcm_uframes_t buffer_size = FRAME_SIZE2 * 8;
 	snd_pcm_uframes_t boundary = 0u;
 	unsigned int rate = DESIRED_RATE;
 	snd_pcm_uframes_t start_threshold;
@@ -191,12 +191,9 @@ static snd_pcm_t *alsa_card_init(struct pvt* pvt, const char *dev, snd_pcm_strea
 		ast_log(LOG_ERROR, "[%s][ALSA][%s] SW Couldn't get boundary: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
 		boundary = 0u;
 	}
-	ast_debug(2, "[%s][ALSA][%s] Boundary: %lu\n", PVT_ID(pvt), stream_str, boundary);
+	ast_debug(3, "[%s][ALSA][%s] Boundary: %lu\n", PVT_ID(pvt), stream_str, boundary);
 
-	if (stream == SND_PCM_STREAM_PLAYBACK)
-		start_threshold = period_size;
-	else
-		start_threshold = 1;
+	start_threshold = 2 * period_size;
 
 	res = snd_pcm_sw_params_set_start_threshold(handle, swparams, start_threshold);
 	if (res < 0) {
