@@ -214,7 +214,6 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				ast_debug(1, "[%s] SimCom has voice support\n", PVT_ID(pvt));
 
 				pvt->has_voice = 1;
-				//at_enqueue_qcrcind(&pvt->sys_chan);
 				at_enqueue_cpcmfrm(task->cpvt, CONF_UNIQ(pvt, slin16));
 				at_enqueue_cpcmreg(task->cpvt, 0);
 				at_enqueue_cgains(task->cpvt, CONF_SHARED(pvt, txgain), CONF_SHARED(pvt, rxgain));
@@ -229,7 +228,6 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 			
 			case CMD_AT_QPCMV_TTY:
 			case CMD_AT_QPCMV_UAC:
-			case CMD_AT_QCRCIND:
 				ast_debug(4, "[%s] %s sent successfully\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
 
 				pvt->has_voice = 1;
@@ -536,7 +534,6 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 			case CMD_AT_QINDCFG_RING:
 			case CMD_AT_QINDCFG_CC:
 			case CMD_AT_DSCI:
-			case CMD_AT_QCRCIND:
 				ast_debug(1, "[%s] Error enabling indications\n", PVT_ID(pvt));
 				break;
 

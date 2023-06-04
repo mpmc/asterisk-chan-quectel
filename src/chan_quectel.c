@@ -699,8 +699,14 @@ static void* do_monitor_phone(void* data)
 			ast_mutex_lock(&pvt->lock);
 			const struct at_queue_cmd* const ecmd = at_queue_head_cmd(pvt);
 			if(ecmd) {
-				ast_log(LOG_ERROR, "[%s][%s] Timeout [%s]\n", dev, at_cmd2str(ecmd->cmd), at_res2str(ecmd->res));
-				goto e_cleanup;
+				if (ecmd->flags & ATQ_CMD_FLAG_IGNORE) {
+					ast_log(LOG_WARNING, "[%s][%s] Timeout [%s]\n", dev, at_cmd2str(ecmd->cmd), at_res2str(ecmd->res));
+					at_queue_remove(pvt);
+				}
+				else {
+					ast_log(LOG_ERROR, "[%s][%s] Timeout [%s]\n", dev, at_cmd2str(ecmd->cmd), at_res2str(ecmd->res));
+					goto e_cleanup;
+				}
 			}
 			at_enqueue_ping(&pvt->sys_chan);
 			ast_mutex_unlock (&pvt->lock);

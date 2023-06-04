@@ -55,7 +55,7 @@ static void at_queue_free (at_queue_task_t* task)
  * \param pvt -- pvt structure
  */
 #/* */
-static void at_queue_remove (struct pvt * pvt)
+void at_queue_remove (struct pvt * pvt)
 {
 	at_queue_task_t * task = AST_LIST_REMOVE_HEAD (&pvt->at_queue, entry);
 

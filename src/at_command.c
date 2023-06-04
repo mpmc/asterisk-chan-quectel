@@ -354,8 +354,8 @@ int at_enqueue_qspn_qnwinfo(struct cpvt *cpvt)
 	static const char cmd_qnwinfo[] = "+QNWINFO";
 
 	static at_queue_cmd_t at_cmds[] = {
-		ATQ_CMD_DECLARE_ST(CMD_AT_QSPN, cmd_qspn),
-		ATQ_CMD_DECLARE_ST(CMD_AT, cmd_qnwinfo),
+		ATQ_CMD_DECLARE_STI(CMD_AT_QSPN, cmd_qspn),
+		ATQ_CMD_DECLARE_STI(CMD_AT, cmd_qnwinfo),
 	};
 
 	if (at_queue_insert_const_at_once(cpvt, at_cmds, ITEMS_OF(at_cmds), 0) != 0) {
@@ -1134,19 +1134,6 @@ int at_enqueue_mute(struct cpvt *cpvt, int mute)
 	return 0;
 }
 
-int at_enqueue_qcrcind(struct cpvt* cpvt)
-{
-	static const char cmd_atqcrcind[] = "AT$QCRCIND=1\r";
-	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_STIT(CMD_AT_QCRCIND, cmd_atqcrcind, ATQ_CMD_TIMEOUT_MEDIUM, 0);
-
-	if (at_queue_insert_const(cpvt, &cmd, 1, 0) != 0) {
-		chan_quectel_err = E_QUEUE;
-		return -1;
-	}
-
-	return 0;
-}
-
 int at_enqueue_enable_tty(struct cpvt* cpvt)
 {
 	static const char cmd_atqpcmv[] = "AT+QPCMV=1,0\r";
@@ -1175,7 +1162,7 @@ int at_enqueue_enable_uac(struct cpvt* cpvt)
 
 int at_enqueue_qlts(struct cpvt* cpvt, int mode)
 {
-	at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_QLTS);
+	at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYNI(CMD_AT_QLTS);
 
 	const int err = at_fill_generic_cmd(&cmd, "AT+QLTS=%d\r", mode);
 	if (err) {
@@ -1194,7 +1181,7 @@ int at_enqueue_qlts(struct cpvt* cpvt, int mode)
 int at_enqueue_cclk_query(struct cpvt* cpvt)
 {
 	static const char cmd_cclk[] = "AT+CCLK?\r";
-	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_ST(CMD_AT_CCLK, cmd_cclk);
+	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_STI(CMD_AT_CCLK, cmd_cclk);
 
 	if (at_queue_insert_const(cpvt, &cmd, 1, 1) != 0) {
 		chan_quectel_err = E_QUEUE;

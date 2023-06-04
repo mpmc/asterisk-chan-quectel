@@ -93,6 +93,7 @@ const at_queue_cmd_t* at_queue_head_cmd(const struct pvt* pvt);
 int at_queue_timeout(const struct pvt* pvt);
 int at_queue_run(struct pvt* pvt);
 int at_queue_run_immediately(struct pvt* pvt);
+void at_queue_remove (struct pvt * pvt);
 
 static inline const at_queue_cmd_t* at_queue_task_cmd(const at_queue_task_t* task)
 {

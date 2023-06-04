@@ -85,7 +85,6 @@
 	_( AT_QINDCFG_RING,	"AT+QINDCFG=\"ring\",0,0") \
 	_( AT_QINDCFG_CC,	"AT+QINDCFG=\"cc\",1,0") \
 	_( AT_DSCI,			"AT+^DSCI=1") \
-	_( AT_QCRCIND,		"AT$QCRCIND=1") \
 	_( AT_CMUT_0,		"AT+CMUT=0") \
 	_( AT_CMUT_1,		"AT+CMUT=1") \
 	_( AT_QPCMV_0,		"AT+QPCMV=0") \
@@ -158,7 +157,6 @@ int at_disable_uac_immediately(struct pvt *pvt);
 int at_enqueue_enable_tty(struct cpvt *cpvt);
 int at_enqueue_enable_uac(struct cpvt *cpvt);
 int at_enqueue_mute(struct cpvt *cpvt, int mute);
-int at_enqueue_qcrcind(struct cpvt* cpvt);
 int at_enqueue_qlts(struct cpvt* cpvt, int mode);
 int at_enqueue_cclk_query(struct cpvt* cpvt);
 int at_enqueue_query_qgains(struct cpvt* cpvt);
