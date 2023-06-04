@@ -752,6 +752,7 @@ static struct ast_frame* channel_read(struct ast_channel* channel)
 	}
 
 	struct pvt* const pvt = cpvt->pvt;
+
 	while (ast_mutex_trylock(&pvt->lock)) {
 		CHANNEL_DEADLOCK_AVOIDANCE (channel);
 	}
@@ -764,7 +765,7 @@ static struct ast_frame* channel_read(struct ast_channel* channel)
 	}
 
 	const int fdno = ast_channel_fdno(channel);
-	const size_t frame_size = pvt_get_audio_frame_size(pvt);
+	const size_t frame_size = pvt_get_audio_frame_size(pvt, 1);
 	const struct ast_format* const fmt = pvt_get_audio_format(pvt);
 
 	if (fdno == 1) {
@@ -938,7 +939,6 @@ static int channel_write_uac(struct ast_channel*, struct ast_frame* f, struct cp
 static int channel_write(struct ast_channel* channel, struct ast_frame* f)
 {
 	struct cpvt* cpvt = ast_channel_tech_pvt(channel);
-	struct pvt* pvt = NULL;
 	int res = -1;
 
 	if (!cpvt || cpvt->channel != channel || !cpvt->pvt) {
@@ -952,28 +952,26 @@ static int channel_write(struct ast_channel* channel, struct ast_frame* f)
 		return 0;
 	}
 
-	pvt = cpvt->pvt;
-
-	const struct ast_format* const fmt = pvt_get_audio_format(pvt);
-	const size_t frame_size = pvt_get_audio_frame_size(pvt);
-
-#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
-	if (!pvt || f->frametype != AST_FRAME_VOICE
-			|| ast_format_cmp(f->subclass.format, fmt) != AST_FORMAT_CMP_EQUAL)
-#elif ASTERISK_VERSION_NUM >= 100000 /* 10-13 */
-	if (f->frametype != AST_FRAME_VOICE
-			|| f->subclass.format.id != AST_FORMAT_SLINEAR)
-#else /* 10- */
-	if (f->frametype != AST_FRAME_VOICE
-			|| f->subclass_codec != AST_FORMAT_SLINEAR)
-#endif /* ^10- */
-	{
-		ast_debug(1, "[%s] Unsupported audio codec: %s\n", PVT_ID(pvt), ast_format_get_name(f->subclass.format));
-		return 0;
-	}
+	struct pvt* const pvt = cpvt->pvt;
 
 	while (ast_mutex_trylock(&pvt->lock)) {
 		CHANNEL_DEADLOCK_AVOIDANCE (channel);
+	}
+
+	const struct ast_format* const fmt = pvt_get_audio_format(pvt);
+	const size_t frame_size = pvt_get_audio_frame_size(pvt, 0);
+
+#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
+	if (f->frametype != AST_FRAME_VOICE || ast_format_cmp(f->subclass.format, fmt) != AST_FORMAT_CMP_EQUAL)
+#elif ASTERISK_VERSION_NUM >= 100000 /* 10-13 */
+	if (f->frametype != AST_FRAME_VOICE || f->subclass.format.id != AST_FORMAT_SLINEAR)
+#else /* 10- */
+	if (f->frametype != AST_FRAME_VOICE || f->subclass_codec != AST_FORMAT_SLINEAR)
+#endif /* ^10- */
+	{
+		ast_debug(1, "[%s] Unsupported audio codec: %s\n", PVT_ID(pvt), ast_format_get_name(f->subclass.format));
+		ast_mutex_unlock(&pvt->lock);
+		return 0;
 	}
 
 	ast_debug(7, "[%s] write call idx %d state %d\n", PVT_ID(pvt), cpvt->call_idx, cpvt->state);

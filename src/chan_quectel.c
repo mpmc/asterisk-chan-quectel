@@ -113,8 +113,8 @@ static snd_pcm_t *alsa_card_init(struct pvt* pvt, const char *dev, snd_pcm_strea
 	snd_pcm_t *handle = NULL;
 	snd_pcm_hw_params_t *hwparams = NULL;
 	snd_pcm_sw_params_t *swparams = NULL;
-	snd_pcm_uframes_t period_size = FRAME_SIZE2;
-	snd_pcm_uframes_t buffer_size = FRAME_SIZE2 * 8;
+	snd_pcm_uframes_t period_size = ((stream == SND_PCM_STREAM_CAPTURE)? FRAME_SIZE_CAPTURE : FRAME_SIZE_PLAYBACK) / sizeof(short);
+	snd_pcm_uframes_t buffer_size = BUFFER_SIZE / sizeof(short);
 	snd_pcm_uframes_t boundary = 0u;
 	unsigned int rate = DESIRED_RATE;
 	snd_pcm_uframes_t start_threshold;
@@ -126,7 +126,7 @@ static snd_pcm_t *alsa_card_init(struct pvt* pvt, const char *dev, snd_pcm_strea
 		ast_log(LOG_ERROR, "[%s][ALSA][%s] Fail to open device - dev:'%s' err:'%s'\n", PVT_ID(pvt), stream_str, dev, snd_strerror(res));
 		return NULL;
 	} else {
-		ast_debug(1, "[%s][ALSA][%s] Device opened - dev:'%s'\n", PVT_ID(pvt), stream_str, dev);
+		ast_debug(1, "[%s][ALSA][%s] Device: %s\n", PVT_ID(pvt), stream_str, dev);
 	}
 
 	hwparams = ast_alloca(snd_pcm_hw_params_sizeof());
@@ -1875,13 +1875,14 @@ const struct ast_format* pvt_get_audio_format(const struct pvt* const pvt)
 	}
 }
 
-size_t pvt_get_audio_frame_size(const struct pvt* const pvt)
+size_t pvt_get_audio_frame_size(const struct pvt* const pvt, int capture)
 {
 	if (pvt->is_simcom) {
-		return CONF_UNIQ(pvt, slin16)? FRAME_SIZE * 2 : FRAME_SIZE;
+		const size_t fs = capture? FRAME_SIZE_CAPTURE : FRAME_SIZE_PLAYBACK;
+		return CONF_UNIQ(pvt, slin16)? fs * 2 : fs;
 	}
 	else {
-		return FRAME_SIZE;
+		return capture? FRAME_SIZE_CAPTURE : FRAME_SIZE_PLAYBACK;
 	}
 }
 

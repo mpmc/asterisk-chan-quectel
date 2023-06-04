@@ -11,8 +11,10 @@
 
 #include "mixbuffer.h"				/* struct mixstream */
 #include "mutils.h"				/* enum2str() ITEMS_OF() */
-#define FRAME_SIZE		320
-#define FRAME_SIZE2		(FRAME_SIZE/2)
+
+#define FRAME_SIZE_CAPTURE 640
+#define FRAME_SIZE_PLAYBACK 1600
+#define BUFFER_SIZE 3200
 
 typedef enum {
 	CALL_STATE_MIN		= 0,
@@ -69,7 +71,7 @@ typedef struct cpvt {
 #define PIPE_WRITE		1
 
 	struct mixstream	mixstream;			/*!< mix stream */
-	char			a_read_buf[FRAME_SIZE*4 + AST_FRIENDLY_OFFSET];/*!< audio read buffer */
+	char			a_read_buf[FRAME_SIZE_CAPTURE * 2 + AST_FRIENDLY_OFFSET];/*!< audio read buffer */
 	struct ast_frame	a_read_frame;			/*!< voice frame */
 
 //	size_t			write;				/*!< write position in pvt->a_write_buf */

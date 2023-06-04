@@ -130,9 +130,9 @@ typedef struct pvt
 
 	struct ast_timer*	a_timer;			/*!< audio write timer */
 
-	char			a_silence_buf[FRAME_SIZE * 2];
+	char			a_silence_buf[FRAME_SIZE_PLAYBACK * 2];
 
-	char			a_write_buf[FRAME_SIZE * 5];	/*!< audio write buffer */
+	char			a_write_buf[FRAME_SIZE_PLAYBACK * 5];	/*!< audio write buffer */
 	struct mixbuffer	a_write_mixb;			/*!< audio mix buffer */
 
 	int			timeout;			/*!< used to set the timeout for data */
@@ -246,7 +246,7 @@ void pvt_try_restate(struct pvt * pvt);
 int pvt_set_act(struct pvt* pvt, int act);
 
 const struct ast_format* pvt_get_audio_format(const struct pvt* const);
-size_t pvt_get_audio_frame_size(const struct pvt* const);
+size_t pvt_get_audio_frame_size(const struct pvt* const, int);
 void* pvt_get_silence_buffer(struct pvt* const);
 
 int opentty (const char* dev, char ** lockfile, int typ);
