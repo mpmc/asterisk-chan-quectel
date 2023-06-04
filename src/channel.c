@@ -857,29 +857,13 @@ static int channel_write_tty(struct ast_channel* channel, struct ast_frame* f, s
 */
 	}
 	else if (CPVT_IS_ACTIVE(cpvt)) { // direct write
-		int iovcnt;
-		struct iovec iov[2];
+		struct iovec iov;
 
 		ast_frame_byteswap_le(f);
-		iov[0].iov_base = f->data.ptr;
-		iov[0].iov_len = frame_size;
+		iov.iov_base = f->data.ptr;
+		iov.iov_len = f->datalen;
 
-		if (f->datalen < frame_size) {
-			ast_log(LOG_WARNING, "[%s][TTY] Short voice frame: %d/%d\n", PVT_ID(pvt), f->datalen, (int)frame_size);
-			iov[0].iov_len = f->datalen;
-			iov[1].iov_base = pvt_get_silence_buffer(pvt);
-			iov[1].iov_len = frame_size - f->datalen;
-			iovcnt = 2;
-			PVT_STAT(pvt, write_tframes) ++;
-		}
-		else {
-			if (f->datalen != frame_size) {
-				ast_log(LOG_WARNING, "[%s][TTY] Big voice frame: %d/%d\n", PVT_ID(pvt), f->datalen, (int)frame_size);
-			}
-			iovcnt = 1;
-		}
-
-		if (iov_write(pvt, pvt->audio_fd, iov, iovcnt) >= 0) {
+		if (iov_write(pvt, pvt->audio_fd, &iov, 1) >= 0) {
 			PVT_STAT(pvt, write_frames) ++;
 		}
 	}
@@ -888,7 +872,7 @@ static int channel_write_tty(struct ast_channel* channel, struct ast_frame* f, s
 	return 0;
 }
 
-static int channel_write_uac(struct ast_channel*, struct ast_frame* f, struct cpvt*, struct pvt* pvt)
+static int channel_write_uac(struct ast_channel*, struct ast_frame* f, struct cpvt*, struct pvt* pvt, size_t frame_size)
 {
 	const int len2 = f->datalen / 2;
 	int res = 0;
@@ -994,8 +978,16 @@ static int channel_write(struct ast_channel* channel, struct ast_frame* f)
 
 	ast_debug(7, "[%s] write call idx %d state %d\n", PVT_ID(pvt), cpvt->call_idx, cpvt->state);
 
+	if (f->datalen < frame_size) {
+		ast_debug(8, "[%s] Short voice frame: %d/%d\n", PVT_ID(pvt), f->datalen, (int)frame_size);
+		PVT_STAT(pvt, write_tframes) ++;
+	}
+	else if (f->datalen > frame_size) {
+		ast_debug(8, "[%s] Large voice frame: %d/%d\n", PVT_ID(pvt), f->datalen, (int)frame_size);
+	}
+
 	if (CONF_UNIQ(pvt, uac) && CPVT_IS_MASTER(cpvt)) {
-		res = channel_write_uac(channel, f, cpvt, pvt);
+		res = channel_write_uac(channel, f, cpvt, pvt, frame_size);
 	}
 	else {
 		res = channel_write_tty(channel, f, cpvt, pvt, frame_size);
