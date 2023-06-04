@@ -193,7 +193,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CREG:
-				ast_debug (1, "[%s] registration query sent\n", PVT_ID(pvt));
+				ast_debug(1, "[%s] Registration query sent\n", PVT_ID(pvt));
 				break;
 
 			case CMD_AT_CNUM:
@@ -201,7 +201,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CVOICE:
-				ast_debug(1, "[%s] Quectel has voice support\n", PVT_ID(pvt));
+				ast_debug(1, "[%s] Voice calls supported\n", PVT_ID(pvt));
 
 				if (CONF_UNIQ(pvt, uac)) {
 					at_enqueue_enable_uac(&pvt->sys_chan);
@@ -211,7 +211,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CPCMREG:
-				ast_debug(1, "[%s] SimCom has voice support\n", PVT_ID(pvt));
+				ast_debug(1, "[%s] Voice calls supported\n", PVT_ID(pvt));
 
 				pvt->has_voice = 1;
 				at_enqueue_cpcmfrm(task->cpvt, CONF_UNIQ(pvt, slin16));
@@ -538,12 +538,12 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CVOICE:
-				ast_debug (1, "[%s] No Quectel voice support\n", PVT_ID(pvt));
+				ast_debug (1, "[%s] Voice calls not supported\n", PVT_ID(pvt));
 				pvt->has_voice = 0;
                 break;
 
 			case CMD_AT_CPCMREG:
-				ast_debug(1, "[%s] No Simcom voice support\n", PVT_ID(pvt));
+				ast_debug(1, "[%s] Voice calls not supported\n", PVT_ID(pvt));
 				pvt->has_voice = 0;
 				break;
 /*
