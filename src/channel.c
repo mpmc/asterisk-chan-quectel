@@ -1036,7 +1036,7 @@ static int channel_devicestate (void* data)
 
 	device = ast_strdupa (data ? data : "");
 
-	ast_debug (1, "Checking device state for device %s\n", device);
+	ast_debug(1, "[%s] Checking device state\n", device);
 
 	pvt = find_device_ext(device);
 	if (pvt)

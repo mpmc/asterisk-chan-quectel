@@ -179,7 +179,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_FINAL:
-				ast_verb(3, "[%s] Channel initialized\n", PVT_ID(pvt));
+				ast_verb(1, "[%s] Channel initialized\n", PVT_ID(pvt));
 				pvt->initialized = 1;
 				break;
 
@@ -1113,7 +1113,7 @@ static int at_response_qind(struct pvt* pvt, char* str)
 				ast_debug(3, "[%s] Failed to parse CSQ - %s\n", PVT_ID(pvt), params);
 				break;
 			}
-			ast_verb(1, "[%s] RSSI: %s\n", PVT_ID(pvt), rssi2dBm(rssi, buf, sizeof(buf)));
+			ast_verb(3, "[%s] RSSI: %s\n", PVT_ID(pvt), rssi2dBm(rssi, buf, sizeof(buf)));
 			pvt->rssi = rssi;
 			return 0;
 		}
@@ -1889,13 +1889,13 @@ static int at_response_cgmi(struct pvt* pvt, const char* str)
 	ast_string_field_set(pvt, manufacturer, str);
 
 	if (!strncasecmp(str, MANUFACTURER_QUECTEL, STRLEN(MANUFACTURER_QUECTEL))) {
-		ast_log(LOG_NOTICE, "[%s] Quectel module\n", PVT_ID(pvt));
+		ast_verb(1, "[%s] Quectel module\n", PVT_ID(pvt));
 		pvt->is_simcom = 0;
 		pvt->has_voice = 0;
 		return at_enqueue_initialization_quectel(&pvt->sys_chan);
 	}
 	else if (!strncasecmp(str, MANUFACTURER_SIMCOM, STRLEN(MANUFACTURER_SIMCOM))) {
-		ast_log(LOG_NOTICE, "[%s] SimCom module\n", PVT_ID(pvt));
+		ast_verb(1, "[%s] SimCOM module\n", PVT_ID(pvt));
 		pvt->is_simcom = 1;
 		pvt->has_voice = 0;
 		return at_enqueue_initialization_simcom(&pvt->sys_chan);
@@ -2124,7 +2124,7 @@ static void at_response_qpcmv(struct pvt* pvt, char* str, size_t len)
 		return;
 	}
 
-	ast_debug(1, "[%s] Voice configuration %s: %s\n", PVT_ID(pvt), S_COR(enabled, "enabled", "disabled"), qpcmv2str(mode));
+	ast_debug(1, "[%s] Voice configuration: %s [%s]\n", PVT_ID(pvt), qpcmv2str(mode), S_COR(enabled, "enabled", "disabled"));
 }
 
 static void at_response_qlts(struct pvt* pvt, const struct ast_str* const result)
@@ -2505,11 +2505,11 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 				break;
 
 			case RES_NO_ANSWER:
-				ast_log (LOG_NOTICE, "[%s] Receive NO ANSWER\n", PVT_ID(pvt));
+				ast_debug(2, "[%s] Receive NO ANSWER\n", PVT_ID(pvt));
 				return 0;
 
 			case RES_NO_CARRIER:
-				ast_log (LOG_NOTICE, "[%s] Receive NO CARRIER\n", PVT_ID(pvt));
+				ast_debug(2, "[%s] Receive NO CARRIER\n", PVT_ID(pvt));
 				return 0;
 
 			case RES_CPIN:
