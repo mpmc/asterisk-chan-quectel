@@ -175,7 +175,9 @@ static struct ast_channel * channel_request(
 		}
 	}
 	else {
-		if (ast_format_cap_iscompatible_format(cap, ast_format_slin) != AST_FORMAT_CMP_EQUAL && ast_format_cap_iscompatible_format(cap, ast_format_slin16) != AST_FORMAT_CMP_EQUAL)
+		if (ast_format_cap_iscompatible_format(cap, ast_format_slin) != AST_FORMAT_CMP_EQUAL &&
+		    ast_format_cap_iscompatible_format(cap, ast_format_slin16) != AST_FORMAT_CMP_EQUAL &&
+		    ast_format_cap_iscompatible_format(cap, ast_format_slin48) != AST_FORMAT_CMP_EQUAL)
 		{
 			struct ast_str *codec_buf = ast_str_alloca(64);
 			ast_log(LOG_WARNING, "Asked to get a channel of unsupported format '%s'\n",
@@ -696,7 +698,7 @@ static struct ast_frame* channel_read_uac(struct cpvt* cpvt, struct pvt* pvt, si
 	}
 
 	char* const buf = cpvt->a_read_buf + AST_FRIENDLY_OFFSET;
-	res = snd_pcm_readn(pvt->icard, (void**)&buf, frame_size2);
+	res = snd_pcm_readi(pvt->icard, buf, frame_size2);
 
 	switch (res) {
 		case -EAGAIN:
@@ -902,7 +904,7 @@ static int channel_write_uac(struct ast_channel*, struct ast_frame* f, struct cp
 			goto w_finish;
 	}
 
-	res = snd_pcm_writen(pvt->ocard, &f->data.ptr, len2);
+	res = snd_pcm_writei(pvt->ocard, f->data.ptr, len2);
 
 	switch(res) {
 		case -EAGAIN:

@@ -117,8 +117,10 @@ static snd_pcm_t *alsa_card_init(struct pvt* pvt, const char *dev, snd_pcm_strea
 	snd_pcm_uframes_t period_size = ((stream == SND_PCM_STREAM_CAPTURE)? FRAME_SIZE_CAPTURE : FRAME_SIZE_PLAYBACK) / sizeof(short);
 	period_size *= rate / 8000;
 	snd_pcm_uframes_t buffer_size = BUFFER_SIZE / sizeof(short);
+	buffer_size *= rate / 8000;
 	snd_pcm_uframes_t boundary = 0u;
 	snd_pcm_uframes_t start_threshold;
+	unsigned int hwrate = rate;
 	unsigned int channels = 1;
 
 	const char* const stream_str = (stream == SND_PCM_STREAM_CAPTURE)? "CAPTURE" : "PLAYBACK";
@@ -135,7 +137,7 @@ static snd_pcm_t *alsa_card_init(struct pvt* pvt, const char *dev, snd_pcm_strea
 	memset(hwparams, 0, snd_pcm_hw_params_sizeof());
 	snd_pcm_hw_params_any(handle, hwparams);
 
-	res = snd_pcm_hw_params_set_access(handle, hwparams, SND_PCM_ACCESS_RW_NONINTERLEAVED);
+	res = snd_pcm_hw_params_set_access(handle, hwparams, SND_PCM_ACCESS_RW_INTERLEAVED);
 	if (res < 0) {
 		ast_log(LOG_ERROR, "[%s][ALSA][%s] HW Set access failed: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
 	}
@@ -151,9 +153,9 @@ static snd_pcm_t *alsa_card_init(struct pvt* pvt, const char *dev, snd_pcm_strea
 	}
 
 	direction = 0;
-	res = snd_pcm_hw_params_set_rate_near(handle, hwparams, &rate, &direction);
-	if (rate != DESIRED_RATE) {
-		ast_log(LOG_WARNING, "[%s][ALSA][%s] HW Rate not correct -  requested:%d got:%u\n", PVT_ID(pvt), stream_str, DESIRED_RATE, rate);
+	res = snd_pcm_hw_params_set_rate_near(handle, hwparams, &hwrate, &direction);
+	if (hwrate != rate) {
+		ast_log(LOG_WARNING, "[%s][ALSA][%s] HW Rate not correct -  requested:%d got:%u\n", PVT_ID(pvt), stream_str, rate, hwrate);
 	}
 
 	direction = 0;
@@ -180,7 +182,6 @@ static snd_pcm_t *alsa_card_init(struct pvt* pvt, const char *dev, snd_pcm_strea
 		res = snd_pcm_hw_params_get_channels(hwparams, &channels);
 		if (res >= 0) ast_debug(1, "[%s][ALSA][%s] Channels: %u\n", PVT_ID(pvt), stream_str, channels);
 
-		unsigned int hwrate;
 		direction = 0;
 		res = snd_pcm_hw_params_get_rate(hwparams, &hwrate, &direction);
 		if (res >= 0) ast_debug(1, "[%s][ALSA][%s] Rate: %u\n", PVT_ID(pvt), stream_str, hwrate);		
@@ -1893,10 +1894,22 @@ static void devices_destroy(public_state_t * state)
 const struct ast_format* pvt_get_audio_format(const struct pvt* const pvt)
 {
 	if (pvt->is_simcom) {
-		return CONF_UNIQ(pvt, slin16)? ast_format_slin16 : ast_format_slin;
+		switch(CONF_UNIQ(pvt, uac)) {
+			case TRIBOOL_NONE:
+			return ast_format_slin48;
+
+			default:
+			return CONF_UNIQ(pvt, slin16)? ast_format_slin16 : ast_format_slin;
+		}		
 	}
 	else {
-		return ast_format_slin;
+		switch(CONF_UNIQ(pvt, uac)) {
+			case TRIBOOL_NONE:
+			return ast_format_slin48;
+
+			default:
+			return ast_format_slin;
+		}
 	}
 }
 
@@ -1958,6 +1971,7 @@ static int public_state_init(struct public_state * state)
 			}
 			ast_format_cap_append(channel_tech.capabilities, ast_format_slin, 0);
 			ast_format_cap_append(channel_tech.capabilities, ast_format_slin16, 0);
+			ast_format_cap_append(channel_tech.capabilities, ast_format_slin48, 0);
 #elif ASTERISK_VERSION_NUM >= 100000 /* 10-13 */
 			ast_format_set(&chan_quectel_format, AST_FORMAT_SLINEAR, 0);
 # if ASTERISK_VERSION_NUM >= 120000 /* 12+ */
