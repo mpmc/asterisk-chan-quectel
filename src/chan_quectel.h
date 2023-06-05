@@ -123,6 +123,7 @@ typedef struct pvt
 	int			audio_fd;			/*!< audio descriptor */
     snd_pcm_t 	*icard;
 	snd_pcm_t 	*ocard;
+	unsigned int ocard_channels;
 		
 	int			data_fd;			/*!< data descriptor */
 	char		* alock;			/*!< name of lockfile for audio */
@@ -246,7 +247,7 @@ void pvt_try_restate(struct pvt * pvt);
 int pvt_set_act(struct pvt* pvt, int act);
 
 const struct ast_format* pvt_get_audio_format(const struct pvt* const);
-size_t pvt_get_audio_frame_size(const struct pvt* const, int);
+size_t pvt_get_audio_frame_size(const struct pvt* const, int, const struct ast_format* const);
 void* pvt_get_silence_buffer(struct pvt* const);
 
 int opentty (const char* dev, char ** lockfile, int typ);

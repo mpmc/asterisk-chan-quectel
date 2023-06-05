@@ -672,7 +672,7 @@ static struct ast_frame* channel_read_tty(struct cpvt* cpvt, struct pvt* pvt, si
 	return f;
 }
 
-static struct ast_frame* channel_read_uac(struct cpvt* cpvt, struct pvt* pvt, size_t frame_size2, const struct ast_format* const fmt)
+static struct ast_frame* channel_read_uac(struct cpvt* cpvt, struct pvt* pvt, size_t frames, const struct ast_format* const fmt)
 {
 	int res;
 	const snd_pcm_state_t state = snd_pcm_state(pvt->icard);
@@ -698,7 +698,7 @@ static struct ast_frame* channel_read_uac(struct cpvt* cpvt, struct pvt* pvt, si
 	}
 
 	char* const buf = cpvt->a_read_buf + AST_FRIENDLY_OFFSET;
-	res = snd_pcm_readi(pvt->icard, buf, frame_size2);
+	res = snd_pcm_mmap_readi(pvt->icard, buf, frames);
 
 	switch (res) {
 		case -EAGAIN:
@@ -716,11 +716,11 @@ static struct ast_frame* channel_read_uac(struct cpvt* cpvt, struct pvt* pvt, si
 
 					PVT_STAT(pvt, a_read_bytes) += res * sizeof(short);
 					PVT_STAT(pvt, read_frames) ++;
-					if (res < frame_size2) PVT_STAT(pvt, read_sframes) ++;
+					if (res < frames) PVT_STAT(pvt, read_sframes) ++;
 				}
 
-				if (res < frame_size2) {
-					ast_log(LOG_WARNING, "[%s][ALSA][CAPTURE] Short frame: %d/%d\n", PVT_ID(pvt), res, (int)frame_size2);
+				if (res < frames) {
+					ast_log(LOG_WARNING, "[%s][ALSA][CAPTURE] Short frame: %d/%d\n", PVT_ID(pvt), res, (int)frames);
 				}
 
 				return prepare_voice_frame(cpvt, buf, res, fmt);
@@ -768,8 +768,8 @@ static struct ast_frame* channel_read(struct ast_channel* channel)
 	}
 
 	const int fdno = ast_channel_fdno(channel);
-	const size_t frame_size = pvt_get_audio_frame_size(pvt, 1);
 	const struct ast_format* const fmt = pvt_get_audio_format(pvt);
+	const size_t frame_size = pvt_get_audio_frame_size(pvt, 1, fmt);
 
 	if (fdno == 1) {
 		ast_timer_ack(pvt->a_timer, 1);
@@ -904,7 +904,14 @@ static int channel_write_uac(struct ast_channel*, struct ast_frame* f, struct cp
 			goto w_finish;
 	}
 
-	res = snd_pcm_writei(pvt->ocard, f->data.ptr, len2);
+	if (pvt->ocard_channels == 1u) {
+		res = snd_pcm_mmap_writei(pvt->ocard, f->data.ptr, len2);
+	}
+	else {
+		void* d[pvt->ocard_channels];
+		for(unsigned int i=0; i<pvt->ocard_channels; ++i) d[i] = f->data.ptr;
+		res = snd_pcm_mmap_writen(pvt->ocard, (void**)&d, len2);
+	}
 
 	switch(res) {
 		case -EAGAIN:
@@ -962,7 +969,7 @@ static int channel_write(struct ast_channel* channel, struct ast_frame* f)
 	}
 
 	const struct ast_format* const fmt = pvt_get_audio_format(pvt);
-	const size_t frame_size = pvt_get_audio_frame_size(pvt, 0);
+	const size_t frame_size = pvt_get_audio_frame_size(pvt, 0, fmt);
 
 #if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
 	if (f->frametype != AST_FRAME_VOICE || ast_format_cmp(f->subclass.format, fmt) != AST_FORMAT_CMP_EQUAL)

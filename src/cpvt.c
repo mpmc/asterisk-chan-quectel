@@ -66,12 +66,18 @@ struct cpvt* cpvt_alloc(struct pvt* pvt, int call_idx, unsigned dir, call_state_
 	cpvt->rd_pipe[0] = filedes[0];
 	cpvt->rd_pipe[1] = filedes[1];
 
+	const struct ast_format* const fmt = pvt_get_audio_format(pvt);
+	size_t buffer_size = pvt_get_audio_frame_size(pvt, 1, fmt);
+	buffer_size += AST_FRIENDLY_OFFSET;
+	cpvt->a_read_buf = ast_malloc(buffer_size);
+	cpvt->a_read_buf_size = buffer_size;
+
 	AST_LIST_INSERT_TAIL(&pvt->chans, cpvt, entry);
 	if(PVT_NO_CHANS(pvt)) pvt_on_create_1st_channel(pvt);
 	PVT_STATE(pvt, chansno)++;
 	PVT_STATE(pvt, chan_count[cpvt->state])++;
 
-	ast_debug (3, "[%s] create cpvt for call_idx %d dir %d state '%s'\n",  PVT_ID(pvt), call_idx, dir, call_state2str(state));
+	ast_debug(3, "[%s] Create cpvt: idx:%d dir:%d state:%s buffer_len:%u\n",  PVT_ID(pvt), call_idx, dir, call_state2str(state), (unsigned int)buffer_size);
 
 	c_ret:
 	return cpvt;
@@ -84,10 +90,16 @@ void cpvt_free(struct cpvt* cpvt)
 	struct cpvt * found;
 	struct at_queue_task * task;
 
+	if (cpvt->a_read_buf) {
+		ast_free(cpvt->a_read_buf);
+		cpvt->a_read_buf = NULL;
+	}
+	cpvt->a_read_buf_size = 0u;
+
 	close(cpvt->rd_pipe[1]);
 	close(cpvt->rd_pipe[0]);
 
-	ast_debug (3, "[%s] destroy cpvt for call_idx %d dir %d state '%s' flags %d has%s channel\n",  PVT_ID(pvt), cpvt->call_idx, cpvt->dir, call_state2str(cpvt->state), cpvt->flags, cpvt->channel ? "" : "'t");
+	ast_debug (3, "[%s] destroy cpvt: idx:%d dir:%d state:%s flags:%d has%s channel\n",  PVT_ID(pvt), cpvt->call_idx, cpvt->dir, call_state2str(cpvt->state), cpvt->flags, cpvt->channel ? "" : "'t");
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&pvt->chans, found, entry) {
 		if(found == cpvt)
 		{

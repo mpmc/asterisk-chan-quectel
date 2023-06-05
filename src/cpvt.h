@@ -71,7 +71,10 @@ typedef struct cpvt {
 #define PIPE_WRITE		1
 
 	struct mixstream	mixstream;			/*!< mix stream */
-	char			a_read_buf[FRAME_SIZE_CAPTURE * 2 + AST_FRIENDLY_OFFSET];/*!< audio read buffer */
+
+	void*	a_read_buf;			/*!< audio read buffer */
+	size_t  a_read_buf_size;
+
 	struct ast_frame	a_read_frame;			/*!< voice frame */
 
 //	size_t			write;				/*!< write position in pvt->a_write_buf */

@@ -106,7 +106,7 @@ const char* dev_state2str_msg(dev_state_t state)
 	return enum2str(state, states, ITEMS_OF(states));
 }
 
-static snd_pcm_t *alsa_card_init(struct pvt* pvt, const char *dev, snd_pcm_stream_t stream, unsigned int rate)
+static int alsa_card_init(struct pvt* pvt, const char *dev, snd_pcm_stream_t stream, unsigned int rate, snd_pcm_t** pcm, unsigned int* pcm_channels)
 {
 	int res;
 	int direction;
@@ -128,7 +128,7 @@ static snd_pcm_t *alsa_card_init(struct pvt* pvt, const char *dev, snd_pcm_strea
 	res = snd_pcm_open(&handle, dev, stream, SND_PCM_NONBLOCK);
 	if (res < 0) {
 		ast_log(LOG_ERROR, "[%s][ALSA][%s] Fail to open device - dev:'%s' err:'%s'\n", PVT_ID(pvt), stream_str, dev, snd_strerror(res));
-		return NULL;
+		return res;
 	} else {
 		ast_debug(1, "[%s][ALSA][%s] Device: %s\n", PVT_ID(pvt), stream_str, dev);
 	}
@@ -137,7 +137,7 @@ static snd_pcm_t *alsa_card_init(struct pvt* pvt, const char *dev, snd_pcm_strea
 	memset(hwparams, 0, snd_pcm_hw_params_sizeof());
 	snd_pcm_hw_params_any(handle, hwparams);
 
-	res = snd_pcm_hw_params_set_access(handle, hwparams, SND_PCM_ACCESS_RW_INTERLEAVED);
+	res = snd_pcm_hw_params_set_access(handle, hwparams, SND_PCM_ACCESS_MMAP_INTERLEAVED);
 	if (res < 0) {
 		ast_log(LOG_ERROR, "[%s][ALSA][%s] HW Set access failed: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
 	}
@@ -180,7 +180,21 @@ static snd_pcm_t *alsa_card_init(struct pvt* pvt, const char *dev, snd_pcm_strea
 	}
 	else {
 		res = snd_pcm_hw_params_get_channels(hwparams, &channels);
-		if (res >= 0) ast_debug(1, "[%s][ALSA][%s] Channels: %u\n", PVT_ID(pvt), stream_str, channels);
+		if (res >= 0) {
+			const unsigned int max_channels = (stream == SND_PCM_STREAM_CAPTURE)? 1 : 2;
+			if (channels > max_channels) {
+				ast_log(LOG_ERROR, "[%s][ALSA][%s] Too many channels: %u (max %u are supported)\n", PVT_ID(pvt), stream_str, channels, max_channels);
+				snd_pcm_close(handle);
+				return 1;
+			}
+			ast_debug(1, "[%s][ALSA][%s] Channels: %u\n", PVT_ID(pvt), stream_str, channels);
+			*pcm_channels = channels;
+		}
+		else {
+			ast_log(LOG_ERROR, "[%s][ALSA][%s] Couldn't get channel count: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
+			snd_pcm_close(handle);
+			return 1;
+		}
 
 		direction = 0;
 		res = snd_pcm_hw_params_get_rate(hwparams, &hwrate, &direction);
@@ -253,7 +267,8 @@ static snd_pcm_t *alsa_card_init(struct pvt* pvt, const char *dev, snd_pcm_strea
 		}
 	}
 
-	return handle;
+	*pcm = handle;
+	return 0;
 }
 
 static unsigned int get_sample_rate(const struct pvt* const pvt)
@@ -273,21 +288,27 @@ static unsigned int get_sample_rate(const struct pvt* const pvt)
 static int soundcard_init(struct pvt * pvt)
 {
 	const unsigned int rate = get_sample_rate(pvt);
-	pvt->icard = alsa_card_init(pvt, CONF_UNIQ(pvt, alsadev), SND_PCM_STREAM_CAPTURE, rate);
-	if (!pvt->icard) {
+	unsigned int channels;
+
+	if (alsa_card_init(pvt, CONF_UNIQ(pvt, alsadev), SND_PCM_STREAM_CAPTURE, rate, &pvt->icard, &channels)) {
 		ast_log(LOG_ERROR, "[%s][ALSA] Problem opening capture device '%s'\n", PVT_ID(pvt), CONF_UNIQ(pvt, alsadev));
 		return -1;
 	}
 
-	pvt->ocard = alsa_card_init(pvt, CONF_UNIQ(pvt, alsadev), SND_PCM_STREAM_PLAYBACK, rate);
-	if (!pvt->ocard) {
+	if (alsa_card_init(pvt, CONF_UNIQ(pvt, alsadev), SND_PCM_STREAM_PLAYBACK, rate, &pvt->ocard, &pvt->ocard_channels)) {
 		ast_log(LOG_ERROR, "[%s][ALSA] Problem opening playback device '%s'\n", PVT_ID(pvt), CONF_UNIQ(pvt, alsadev));
 		return -1;
 	}
 
 	int err = snd_pcm_link(pvt->icard, pvt->ocard);
 	if (err < 0) {
-		ast_log(LOG_WARNING, "[%s][ALSA] Couldn't link devices: %s\n", PVT_ID(pvt), snd_strerror(err));
+		ast_log(LOG_ERROR, "[%s][ALSA] Couldn't link devices: %s\n", PVT_ID(pvt), snd_strerror(err));
+		snd_pcm_close(pvt->icard);
+		pvt->icard = NULL;	
+		snd_pcm_close(pvt->ocard);
+		pvt->ocard = NULL;
+		pvt->ocard_channels = 0u;
+		return -1;
 	}
 
 	ast_verb(2, "[%s] Sound card '%s' initialized\n", PVT_ID(pvt), CONF_UNIQ(pvt, alsadev));
@@ -546,7 +567,10 @@ static void disconnect_quectel(struct pvt* pvt)
 			ast_log(LOG_WARNING, "[%s][ALSA] Couldn't unlink devices: %s", PVT_ID(pvt), snd_strerror(err));
 		}
 		if (pvt->icard) pcm_close(&pvt->icard, SND_PCM_STREAM_CAPTURE);
-		if (pvt->ocard)	pcm_close(&pvt->ocard, SND_PCM_STREAM_PLAYBACK);
+		if (pvt->ocard)	{
+			pcm_close(&pvt->ocard, SND_PCM_STREAM_PLAYBACK);
+			pvt->ocard_channels = 0;
+		}
     }
 	else {
 		closetty(pvt->audio_fd, &pvt->alock);
@@ -911,7 +935,7 @@ static void pvt_start(struct pvt * pvt)
 
 	ast_verb(3, "[%s] Trying to connect on %s...\n", PVT_ID(pvt), PVT_STATE(pvt, data_tty));
 
-	pvt->data_fd = opentty(PVT_STATE(pvt, data_tty), &pvt->dlock, 0);
+	pvt->data_fd = opentty(PVT_STATE(pvt, data_tty), &pvt->dlock, (CONF_UNIQ(pvt, uac) == TRIBOOL_NONE)? 1 : 0);
 	if (pvt->data_fd < 0) {
 		return;
 	}
@@ -1913,15 +1937,12 @@ const struct ast_format* pvt_get_audio_format(const struct pvt* const pvt)
 	}
 }
 
-size_t pvt_get_audio_frame_size(const struct pvt* const pvt, int capture)
+size_t pvt_get_audio_frame_size(const struct pvt* const pvt, int capture, const struct ast_format* const fmt)
 {
-	if (pvt->is_simcom) {
-		const size_t fs = capture? FRAME_SIZE_CAPTURE : FRAME_SIZE_PLAYBACK;
-		return CONF_UNIQ(pvt, slin16)? fs * 2 : fs;
-	}
-	else {
-		return capture? FRAME_SIZE_CAPTURE : FRAME_SIZE_PLAYBACK;
-	}
+	size_t res = capture? FRAME_SIZE_CAPTURE : FRAME_SIZE_PLAYBACK;
+	const unsigned int sr = ast_format_get_sample_rate(fmt);
+	res *= sr / 8000;
+	return res;
 }
 
 void* pvt_get_silence_buffer(struct pvt* const pvt)
