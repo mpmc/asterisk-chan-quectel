@@ -321,7 +321,7 @@ static void disactivate_call(struct cpvt* cpvt)
 	struct pvt* pvt = cpvt->pvt;
 
 	if (cpvt->channel && CPVT_TEST_FLAG(cpvt, CALL_FLAG_ACTIVATED)) {
-        if (CONF_UNIQ(pvt, uac)) {
+        if (CONF_UNIQ(pvt, uac) > TRIBOOL_FALSE) {
 			snd_pcm_drop(pvt->icard);
 			snd_pcm_drop(pvt->ocard);
 		}
@@ -760,7 +760,7 @@ static struct ast_frame* channel_read(struct ast_channel* channel)
 	ast_debug(7, "[%s] read call idx %d state %d audio_fd %d\n", PVT_ID(pvt), cpvt->call_idx, cpvt->state, pvt->audio_fd);
 
 	/* FIXME: move down for enable timing_write() to device ? */
-	if (!CONF_UNIQ(pvt, uac) && (!CPVT_IS_SOUND_SOURCE(cpvt) || pvt->audio_fd < 0)) {
+	if (CONF_UNIQ(pvt, uac) == TRIBOOL_FALSE && (!CPVT_IS_SOUND_SOURCE(cpvt) || pvt->audio_fd < 0)) {
 		goto m_unlock;
 	}
 
@@ -771,7 +771,7 @@ static struct ast_frame* channel_read(struct ast_channel* channel)
 	if (fdno == 1) {
 		ast_timer_ack(pvt->a_timer, 1);
 		if (CPVT_IS_MASTER(cpvt)) {
-			if (CONF_UNIQ(pvt, uac)) {
+			if (CONF_UNIQ(pvt, uac) > TRIBOOL_FALSE) {
 				// TODO: implement timing_write_uac
 				ast_log(LOG_WARNING, "[%s] Multiparty calls not supported in UAC mode\n", PVT_ID(pvt));
 			}
@@ -783,7 +783,7 @@ static struct ast_frame* channel_read(struct ast_channel* channel)
 		goto m_unlock;
 	}
 
-	if (CONF_UNIQ(pvt, uac) && CPVT_IS_MASTER(cpvt)) {
+	if (CONF_UNIQ(pvt, uac) > TRIBOOL_FALSE && CPVT_IS_MASTER(cpvt)) {
 		f = channel_read_uac(cpvt, pvt, frame_size/2, fmt);
     }
 	else {
@@ -984,7 +984,7 @@ static int channel_write(struct ast_channel* channel, struct ast_frame* f)
 		ast_debug(8, "[%s] Large voice frame: %d/%d\n", PVT_ID(pvt), f->datalen, (int)frame_size);
 	}
 
-	if (CONF_UNIQ(pvt, uac) && CPVT_IS_MASTER(cpvt)) {
+	if (CONF_UNIQ(pvt, uac) > TRIBOOL_FALSE && CPVT_IS_MASTER(cpvt)) {
 		res = channel_write_uac(channel, f, cpvt, pvt, frame_size);
 	}
 	else {

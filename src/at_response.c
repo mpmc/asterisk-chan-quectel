@@ -203,10 +203,14 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 			case CMD_AT_CVOICE:
 				ast_debug(1, "[%s] Voice calls supported\n", PVT_ID(pvt));
 
-				if (CONF_UNIQ(pvt, uac)) {
+				switch (CONF_UNIQ(pvt, uac)) {
+					case TRIBOOL_TRUE:
 					at_enqueue_enable_uac(&pvt->sys_chan);
-				} else {
+					break;
+
+					case TRIBOOL_FALSE:
 					at_enqueue_enable_tty(&pvt->sys_chan);
+					break;
 				}
 				break;
 

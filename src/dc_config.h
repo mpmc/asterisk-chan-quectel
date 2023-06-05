@@ -47,7 +47,10 @@ typedef enum {
 const char * dc_cw_setting2str(call_waiting_t);
 
 tristate_bool_t dc_str23stbool(const char*);
+int dc_str23stbool_ex(const char*, tristate_bool_t*, const char*);
+
 const char* dc_3stbool2str(int);
+const char* dc_3stbool2str_ex(int, const char*);
 const char* dc_3stbool2str_capitalized(int);
 
 message_storage_t dc_str2msgstor(const char*);
@@ -117,16 +120,17 @@ typedef struct dc_uconfig
 {
 	/* unique settings */
 	char			id[DEVNAMELEN];			/*!< id from quectel.conf */
-	char			audio_tty[DEVPATHLEN];		/*!< tty for audio connection */
-	char			data_tty[DEVPATHLEN];		/*!< tty for AT commands */
+	char			audio_tty[DEVPATHLEN];	/*!< tty for audio connection */
+	char			data_tty[DEVPATHLEN];	/*!< tty for AT commands */
 	char			imei[IMEI_SIZE+1];		/*!< search device by imei */
 	char			imsi[IMSI_SIZE+1];		/*!< search device by imsi */
-	unsigned int	slin16:1;					/*!< SLIN16 audio format */
-	unsigned int	uac:1;					/*!< handle audio by audio device (UAC) */
     char			alsadev[DEVNAMELEN];	/*!< ALSA audio device name */
+	tristate_bool_t	uac;					/*!< handle audio by audio device (UAC) */
+	unsigned int	slin16:1;				/*!< SLIN16 audio format */
 } dc_uconfig_t;
 
 #define DEFAULT_ALSADEV "hw:Android"
+#define DEFAULT_ALSADEV_EXT "hw:0"
 
 /* all Config settings join in one place */
 typedef struct pvt_config

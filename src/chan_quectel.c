@@ -503,7 +503,7 @@ static void disconnect_quectel(struct pvt* pvt)
 		}
 	}
 
-	if (CONF_UNIQ(pvt, uac)) {
+	if (CONF_UNIQ(pvt, uac) == TRIBOOL_TRUE) {
 		at_disable_uac_immediately(pvt);
 	}
 
@@ -514,7 +514,7 @@ static void disconnect_quectel(struct pvt* pvt)
 	at_queue_run_immediately(pvt);
 	at_queue_flush(pvt);
 
-    if (CONF_UNIQ(pvt, uac)) {
+    if (CONF_UNIQ(pvt, uac) > TRIBOOL_FALSE) {
 		const int err = snd_pcm_unlink(pvt->icard);
 		if (err < 0) {
 			ast_log(LOG_WARNING, "[%s][ALSA] Couldn't unlink devices: %s", PVT_ID(pvt), snd_strerror(err));
@@ -673,7 +673,7 @@ static void* do_monitor_phone(void* data)
 			goto e_cleanup;
 		}
 
-		if (!CONF_UNIQ(pvt, uac)) {
+		if (CONF_UNIQ(pvt, uac) == TRIBOOL_FALSE) {
 			if (port_status(pvt->audio_fd, &err)) {
 				if (reopen_audio_port(pvt)) {
 					ast_log(LOG_WARNING, "[%s][AUDIO] Lost connection: %d\n", dev, err);
@@ -889,7 +889,7 @@ static void pvt_start(struct pvt * pvt)
 	if (pvt->data_fd < 0) {
 		return;
 	}
-	if (CONF_UNIQ(pvt, uac)) {
+	if (CONF_UNIQ(pvt, uac) > TRIBOOL_FALSE) {
 		if (soundcard_init(pvt) < 0) {
 			disconnect_quectel(pvt);
 			goto cleanup_datafd;
@@ -904,7 +904,7 @@ static void pvt_start(struct pvt * pvt)
     }
 
 	if (!start_monitor(pvt)) {
-		if (CONF_UNIQ(pvt, uac))
+		if (CONF_UNIQ(pvt, uac) > TRIBOOL_FALSE)
 			goto cleanup_datafd;
 		else
 			goto cleanup_audiofd;
@@ -917,7 +917,7 @@ static void pvt_start(struct pvt * pvt)
 	 * read(). */
 	flags = fcntl(pvt->data_fd, F_GETFL);
 	fcntl(pvt->data_fd, F_SETFL, flags | O_NONBLOCK);
-	if (!CONF_UNIQ(pvt, uac)) {
+	if (CONF_UNIQ(pvt, uac) == TRIBOOL_FALSE) {
 		flags = fcntl(pvt->audio_fd, F_GETFL);
 		fcntl(pvt->audio_fd, F_SETFL, flags | O_NONBLOCK);
 	}
@@ -1065,7 +1065,7 @@ void pvt_on_create_1st_channel(struct pvt* pvt)
 	memset(pvt->a_silence_buf, 0, sizeof(pvt->a_silence_buf));
 
 	if (CONF_SHARED(pvt, multiparty)) {
-		if (CONF_UNIQ(pvt, uac)) {
+		if (CONF_UNIQ(pvt, uac) > TRIBOOL_FALSE) {
 			ast_log(LOG_ERROR, "[%s] Multiparty mode not supported in UAC mode\n", PVT_ID(pvt));
 		}
 		else {

@@ -6,15 +6,15 @@ See original [README](//github.com/IchthysMaranatha/asterisk-chan-quectel/blob/m
 
 This should work with *Quectel* modules such as EC20, EC21, EC25, EG9x and *SimCOM* SIM7600 and possibly other models with *voice over USB* capability.
 Tested with the **EC25-E** mini-PCIe module and Waveshare **SIM7600G-H** mini-PCIe module.
-If the product page of your *Quectel* module contains the *Voice Over USB and UAC Application Note*, you should be good to go.
+If the product page of your module contains the *Voice Over USB and UAC Application Note*, you should be good to go.
 
 # Changes
 
 ## Configuration
 
-* `quectel_uac` option renamed to `uac` and it's a on/**off** switch now.
+* `quectel_uac` option renamed to `uac` and it's a on/**off**/ext switch now.
     
-    `alsadev` option is also defaulted to `hw:Android`.
+    `alsadev` option is also defaulted to `hw:Android` (when `uac=on`) or `hw:0` (when `uac=ext`).
 
 * New `multiparty` option (on/**off**).
 

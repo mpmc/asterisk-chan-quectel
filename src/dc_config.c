@@ -34,6 +34,29 @@ tristate_bool_t dc_str23stbool(const char* str)
 	}
 }
 
+int dc_str23stbool_ex(const char* str, tristate_bool_t* res, const char* none_val)
+{
+	if (!str) return -1;
+	if (!res) return -2;
+	if (!none_val) return -3;
+
+	if (!strcasecmp(str, "on") || !strcasecmp(str, "true")) {
+		*res = TRIBOOL_TRUE;
+		return 0;
+	}
+	else if (!strcasecmp(str, "off") || !strcasecmp(str, "false")) {
+		*res = TRIBOOL_FALSE;
+		return 0;
+	}
+	else if (!strcasecmp(str, none_val)) {
+		*res = TRIBOOL_NONE;
+		return 0;		
+	}
+	else {
+		return 1;
+	}
+}
+
 static unsigned int int23statebool(int v)
 {
 	if (!v) {
@@ -52,8 +75,20 @@ const char* dc_3stbool2str(int v)
 		"on"
 	};
 
-	unsigned b = int23statebool(v);
+	const unsigned b = int23statebool(v);
 	return enum2str_def(b, strs, ITEMS_OF(strs), "none");	
+}
+
+const char* dc_3stbool2str_ex(int v, const char* none_val)
+{
+	const char* const strs[] = {
+		"off",
+		S_OR(none_val, "none"),
+		"on"
+	};
+
+	const unsigned b = int23statebool(v);
+	return enum2str_def(b, strs, ITEMS_OF(strs), S_OR(none_val, "none"));
 }
 
 const char* dc_3stbool2str_capitalized(int v)
@@ -97,17 +132,17 @@ static int dc_uconfig_fill(struct ast_config * cfg, const char * cat, struct dc_
 	const char * imsi;
 	const char * slin16_str;
 	const char * uac_str;
-	int slin16;
-	int uac;
+	tristate_bool_t uac;
 	const char * alsadev;
+	int slin16;
 
 	audio_tty = ast_variable_retrieve (cfg, cat, "audio");
 	data_tty  = ast_variable_retrieve (cfg, cat, "data");
 	imei = ast_variable_retrieve (cfg, cat, "imei");
 	imsi = ast_variable_retrieve (cfg, cat, "imsi");
     uac_str = ast_variable_retrieve (cfg, cat, "uac");
-	slin16_str = ast_variable_retrieve(cfg, cat, "slin16");
     alsadev = ast_variable_retrieve (cfg, cat, "alsadev");
+	slin16_str = ast_variable_retrieve(cfg, cat, "slin16");
 
 	if(imei && strlen(imei) != IMEI_SIZE) {
 		ast_log (LOG_WARNING, "[%s] Ignore invalid IMEI value '%s'\n", cat, imei);
@@ -119,10 +154,13 @@ static int dc_uconfig_fill(struct ast_config * cfg, const char * cat, struct dc_
 	}
 
 	if (uac_str) {
-		uac = ast_true( uac_str );
+		if (dc_str23stbool_ex(uac_str, &uac, "ext")) {
+			ast_log(LOG_WARNING, "[%s] Ignore invalid value of UAC mode '%s'\n", cat, uac_str);
+			uac = TRIBOOL_FALSE;
+		}
 	}
 	else {
-		uac = 0;
+		uac = TRIBOOL_FALSE;
 	}
 
 	if (slin16_str) {
@@ -143,14 +181,21 @@ static int dc_uconfig_fill(struct ast_config * cfg, const char * cat, struct dc_
 	ast_copy_string (config->audio_tty,	S_OR(audio_tty, ""), sizeof (config->audio_tty));
 	ast_copy_string (config->imei,		S_OR(imei, ""),	     sizeof (config->imei));
 	ast_copy_string (config->imsi,		S_OR(imsi, ""),	     sizeof (config->imsi));
-	config->slin16 = (unsigned int)slin16;
-	config->uac = (unsigned int)uac;
-	if (uac) {
+	config->uac = uac;
+	switch(uac) {
+		case TRIBOOL_FALSE:
+		ast_copy_string(config->alsadev, S_OR(alsadev, ""), sizeof(config->alsadev));		
+		break;
+
+		case TRIBOOL_NONE:
+		ast_copy_string(config->alsadev, S_OR(alsadev, DEFAULT_ALSADEV_EXT), sizeof(config->alsadev));
+		break;
+
+		case TRIBOOL_TRUE:
 		ast_copy_string(config->alsadev, S_OR(alsadev, DEFAULT_ALSADEV), sizeof(config->alsadev));
+		break;
 	}
-	else {
-		ast_copy_string(config->alsadev, S_OR(alsadev, ""), sizeof(config->alsadev));
-	}
+	config->slin16 = (unsigned int)slin16;
 
 	return 0;
 }

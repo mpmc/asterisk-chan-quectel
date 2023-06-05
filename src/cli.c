@@ -124,11 +124,11 @@ static char* cli_show_device_settings (struct ast_cli_entry* e, int cmd, struct 
 	{
 		ast_cli (a->fd, "------------- Settings ------------\n");
 		ast_cli (a->fd, "  Device                  : %s\n", PVT_ID(pvt));
-        if (CONF_UNIQ(pvt, uac))
+        if (CONF_UNIQ(pvt, uac) > TRIBOOL_FALSE)
 		ast_cli (a->fd, "  Audio UAC               : %s\n", CONF_UNIQ(pvt, alsadev));
 		else
 		ast_cli (a->fd, "  Audio                   : %s\n", CONF_UNIQ(pvt, audio_tty));
-		ast_cli (a->fd, "  Audio format            : %s\n", CONF_UNIQ(pvt, slin16)? "slin16" : "slin");
+		ast_cli (a->fd, "  Audio format            : %s\n", S_COR(CONF_UNIQ(pvt, slin16), "slin16", "slin"));
 		ast_cli (a->fd, "  Data                    : %s\n", CONF_UNIQ(pvt, data_tty));
 		ast_cli (a->fd, "  IMEI                    : %s\n", CONF_UNIQ(pvt, imei));
 		ast_cli (a->fd, "  IMSI                    : %s\n", CONF_UNIQ(pvt, imsi));
