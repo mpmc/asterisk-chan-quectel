@@ -106,18 +106,20 @@ const char* dev_state2str_msg(dev_state_t state)
 	return enum2str(state, states, ITEMS_OF(states));
 }
 
-static snd_pcm_t *alsa_card_init(struct pvt* pvt, const char *dev, snd_pcm_stream_t stream)
+static snd_pcm_t *alsa_card_init(struct pvt* pvt, const char *dev, snd_pcm_stream_t stream, unsigned int rate)
 {
 	int res;
 	int direction;
 	snd_pcm_t *handle = NULL;
 	snd_pcm_hw_params_t *hwparams = NULL;
 	snd_pcm_sw_params_t *swparams = NULL;
+
 	snd_pcm_uframes_t period_size = ((stream == SND_PCM_STREAM_CAPTURE)? FRAME_SIZE_CAPTURE : FRAME_SIZE_PLAYBACK) / sizeof(short);
+	period_size *= rate / 8000;
 	snd_pcm_uframes_t buffer_size = BUFFER_SIZE / sizeof(short);
 	snd_pcm_uframes_t boundary = 0u;
-	unsigned int rate = DESIRED_RATE;
 	snd_pcm_uframes_t start_threshold;
+	unsigned int channels = 1;
 
 	const char* const stream_str = (stream == SND_PCM_STREAM_CAPTURE)? "CAPTURE" : "PLAYBACK";
 
@@ -133,7 +135,7 @@ static snd_pcm_t *alsa_card_init(struct pvt* pvt, const char *dev, snd_pcm_strea
 	memset(hwparams, 0, snd_pcm_hw_params_sizeof());
 	snd_pcm_hw_params_any(handle, hwparams);
 
-	res = snd_pcm_hw_params_set_access(handle, hwparams, SND_PCM_ACCESS_RW_INTERLEAVED);
+	res = snd_pcm_hw_params_set_access(handle, hwparams, SND_PCM_ACCESS_RW_NONINTERLEAVED);
 	if (res < 0) {
 		ast_log(LOG_ERROR, "[%s][ALSA][%s] HW Set access failed: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
 	}
@@ -143,7 +145,7 @@ static snd_pcm_t *alsa_card_init(struct pvt* pvt, const char *dev, snd_pcm_strea
 		ast_log(LOG_ERROR, "[%s][ALSA][%s] HW Set format failed: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
 	}
 
-	res = snd_pcm_hw_params_set_channels(handle, hwparams, 1);
+	res = snd_pcm_hw_params_set_channels_near(handle, hwparams, &channels);
 	if (res < 0) {
 		ast_log(LOG_ERROR, "[%s][ALSA][%s] HW Set channels failed: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
 	}
@@ -175,6 +177,14 @@ static snd_pcm_t *alsa_card_init(struct pvt* pvt, const char *dev, snd_pcm_strea
 		ast_log(LOG_WARNING, "[%s][ALSA][%s] HW Couldn't get current HW params: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
 	}
 	else {
+		res = snd_pcm_hw_params_get_channels(hwparams, &channels);
+		if (res >= 0) ast_debug(1, "[%s][ALSA][%s] Channels: %u\n", PVT_ID(pvt), stream_str, channels);
+
+		unsigned int hwrate;
+		direction = 0;
+		res = snd_pcm_hw_params_get_rate(hwparams, &hwrate, &direction);
+		if (res >= 0) ast_debug(1, "[%s][ALSA][%s] Rate: %u\n", PVT_ID(pvt), stream_str, hwrate);		
+
 		res = snd_pcm_hw_params_get_period_size(hwparams, &period_size, NULL);
 		if (res >= 0) ast_debug(1, "[%s][ALSA][%s] Period size: %lu\n", PVT_ID(pvt), stream_str, period_size);
 
@@ -245,15 +255,30 @@ static snd_pcm_t *alsa_card_init(struct pvt* pvt, const char *dev, snd_pcm_strea
 	return handle;
 }
 
+static unsigned int get_sample_rate(const struct pvt* const pvt)
+{
+	switch (CONF_UNIQ(pvt, uac)) {
+		case TRIBOOL_NONE:
+		return 48000u;
+
+		case TRIBOOL_TRUE:
+		return DESIRED_RATE;
+
+		default:
+		return 0u;
+	}
+}
+
 static int soundcard_init(struct pvt * pvt)
 {
-	pvt->icard = alsa_card_init(pvt, CONF_UNIQ(pvt, alsadev), SND_PCM_STREAM_CAPTURE);
+	const unsigned int rate = get_sample_rate(pvt);
+	pvt->icard = alsa_card_init(pvt, CONF_UNIQ(pvt, alsadev), SND_PCM_STREAM_CAPTURE, rate);
 	if (!pvt->icard) {
 		ast_log(LOG_ERROR, "[%s][ALSA] Problem opening capture device '%s'\n", PVT_ID(pvt), CONF_UNIQ(pvt, alsadev));
 		return -1;
 	}
 
-	pvt->ocard = alsa_card_init(pvt, CONF_UNIQ(pvt, alsadev), SND_PCM_STREAM_PLAYBACK);
+	pvt->ocard = alsa_card_init(pvt, CONF_UNIQ(pvt, alsadev), SND_PCM_STREAM_PLAYBACK, rate);
 	if (!pvt->ocard) {
 		ast_log(LOG_ERROR, "[%s][ALSA] Problem opening playback device '%s'\n", PVT_ID(pvt), CONF_UNIQ(pvt, alsadev));
 		return -1;

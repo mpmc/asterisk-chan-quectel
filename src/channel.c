@@ -696,7 +696,8 @@ static struct ast_frame* channel_read_uac(struct cpvt* cpvt, struct pvt* pvt, si
 	}
 
 	char* const buf = cpvt->a_read_buf + AST_FRIENDLY_OFFSET;
-	res = snd_pcm_readi(pvt->icard, buf, frame_size2);
+	res = snd_pcm_readn(pvt->icard, (void**)&buf, frame_size2);
+
 	switch (res) {
 		case -EAGAIN:
 			ast_log(LOG_WARNING, "[%s][ALSA][CAPTURE] Error - try again later\n", PVT_ID(pvt));
@@ -901,7 +902,7 @@ static int channel_write_uac(struct ast_channel*, struct ast_frame* f, struct cp
 			goto w_finish;
 	}
 
-	res = snd_pcm_writei(pvt->ocard, f->data.ptr, len2);
+	res = snd_pcm_writen(pvt->ocard, &f->data.ptr, len2);
 
 	switch(res) {
 		case -EAGAIN:

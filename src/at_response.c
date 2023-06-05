@@ -211,6 +211,9 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 					case TRIBOOL_FALSE:
 					at_enqueue_enable_tty(&pvt->sys_chan);
 					break;
+
+					default:
+					break;
 				}
 				break;
 
