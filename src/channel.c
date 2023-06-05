@@ -164,14 +164,16 @@ static struct ast_channel * channel_request(
 #if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
 	if (pvt) {
 		const struct ast_format* const fmt = pvt_get_audio_format(pvt);
-		if (ast_format_cap_iscompatible_format(cap, fmt) != AST_FORMAT_CMP_EQUAL)
-		{
+		const enum ast_format_cmp_res res = ast_format_cap_iscompatible_format(cap, fmt);
+		if ( res != AST_FORMAT_CMP_EQUAL && res != AST_FORMAT_CMP_SUBSET) {
 			struct ast_str *codec_buf = ast_str_alloca(64);
 			ast_log(LOG_WARNING, "Asked to get a channel of unsupported format '%s'\n",
 					ast_format_cap_get_names(cap, &codec_buf));
+#ifdef WRONG_CODEC_FAILURE
 			*cause = AST_CAUSE_FACILITY_NOT_IMPLEMENTED;
 			ast_mutex_unlock(&pvt->lock);
 			return NULL;
+#endif
 		}
 	}
 	else {
@@ -182,8 +184,10 @@ static struct ast_channel * channel_request(
 			struct ast_str *codec_buf = ast_str_alloca(64);
 			ast_log(LOG_WARNING, "Asked to get a channel of unsupported format '%s'\n",
 					ast_format_cap_get_names(cap, &codec_buf));
+#ifdef WRONG_CODEC_FAILURE
 			*cause = AST_CAUSE_FACILITY_NOT_IMPLEMENTED;
 			return NULL;
+#endif
 		}
 	}
 #elif ASTERISK_VERSION_NUM >= 100000 /* 10-13 */
@@ -324,8 +328,8 @@ static void disactivate_call(struct cpvt* cpvt)
 
 	if (cpvt->channel && CPVT_TEST_FLAG(cpvt, CALL_FLAG_ACTIVATED)) {
         if (CONF_UNIQ(pvt, uac) > TRIBOOL_FALSE) {
-			snd_pcm_drop(pvt->icard);
-			snd_pcm_drop(pvt->ocard);
+			// snd_pcm_drop(pvt->icard);
+			// snd_pcm_drop(pvt->ocard);
 		}
 		else {
 			if (CONF_SHARED(pvt, multiparty)) mixb_detach(&cpvt->pvt->a_write_mixb, &cpvt->mixstream);
@@ -333,7 +337,7 @@ static void disactivate_call(struct cpvt* cpvt)
 
 		CPVT_RESET_FLAGS(cpvt, CALL_FLAG_ACTIVATED | CALL_FLAG_MASTER);
 
-		ast_debug(6, "[%s] call idx %d disactivated\n", PVT_ID(cpvt->pvt), cpvt->call_idx);
+		ast_debug(6, "[%s] Call idx %d disactivated\n", PVT_ID(cpvt->pvt), cpvt->call_idx);
 	}
 }
 
@@ -672,9 +676,58 @@ static struct ast_frame* channel_read_tty(struct cpvt* cpvt, struct pvt* pvt, si
 	return f;
 }
 
+static void show_alsa_state(struct pvt* pvt, snd_pcm_t* const pcm, const char* pcm_desc, int dlvl)
+{
+	if (!DEBUG_ATLEAST(dlvl)) return;
+
+	const size_t ss = snd_pcm_status_sizeof();
+	snd_pcm_status_t* const pcm_status = (snd_pcm_status_t*)ast_alloca(ss);
+	const int res = snd_pcm_status(pcm, pcm_status);
+	if (res<0) {
+		ast_log(LOG_ERROR, "[%s][ALSA][%s] Unable to get device status: %s", PVT_ID(pvt), pcm_desc, snd_strerror(res));
+	}
+	else {
+		const snd_pcm_state_t pcm_state = snd_pcm_status_get_state(pcm_status);
+		snd_pcm_sframes_t delay = snd_pcm_status_get_delay(pcm_status);
+		snd_pcm_uframes_t avail = snd_pcm_status_get_avail(pcm_status);
+		snd_pcm_uframes_t avail_max = snd_pcm_status_get_avail_max(pcm_status);
+
+		snd_pcm_uframes_t buffer_size;
+		snd_pcm_uframes_t period_size;
+
+		const int res = snd_pcm_get_params(pcm, &buffer_size, &period_size);
+		if (res < 0) {
+			ast_log(LOG_ERROR, "[%s][ALSA][%s] Unable to get buffer sizes: %s", PVT_ID(pvt), pcm_desc, snd_strerror(res));
+		}
+
+		int sdelay = 0;
+		if (res >=0) {
+			avail %= buffer_size;
+			avail_max %= buffer_size;
+			delay %= buffer_size;
+
+			if (delay < 0l ) {
+				sdelay = -1l;
+			}
+			else if (delay > buffer_size) {
+				sdelay = 1l;
+			}
+		}
+
+		ast_debug(dlvl, "[%s][ALSA][%s] Status - state:%s delay:%ld avail:%lu avail_max:%lu sdelay:%d buf:%lu|%lu\n",
+			PVT_ID(pvt), pcm_desc,
+			snd_pcm_state_name(pcm_state),
+			delay, avail, avail_max,
+			sdelay,
+			period_size, buffer_size
+		);
+	}
+}
+
 static struct ast_frame* channel_read_uac(struct cpvt* cpvt, struct pvt* pvt, size_t frames, const struct ast_format* const fmt)
 {
 	int res;
+	show_alsa_state(pvt, pvt->icard, "CAPTURE", 7);
 	const snd_pcm_state_t state = snd_pcm_state(pvt->icard);
 	switch (state) {
 		case SND_PCM_STATE_XRUN:
@@ -760,7 +813,7 @@ static struct ast_frame* channel_read(struct ast_channel* channel)
 		CHANNEL_DEADLOCK_AVOIDANCE (channel);
 	}
 
-	ast_debug(7, "[%s] read call idx %d state %d audio_fd %d\n", PVT_ID(pvt), cpvt->call_idx, cpvt->state, pvt->audio_fd);
+	ast_debug(8, "[%s] Read - idx:%d state:%d audio_fd:%d\n", PVT_ID(pvt), cpvt->call_idx, cpvt->state, pvt->audio_fd);
 
 	/* FIXME: move down for enable timing_write() to device ? */
 	if (CONF_UNIQ(pvt, uac) == TRIBOOL_FALSE && (!CPVT_IS_SOUND_SOURCE(cpvt) || pvt->audio_fd < 0)) {
@@ -878,7 +931,7 @@ static int channel_write_tty(struct ast_channel* channel, struct ast_frame* f, s
 
 static int channel_write_uac(struct ast_channel*, struct ast_frame* f, struct cpvt*, struct pvt* pvt, size_t frame_size)
 {
-	const int len2 = f->datalen / 2;
+	const int samples = f->samples;
 	int res = 0;
 
 	snd_pcm_state_t state = snd_pcm_state(pvt->ocard);
@@ -905,12 +958,12 @@ static int channel_write_uac(struct ast_channel*, struct ast_frame* f, struct cp
 	}
 
 	if (pvt->ocard_channels == 1u) {
-		res = snd_pcm_mmap_writei(pvt->ocard, f->data.ptr, len2);
+		res = snd_pcm_mmap_writei(pvt->ocard, f->data.ptr, samples);
 	}
 	else {
 		void* d[pvt->ocard_channels];
 		for(unsigned int i=0; i<pvt->ocard_channels; ++i) d[i] = f->data.ptr;
-		res = snd_pcm_mmap_writen(pvt->ocard, (void**)&d, len2);
+		res = snd_pcm_mmap_writen(pvt->ocard, (void**)&d, samples);
 	}
 
 	switch(res) {
@@ -924,10 +977,10 @@ static int channel_write_uac(struct ast_channel*, struct ast_frame* f, struct cp
 			break;
 
 		default:
-			if (res != len2) {
+			if (res != samples) {
 				PVT_STAT(pvt, write_frames) ++;
 				PVT_STAT(pvt, write_sframes) ++;
-				ast_log(LOG_WARNING, "[%s][ALSA][PLAYBACK] %d/%d samples\n", PVT_ID(pvt), res, len2);
+				ast_log(LOG_WARNING, "[%s][ALSA][PLAYBACK] %d/%d samples\n", PVT_ID(pvt), res, samples);
 				res = 0;
 			}
 			else if (res < 0) {
@@ -937,6 +990,7 @@ static int channel_write_uac(struct ast_channel*, struct ast_frame* f, struct cp
 			else {
 				PVT_STAT(pvt, write_frames) ++;
 			}
+			show_alsa_state(pvt, pvt->ocard, "PLAYBACK", 6);
 			break;
 	}
 
@@ -984,7 +1038,7 @@ static int channel_write(struct ast_channel* channel, struct ast_frame* f)
 		return 0;
 	}
 
-	ast_debug(7, "[%s] write call idx %d state %d\n", PVT_ID(pvt), cpvt->call_idx, cpvt->state);
+	ast_debug(8, "[%s] Write - idx:%d state:%d\n", PVT_ID(pvt), cpvt->call_idx, cpvt->state);
 
 	if (f->datalen < frame_size) {
 		ast_debug(8, "[%s] Short voice frame: %d/%d\n", PVT_ID(pvt), f->datalen, (int)frame_size);
@@ -1076,7 +1130,7 @@ static int channel_indicate (struct ast_channel* channel, int condition, const v
 	int res = 0;
 
 	if (!cpvt || cpvt->channel != channel || !cpvt->pvt) {
-		ast_log (LOG_WARNING, "call on unreferenced %s\n", ast_channel_name(channel));
+		ast_log(LOG_WARNING, "Call on unreferenced %s\n", ast_channel_name(channel));
 	}
 	else {
 		pvt = cpvt->pvt;
@@ -1087,9 +1141,14 @@ static int channel_indicate (struct ast_channel* channel, int condition, const v
 		case AST_CONTROL_BUSY:
 		case AST_CONTROL_CONGESTION:
 		case AST_CONTROL_RINGING:
+		case AST_CONTROL_MASQUERADE_NOTIFY:
+#if ASTERISK_VERSION_NUM >= 110000 /* 11+ */
+		case AST_CONTROL_PVT_CAUSE_CODE:
+#endif					
 		case -1:
 			res = -1;
 			break;
+
 /* appears in r295843 */
 #ifdef HAVE_AST_CONTROL_SRCCHANGE
 		case AST_CONTROL_SRCCHANGE:
@@ -1098,9 +1157,6 @@ static int channel_indicate (struct ast_channel* channel, int condition, const v
 		case AST_CONTROL_PROCEEDING:
 		case AST_CONTROL_VIDUPDATE:
 		case AST_CONTROL_SRCUPDATE:
-#if ASTERISK_VERSION_NUM >= 110000 /* 11+ */
-		case AST_CONTROL_PVT_CAUSE_CODE:
-#endif /* ^11+ */
 			break;
 
 		case AST_CONTROL_HOLD:
@@ -1124,6 +1180,17 @@ static int channel_indicate (struct ast_channel* channel, int condition, const v
 				ast_mutex_unlock(&pvt->lock);
 			}
 			break;
+
+		case AST_CONTROL_CONNECTED_LINE: {
+			struct ast_party_connected_line* const cnncd = ast_channel_connected(channel);
+			ast_mutex_lock(&pvt->lock);
+			ast_log(LOG_NOTICE, "[%s] Connected party is now %s <%s>\n",
+				PVT_ID(pvt),
+				S_COR(cnncd->id.name.valid, cnncd->id.name.str, ""),
+				S_COR(cnncd->id.number.valid, cnncd->id.number.str, ""));
+			ast_mutex_unlock(&pvt->lock);
+			break;
+		}
 
 		default:
 			ast_log (LOG_WARNING, "[%s] Don't know how to indicate condition %d\n", ast_channel_name(channel), condition);
@@ -1155,7 +1222,7 @@ void change_channel_state(struct cpvt * cpvt, unsigned newstate, int cause)
 		PVT_STATE(pvt, chan_count[oldstate])--;
 		PVT_STATE(pvt, chan_count[newstate])++;
 
-		ast_debug (1, "[%s] call idx %d mpty %d, change state from '%s' to '%s' has%s channel\n", PVT_ID(pvt), call_idx, CPVT_TEST_FLAG(cpvt, CALL_FLAG_MULTIPARTY) ? 1 : 0, call_state2str(oldstate), call_state2str(newstate), channel ? "" : "'t");
+		ast_debug(1, "[%s] Call - idx:%d mpty:%d, [%s] -> [%s] has%s channel\n", PVT_ID(pvt), call_idx, CPVT_TEST_FLAG(cpvt, CALL_FLAG_MULTIPARTY) ? 1 : 0, call_state2str(oldstate), call_state2str(newstate), channel ? "" : "'t");
 
 		/* update bits of devstate cache */
 		switch(newstate)
@@ -1205,6 +1272,10 @@ void change_channel_state(struct cpvt * cpvt, unsigned newstate, int cause)
 					activate_call(cpvt);
 					queue_control_channel (cpvt, AST_CONTROL_RINGING);
 					ast_setstate (channel, AST_STATE_RINGING);
+					break;
+
+				case CALL_STATE_INCOMING:
+					activate_call(cpvt);
 					break;
 
 				case CALL_STATE_ACTIVE:
@@ -1310,7 +1381,7 @@ struct ast_channel* new_channel(
 	struct ast_channel* channel;
 	struct cpvt * cpvt;
 
-	cpvt = cpvt_alloc(pvt, call_idx, dir, state);
+	cpvt = cpvt_alloc(pvt, call_idx, dir, CALL_STATE_INIT);
 	if (cpvt) {
 #if ASTERISK_VERSION_NUM >= 120000 /* 12+ */
 		channel = ast_channel_alloc(
@@ -1342,7 +1413,8 @@ struct ast_channel* new_channel(
 #if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
 			struct ast_format* const fmt = (struct ast_format*)pvt_get_audio_format(pvt);
 			struct ast_format_cap* const cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
-			ast_format_cap_append(cap, fmt, 0);
+			ast_format_cap_append(cap, fmt, 40);
+			ast_format_cap_set_framing(cap, 40);
 			ast_channel_nativeformats_set(channel, cap);
 
 			ast_channel_set_rawreadformat(channel, fmt);
@@ -1350,17 +1422,17 @@ struct ast_channel* new_channel(
 			ast_channel_set_writeformat(channel, fmt);
 			ast_channel_set_readformat(channel, fmt);
 #elif ASTERISK_VERSION_NUM >= 110000 /* 11+ */
-		        ast_format_cap_add(ast_channel_nativeformats(channel), &chan_quectel_format);
-		        ast_format_copy(ast_channel_rawreadformat(channel), &chan_quectel_format);
-		        ast_format_copy(ast_channel_rawwriteformat(channel), &chan_quectel_format);
-		        ast_format_copy(ast_channel_writeformat(channel), &chan_quectel_format);
-		        ast_format_copy(ast_channel_readformat(channel), &chan_quectel_format);
+			ast_format_cap_add(ast_channel_nativeformats(channel), &chan_quectel_format);
+			ast_format_copy(ast_channel_rawreadformat(channel), &chan_quectel_format);
+			ast_format_copy(ast_channel_rawwriteformat(channel), &chan_quectel_format);
+			ast_format_copy(ast_channel_writeformat(channel), &chan_quectel_format);
+			ast_format_copy(ast_channel_readformat(channel), &chan_quectel_format);
 #elif ASTERISK_VERSION_NUM >= 100000 /* 10+ */
-		        ast_format_cap_add(channel->nativeformats, &chan_quectel_format);
-		        ast_format_copy(&channel->rawreadformat, &chan_quectel_format);
-		        ast_format_copy(&channel->rawwriteformat, &chan_quectel_format);
-		        ast_format_copy(&channel->writeformat, &chan_quectel_format);
-		        ast_format_copy(&channel->readformat, &chan_quectel_format);
+			ast_format_cap_add(channel->nativeformats, &chan_quectel_format);
+			ast_format_copy(&channel->rawreadformat, &chan_quectel_format);
+			ast_format_copy(&channel->rawwriteformat, &chan_quectel_format);
+			ast_format_copy(&channel->writeformat, &chan_quectel_format);
+			ast_format_copy(&channel->readformat, &chan_quectel_format);
 #else /* 10- */
 			channel->nativeformats	= AST_FORMAT_SLINEAR;
 			channel->rawreadformat	= AST_FORMAT_SLINEAR;
@@ -1379,16 +1451,14 @@ struct ast_channel* new_channel(
 
 			if(dnid != NULL && dnid[0] != 0)
 				pbx_builtin_setvar_helper(channel, "CALLERID(dnid)", dnid);
-/*
-#if ASTERISK_VERSION_NUM >= 10800
-				channel->dialed.number.str = ast_strdup(dnid);
-#else
-				channel->cid.cid_dnid = ast_strdup(dnid);
-#endif
-*/
+
 			ast_jb_configure (channel, &CONF_GLOBAL(jbconf));
 
-			ast_module_ref (self_module());
+			if (state != CALL_STATE_INIT) {
+				change_channel_state(cpvt, state, AST_CAUSE_NORMAL_UNSPECIFIED);
+			}
+
+			ast_module_ref(self_module());
 
 #if ASTERISK_VERSION_NUM >= 120000 /* 12+ */
 			/* commit e2630fcd516b8f794bf342d9fd267b0c905e79ce

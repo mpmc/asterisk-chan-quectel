@@ -77,7 +77,7 @@ struct cpvt* cpvt_alloc(struct pvt* pvt, int call_idx, unsigned dir, call_state_
 	PVT_STATE(pvt, chansno)++;
 	PVT_STATE(pvt, chan_count[cpvt->state])++;
 
-	ast_debug(3, "[%s] Create cpvt: idx:%d dir:%d state:%s buffer_len:%u\n",  PVT_ID(pvt), call_idx, dir, call_state2str(state), (unsigned int)buffer_size);
+	ast_debug(3, "[%s] Create cpvt - idx:%d dir:%d state:%s buffer_len:%u\n",  PVT_ID(pvt), call_idx, dir, call_state2str(state), (unsigned int)buffer_size);
 
 	c_ret:
 	return cpvt;
@@ -99,7 +99,7 @@ void cpvt_free(struct cpvt* cpvt)
 	close(cpvt->rd_pipe[1]);
 	close(cpvt->rd_pipe[0]);
 
-	ast_debug (3, "[%s] destroy cpvt: idx:%d dir:%d state:%s flags:%d has%s channel\n",  PVT_ID(pvt), cpvt->call_idx, cpvt->dir, call_state2str(cpvt->state), cpvt->flags, cpvt->channel ? "" : "'t");
+	ast_debug (3, "[%s] Destroy cpvt - idx:%d dir:%d state:%s flags:%d has%s channel\n",  PVT_ID(pvt), cpvt->call_idx, cpvt->dir, call_state2str(cpvt->state), cpvt->flags, cpvt->channel ? "" : "'t");
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&pvt->chans, found, entry) {
 		if(found == cpvt)
 		{

@@ -278,8 +278,8 @@ int at_enqueue_initialization_quectel(struct cpvt *cpvt)
 	static const char cmd_at_qtonedet_1[] = "AT+QTONEDET=1\r";
 
 	static const at_queue_cmd_t tonedet_cmds[] = {
-		ATQ_CMD_DECLARE_ST(CMD_AT_QTONEDET_0, cmd_at_qtonedet_0),
-		ATQ_CMD_DECLARE_ST(CMD_AT_QTONEDET_1, cmd_at_qtonedet_1),
+		ATQ_CMD_DECLARE_STI(CMD_AT_QTONEDET_0, cmd_at_qtonedet_0),
+		ATQ_CMD_DECLARE_STI(CMD_AT_QTONEDET_1, cmd_at_qtonedet_1),
 	};
 
 	static const char cmd_cereg_init[] = "AT+CEREG=2\r";
@@ -308,13 +308,29 @@ int at_enqueue_initialization_simcom(struct cpvt *cpvt)
 	static const char cmd_cnsmod_1[] = "AT+CNSMOD=1\r";
 	static const char cmd_creg_init[] = "AT+CREG=2\r";
 	static const char cmd_autocsq_init[] = "AT+AUTOCSQ=1,1\r";
+	static const char cmd_exunsol_init[] = "AT+EXUNSOL=\"SQ\",1\r";
+	static const char cmd_clts_init[] = "AT+CLTS=1\r";
 
-	static const at_queue_cmd_t cmds[] = {
-		ATQ_CMD_DECLARE_ST(CMD_AT_CPCMREG, cmd_cpcmreg),
+	static const char cmd_at_ddet_0[] = "AT+DDET=0\r";
+	static const char cmd_at_ddet_1[] = "AT+DDET=1\r";
+
+	static const at_queue_cmd_t ddet_cmds[] = {
+		ATQ_CMD_DECLARE_STI(CMD_AT_DDET_0, cmd_at_ddet_0),
+		ATQ_CMD_DECLARE_STI(CMD_AT_DDET_1, cmd_at_ddet_1),
+	};
+
+	struct pvt* const pvt = cpvt->pvt;
+	const unsigned int dtmf = CONF_SHARED(pvt, dtmf);
+
+	const at_queue_cmd_t cmds[] = {
+		ATQ_CMD_DECLARE_STI(CMD_AT_CPCMREG, cmd_cpcmreg),
 		ATQ_CMD_DECLARE_ST(CMD_AT_CLCC, cmd_clcc_1),
 		ATQ_CMD_DECLARE_ST(CMD_AT_CREG_INIT, cmd_creg_init),
-		ATQ_CMD_DECLARE_ST(CMD_AT_CNSMOD_1, cmd_cnsmod_1),
-		ATQ_CMD_DECLARE_ST(CMD_AT_AUTOCSQ_INIT, cmd_autocsq_init),
+		ATQ_CMD_DECLARE_STI(CMD_AT_CNSMOD_1, cmd_cnsmod_1),
+		ATQ_CMD_DECLARE_STI(CMD_AT_AUTOCSQ_INIT, cmd_autocsq_init),
+		ATQ_CMD_DECLARE_STI(CMD_AT_EXUNSOL_INIT, cmd_exunsol_init),
+		ATQ_CMD_DECLARE_STI(CMD_AT_CLTS_INIT, cmd_clts_init),
+		ddet_cmds[dtmf? 1:0],
 		ATQ_CMD_DECLARE_ST(CMD_AT_FINAL, cmd_at)
 	};
 
@@ -911,7 +927,7 @@ int at_enqueue_delete_sms(struct cpvt *cpvt, int index)
 int at_enqueue_msg_ack(struct cpvt *cpvt)
 {
 	static const char cmd_cnma[] = "AT+CNMA\r";
-	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_ST(CMD_AT_CNMA, cmd_cnma);
+	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_STI(CMD_AT_CNMA, cmd_cnma);
 
 	if (at_queue_insert_const(cpvt, &cmd, 1, 1) != 0) {
 		chan_quectel_err = E_QUEUE;
@@ -922,7 +938,7 @@ int at_enqueue_msg_ack(struct cpvt *cpvt)
 
 int at_enqueue_msg_ack_n(struct cpvt *cpvt, int n)
 {
-	at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_CNMA);
+	at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYNI(CMD_AT_CNMA);
 
 	int err = at_fill_generic_cmd(&cmd, "AT+CNMA=%d\r", n);
 	if (err) {

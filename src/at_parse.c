@@ -85,6 +85,24 @@ char * at_parse_cnum (char* str)
 	return NULL;
 }
 
+static char* strip_quoted(char* buf)
+{
+	return ast_strip_quoted(buf, "\"", "\"");
+}
+
+static char *trim_blanks(char *str)
+{
+	char *work = str;
+
+	if (work) {
+		work += strlen(work) - 1;
+		while ((work >= str) &&
+			   (((unsigned char) *work) < 33 || *work == '@' || ((unsigned char) *work) >= 128 )
+			) *(work--) = '\0';
+	}
+	return str;
+}
+
 /*!
  * \brief Parse a COPS response
  * \param str -- string to parse (null terminated)
@@ -92,7 +110,6 @@ char * at_parse_cnum (char* str)
  * @note str will be modified when the COPS message is parsed
  * \return NULL on error (parse error) or a pointer to the provider name
  */
-
 char* at_parse_cops (char* str)
 {
 	/*
@@ -101,19 +118,20 @@ char* at_parse_cops (char* str)
 	 *
 	 * example
 	 *  +COPS: 0,0,"TELE2",0
+	 *  +COPS: 0,0,"POL"
 	 */
 
 	static const char delimiters[] = ":,,,";
-	char* marks[STRLEN(delimiters)];
+	static const size_t delimiters_no = STRLEN(delimiters);
+	static const size_t delimiters_no1 = delimiters_no - 1u;
+
+	char* marks[delimiters_no];
 
 	/* parse URC only here */
-	if (mark_line(str, delimiters, marks) == ITEMS_OF(marks)) {
-		marks[2]++;
-		if(marks[2][0] == '"')
-			marks[2]++;
-		if(marks[3][-1] == '"')
-			marks[3]--;
-		marks[3][0] = 0;
+	const unsigned int marks_no = mark_line(str, delimiters, marks);
+	if (marks_no >= delimiters_no1) {
+		if (marks_no > 3) marks[3][0] = '\000';
+		char* res = strip_quoted(marks[2]+1);
 		/* Sometimes there is trailing garbage here;
 		 * e.g. "Tele2@" or "Tele2<U+FFFD>" instead of "Tele2".
 		 * Unsure why it happens (provider? quectel?), but it causes
@@ -121,22 +139,11 @@ char* at_parse_cops (char* str)
 		 * is not encoding agnostic anymore, now that it uses json
 		 * for messaging). See wdoekes/asterisk-chan-quectel
 		 * GitHub issues #39 and #69. */
-		while (marks[3] > marks[2] && (
-				(unsigned char)marks[3][-1] < 32 ||
-				(unsigned char)marks[3][-1] == '@' ||
-				(unsigned char)marks[3][-1] >= 128)) {
-			marks[3]--;
-			marks[3][0] = 0;
-		}
-		return marks[2];
+		res = trim_blanks(res);
+		return res;
 	}
 
 	return NULL;
-}
-
-static char* strip_quoted(char* buf)
-{
-	return ast_strip_quoted(buf, "\"", "\"");
 }
 
 int at_parse_qspn(char* str, char** fnn, char** snn, char** spn)
@@ -869,6 +876,23 @@ int at_parse_csq (const char* str, int* rssi)
 	return sscanf (str, "+CSQ:%2d,", rssi) == 1 ? 0 : -1;
 }
 
+int at_parse_csqn(char* str, int* rssi, int* ber)
+{
+	/*
+		Example:
+
+		+CSQN: 25,0
+	*/
+
+	char* t = ast_strsep(&str, ':', 0);
+	if (!t) return -1;
+	t = ast_strsep(&str, ':', 0);
+	if (!t) return -1;
+	t = ast_skip_blanks(t);
+	const int res = sscanf(t, "%d,%d", rssi, ber);
+	return (res == 2)? 0 : -1;
+}
+
 /*!
  * \brief Parse a ^RSSI notification
  * \param str -- string to parse (null terminated)
@@ -1114,23 +1138,21 @@ int at_parse_qtonedet(const char* str, int* dtmf)
 	return sscanf(str, "+QTONEDET:%d,", dtmf) == 1 ? 0 : -1;
 }
 
-int at_parse_rxdtmf(const char* str, char* dtmf)
+int at_parse_dtmf(char* str, char* dtmf)
 {
 	/*
 		Example:
 
 		+RXDTMF: 5
+		+DTMF:5
 	*/
 
-	static const char RXDTMF[] = "+RXDTMF:";
-	const char* d = str + STRLEN(RXDTMF);
-	if (*d == ' ') d += 1;
-	if (*d) {
-		*dtmf = *d;
-		return 0;
-	}
-
-	return -1;
+	char* t = ast_strsep(&str, ':', 0);
+	if (!t) return -1;
+	t = ast_strsep(&str, ':', AST_STRSEP_TRIM);
+	if (!t) return -1;
+	*dtmf = *t;
+	return 0;
 }
 
 int at_parse_qpcmv(char* str, int* enabled, int* mode)
@@ -1302,4 +1324,147 @@ int at_parse_cnsmod(const char* str, int* act)
 	*/
 
 	return sscanf(str, "+CNSMOD:%d,", act) == 1 ? 0 : -1;
+}
+
+int at_parse_cring(char* str, char** ring_type)
+{
+	/*
+		Example:
+
+		+CRING: VOICE
+	*/
+
+	char* t = ast_strsep(&str, ':', 0);
+	if (!t) return -1;
+	t = ast_strsep(&str, ':', AST_STRSEP_STRIP);
+	if (!t) return -1;
+
+	*ring_type = t;
+	return 0;
+}
+
+int at_parse_psnwid(char* str, int* mcc, int* mnc, char** fnn, char** snn)
+{
+	/*
+		*PSNWID: "<mcc>", "<mnc>", "<full network name>",<full network name CI>, "<short network name>",<short network name CI>
+
+		*PSNWID: "260","03", "004F00720061006E00670065", 0, "004F00720061006E00670065", 0
+	*/
+
+	static char delimiters[] = ":,,,,,";
+	char* marks[STRLEN(delimiters)];
+
+	if(mark_line(str, delimiters, marks) != ITEMS_OF(marks)) {
+		return -1;
+	}
+
+	marks[1][0] = marks[2][0] = marks[3][0] = marks[4][0] = marks[5][0] = '\000';
+
+	char* mcc_str = ast_skip_blanks(marks[0] + 1);
+	mcc_str = strip_quoted(mcc_str);
+
+	char* mnc_str = ast_skip_blanks(marks[1]+1);
+	mnc_str = strip_quoted(mnc_str);
+
+	char* fnn_str = ast_skip_blanks(marks[2]+1);
+	fnn_str = strip_quoted(fnn_str);
+
+	char* snn_str = ast_skip_blanks(marks[4]+1);
+	snn_str = strip_quoted(snn_str);
+
+	*mcc = (int)strtoul(mcc_str, NULL, 10);
+	if (errno == ERANGE) {
+		return -1;
+	}
+
+	*mnc = (int)strtoul(mnc_str, NULL, 10);
+	if (errno == ERANGE) {
+		return -1;
+	}
+
+	*fnn = fnn_str;
+	*snn = snn_str;
+
+	return 0;	
+}
+
+int at_parse_psuttz(char* str, int* year, int* month, int* day, int* hour, int* min, int* sec, int* tz, int* dst)
+{
+	/*
+		*PSUTTZ: <year>,<month>,<day>,<hour>,<min>,<sec>, "<time zone>",<dst>
+
+		*PSUTTZ: 2023, 6, 8, 5, 15, 27, "+8", 1
+	*/
+
+	static char delimiters[] = ":,,,,,,,";
+	char* marks[STRLEN(delimiters)];
+
+	if(mark_line(str, delimiters, marks) != ITEMS_OF(marks)) {
+		return -1;
+	}
+
+	marks[1][0] = marks[2][0] = marks[3][0] = marks[4][0] = marks[5][0] = marks[6][0] = marks[7][0] = '\000';
+
+	char* year_str = ast_skip_blanks(marks[0]+1);
+	char* month_str = ast_skip_blanks(marks[1]+1);
+	char* day_str = ast_skip_blanks(marks[2]+1);
+	char* hour_str = ast_skip_blanks(marks[3]+1);
+	char* min_str = ast_skip_blanks(marks[4]+1);
+	char* sec_str = ast_skip_blanks(marks[5]+1);
+	char* tz_str = ast_skip_blanks(marks[6]+1);
+	tz_str = strip_quoted(tz_str);
+	if (*tz_str == '+') tz_str += 1;
+	char* dst_str = ast_skip_blanks(marks[7]+1);
+
+	*year = (int)strtoul(year_str, NULL, 10);
+	if (errno == ERANGE) {
+		return -1;
+	}
+
+	*month = (int)strtoul(month_str, NULL, 10);
+	if (errno == ERANGE) {
+		return -1;
+	}
+
+	*day = (int)strtoul(day_str, NULL, 10);
+	if (errno == ERANGE) {
+		return -1;
+	}
+
+	*hour = (int)strtoul(hour_str, NULL, 10);
+	if (errno == ERANGE) {
+		return -1;
+	}
+
+	*min = (int)strtoul(min_str, NULL, 10);
+	if (errno == ERANGE) {
+		return -1;
+	}
+
+	*sec = (int)strtoul(sec_str, NULL, 10);
+	if (errno == ERANGE) {
+		return -1;
+	}
+
+	*tz = (int)strtoul(tz_str, NULL, 10);
+	if (errno == ERANGE) {
+		return -1;
+	}
+
+	*dst = (int)strtoul(dst_str, NULL, 10);
+	if (errno == ERANGE) {
+		return -1;
+	}	
+
+	return 0;
+}
+
+int at_parse_revision(char* str, char** rev)
+{
+	char* t = ast_strsep(&str, ':', 0);
+	if (!t) return -1;
+	t = ast_strsep(&str, ':', AST_STRSEP_STRIP);
+	if (!t) return -1;
+	*rev = t;
+	return 0;
 }

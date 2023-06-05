@@ -123,7 +123,7 @@ static char* cli_show_device_settings (struct ast_cli_entry* e, int cmd, struct 
 	if (pvt)
 	{
 		const struct ast_format* const fmt = pvt_get_audio_format(pvt);
-		const char* codec_name = ast_format_get_codec_name(fmt);
+		const char* codec_name = ast_format_get_name(fmt);
 
 		ast_cli (a->fd, "------------- Settings ------------\n");
 		ast_cli (a->fd, "  Device                  : %s\n", PVT_ID(pvt));
@@ -201,7 +201,7 @@ static char* cli_show_device_state (struct ast_cli_entry* e, int cmd, struct ast
 		ast_cli (a->fd, "-------------- Status -------------\n");
 		ast_cli (a->fd, "  Device                  : %s\n", PVT_ID(pvt));
 		ast_cli (a->fd, "  State                   : %s\n", ast_str_buffer(statebuf));
-        if (CONF_UNIQ(pvt, uac))
+        if (CONF_UNIQ(pvt, uac) > TRIBOOL_FALSE)
 		ast_cli (a->fd, "  Audio UAC               : %s\n", CONF_UNIQ(pvt, alsadev));
 		else
 		ast_cli (a->fd, "  Audio                   : %s\n", PVT_STATE(pvt, audio_tty));

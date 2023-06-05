@@ -60,6 +60,8 @@
 	_( AT_CSCS,         "AT+CSCS") \
 	_( AT_CSQ,          "AT+CSQ") \
 	_( AT_AUTOCSQ_INIT, "AT+AUTOCSQ=") \
+	_( AT_EXUNSOL_INIT, "AT+EXUNSOL=") \
+	_( AT_CLTS_INIT,    "AT+CLTS=") \
 \
 	_( AT_CSSN,         "AT+CSSN") \
 	_( AT_CUSD,         "AT+CUSD") \
@@ -92,6 +94,8 @@
 	_( AT_QPCMV_UAC,	"AT+QPCMV=1,2") \
 	_( AT_QTONEDET_0,	"AT+QTONEDET=0") \
 	_( AT_QTONEDET_1,	"AT+QTONEDET=1") \
+	_( AT_DDET_0,		"AT+DDET=0") \
+	_( AT_DDET_1,		"AT+DDET=1") \
 	_( AT_QLTS,			"AT+QLTS") \
 	_( AT_CCLK,			"AT+CCLK") \
 	_( AT_QMIC,			"AT+QMIC") \

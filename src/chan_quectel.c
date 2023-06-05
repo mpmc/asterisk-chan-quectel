@@ -106,20 +106,24 @@ const char* dev_state2str_msg(dev_state_t state)
 	return enum2str(state, states, ITEMS_OF(states));
 }
 
-static int alsa_card_init(struct pvt* pvt, const char *dev, snd_pcm_stream_t stream, unsigned int rate, snd_pcm_t** pcm, unsigned int* pcm_channels)
+static snd_pcm_uframes_t adjust_uframes(snd_pcm_uframes_t v, unsigned int rate)
+{
+	snd_pcm_uframes_t res = v / sizeof(short);
+	res *= rate / 8000;
+	return res;
+}
+
+static int pcm_init(struct pvt* pvt, const char *dev, snd_pcm_stream_t stream, unsigned int rate, snd_pcm_t** pcm, unsigned int* pcm_channels)
 {
 	int res;
-	int direction;
 	snd_pcm_t *handle = NULL;
 	snd_pcm_hw_params_t *hwparams = NULL;
 	snd_pcm_sw_params_t *swparams = NULL;
 
-	snd_pcm_uframes_t period_size = ((stream == SND_PCM_STREAM_CAPTURE)? FRAME_SIZE_CAPTURE : FRAME_SIZE_PLAYBACK) / sizeof(short);
-	period_size *= rate / 8000;
-	snd_pcm_uframes_t buffer_size = BUFFER_SIZE / sizeof(short);
-	buffer_size *= rate / 8000;
+	snd_pcm_uframes_t period_size = adjust_uframes(((stream == SND_PCM_STREAM_CAPTURE)? FRAME_SIZE_CAPTURE : FRAME_SIZE_PLAYBACK), rate);
+	snd_pcm_uframes_t buffer_size = adjust_uframes(BUFFER_SIZE, rate);
+	snd_pcm_uframes_t start_threshold = period_size * 2;
 	snd_pcm_uframes_t boundary = 0u;
-	snd_pcm_uframes_t start_threshold;
 	unsigned int hwrate = rate;
 	unsigned int channels = 1;
 
@@ -140,76 +144,84 @@ static int alsa_card_init(struct pvt* pvt, const char *dev, snd_pcm_stream_t str
 	res = snd_pcm_hw_params_set_access(handle, hwparams, SND_PCM_ACCESS_MMAP_INTERLEAVED);
 	if (res < 0) {
 		ast_log(LOG_ERROR, "[%s][ALSA][%s] HW Set access failed: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
+		goto alsa_fail;
 	}
 
 	res = snd_pcm_hw_params_set_format(handle, hwparams, format);
 	if (res < 0) {
 		ast_log(LOG_ERROR, "[%s][ALSA][%s] HW Set format failed: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
+		goto alsa_fail;
 	}
 
 	res = snd_pcm_hw_params_set_channels_near(handle, hwparams, &channels);
 	if (res < 0) {
 		ast_log(LOG_ERROR, "[%s][ALSA][%s] HW Set channels failed: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
+		goto alsa_fail;
 	}
 
-	direction = 0;
-	res = snd_pcm_hw_params_set_rate_near(handle, hwparams, &hwrate, &direction);
+	res = snd_pcm_hw_params_set_rate(handle, hwparams, hwrate, 0);
 	if (hwrate != rate) {
 		ast_log(LOG_WARNING, "[%s][ALSA][%s] HW Rate not correct -  requested:%d got:%u\n", PVT_ID(pvt), stream_str, rate, hwrate);
+		goto alsa_fail;
 	}
 
-	direction = 0;
-	res = snd_pcm_hw_params_set_period_size_near(handle, hwparams, &period_size, &direction);
+	res = snd_pcm_hw_params_set_period_size_near(handle, hwparams, &period_size, NULL);
 	if (res < 0) {
 		ast_log(LOG_ERROR, "[%s][ALSA][%s] HW Period size (%lu frames) is bad: %s\n", PVT_ID(pvt), stream_str, period_size, snd_strerror(res));
+		goto alsa_fail;
 	}
 
-	res = snd_pcm_hw_params_set_buffer_size_near(handle, hwparams, &buffer_size);
+	res = snd_pcm_hw_params_set_buffer_size_near(handle , hwparams, &buffer_size);
 	if (res < 0) {
-		ast_log(LOG_WARNING, "[%s][ALSA][%s] HW Problem setting buffer size of %lu: %s\n", PVT_ID(pvt), stream_str, buffer_size, snd_strerror(res));
+		ast_log(LOG_ERROR, "[%s][ALSA][%s] HW Problem setting buffer size of %lu: %s\n", PVT_ID(pvt), stream_str, buffer_size, snd_strerror(res));
+		goto alsa_fail;
 	}
 
 	res = snd_pcm_hw_params(handle, hwparams);
 	if (res < 0) {
-		ast_log(LOG_ERROR, "[%s][ALSA][%s] Couldn't set the new HW params: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
+		ast_log(LOG_ERROR, "[%s][ALSA][%s] Couldn't set HW params: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
+		goto alsa_fail;
 	}
 
 	res = snd_pcm_hw_params_current(handle, hwparams);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "[%s][ALSA][%s] HW Couldn't get current HW params: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
+		goto alsa_fail;
+	}
+
+	res = snd_pcm_hw_params_get_channels(hwparams, &channels);
+	if (res >= 0) {
+		const unsigned int max_channels = (stream == SND_PCM_STREAM_CAPTURE)? 1 : 2;
+		if (channels > max_channels) {
+			ast_log(LOG_ERROR, "[%s][ALSA][%s] Too many channels: %u (max %u are supported)\n", PVT_ID(pvt), stream_str, channels, max_channels);
+			goto alsa_fail;
+		}
+		*pcm_channels = channels;
+		ast_debug(1, "[%s][ALSA][%s] Channels: %u\n", PVT_ID(pvt), stream_str, channels);
 	}
 	else {
-		res = snd_pcm_hw_params_get_channels(hwparams, &channels);
-		if (res >= 0) {
-			const unsigned int max_channels = (stream == SND_PCM_STREAM_CAPTURE)? 1 : 2;
-			if (channels > max_channels) {
-				ast_log(LOG_ERROR, "[%s][ALSA][%s] Too many channels: %u (max %u are supported)\n", PVT_ID(pvt), stream_str, channels, max_channels);
-				snd_pcm_close(handle);
-				return 1;
-			}
-			ast_debug(1, "[%s][ALSA][%s] Channels: %u\n", PVT_ID(pvt), stream_str, channels);
-			*pcm_channels = channels;
-		}
-		else {
-			ast_log(LOG_ERROR, "[%s][ALSA][%s] Couldn't get channel count: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
-			snd_pcm_close(handle);
-			return 1;
-		}
-
-		direction = 0;
-		res = snd_pcm_hw_params_get_rate(hwparams, &hwrate, &direction);
-		if (res >= 0) ast_debug(1, "[%s][ALSA][%s] Rate: %u\n", PVT_ID(pvt), stream_str, hwrate);		
-
-		res = snd_pcm_hw_params_get_period_size(hwparams, &period_size, NULL);
-		if (res >= 0) ast_debug(1, "[%s][ALSA][%s] Period size: %lu\n", PVT_ID(pvt), stream_str, period_size);
-
-		res = snd_pcm_hw_params_get_buffer_size(hwparams, &buffer_size);
-		if (res >= 0) ast_debug(1, "[%s][ALSA][%s] Buffer size: %lu\n", PVT_ID(pvt), stream_str, buffer_size);
+		ast_log(LOG_ERROR, "[%s][ALSA][%s] Couldn't get channel count: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
+		goto alsa_fail;
 	}
+
+	if (DEBUG_ATLEAST(1)) {
+		res = snd_pcm_hw_params_get_rate(hwparams, &hwrate, NULL);
+		if (res >= 0) ast_debug(1, "[%s][ALSA][%s] Rate: %u\n", PVT_ID(pvt), stream_str, hwrate);
+	}
+
+	res = snd_pcm_hw_params_get_period_size(hwparams, &period_size, NULL);
+	if (res >= 0) ast_debug(1, "[%s][ALSA][%s] Period size: %lu\n", PVT_ID(pvt), stream_str, period_size);
+
+	res = snd_pcm_hw_params_get_buffer_size(hwparams, &buffer_size);
+	if (res >= 0) ast_debug(1, "[%s][ALSA][%s] Buffer size: %lu\n", PVT_ID(pvt), stream_str, buffer_size);
 
 	swparams = ast_alloca(snd_pcm_sw_params_sizeof());
 	memset(swparams, 0, snd_pcm_sw_params_sizeof());
-	snd_pcm_sw_params_current(handle, swparams);
+	res = snd_pcm_sw_params_current(handle, swparams);
+	if (res < 0) {
+		ast_log(LOG_ERROR, "[%s][ALSA][%s] Couldn't get SW params: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
+		goto alsa_fail;
+	}
 
 	res = snd_pcm_sw_params_get_boundary(swparams, &boundary);
 	if (res < 0) {
@@ -218,29 +230,30 @@ static int alsa_card_init(struct pvt* pvt, const char *dev, snd_pcm_stream_t str
 	}
 	ast_debug(3, "[%s][ALSA][%s] Boundary: %lu\n", PVT_ID(pvt), stream_str, boundary);
 
-	start_threshold = 2 * period_size;
-
 	res = snd_pcm_sw_params_set_start_threshold(handle, swparams, start_threshold);
 	if (res < 0) {
 		ast_log(LOG_ERROR, "[%s][ALSA][%s] SW Couldn't set start threshold: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
+		goto alsa_fail;		
 	}
 
+#ifdef ALSA_STOP_THRESHOLD
 	if (boundary > 0u) {
 		res = snd_pcm_sw_params_set_stop_threshold(handle, swparams, boundary);
 		if (res < 0) {
 			ast_log(LOG_ERROR, "[%s][ALSA][%s] SW Couldn't set stop threshold: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
 		}
 	}
+#endif
 
 	if (stream == SND_PCM_STREAM_PLAYBACK && boundary > 0u) {
 		res = snd_pcm_sw_params_set_silence_threshold(handle, swparams, 0);
 		if (res < 0) {
-			ast_log(LOG_ERROR, "[%s][ALSA][%s] SW Couldn't set silence threshold: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
+			ast_log(LOG_WARNING, "[%s][ALSA][%s] SW Couldn't set silence threshold: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
 		}
 		else {
 			res = snd_pcm_sw_params_set_silence_size(handle, swparams, boundary);
 			if (res < 0) {
-				ast_log(LOG_ERROR, "[%s][ALSA][%s] SW Couldn't set silence size: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
+				ast_log(LOG_WARNING, "[%s][ALSA][%s] SW Couldn't set silence size: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
 			}
 		}	
 	}
@@ -248,27 +261,33 @@ static int alsa_card_init(struct pvt* pvt, const char *dev, snd_pcm_stream_t str
 	res = snd_pcm_sw_params(handle, swparams);
 	if (res < 0) {
 		ast_log(LOG_ERROR, "[%s][ALSA][%s] Couldn't set SW params: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
+		goto alsa_fail;
 	}
 
 	if (stream == SND_PCM_STREAM_CAPTURE) {
 		res = snd_pcm_poll_descriptors_count(handle);
 		if (res <= 0) {
 			ast_log(LOG_ERROR, "[%s][ALSA][%s] Unable to get a poll descriptors count: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
+			goto alsa_fail;
 		}
-		else if (res != 1) {
-			ast_debug(1, "[%s][ALSA][%s] Can't handle more than one FD - cnt:%d\n", PVT_ID(pvt), stream_str, res);
-		}
-		else {
-			struct pollfd pfd;
 
-			snd_pcm_poll_descriptors(handle, &pfd, res);
-			ast_debug(1, "[%s][ALSA][%s] Acquired FD:%d from the poll descriptor\n", PVT_ID(pvt), stream_str, pfd.fd);
-			pvt->audio_fd = pfd.fd;
+		struct pollfd pfd[res];
+
+		res = snd_pcm_poll_descriptors(handle, pfd, res);
+		if (res < 0) {
+			ast_log(LOG_ERROR, "[%s][ALSA][%s] Unable to get a poll descriptor(s): %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
+			goto alsa_fail;			
 		}
+		ast_debug(1, "[%s][ALSA][%s] Acquired FD:%d from the poll descriptor(s)\n", PVT_ID(pvt), stream_str, pfd[0].fd);
+		pvt->audio_fd = pfd[0].fd;
 	}
 
 	*pcm = handle;
 	return 0;
+
+	alsa_fail:
+	snd_pcm_close(handle);
+	return res;
 }
 
 static unsigned int get_sample_rate(const struct pvt* const pvt)
@@ -290,12 +309,12 @@ static int soundcard_init(struct pvt * pvt)
 	const unsigned int rate = get_sample_rate(pvt);
 	unsigned int channels;
 
-	if (alsa_card_init(pvt, CONF_UNIQ(pvt, alsadev), SND_PCM_STREAM_CAPTURE, rate, &pvt->icard, &channels)) {
+	if (pcm_init(pvt, CONF_UNIQ(pvt, alsadev), SND_PCM_STREAM_CAPTURE, rate, &pvt->icard, &channels)) {
 		ast_log(LOG_ERROR, "[%s][ALSA] Problem opening capture device '%s'\n", PVT_ID(pvt), CONF_UNIQ(pvt, alsadev));
 		return -1;
 	}
 
-	if (alsa_card_init(pvt, CONF_UNIQ(pvt, alsadev), SND_PCM_STREAM_PLAYBACK, rate, &pvt->ocard, &pvt->ocard_channels)) {
+	if (pcm_init(pvt, CONF_UNIQ(pvt, alsadev), SND_PCM_STREAM_PLAYBACK, rate, &pvt->ocard, &pvt->ocard_channels)) {
 		ast_log(LOG_ERROR, "[%s][ALSA] Problem opening playback device '%s'\n", PVT_ID(pvt), CONF_UNIQ(pvt, alsadev));
 		return -1;
 	}
@@ -486,10 +505,19 @@ int opentty(const char* dev, char ** lockfile, int typ)
 		return -1;
 	}
 
-	if (typ == 1)
+	switch(typ) {
+		case 2:
+		term_attr.c_cflag = B115200 | CS8 | CREAD | CLOCAL;
+		break;
+
+		case 1:
 		term_attr.c_cflag = B115200 | CS8 | CREAD | CRTSCTS | CLOCAL;
-	else
+		break;
+
+		default:
 		term_attr.c_cflag = B115200 | CS8 | CREAD | CRTSCTS;
+		break;
+	}
 
 	term_attr.c_iflag = 0;
 	term_attr.c_oflag = 0;
@@ -554,7 +582,7 @@ static void disconnect_quectel(struct pvt* pvt)
 		at_disable_uac_immediately(pvt);
 	}
 
-	if (pvt->is_simcom && pvt->has_voice) {
+	if (pvt->is_simcom && CONF_UNIQ(pvt, uac) == TRIBOOL_TRUE && pvt->has_voice) {
 		at_cpcmreg_immediately(pvt, 0);
 	}
 
@@ -713,6 +741,7 @@ static void* do_monitor_phone(void* data)
 
 	ast_mutex_unlock(&pvt->lock);
 
+	int	read_result = 0;
 	while (1) {
 		ast_mutex_lock(&pvt->lock);
 
@@ -774,7 +803,6 @@ static void* do_monitor_phone(void* data)
 		ast_mutex_unlock (&pvt->lock);
 
 		struct iovec iov[2];
-		int	read_result = 0;
 		size_t skip = 0u;
 
 		while ((iovcnt = at_read_result_iov(dev, &read_result, &skip, &rb, iov, result)) > 0) {
@@ -935,7 +963,7 @@ static void pvt_start(struct pvt * pvt)
 
 	ast_verb(3, "[%s] Trying to connect on %s...\n", PVT_ID(pvt), PVT_STATE(pvt, data_tty));
 
-	pvt->data_fd = opentty(PVT_STATE(pvt, data_tty), &pvt->dlock, (CONF_UNIQ(pvt, uac) == TRIBOOL_NONE)? 1 : 0);
+	pvt->data_fd = opentty(PVT_STATE(pvt, data_tty), &pvt->dlock, (CONF_UNIQ(pvt, uac) == TRIBOOL_NONE)? 2 : 0);
 	if (pvt->data_fd < 0) {
 		return;
 	}
@@ -1990,9 +2018,11 @@ static int public_state_init(struct public_state * state)
 			if (!(channel_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
 				return AST_MODULE_LOAD_FAILURE;
 			}
-			ast_format_cap_append(channel_tech.capabilities, ast_format_slin, 0);
-			ast_format_cap_append(channel_tech.capabilities, ast_format_slin16, 0);
-			ast_format_cap_append(channel_tech.capabilities, ast_format_slin48, 0);
+			ast_format_cap_append(channel_tech.capabilities, ast_format_slin, 40);
+			ast_format_cap_append(channel_tech.capabilities, ast_format_slin16, 40);
+			ast_format_cap_append(channel_tech.capabilities, ast_format_slin48, 40);
+			ast_format_cap_set_framing(channel_tech.capabilities, 40);
+
 #elif ASTERISK_VERSION_NUM >= 100000 /* 10-13 */
 			ast_format_set(&chan_quectel_format, AST_FORMAT_SLINEAR, 0);
 # if ASTERISK_VERSION_NUM >= 120000 /* 12+ */

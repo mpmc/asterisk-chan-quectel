@@ -180,6 +180,9 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 
 			case CMD_AT_FINAL:
 				ast_verb(1, "[%s] Channel initialized\n", PVT_ID(pvt));
+				if (CONF_UNIQ(pvt, uac) == TRIBOOL_NONE) {
+					pvt_set_act(pvt, 1); // GSM
+				}
 				pvt->initialized = 1;
 				break;
 
@@ -352,8 +355,13 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_AUTOCSQ_INIT:
+			case CMD_AT_EXUNSOL_INIT:
 				ast_debug(1, "[%s] Signal change notifications enabled\n", PVT_ID(pvt));
-				break;				
+				break;
+
+			case CMD_AT_CLTS_INIT:
+				ast_debug(1, "[%s] Time update notifications enabled\n", PVT_ID(pvt));
+				break;
 
 			case CMD_AT_CLVL:
 				pvt->volume_sync_step++;
@@ -372,10 +380,12 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_QTONEDET_0:
+			case CMD_AT_DDET_0:
 				ast_debug(1, "[%s] Tone detection disabled\n", PVT_ID(pvt));
 				break;
 
 			case CMD_AT_QTONEDET_1:
+			case CMD_AT_DDET_1:
 				ast_debug(1, "[%s] Tone detection enabled\n", PVT_ID(pvt));
 				break;
 
@@ -420,11 +430,11 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CPCMFRM_8K:
-				ast_log(LOG_NOTICE, "[%s] Audio sample rate set to 8kHz", PVT_ID(pvt));
+				ast_log(LOG_NOTICE, "[%s] Audio sample rate set to 8kHz\n", PVT_ID(pvt));
 				break;
 
 			case CMD_AT_CPCMFRM_16K:
-				ast_log(LOG_NOTICE, "[%s] Audio sample rate set to 16kHz", PVT_ID(pvt));
+				ast_log(LOG_NOTICE, "[%s] Audio sample rate set to 16kHz\n", PVT_ID(pvt));
 				break;
 
 			case CMD_USER:
@@ -529,7 +539,12 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_AUTOCSQ_INIT:
-				ast_debug(1, "[%s] Error enabling CSQ report\n", PVT_ID(pvt));
+			case CMD_AT_EXUNSOL_INIT:
+				ast_debug(1, "[%s] Error enabling CSQ(E) report\n", PVT_ID(pvt));
+				break;
+
+			case CMD_AT_CLTS_INIT:
+				ast_debug(2, "[%s] Time update notifications not available\n", PVT_ID(pvt));
 				break;
 
 			case CMD_AT_CREG:
@@ -550,8 +565,13 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
                 break;
 
 			case CMD_AT_CPCMREG:
-				ast_debug(1, "[%s] Voice calls not supported\n", PVT_ID(pvt));
-				pvt->has_voice = 0;
+				if (CONF_UNIQ(pvt, uac) > TRIBOOL_FALSE) {
+					pvt->has_voice = 1;
+				}
+				else {
+					ast_debug(1, "[%s] Voice calls not supported\n", PVT_ID(pvt));
+					pvt->has_voice = 0;
+				}
 				break;
 /*
 			case CMD_AT_CLIP:
@@ -604,7 +624,7 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CPCMREG1:
-				if (CPVT_IS_SOUND_SOURCE(task->cpvt)) {
+				if (CONF_UNIQ(pvt, uac) == TRIBOOL_FALSE && CPVT_IS_SOUND_SOURCE(task->cpvt)) {
 					ast_debug(3, "[%s] Trying to activate audio stream again\n", PVT_ID(pvt));
 					at_enqueue_cpcmreg(task->cpvt, 1);
 				}
@@ -696,10 +716,12 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_QTONEDET_0:
+			case CMD_AT_DDET_0:
 				ast_log(LOG_WARNING, "[%s] Cannot disable tone detection\n", PVT_ID(pvt));
 				break;
 
 			case CMD_AT_QTONEDET_1:
+			case CMD_AT_DDET_1:
 				ast_log(LOG_WARNING, "[%s] Cannot enable tone detection\n", PVT_ID(pvt));
 				break;
 
@@ -890,7 +912,7 @@ static void handle_clcc(struct pvt* pvt,
 
 	switch(state) {
 		case CALL_STATE_ACTIVE:
-			if (cpvt && pvt->is_simcom && pvt->has_voice) {
+			if (cpvt && pvt->is_simcom && CONF_UNIQ(pvt, uac) == TRIBOOL_FALSE && pvt->has_voice) {
 				at_enqueue_cpcmreg(cpvt, 1);
 			}
 			break;
@@ -966,7 +988,7 @@ static void handle_clcc(struct pvt* pvt,
 			pvt->dialing = 0;
 			pvt->cwaiting = 0;
 
-			if (cpvt && pvt->is_simcom && pvt->has_voice) {
+			if (cpvt && pvt->is_simcom && CONF_UNIQ(pvt, uac) == TRIBOOL_FALSE && pvt->has_voice) {
 				at_enqueue_cpcmreg(cpvt, 0);
 			}
 			break;
@@ -1180,32 +1202,24 @@ static int at_response_qind(struct pvt* pvt, char* str)
 static int at_response_csca(struct pvt* pvt, char* str)
 {
 	char*   csca;
-	char    csca_utf8_str[20];
-	ssize_t res;
-
 	if(at_parse_csca(str, &csca)) {
 		ast_debug(1, "[%s] Could not parse CSCA response '%s'\n", PVT_ID(pvt), str);
 		return -1;
 	}
 
 	if (pvt->use_ucs2_encoding) {
+		char csca_utf8_str[20];
 		const int csca_nibbles = unhex(csca, (uint8_t*)csca);
-		res = ucs2_to_utf8((const uint16_t*)csca, (csca_nibbles + 1) / 4, csca_utf8_str, sizeof(csca_utf8_str) - 1);
-	} else { // ASCII
-		ast_log(LOG_NOTICE, "[%s] CSCA ASCII\n", PVT_ID(pvt));
-		res = strlen(csca);
-		if ((size_t)res > sizeof(csca_utf8_str) - 1) {
-			res = -1;
-		} else {
-			memcpy(csca_utf8_str, csca, res);
+		const ssize_t res = ucs2_to_utf8((const uint16_t*)csca, (csca_nibbles + 1) / 4, csca_utf8_str, STRLEN(csca_utf8_str));
+		if (res < 0) {
+			return -1;
 		}
+		csca_utf8_str[res] = '\000';
+		ast_string_field_set(pvt, sms_scenter, csca_utf8_str);
+	} else { // ASCII
+		ast_string_field_set(pvt, sms_scenter, csca);
 	}
 
-	if (res < 0) {
-		return -1;
-	}
-	csca_utf8_str[res] = '\0';
-	ast_string_field_set(pvt, sms_scenter, csca_utf8_str);
 	ast_debug(2, "[%s] CSCA: %s\n", PVT_ID(pvt), pvt->sms_scenter);
 	return 0;
 }
@@ -1456,8 +1470,13 @@ static int at_response_msg(struct pvt* pvt, const struct ast_str* const response
 					goto receive_as_is;
 				}
 				if (csms_cnt < udh.parts) {
-					ast_verb(1, "[%s] Waiting for following parts\n", PVT_ID(pvt));
-					ack = (udh.order == 1)? TRIBOOL_TRUE : TRIBOOL_NONE;
+					ast_verb(2, "[%s] Waiting for following parts\n", PVT_ID(pvt));
+					if (pvt->is_simcom) {
+						ack = TRIBOOL_TRUE;
+					}
+					else {
+						ack = (udh.order == 1)? TRIBOOL_TRUE : TRIBOOL_NONE;
+					}
 					goto msg_done;
 				}
 				ast_str_update(fullmsg);
@@ -1629,17 +1648,17 @@ static int at_response_cusd(struct pvt* pvt, char* str, size_t len)
 		if (res < 0) {
 			return -1;
 		}
-		res = ucs2_to_utf8(out_ucs2, res, cusd_utf8_str, sizeof(cusd_utf8_str) - 1);
+		res = ucs2_to_utf8(out_ucs2, res, cusd_utf8_str, STRLEN(cusd_utf8_str));
 	} else if (dcs == 1) { // ASCII
 		res = strlen(cusd);
-		if ((size_t)res > sizeof(cusd_utf8_str) - 1) {
+		if ((size_t)res > STRLEN(cusd_utf8_str)) {
 			res = -1;
 		} else {
 			memcpy(cusd_utf8_str, cusd, res);
 		}
 	} else if (dcs == 2) { // UCS-2
 		int cusd_nibbles = unhex(cusd, (uint8_t*)cusd);
-		res = ucs2_to_utf8((const uint16_t*)cusd, (cusd_nibbles + 1) / 4, cusd_utf8_str, sizeof(cusd_utf8_str) - 1);
+		res = ucs2_to_utf8((const uint16_t*)cusd, (cusd_nibbles + 1) / 4, cusd_utf8_str, STRLEN(cusd_utf8_str));
 	} else {
 		res = -1;
 	}
@@ -1705,24 +1724,34 @@ static int at_response_smmemfull (struct pvt* pvt)
 	return 0;
 }
 
-/*!
- * \brief Handle +CSQ response Here we get the signal strength and bit error rate
- * \param pvt -- pvt structure
- * \param str -- string containing response (null terminated)
- * \param len -- string lenght
- * \retval  0 success
- * \retval -1 error
- */
-static int at_response_csq (struct pvt* pvt, const char* str)
+static int at_response_csq(struct pvt* pvt, const struct ast_str* const response)
 {
 	int rssi;
-	int rv = at_parse_csq (str, &rssi);
 
-	if(rv)
-		ast_debug (2, "[%s] Error parsing +CSQ result '%s'\n", PVT_ID(pvt), str);
-	else
-		pvt->rssi = rssi;
-	return rv;
+	if(at_parse_csq(ast_str_buffer(response), &rssi)) {
+		ast_debug(2, "[%s] Error parsing +CSQ result '%s'\n", PVT_ID(pvt), ast_str_buffer(response));
+		return -1;
+	}
+
+	char buf[40];
+	ast_verb(3, "[%s] RSSI: %s\n", PVT_ID(pvt), rssi2dBm(rssi, buf, sizeof(buf)));
+	pvt->rssi = rssi;
+	return 0;
+}
+
+static int at_response_csqn(struct pvt* pvt, const struct ast_str* const response)
+{
+	int rssi, ber;
+	if (at_parse_csqn(ast_str_buffer(response), &rssi, &ber)) {
+		ast_log(LOG_ERROR, "[%s] Error parsing '%s'\n", PVT_ID(pvt), ast_str_buffer(response));
+		return -1;
+	}
+
+	char buf[40];
+	ast_verb(3, "[%s] RSSI: %s\n", PVT_ID(pvt), rssi2dBm(rssi, buf, sizeof(buf)));
+	ast_verb(4, "[%s] BER: %d\n", PVT_ID(pvt), ber);
+	pvt->rssi = rssi;
+	return 0;
 }
 
 /*!
@@ -1767,7 +1796,7 @@ static int at_response_cops(struct pvt* pvt, char* str)
 
 	if (!provider_name) {
 		ast_string_field_set(pvt, provider_name, "NONE");
-		ast_verb(1, "[%s] Provider nama: %s\n", PVT_ID(pvt), pvt->provider_name);
+		ast_verb(1, "[%s] Provider name: %s\n", PVT_ID(pvt), pvt->provider_name);
 		return -1;
 	}
 
@@ -2098,10 +2127,10 @@ static void at_response_qtonedet(struct pvt* pvt, const struct ast_str* const re
 	send_dtmf_frame(pvt, c);
 }
 
-static void at_response_rxdtmf(struct pvt* pvt, const struct ast_str* const result)
+static void at_response_dtmf(struct pvt* pvt, const struct ast_str* const result)
 {
 	char c = '\000';
-	if (at_parse_rxdtmf(ast_str_buffer(result), &c)) {
+	if (at_parse_dtmf(ast_str_buffer(result), &c)) {
 		ast_log(LOG_ERROR, "[%s] Error parsing RXDTMF: '%s'\n", PVT_ID(pvt), ast_str_buffer(result));
 		return;
 	}
@@ -2318,6 +2347,96 @@ static int at_response_cnsmod(struct pvt* pvt, const struct ast_str* const respo
 	return 0;
 }
 
+static int at_response_cring(struct pvt* pvt, const struct ast_str* const response)
+{
+	char* ring_type;
+	if (at_parse_cring(ast_str_buffer(response), &ring_type)) {
+		ast_log(LOG_ERROR, "[%s] Error parsing '%s'\n", PVT_ID(pvt), ast_str_buffer(response));
+		return -1;
+	}
+
+	ast_verb(3, "[%s] Ring: %s\n", PVT_ID(pvt), ring_type);
+	return 0;
+}
+
+static int at_response_psnwid(struct pvt* pvt, const struct ast_str* const response)
+{
+	int mcc, mnc;
+	char *fnn, *snn;
+
+	if (at_parse_psnwid(ast_str_buffer(response), &mcc, &mnc, &fnn, &snn)) {
+		ast_log(LOG_ERROR, "[%s] Error parsing '%s'\n", PVT_ID(pvt), ast_str_buffer(response));
+		return -1;
+	}
+
+
+	if (pvt->use_ucs2_encoding) {
+		char fnn_utf8_str[50];
+		const int fnn_nibbles = unhex(fnn, (uint8_t*)fnn);
+		ssize_t res = ucs2_to_utf8((const uint16_t*)fnn, (fnn_nibbles + 1) / 4, fnn_utf8_str, STRLEN(fnn_utf8_str));
+		if (res < 0) {
+			ast_log(LOG_ERROR, "[%s] Error decoding full network name: %s\n", PVT_ID(pvt), fnn);
+			return -1;
+		}
+		fnn_utf8_str[res] = '\000';
+		ast_string_field_set(pvt, network_name, fnn_utf8_str);
+	} else { // ASCII
+		ast_string_field_set(pvt, network_name, fnn);
+	}
+
+	if (pvt->use_ucs2_encoding) {
+		char snn_utf8_str[50];
+		const int snn_nibbles = unhex(snn, (uint8_t*)snn);
+		ssize_t res = ucs2_to_utf8((const uint16_t*)snn, (snn_nibbles + 1) / 4, snn_utf8_str, STRLEN(snn_utf8_str));
+		if (res < 0) {
+			ast_log(LOG_ERROR, "[%s] Error decoding short network name: %s\n", PVT_ID(pvt), snn);
+			return -1;
+		}
+		snn_utf8_str[res] = '\000';
+		ast_string_field_set(pvt, short_network_name, snn_utf8_str);
+	} else { // ASCII
+		ast_string_field_set(pvt, short_network_name, snn);
+	}
+
+	pvt->operator = mcc * 100 + mnc;
+	ast_verb(1, "[%s] Operator: %s/%s\n", PVT_ID(pvt), pvt->network_name, pvt->short_network_name);
+	ast_verb(1, "[%s] Registered PLMN: %d\n", PVT_ID(pvt), pvt->operator);
+
+	return 0;
+}
+
+static int at_response_psuttz(struct pvt* pvt, const struct ast_str* const response)
+{
+	int year, month, day, hour, min, sec, dst, time_zone;
+
+	if (at_parse_psuttz(ast_str_buffer(response), &year, &month, &day, &hour, &min, &sec, &time_zone, &dst)) {
+		ast_log(LOG_ERROR, "[%s] Error parsing '%s'\n", PVT_ID(pvt), ast_str_buffer(response));
+		return -1;
+	}
+
+	struct ast_str* module_time = ast_str_alloca(50);
+	ast_str_set(&module_time, 100, 
+		"%02d/%02d/%02d,%02d:%02d:%02d%+d",
+		year % 100, month, day, hour, min, sec, time_zone);
+
+	ast_verb(3, "[%s] Module time: %s\n", PVT_ID(pvt), ast_str_buffer(module_time));
+	ast_string_field_set(pvt, module_time, ast_str_buffer(module_time));
+	return 0;
+}
+
+static int at_response_revision(struct pvt* pvt, const struct ast_str* const response)
+{
+	char* rev;
+	if (at_parse_revision(ast_str_buffer(response), &rev)) {
+		ast_log(LOG_ERROR, "[%s] Error parsing '%s'\n", PVT_ID(pvt), ast_str_buffer(response));
+		return -1;
+	}
+
+	ast_debug(1, "[%s] Firmware: %s\n", PVT_ID(pvt), rev);
+	ast_string_field_set(pvt, firmware, rev);
+	return 0;
+}
+
 static int check_at_res(at_res_t at_res)
 {
 	switch (at_res)
@@ -2385,7 +2504,8 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 			case RES_SRVST:
 			case RES_CVOICE:
 			case RES_CPMS:
-			case RES_CONF: 
+			case RES_CONF:
+			case RES_DST:
 			return 0;
 
 			case RES_CMGS:
@@ -2455,7 +2575,12 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 
 			case RES_CSQ:
 				/* An error here is not fatal. Just keep going. */
-				at_response_csq (pvt, str);
+				at_response_csq(pvt, result);
+				break;
+
+			case RES_CSQN:
+				/* An error here is not fatal. Just keep going. */
+				at_response_csqn(pvt, result);
 				break;
 
 			case RES_CMS_ERROR:
@@ -2534,8 +2659,9 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 				at_response_qtonedet(pvt, result);
 				return 0;
 
+			case RES_DTMF:
 			case RES_RXDTMF:
-				at_response_rxdtmf(pvt, result);
+				at_response_dtmf(pvt, result);
 				return 0;
 
 			case RES_QPCMV:
@@ -2595,6 +2721,18 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 			case RES_PARSE_ERROR:
 				ast_log (LOG_ERROR, "[%s] Error parsing result\n", PVT_ID(pvt));
 				return -1;
+
+			case RES_CRING:
+				return at_response_cring(pvt, result);
+
+			case RES_PSNWID:
+				return at_response_psnwid(pvt, result);
+
+			case RES_PSUTTZ:
+				return at_response_psuttz(pvt, result);
+
+			case RES_REVISION:
+				return at_response_revision(pvt, result);
 
 			case RES_UNKNOWN:
 				if (ecmd) {

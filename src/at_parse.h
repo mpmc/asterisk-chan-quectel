@@ -37,6 +37,7 @@ int at_parse_cmgs(const char* str);
 int at_parse_cusd(char* str, int * type, char ** cusd, int * dcs);
 int at_parse_cpin(char* str, size_t len);
 int at_parse_csq(const char* str, int* rssi);
+int at_parse_csqn(char*, int*, int*);
 int at_parse_rssi(const char* str);
 int at_parse_qind(char* str, qind_t* qind, char** params);
 int at_parse_qind_csq(const char* params, int* rssi);
@@ -47,7 +48,7 @@ int at_parse_dsci(char* str, unsigned* call_idx, unsigned* dir, unsigned* state,
 int at_parse_clcc(char* str, unsigned* call_idx, unsigned* dir, unsigned* state, unsigned* mode, unsigned* mpty, char** number, unsigned* toa);
 int at_parse_ccwa(char* str, unsigned * class);
 int at_parse_qtonedet(const char* str, int* dtmf);
-int at_parse_rxdtmf(const char* str, char* dtmf);
+int at_parse_dtmf(char* str, char* dtmf);
 int at_parse_qpcmv(char* str, int* enabled, int* mode);
 int at_parse_qlts(char* str, char** ts);
 int at_parse_cclk(char* str, char** ts);
@@ -60,5 +61,9 @@ int at_parse_qaudmod(const char*, int*);
 int at_parse_cgmr(const char*, char**);
 int at_parse_cpcmreg(const char*, int*);
 int at_parse_cnsmod(const char*, int*);
+int at_parse_cring(char*, char**);
+int at_parse_psnwid(char*, int*, int*, char**, char**);
+int at_parse_psuttz(char*, int*, int*, int*, int*, int*, int*, int*, int*);
+int at_parse_revision(char*, char**);
 
 #endif /* CHAN_QUECTEL_AT_PARSE_H_INCLUDED */
