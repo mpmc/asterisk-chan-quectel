@@ -437,6 +437,10 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				ast_log(LOG_NOTICE, "[%s] Audio sample rate set to 16kHz\n", PVT_ID(pvt));
 				break;
 
+			case CMD_AT_VTD:
+				ast_debug(2, "[%s] Tone duration updated\n", PVT_ID(pvt));
+				break;
+
 			case CMD_USER:
 				break;
 
@@ -769,6 +773,10 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 			case CMD_AT_CPCMFRM_16K:
 				ast_log(LOG_WARNING, "[%s] Could not set audio sample rate\n", PVT_ID(pvt));
 				break;
+
+			case CMD_AT_VTD:
+				ast_log(LOG_WARNING, "[%s] Could not set tone duration\n", PVT_ID(pvt));
+				break;			
 
 			case CMD_USER:
 				break;
@@ -2029,7 +2037,7 @@ static void send_dtmf_frame(struct pvt* const pvt, char c)
 	struct cpvt* const cpvt = active_cpvt(pvt);
 	if (cpvt && cpvt->channel) {
 		struct ast_frame f = { AST_FRAME_DTMF, };
-		f.len = 120;
+		f.len = CONF_SHARED(pvt, dtmf_duration);
 		f.subclass.integer = c;
 		if (ast_queue_frame(cpvt->channel, &f)) {
 			ast_log(LOG_ERROR, "[%s] Fail to send detected DTMF: %c", PVT_ID(pvt), c);

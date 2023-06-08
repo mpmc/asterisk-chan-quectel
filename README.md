@@ -26,7 +26,11 @@ If the product page of your module contains the *Voice Over USB and UAC Applicat
 
 * `dtmf` option is a on/**off** switch now.
 
-    DTMF detection is now performed by *Quectel* module itself (`AT+QTONEDET` command).
+    DTMF detection is now performed by *Quectel* module itself (`AT+QTONEDET` or `AT+DDET` command).
+
+* New `dtmf_duration` option.
+
+    Duration in miliseconds of generated *DTMF*.
 
 * New `msg_direct` option (**none**/on/off).
 

@@ -110,8 +110,9 @@
 	_( AT_QAUDMOD,		"AT+QAUDMOD") \
 	_( AT_CNSMOD_0,     "AT+CNSMOD=0") \
 	_( AT_CNSMOD_1,     "AT+CNSMOD=1") \
-	_( AT_CPCMFRM_8K,  "AT+CPCMFRM=0") \
+	_( AT_CPCMFRM_8K,	"AT+CPCMFRM=0") \
 	_( AT_CPCMFRM_16K,  "AT+CPCMFRM=1") \
+	_( AT_VTD,			"AT+VTD") \
 /* AT_COMMANDS_TABLE */
 
 typedef enum {

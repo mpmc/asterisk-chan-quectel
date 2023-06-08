@@ -184,7 +184,8 @@ int at_enqueue_initialization(struct cpvt *cpvt)
 
 		ATQ_CMD_DECLARE_DYN(CMD_AT_CNMI),				/* SMS Event Reporting Configuration */
 		ATQ_CMD_DECLARE_DYN(CMD_AT_CPMS),				/* SMS Storage Selection */
-		ATQ_CMD_DECLARE_DYN(CMD_AT_CSMS)				/* Select Message Service */
+		ATQ_CMD_DECLARE_DYN(CMD_AT_CSMS),				/* Select Message Service */
+		ATQ_CMD_DECLARE_DYNI(CMD_AT_VTD)				/* Set tone duration */
 	};
 
 	unsigned in, out;
@@ -244,6 +245,19 @@ int at_enqueue_initialization(struct cpvt *cpvt)
 
 				dyn_handled = 1;				
 			}
+
+			if(st_cmds[in].cmd == CMD_AT_VTD) {
+				if (CONF_SHARED(pvt, dtmf_duration) < 0) continue;
+
+				const int vtd = (int)(CONF_SHARED(pvt, dtmf_duration) / 100l);
+				const int err = at_fill_generic_cmd(&dyn_cmd, "AT+VTD=%d\r", vtd);
+				if (err) {
+					ast_log(LOG_ERROR, "[%s] Device initialization - unable to create AT+VTD command\n", PVT_ID(pvt));
+					continue;
+				}
+
+				dyn_handled = 1;				
+			}			
 		}
 
 		if (st_cmds[in].flags & ATQ_CMD_FLAG_STATIC) {

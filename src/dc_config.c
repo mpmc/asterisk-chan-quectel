@@ -5,6 +5,8 @@
 #include <asterisk/callerid.h>				/* ast_parse_caller_presentation() */
 #include "helpers.h"
 
+const static long DEF_DTMF_DURATION = 120;
+
 static struct ast_jb_conf jbconf_default =
 {
 	.flags			= 0,
@@ -218,6 +220,7 @@ void dc_sconfig_fill_defaults(struct dc_sconfig * config)
 	config->rxgain			= -1;
 	config->txgain			= -1;
 	config->msg_service		= -1;
+	config->dtmf_duration	= DEF_DTMF_DURATION;
 }
 
 #/* */
@@ -293,6 +296,12 @@ void dc_sconfig_fill(struct ast_config * cfg, const char * cat, struct dc_sconfi
 		else if (!strcasecmp (v->name, "dtmf")) {
 			config->dtmf = ast_true(v->value);
 		}
+		else if (!strcasecmp (v->name, "dtmf_duration")) {
+			config->dtmf_duration = strtol(v->value, (char**) NULL, 10);
+			if (config->dtmf_duration <= 0 && errno == EINVAL) {
+				config->dtmf_duration = DEF_DTMF_DURATION;
+			}
+		}		
 		else if (!strcasecmp (v->name, "moh")) {
 			config->moh = ast_true(v->value);
 		}
