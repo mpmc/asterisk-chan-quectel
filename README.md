@@ -1,19 +1,21 @@
-# Astersik channel driver for *Quectel* ~~and *SimCOM*~~ modules
+# Astersik channel driver for *Quectel* and *SimCOM* modules
 
 See original [README](//github.com/IchthysMaranatha/asterisk-chan-quectel/blob/master/README.md) of this project.
 
 ----
 
-This should work with *Quectel* modules such as EC20, EC21, EC25, EG9x and *SimCOM* SIM7600 and possibly other models with *voice over USB* capability.
-Tested with the **EC25-E** mini-PCIe module and Waveshare **SIM7600G-H** mini-PCIe module.
-If the product page of your module contains the *Voice Over USB and UAC Application Note*, you should be good to go.
+Supported modules:
+
+* Quectel *EC25-E*,
+* SimCOM *SIM7600G-H*,
+* SimCOM *SIM900* (see [here](//github.com/RoEdAl/asterisk-chan-quectel/wiki/Using-SIM900-board-with-analog-input-and-output) for more details).
 
 # Changes
 
 ## Configuration
 
 * `quectel_uac` option renamed to `uac` and it's a on/**off**/ext switch now.
-    
+
     `alsadev` option is also defaulted to `hw:Android` (when `uac=on`) or `hw:0` (when `uac=ext`).
 
 * New `multiparty` option (on/**off**).
@@ -221,10 +223,7 @@ If the product page of your module contains the *Voice Over USB and UAC Applicat
     * More debug messages.
     * Reorganized, improved and simplified code.
 
-* Using `CMake` build system.
-
-    See [Building](#building) section below.
-
+* Using [`CMake` build system](//github.com/RoEdAl/asterisk-chan-quectel/wiki/Building).
 * Improved debug messages.
 
     Non-printable characters are C escaped using `ast_escape_c` function. For example:
@@ -238,84 +237,4 @@ If the product page of your module contains the *Voice Over USB and UAC Applicat
 
 * Many small optimizations.
 
-# Building
 
-As noted before [CMake](//cmake.org/) is now used as a build system:
-
-
-```
-mkdir build
-cmake -B build
-cmake --build build
-DESTDIR=$(pwd)/install/chan-quectel cmake --install build
-```
-
-or using helper scripts
-
-```
-./make-build-dir.cmake
-./build-chan-quectel.cmake
-./install-chan-quectel.cmake
-```
-
-You may specify *Asterisk* version via `ASTERISK_VERSION_NUM` variable:
-
-```
-cmake -B build -DASTERISK_VERSION_NUM=162000
-```
-
-## Generating Makefile for *OpenWRT* package
-
-In order to generate `Makefile` for *OpenWRT* package one must install `openwrt` component:
-
-
-```
-DESTDIR=$(pwd)/install cmake --install build --component openwrt
-```
-
-or using helper script:
-
-```
-./install-openwrt-makefile.cmake
-```
-
-## Building *Debian* package (*experimental*)
-
-*Debian* package may be created by *CPack* DEB generator:
-
-```
-cmake --build build --target package
-```
-
-or using helper script:
-
-```
-./make-package.cmake
-```
-
-# Documentation
-
-## Manuals and application notes
-
-* EC2x&EC9x&EG2x-G&EM05 Series AT Commands Manual (2021-02-24).
-* EC2x&EG9x Voice Over USB and UAC Application Note (2019-02-18).
-* EC2x&EG2x&EG9x&EM05 Series QCFG AT Commands Manual (2022-05-30).
-* UC20 AT Commands Manual (2014-09-26).
-* SIM7500 SIM7600 Series AT Command Manual (v3.0, 2021-11-18).
-* SIM7100 SIM7500 SIM7600 Series USB AUDIO Application Note (v1.03, 2017-07-13).
-
-## Resources
-
-* [EC25 - Official downloads](//www.quectel.com/ProductDownload/EC25.html).
-* [EC25 - Documentation from *Sixfab*](//sixfab.com/product/quectel-ec25-mini-pcie-4g-lte-module/).
-* [EC25 - Documentation from *Olimex*](//github.com/OLIMEX/USB-gLINK/tree/master/DOCUMENTS).
-* [*Waveshare* - SIM7600E-H 4G HAT](//www.waveshare.com/wiki/SIM7600E-H_4G_HAT).
-* [*Waveshare* - SIM7600G-H 4G HAT (B)](//www.waveshare.com/wiki/SIM7600G-H_4G_HAT_(B)).
-* [*Waveshare* - SIM7600G-H 4G DTU](//www.waveshare.com/wiki/SIM7600G-H_4G_DTU).
-* [*Waveshare* - SIM7600CE-T/CE-CNSE 4G Modules](//www.waveshare.com/wiki/SIM7600CE-T_4G_HAT).
-* [*Waveshare* - SIM7600X 4G DONGLE](//www.waveshare.com/wiki/SIM7600CE-JT1S_4G_Dongle).
-
-## Other links
-
-* [Using EC20 module with *Asterisk* and *FreePBX* to realize SMS forwarding and VoIP (Chinese)](//sparktour.me/2022/10/08/quectel-ec20-asterisk-freepbx-gsm-gateway/).
-* [Asterisk Chan_Dongle (Blogspot)](//chan-dongle.blogspot.com/).
