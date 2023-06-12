@@ -911,25 +911,30 @@ error:
 	return -1;
 }
 
+static const char cmd_cnma[] = "AT+CNMA\r";
+
 /*!
  * \brief Enqueue commands for deleting SMS
  * \param cpvt -- cpvt structure
  * \param index -- index of message in store
  * \return 0 on success
  */
-int at_enqueue_delete_sms(struct cpvt *cpvt, int index)
+int at_enqueue_delete_sms(struct cpvt *cpvt, int index, tristate_bool_t ack)
 {
-	at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_CMGD);
+	at_queue_cmd_t cmds[] = {
+		ATQ_CMD_DECLARE_STI(CMD_AT_CNMA, cmd_cnma),
+		ATQ_CMD_DECLARE_DYNI(CMD_AT_CMGD)
+	};
 
 	if (index < 0) return 0;
 
-	int err = at_fill_generic_cmd(&cmd, "AT+CMGD=%d\r", index);
+	int err = at_fill_generic_cmd(&cmds[1], "AT+CMGD=%d\r", index);
 	if (err) {
 		chan_quectel_err = E_UNKNOWN;
 		return err;
 	}
 
-	err = at_queue_insert(cpvt, &cmd, 1, 0);
+	err = at_queue_insert(cpvt, &cmds[ack? 0 : 1], ack? 2 : 1, 1);
 	if (err) {
 		chan_quectel_err = E_QUEUE;
 		return err;
@@ -940,7 +945,6 @@ int at_enqueue_delete_sms(struct cpvt *cpvt, int index)
 
 int at_enqueue_msg_ack(struct cpvt *cpvt)
 {
-	static const char cmd_cnma[] = "AT+CNMA\r";
 	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_STI(CMD_AT_CNMA, cmd_cnma);
 
 	if (at_queue_insert_const(cpvt, &cmd, 1, 1) != 0) {

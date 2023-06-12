@@ -372,7 +372,7 @@ int smsdb_put(const char *id, const char *addr, int ref, int parts, int order, c
 
 	sqlite3_reset(get_cnt_stmt);
 
-	if (res != -1 && res == parts) {
+	if (res > 0 && order == parts) {
 		if (sqlite3_bind_text(get_full_message_stmt, 1, fullkey, fullkey_len, SQLITE_STATIC) != SQLITE_OK) {
 			ast_log(LOG_WARNING, "Couldn't bind key to stmt: %s\n", sqlite3_errmsg(smsdb));
 			res = -1;
