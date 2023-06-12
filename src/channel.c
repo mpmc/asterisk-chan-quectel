@@ -161,19 +161,24 @@ static struct ast_channel * channel_request(
 	pvt = find_device_by_resource(dest_dev, opts, NULL, &exists);
 #endif /* ^1.8- */
 
+	unsigned local_channel = 0;
+
 #if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
 	if (pvt) {
-		const struct ast_format* const fmt = pvt_get_audio_format(pvt);
-		const enum ast_format_cmp_res res = ast_format_cap_iscompatible_format(cap, fmt);
-		if ( res != AST_FORMAT_CMP_EQUAL && res != AST_FORMAT_CMP_SUBSET) {
-			struct ast_str *codec_buf = ast_str_alloca(64);
-			ast_log(LOG_WARNING, "Asked to get a channel of unsupported format '%s'\n",
-					ast_format_cap_get_names(cap, &codec_buf));
+		local_channel = (unsigned)ast_format_cap_has_type(cap, AST_MEDIA_TYPE_TEXT);
+		if (!local_channel) {
+			const struct ast_format* const fmt = pvt_get_audio_format(pvt);
+			const enum ast_format_cmp_res res = ast_format_cap_iscompatible_format(cap, fmt);
+			if ( res != AST_FORMAT_CMP_EQUAL && res != AST_FORMAT_CMP_SUBSET) {
+				struct ast_str *codec_buf = ast_str_alloca(64);
+				ast_log(LOG_WARNING, "Asked to get a channel of unsupported format '%s'\n",
+						ast_format_cap_get_names(cap, &codec_buf));
 #ifdef WRONG_CODEC_FAILURE
-			*cause = AST_CAUSE_FACILITY_NOT_IMPLEMENTED;
-			ast_mutex_unlock(&pvt->lock);
-			return NULL;
+				*cause = AST_CAUSE_FACILITY_NOT_IMPLEMENTED;
+				ast_mutex_unlock(&pvt->lock);
+				return NULL;
 #endif
+			}
 		}
 	}
 	else {
@@ -221,10 +226,10 @@ static struct ast_channel * channel_request(
 	if(pvt) {
 #if ASTERISK_VERSION_NUM >= 120000 /* 12+ */
 		channel = new_channel(pvt, AST_STATE_DOWN, NULL, pvt_get_pseudo_call_idx(pvt),
-				CALL_DIR_OUTGOING, CALL_STATE_INIT, NULL, assignedids, requestor);
+				CALL_DIR_OUTGOING, CALL_STATE_INIT, NULL, assignedids, requestor, local_channel);
 #else /* 12- */
 		channel = new_channel(pvt, AST_STATE_DOWN, NULL, pvt_get_pseudo_call_idx(pvt),
-				CALL_DIR_OUTGOING, CALL_STATE_INIT, NULL, requestor);
+				CALL_DIR_OUTGOING, CALL_STATE_INIT, NULL, requestor, local_channel);
 #endif /* ^12- */
 		ast_mutex_unlock (&pvt->lock);
 		if(!channel)
@@ -803,7 +808,7 @@ static struct ast_frame* channel_read(struct ast_channel* channel)
 	struct cpvt* cpvt = ast_channel_tech_pvt(channel);
 	struct ast_frame* f = NULL;
 
-	if (!cpvt || cpvt->channel != channel || !cpvt->pvt) {
+	if (!cpvt || cpvt->channel != channel || !cpvt->pvt || cpvt->local_channel) {
 		return &ast_null_frame;
 	}
 
@@ -1005,7 +1010,7 @@ static int channel_write(struct ast_channel* channel, struct ast_frame* f)
 	struct cpvt* cpvt = ast_channel_tech_pvt(channel);
 	int res = -1;
 
-	if (!cpvt || cpvt->channel != channel || !cpvt->pvt) {
+	if (!cpvt || cpvt->channel != channel || !cpvt->pvt || cpvt->local_channel) {
 		return 0;
 	}
 
@@ -1370,18 +1375,20 @@ struct ast_channel* new_channel(
 		struct pvt* pvt, int ast_state, const char* cid_num, int call_idx,
 		unsigned dir, call_state_t state, const char * dnid,
 		const struct ast_assigned_ids *assignedids,
-		attribute_unused const struct ast_channel * requestor)
+		attribute_unused const struct ast_channel * requestor,
+		unsigned local_channel)
 #else /* 13- */
 struct ast_channel* new_channel(
 		struct pvt* pvt, int ast_state, const char* cid_num, int call_idx,
 		unsigned dir, call_state_t state, const char * dnid,
-		attribute_unused const struct ast_channel * requestor)
+		attribute_unused const struct ast_channel * requestor,
+		unsigned local_channel)
 #endif /* ^13- */
 {
 	struct ast_channel* channel;
 	struct cpvt * cpvt;
 
-	cpvt = cpvt_alloc(pvt, call_idx, dir, CALL_STATE_INIT);
+	cpvt = cpvt_alloc(pvt, call_idx, dir, CALL_STATE_INIT, local_channel);
 	if (cpvt) {
 #if ASTERISK_VERSION_NUM >= 120000 /* 12+ */
 		channel = ast_channel_alloc(
@@ -1411,16 +1418,23 @@ struct ast_channel* new_channel(
 			ast_channel_tech_set(channel, &channel_tech);
 
 #if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
-			struct ast_format* const fmt = (struct ast_format*)pvt_get_audio_format(pvt);
-			struct ast_format_cap* const cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
-			ast_format_cap_append(cap, fmt, 40);
-			ast_format_cap_set_framing(cap, 40);
-			ast_channel_nativeformats_set(channel, cap);
+			if (local_channel) {
+				struct ast_format_cap* const cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+				ast_format_cap_append_by_type(cap, AST_MEDIA_TYPE_TEXT);
+				ast_channel_nativeformats_set(channel, cap);
+			}
+			else {
+				struct ast_format* const fmt = (struct ast_format*)pvt_get_audio_format(pvt);
+				struct ast_format_cap* const cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+				ast_format_cap_append(cap, fmt, 40);
+				ast_format_cap_set_framing(cap, 40);
+				ast_channel_nativeformats_set(channel, cap);
 
-			ast_channel_set_rawreadformat(channel, fmt);
-			ast_channel_set_rawwriteformat(channel, fmt);
-			ast_channel_set_writeformat(channel, fmt);
-			ast_channel_set_readformat(channel, fmt);
+				ast_channel_set_rawreadformat(channel, fmt);
+				ast_channel_set_rawwriteformat(channel, fmt);
+				ast_channel_set_writeformat(channel, fmt);
+				ast_channel_set_readformat(channel, fmt);
+			}
 #elif ASTERISK_VERSION_NUM >= 110000 /* 11+ */
 			ast_format_cap_add(ast_channel_nativeformats(channel), &chan_quectel_format);
 			ast_format_copy(ast_channel_rawreadformat(channel), &chan_quectel_format);
@@ -1551,16 +1565,16 @@ void start_local_report_channel(
 }
 
 #/* NOTE: bg: called from device level with pvt locked */
-void start_local_channel (struct pvt* pvt, const char* exten, const char* number, const channel_var_t* vars)
+void start_local_channel(struct pvt* pvt, const char* exten, const char* number, const channel_var_t* vars)
 {
 	struct ast_channel*	channel;
-	int			cause = 0;
-	char			channel_name[1024];
+	int					cause = 0;
+	char				channel_name[1024];
 
-	snprintf (channel_name, sizeof (channel_name), "%s@%s", exten, CONF_SHARED(pvt, context));
+	snprintf(channel_name, sizeof (channel_name), "%s@%s", exten, CONF_SHARED(pvt, context));
 
 #if ASTERISK_VERSION_NUM >= 120000 /* 12+ */
-	channel = ast_request("Local", channel_tech.capabilities, NULL, NULL, channel_name, &cause);
+	channel = ast_request("Local", pvt->local_format_cap? pvt->local_format_cap : channel_tech.capabilities, NULL, NULL, channel_name, &cause);
 #elif ASTERISK_VERSION_NUM >= 100000 /* 10-12 */
 	channel = ast_request("Local", chan_quectel_format_cap, NULL, channel_name, &cause);
 #elif ASTERISK_VERSION_NUM >= 10800 /* 1.8+ */
@@ -1571,16 +1585,15 @@ void start_local_channel (struct pvt* pvt, const char* exten, const char* number
 	if (channel)
 	{
 		set_channel_vars(pvt, channel);
-		ast_set_callerid (channel, number, PVT_ID(pvt), number);
+		ast_set_callerid(channel, number, PVT_ID(pvt), number);
 
 		for(; vars->name; ++vars)
 			pbx_builtin_setvar_helper (channel, vars->name, vars->value);
 
-		cause = ast_pbx_start (channel);
-		if (cause)
-		{
-			ast_hangup (channel);
-			ast_log (LOG_ERROR, "[%s] Unable to start pbx on channel Local/%s\n", PVT_ID(pvt), channel_name);
+		cause = ast_pbx_start(channel);
+		if (cause) {
+			ast_hangup(channel);
+			ast_log(LOG_ERROR, "[%s] Unable to start pbx on channel Local/%s\n", PVT_ID(pvt), channel_name);
 		}
 	}
 	else

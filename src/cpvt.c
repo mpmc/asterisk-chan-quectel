@@ -38,7 +38,7 @@ bad:
 }
 
 #/* */
-struct cpvt* cpvt_alloc(struct pvt* pvt, int call_idx, unsigned dir, call_state_t state)
+struct cpvt* cpvt_alloc(struct pvt* pvt, int call_idx, unsigned dir, call_state_t state, unsigned local_channel)
 {
 	int filedes[2];
 	struct cpvt* cpvt = NULL;
@@ -63,6 +63,7 @@ struct cpvt* cpvt_alloc(struct pvt* pvt, int call_idx, unsigned dir, call_state_
 	cpvt->call_idx = call_idx;
 	cpvt->state = state;
 	cpvt->dir = dir;
+	cpvt->local_channel = local_channel;
 	cpvt->rd_pipe[0] = filedes[0];
 	cpvt->rd_pipe[1] = filedes[1];
 

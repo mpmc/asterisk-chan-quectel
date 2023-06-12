@@ -63,6 +63,7 @@ typedef struct cpvt {
 
 /* TODO: join with flags */
 	unsigned int		dir:1;				/*!< call direction */
+	unsigned int		local_channel:1;	/*!< local channel flag */
 #define CALL_DIR_OUTGOING	0
 #define CALL_DIR_INCOMING	1
 
@@ -93,7 +94,7 @@ typedef struct cpvt {
 #define CPVT_IS_SOUND_SOURCE(cpvt)	((cpvt)->state == CALL_STATE_ACTIVE || (cpvt)->state == CALL_STATE_DIALING || (cpvt)->state == CALL_STATE_ALERTING)
 
 
-struct cpvt * cpvt_alloc(struct pvt * pvt, int call_idx, unsigned dir, call_state_t statem);
+struct cpvt * cpvt_alloc(struct pvt * pvt, int call_idx, unsigned dir, call_state_t statem, unsigned local_channel);
 void cpvt_free(struct cpvt* cpvt);
 
 struct cpvt * pvt_find_cpvt(struct pvt * pvt, int call_idx);

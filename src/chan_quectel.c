@@ -662,6 +662,9 @@ static void disconnect_quectel(struct pvt* pvt)
 	ast_copy_string(PVT_STATE(pvt, data_tty),  CONF_UNIQ(pvt, data_tty), sizeof (PVT_STATE(pvt, data_tty)));
 	ast_copy_string(PVT_STATE(pvt, audio_tty), CONF_UNIQ(pvt, audio_tty), sizeof (PVT_STATE(pvt, audio_tty)));
 
+	ao2_cleanup(pvt->local_format_cap);
+	pvt->local_format_cap = NULL;
+
 	ast_verb(3, "[%s] Quectel has disconnected\n", PVT_ID(pvt));
 }
 
@@ -980,6 +983,10 @@ static void pvt_start(struct pvt * pvt)
 			goto cleanup_datafd;
 		}
     }
+
+	if ((pvt->local_format_cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
+		ast_format_cap_append_by_type(pvt->local_format_cap, AST_MEDIA_TYPE_TEXT);
+	}
 
 	if (!start_monitor(pvt)) {
 		if (CONF_UNIQ(pvt, uac) > TRIBOOL_FALSE)

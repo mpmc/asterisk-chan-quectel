@@ -26,12 +26,14 @@ struct ast_channel* new_channel(
 		struct pvt * pvt, int ast_state, const char * cid_num, int call_idx,
 		unsigned dir, unsigned state, const char * exten,
 		const struct ast_assigned_ids *assignedids,
-		const struct ast_channel * requestor);
+		const struct ast_channel * requestor,
+		unsigned local_channel);
 #else /* 12- */
 struct ast_channel* new_channel(
 		struct pvt * pvt, int ast_state, const char * cid_num, int call_idx,
 		unsigned dir, unsigned state, const char * exten,
-		const struct ast_channel * requestor);
+		const struct ast_channel * requestor,
+		unsigned local_channel);
 #endif /* ^12- */
 int queue_control_channel(struct cpvt* cpvt, enum ast_control_frame_type control);
 int queue_hangup(struct ast_channel* channel, int hangupcause);

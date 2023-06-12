@@ -810,12 +810,12 @@ static int start_pbx(struct pvt* pvt, const char * number, int call_idx, call_st
 	struct ast_channel * channel = new_channel(
 			pvt, AST_STATE_RING, number, call_idx, CALL_DIR_INCOMING, state,
 			pvt->has_subscriber_number ? pvt->subscriber_number : CONF_SHARED(pvt, exten),
-			NULL, NULL);
+			NULL, NULL, 0);
 #else /* 12- */
 	struct ast_channel * channel = new_channel(
 			pvt, AST_STATE_RING, number, call_idx, CALL_DIR_INCOMING, state,
 			pvt->has_subscriber_number ? pvt->subscriber_number : CONF_SHARED(pvt, exten),
-			NULL);
+			NULL, 0);
 #endif /* ^12- */
 
 	if (!channel) {
@@ -1395,6 +1395,7 @@ static int at_response_msg(struct pvt* pvt, const struct ast_str* const response
 
 	pdu_udh_init(&udh);
 
+	scts[0] = '\000';
 	struct ast_str* msg = ast_str_create(MAX_MSG_LEN);
 	struct ast_str* oa = ast_str_create(512);
 	struct ast_str* sca = ast_str_create(512);
@@ -1503,11 +1504,11 @@ static int at_response_msg(struct pvt* pvt, const struct ast_str* const response
 receive_as_is:
 				msg_ack = TRIBOOL_TRUE;
 				msg_complete = 1;
-				ast_verb(2, "[%s] Got single SM from %s: '%s'\n", PVT_ID(pvt), ast_str_buffer(oa), ast_str_buffer(msg));
+				ast_verb(2, "[%s] Got single SM from %s: [%s]\n", PVT_ID(pvt), ast_str_buffer(oa), ast_str_buffer(msg));
 				ast_str_copy_string(&fullmsg, msg);
 			}
 
-			ast_verb(1, "[%s] Got SMS from %s: '%s'\n", PVT_ID(pvt), ast_str_buffer(oa), ast_str_buffer(fullmsg));
+			ast_verb(1, "[%s] Got SMS from %s: [TS:%s][%s]\n", PVT_ID(pvt), ast_str_buffer(oa), scts, ast_str_buffer(fullmsg));
 
 			struct ast_str* b64 = ast_str_create(40800);
 			ast_base64encode(ast_str_buffer(b64), (unsigned char*)ast_str_buffer(fullmsg), ast_str_strlen(fullmsg), ast_str_size(b64));

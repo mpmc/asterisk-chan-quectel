@@ -150,6 +150,8 @@ typedef struct pvt
 	int				operator;
 	int				rssi;
 
+	struct ast_format_cap* local_format_cap;
+
 	/* SMS support */
 	int	incoming_sms_index;
 
