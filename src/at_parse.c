@@ -27,15 +27,18 @@ static unsigned mark_line(char * line, const char * delimiters, char * pointers[
 {
 	unsigned found = 0;
 
-	for(; line[0] && delimiters[found]; line++)
-	{
-		if(line[0] == delimiters[found])
-		{
+	for(; line[0] && delimiters[found]; line++) {
+		if(line[0] == delimiters[found]) {
 			pointers[found] = line;
 			found++;
 		}
 	}
 	return found;
+}
+
+static void trim_line(char * const pointers[], unsigned cnt)
+{
+	for(unsigned i=0; i<cnt; ++i) pointers[i][0] = '\000';
 }
 
 const char* at_qind2str(qind_t qind)
@@ -67,7 +70,7 @@ char * at_parse_cnum (char* str)
 	 *   +CNUM: "Subscriber Number",,145
 	 */
 
-	char delimiters[] = ":,,";
+	static char delimiters[] = ":,,";
 	char * marks[STRLEN(delimiters)];
 
 	/* parse URC only here */
@@ -779,7 +782,7 @@ int at_parse_cmgs (const char* str)
  * \retval -1 parse error
  */
 
-int at_parse_cusd (char* str, int * type, char** cusd, int * dcs)
+int at_parse_cusd(char* str, int * type, char** cusd, int * dcs)
 {
 	/*
 	 * parse cusd message in the following format:
@@ -790,42 +793,41 @@ int at_parse_cusd (char* str, int * type, char** cusd, int * dcs)
 	 *   +CUSD: 0,"100,00 EURO, valid till 01.01.2010, you are using tariff "Mega Tariff". More informations *111#.",15
 	 */
 
-	char delimiters[] = ":,,";
+	static char delimiters[] = ":,,";
 	char * marks[STRLEN(delimiters)];
-	unsigned count;
 
-	*type = -1;
-	*cusd = "";
-	*dcs = -1;
+	const unsigned count = mark_line(str, delimiters, marks);
 
-	count = mark_line(str, delimiters, marks);
-// 0, 1, 2, 3
-	if(count > 0)
-	{
-		if(sscanf(marks[0] + 1, "%u", type) == 1)
-		{
-			if(count > 1)
-			{
-				marks[1]++;
-				if(marks[1][0] == '"')
-					marks[1]++;
-				*cusd = marks[1];
+	if (!count) {
+		return -1;
+	}
 
-				if(count > 2) {
-					sscanf(marks[2] + 1, "%u", dcs);
-					if(marks[2][-1] == '"')
-						marks[2]--;
-					marks[2][0] = 0;
-				} else {
-					int len = strlen(*cusd);
-					if(len > 0 && (*cusd)[len - 1] == '"')
-						(*cusd)[len-1] = 0;
-				}
+	trim_line(marks, count);
+	if (sscanf(marks[0] + 1, "%u", type) != 1) {
+		return -1;
+	}
+
+	if(count > 1) {
+		*cusd = strip_quoted(marks[1]+1);
+		if(count > 2) {
+			const char* const dcs_str = ast_skip_blanks(marks[2]+1);
+			if (!*dcs_str) {
+				dcs = 0;
 			}
-			return 0;
+			else if (sscanf(dcs_str, "%u", dcs) != 1) {
+				return -1;
+			}
+		}
+		else {
+			*dcs = -1;
 		}
 	}
-	return -1;
+	else {
+		*cusd = "";
+		*dcs = -1;
+	}
+
+	return 0;
 }
 
 /*!
@@ -1013,7 +1015,7 @@ int at_parse_csca(char* str, char ** csca)
 	 *  +CSCA: "+79139131234",145
 	 *  +CSCA: "",145
 	 */
-	char delimiters[] = "\"\"";
+	static char delimiters[] = "\"\"";
 	char * marks[STRLEN(delimiters)];
 
 	if(mark_line(str, delimiters, marks) == ITEMS_OF(marks))
@@ -1114,7 +1116,7 @@ int at_parse_ccwa(char* str, unsigned * class)
 	 *	unsolicited result code
 	 *		+CCWA: <number>,<type>,<class>,[<alpha>][,<CLI validity>[,<subaddr>,<satype>[,<priority>]]]
 	 */
-	char delimiters[] = ":,,";
+	static char delimiters[] = ":,,";
 	char * marks[STRLEN(delimiters)];
 
 	/* parse URC only here */

@@ -119,7 +119,7 @@ int send_ussd(const char *dev_name, const char *ussd)
 	if (!pvt) {
 		return -1;
 	}
-	int res = at_enqueue_ussd(&pvt->sys_chan, ussd);
+	int res = at_enqueue_ussd(&pvt->sys_chan, ussd, 0);
 	free_pvt(pvt);
 	return res;
 }

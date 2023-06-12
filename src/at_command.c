@@ -488,7 +488,7 @@ int at_enqueue_sms(struct cpvt *cpvt, const char *destination, const char *msg, 
  * \param code the CUSD code to send
  */
 
-int at_enqueue_ussd(struct cpvt *cpvt, const char *code)
+int at_enqueue_ussd(struct cpvt *cpvt, const char *code, int gsm7)
 {
 	static const char cmd[] = "AT+CUSD=1,\"";
 	static const char cmd_end[] = "\",15\r";
@@ -503,31 +503,38 @@ int at_enqueue_ussd(struct cpvt *cpvt, const char *code)
 
 	// use 7 bit encoding. 15 is 00001111 in binary and means 'Language using the GSM 7 bit default alphabet; Language unspecified' accodring to GSM 23.038
 	uint16_t code16[code_len * 2];
-	uint8_t code_packed[4069];
 	res = utf8_to_ucs2(code, code_len, code16, sizeof(code16));
 	if (res < 0) {
 		chan_quectel_err = E_PARSE_UTF8;
 		return -1;
 	}
-	res = gsm7_encode(code16, res, code16);
-	if (res < 0) {
-		chan_quectel_err = E_ENCODE_GSM7;
-		return -1;
+	if (gsm7) {
+		uint8_t code_packed[4069];
+
+		res = gsm7_encode(code16, res, code16);
+		if (res < 0) {
+			chan_quectel_err = E_ENCODE_GSM7;
+			return -1;
+		}
+		res = gsm7_pack(code16, res, (char*)code_packed, sizeof(code_packed), 0);
+		if (res < 0) {
+			chan_quectel_err = E_PACK_GSM7;
+			return -1;
+		}
+		res = (res + 1) / 2;
+		hexify(code_packed, res, buf + STRLEN(cmd));
+		length += res * 2;
 	}
-	res = gsm7_pack(code16, res, (char*)code_packed, sizeof(code_packed), 0);
-	if (res < 0) {
-		chan_quectel_err = E_PACK_GSM7;
-		return -1;
+	else {
+		hexify((const uint8_t*)code16, res * 2, buf + STRLEN(cmd));
+		length += res * 4;
 	}
-	res = (res + 1) / 2;
-	hexify(code_packed, res, buf + STRLEN(cmd));
-	length += res * 2;
 
 	memcpy(buf + length, cmd_end, STRLEN(cmd_end)+1);
 	length += STRLEN(cmd_end);
 
 	at_cmd.length = length;
-	at_cmd.data = ast_strdup (buf);
+	at_cmd.data = ast_strdup(buf);
 	if (!at_cmd.data) {
 		chan_quectel_err = E_UNKNOWN;
 		return -1;

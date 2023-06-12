@@ -1622,7 +1622,7 @@ static int at_response_sms_prompt (struct pvt* pvt)
  * \retval -1 error
  */
 
-static int at_response_cusd(struct pvt* pvt, char* str, size_t len)
+static int at_response_cusd(struct pvt* pvt, const struct ast_str* const result, int gsm7)
 {
 	static const char * const types[] = {
 		"USSD Notify",
@@ -1642,12 +1642,12 @@ static int at_response_cusd(struct pvt* pvt, char* str, size_t len)
 	char typebuf[2];
 	const char*	typestr;
 
-	if (at_parse_cusd(str, &type, &cusd, &dcs)) {
-		ast_verb(1, "[%s] Error parsing CUSD: '%.*s'\n", PVT_ID(pvt), (int) len, str);
+	if (at_parse_cusd(ast_str_buffer(result), &type, &cusd, &dcs)) {
+		ast_verb(1, "[%s] Error parsing CUSD: [%s]\n", PVT_ID(pvt), ast_str_buffer(result));
 		return -1;
 	}
 
-	if(type < 0 || type >= (int)ITEMS_OF(types)) {
+	if (type < 0 || type >= (int)ITEMS_OF(types)) {
 		ast_log(LOG_WARNING, "[%s] Unknown CUSD type: %d\n", PVT_ID(pvt), type);
 	}
 
@@ -1656,43 +1656,51 @@ static int at_response_cusd(struct pvt* pvt, char* str, size_t len)
 	typebuf[0] = type + '0';
 	typebuf[1] = 0;
 
-	// sanitize DCS
-	if (dcs & 0x40) {
-		dcs = (dcs & 0xc) >> 2;
-		if (dcs == 3) dcs = 0;
-	} else {
-		dcs = 0;
-	}
+	if (dcs >= 0) {
+		// sanitize DCS
+		if (!gsm7) {
+			dcs = 2;
+		} else if (dcs & 0x40) {
+			dcs = (dcs & 0xc) >> 2;
+			if (dcs == 3) dcs = 0;
+		} else {
+			dcs = 0;
+		}
 
-	ast_verb (1, "[%s] USSD DCS=%d (0: gsm7, 1: ascii, 2: ucs2)\n", PVT_ID(pvt), dcs);
-	if (dcs == 0) { // GSM-7
-		uint16_t out_ucs2[1024];
-		int cusd_nibbles = unhex(cusd, (uint8_t*)cusd);
-		res = gsm7_unpack_decode(cusd, cusd_nibbles, out_ucs2, sizeof(out_ucs2) / 2, 0, 0, 0);
+		if (dcs == 0) { // GSM-7
+			uint16_t out_ucs2[1024];
+			const int cusd_nibbles = unhex(cusd, (uint8_t*)cusd);
+			res = gsm7_unpack_decode(cusd, cusd_nibbles, out_ucs2, sizeof(out_ucs2) / 2, 0, 0, 0);
+			if (res < 0) {
+				return -1;
+			}
+			res = ucs2_to_utf8(out_ucs2, res, cusd_utf8_str, STRLEN(cusd_utf8_str));
+		} else if (dcs == 1) { // ASCII
+			res = strlen(cusd);
+			if ((size_t)res > STRLEN(cusd_utf8_str)) {
+				res = -1;
+			} else {
+				memcpy(cusd_utf8_str, cusd, res);
+			}
+		} else if (dcs == 2) { // UCS-2
+			const int cusd_nibbles = unhex(cusd, (uint8_t*)cusd);
+			res = ucs2_to_utf8((const uint16_t*)cusd, (cusd_nibbles + 1) / 4, cusd_utf8_str, STRLEN(cusd_utf8_str));
+		} else {
+			res = -1;
+		}
+
 		if (res < 0) {
 			return -1;
 		}
-		res = ucs2_to_utf8(out_ucs2, res, cusd_utf8_str, STRLEN(cusd_utf8_str));
-	} else if (dcs == 1) { // ASCII
-		res = strlen(cusd);
-		if ((size_t)res > STRLEN(cusd_utf8_str)) {
-			res = -1;
-		} else {
-			memcpy(cusd_utf8_str, cusd, res);
-		}
-	} else if (dcs == 2) { // UCS-2
-		int cusd_nibbles = unhex(cusd, (uint8_t*)cusd);
-		res = ucs2_to_utf8((const uint16_t*)cusd, (cusd_nibbles + 1) / 4, cusd_utf8_str, STRLEN(cusd_utf8_str));
-	} else {
-		res = -1;
-	}
-	if (res < 0) {
-		return -1;
-	}
-	cusd_utf8_str[res] = '\0';
+		cusd_utf8_str[res] = '\000';
 
-	ast_verb (1, "[%s] Got USSD type %d '%s': '%s'\n", PVT_ID(pvt), type, typestr, cusd_utf8_str);
-	ast_base64encode (text_base64, (unsigned char*)cusd_utf8_str, res, sizeof(text_base64));
+		ast_verb(1, "[%s] Got USSD type %d '%s': [%s]\n", PVT_ID(pvt), type, typestr, cusd_utf8_str);
+		ast_base64encode(text_base64, (unsigned char*)cusd_utf8_str, res, sizeof(text_base64));
+	}
+	else {
+		text_base64[0] = '\000';
+		ast_verb(1, "[%s] Got USSD type %d '%s'\n", PVT_ID(pvt), type, typestr);
+	}
 
 	{
 		const channel_var_t vars[] =
@@ -2639,7 +2647,7 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 
 			case RES_CUSD:
 				/* An error here is not fatal. Just keep going. */
-				at_response_cusd (pvt, str, len);
+				at_response_cusd(pvt, result, 0);
 				break;
 
 			case RES_CLCC:
