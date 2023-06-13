@@ -55,7 +55,7 @@ static void at_queue_free (at_queue_task_t* task)
  * \param pvt -- pvt structure
  */
 #/* */
-void at_queue_remove (struct pvt * pvt)
+static void at_queue_remove (struct pvt * pvt)
 {
 	at_queue_task_t * task = AST_LIST_REMOVE_HEAD (&pvt->at_queue, entry);
 
@@ -197,7 +197,7 @@ int at_write(struct pvt* pvt, const char* buf, size_t count)
  * \param pvt -- pvt structure
  */
 #/* */
-void at_queue_remove_cmd(struct pvt* pvt, at_res_t res)
+static void at_queue_remove_cmd(struct pvt* pvt, at_res_t res)
 {
 	at_queue_task_t* const task = AST_LIST_FIRST(&pvt->at_queue);
 	if (!task) return;

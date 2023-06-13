@@ -808,7 +808,13 @@ static void* do_monitor_phone(void* data)
 			if(ecmd) {
 				if (ecmd->flags & ATQ_CMD_FLAG_IGNORE) {
 					ast_log(LOG_WARNING, "[%s][%s] Timeout [%s]\n", dev, at_cmd2str(ecmd->cmd), at_res2str(ecmd->res));
-					at_queue_remove(pvt);
+					at_queue_handle_result(pvt, RES_UNKNOWN);
+					if (!pvt->terminate_monitor) {
+						if (at_queue_run(pvt)) {
+							ast_log(LOG_ERROR, "[%s] Fail to run command from queue\n", dev);
+							goto e_cleanup;
+						}
+					}
 				}
 				else {
 					ast_log(LOG_ERROR, "[%s][%s] Timeout [%s]\n", dev, at_cmd2str(ecmd->cmd), at_res2str(ecmd->res));
