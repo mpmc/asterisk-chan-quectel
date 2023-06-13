@@ -360,6 +360,19 @@ static int port_status(int fd, int* err)
 	return res;
 }
 
+static int alsa_status(snd_pcm_t* const pcm1, snd_pcm_t* const pcm2) {
+	 snd_pcm_state_t state = snd_pcm_state(pcm1);
+	 if (state == SND_PCM_STATE_DISCONNECTED) {
+		return -1;
+	 }
+	state = snd_pcm_state(pcm2);
+	 if (state == SND_PCM_STATE_DISCONNECTED) {
+		return -1;
+	 }
+
+	 return 0;
+}
+
 #/* return length of lockname */
 static int lock_build(const char * devname, char * buf, unsigned length)
 {
@@ -755,16 +768,28 @@ static void* do_monitor_phone(void* data)
 			goto e_cleanup;
 		}
 
-		if (CONF_UNIQ(pvt, uac) == TRIBOOL_FALSE) {
+		switch (CONF_UNIQ(pvt, uac)) {
+			case TRIBOOL_FALSE:
 			if (port_status(pvt->audio_fd, &err)) {
 				if (reopen_audio_port(pvt)) {
-					ast_log(LOG_WARNING, "[%s][AUDIO] Lost connection: %d\n", dev, err);
+					ast_log(LOG_WARNING, "[%s][AUDIO][TTY] Lost connection: %d\n", dev, err);
 				}
 				else {
-					ast_log(LOG_ERROR, "[%s][AUDIO] Lost connection: %d\n", dev, err);
+					ast_log(LOG_ERROR, "[%s][AUDIO][TTY] Lost connection: %d\n", dev, err);
 					goto e_cleanup;
 				}
 			}
+			break;
+
+			case TRIBOOL_TRUE:
+			break;
+
+			case TRIBOOL_NONE:
+			if (alsa_status(pvt->ocard, pvt->icard)) {
+				ast_log(LOG_ERROR, "[%s][AUDIO][ALSA] Lost connection\n", dev);
+				goto e_cleanup;
+			}
+			break;
 		}
 
 		if(pvt->terminate_monitor) {
