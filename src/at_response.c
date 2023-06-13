@@ -1734,10 +1734,10 @@ static int at_response_cpin (struct pvt* pvt, char* str, size_t len)
 			ast_log (LOG_ERROR, "[%s] Error parsing +CPIN message: %s\n", PVT_ID(pvt), str);
 			break;
 		case 1:
-			ast_log (LOG_ERROR, "Quectel %s needs PIN code!\n", PVT_ID(pvt));
+			ast_log (LOG_ERROR, "[%s] needs PIN code!\n", PVT_ID(pvt));
 			break;
 		case 2:
-			ast_log (LOG_ERROR, "Quectel %s needs PUK code!\n", PVT_ID(pvt));
+			ast_log (LOG_ERROR, "[%s] needs PUK code!\n", PVT_ID(pvt));
 			break;
 	}
 	return rv;

@@ -624,7 +624,7 @@ static void disconnect_quectel(struct pvt* pvt)
 
 	pvt_on_remove_last_channel(pvt);
 
-	ast_debug(1, "[%s] Quectel disconnecting - cleaning up\n", PVT_ID(pvt));
+	ast_debug(1, "[%s] Disconnecting - cleaning up\n", PVT_ID(pvt));
 
 	/* unaffected in case of restart */
 	pvt->use_ucs2_encoding = 0;
@@ -678,7 +678,7 @@ static void disconnect_quectel(struct pvt* pvt)
 	ao2_cleanup(pvt->local_format_cap);
 	pvt->local_format_cap = NULL;
 
-	ast_verb(3, "[%s] Quectel has disconnected\n", PVT_ID(pvt));
+	ast_verb(3, "[%s] Disconnected\n", PVT_ID(pvt));
 }
 
 /* anybody wrote some to device before me, and not read results, clean pending results here */
@@ -1040,7 +1040,7 @@ static void pvt_start(struct pvt * pvt)
 
 	pvt->connected = 1;
 	pvt->current_state = DEV_STATE_STARTED;
-	ast_verb(3, "[%s] Quectel has connected, initializing...\n", PVT_ID(pvt));
+	ast_verb(3, "[%s] Connected, initializing...\n", PVT_ID(pvt));
 	return;
 
 cleanup_audiofd:
