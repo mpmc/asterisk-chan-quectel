@@ -100,6 +100,11 @@ Supported modules:
 
 ## Commands
 
+* `simcom` is an alias of `quectel` commands now.
+
+    You may type `simcom ...` command instead of `quectel ...` one.
+    For example `quectel show device status` command is equivalent of `simcom show device status` one.
+
 * Additional fields in `show device status` command.
 
     Added `Access technology`, `Network Name`, `Short Network Name`, `Registered PLMN`, `Band` and `Module Time` fields:
@@ -223,6 +228,7 @@ Supported modules:
     * More debug messages.
     * Reorganized, improved and simplified code.
 
+* Fixed USSD sending/receiving.
 * Using [`CMake` build system](//github.com/RoEdAl/asterisk-chan-quectel/wiki/Building).
 * Improved debug messages.
 

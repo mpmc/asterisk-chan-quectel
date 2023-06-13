@@ -22,6 +22,32 @@
 #include "pdiscovery.h"				/* pdiscovery_list_begin() pdiscovery_list_next() pdiscovery_list_end() */
 #include "error.h"
 
+#define CLI_ALIASES(fn, cmdd, usage1, usage2) \
+static char* fn##_quectel(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a) \
+{ \
+	switch (cmd) { \
+		case CLI_INIT: \
+			e->command = "quectel " cmdd "\n"; \
+			e->usage = "Usage: quectel " usage1 "\n       " usage2 ".\n"; \
+			return NULL; \
+	} \
+	return fn(e, cmd, a); \
+} \
+static char* fn##_simcom(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a) \
+{ \
+	switch (cmd) { \
+		case CLI_INIT: \
+			e->command = "simcom " cmdd "\n"; \
+			e->usage = "Usage: simcom " usage1 "\n       " usage2 ".\n"; \
+			return NULL; \
+	} \
+	return fn(e, cmd, a); \
+}
+
+#define CLI_DEF_ENTRIES(fn, desc) \
+	AST_CLI_DEFINE (fn##_quectel,	desc), \
+	AST_CLI_DEFINE (fn##_simcom,	desc),
+
 static const char * restate2str_msg(restate_time_t when);
 
 static char* complete_device (const char* word, int state)
@@ -54,12 +80,6 @@ static char* cli_show_devices (struct ast_cli_entry* e, int cmd, struct ast_cli_
 
 	switch (cmd)
 	{
-		case CLI_INIT:
-			e->command =	"quectel show devices";
-			e->usage   =	"Usage: quectel show devices\n"
-					"       Shows the state of devices.\n";
-			return NULL;
-
 		case CLI_GENERATE:
 			return NULL;
 	}
@@ -94,18 +114,14 @@ static char* cli_show_devices (struct ast_cli_entry* e, int cmd, struct ast_cli_
 	return CLI_SUCCESS;
 }
 
+CLI_ALIASES(cli_show_devices, "show devices", "show devices", "Shows the state of devices")
+
 static char* cli_show_device_settings (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
 	struct pvt* pvt;
 
 	switch (cmd)
 	{
-		case CLI_INIT:
-			e->command =	"quectel show device settings";
-			e->usage   =	"Usage: quectel show device settings <device>\n"
-					"       Shows the settings device.\n";
-			return NULL;
-
 		case CLI_GENERATE:
 			if (a->pos == 4)
 			{
@@ -167,6 +183,8 @@ static char* cli_show_device_settings (struct ast_cli_entry* e, int cmd, struct 
 	return CLI_SUCCESS;
 }
 
+CLI_ALIASES(cli_show_device_settings, "show device settings", "show device settings <device>", "Shows the settings device")
+
 static char* cli_show_device_state (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
 	struct pvt* pvt;
@@ -175,12 +193,6 @@ static char* cli_show_device_state (struct ast_cli_entry* e, int cmd, struct ast
 
 	switch (cmd)
 	{
-		case CLI_INIT:
-			e->command =	"quectel show device state";
-			e->usage   =	"Usage: quectel show device state <device>\n"
-					"       Shows the state of device.\n";
-			return NULL;
-
 		case CLI_GENERATE:
 			if (a->pos == 4)
 			{
@@ -258,6 +270,8 @@ static char* cli_show_device_state (struct ast_cli_entry* e, int cmd, struct ast
 	return CLI_SUCCESS;
 }
 
+CLI_ALIASES(cli_show_device_state, "show device state", "show device state <device>", "Shows the state of device")
+
 #/* */
 static int32_t getACD(uint32_t calls, uint32_t duration)
 {
@@ -291,12 +305,6 @@ static char* cli_show_device_statistics (struct ast_cli_entry* e, int cmd, struc
 
 	switch (cmd)
 	{
-		case CLI_INIT:
-			e->command =	"quectel show device statistics";
-			e->usage   =	"Usage: quectel show device statistics <device>\n"
-					"       Shows the statistics of device.\n";
-			return NULL;
-
 		case CLI_GENERATE:
 			if (a->pos == 4)
 			{
@@ -375,17 +383,12 @@ static char* cli_show_device_statistics (struct ast_cli_entry* e, int cmd, struc
 	return CLI_SUCCESS;
 }
 
+CLI_ALIASES(cli_show_device_statistics, "show device statistics", "show device statistics <device>", "Shows the statistics of device")
 
 static char* cli_show_version(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
 	switch (cmd)
 	{
-		case CLI_INIT:
-			e->command =	"quectel show version";
-			e->usage   =	"Usage: quectel show version\n"
-					"       Shows the version of module.\n";
-			return NULL;
-
 		case CLI_GENERATE:
 			return NULL;
 	}
@@ -399,17 +402,12 @@ static char* cli_show_version(struct ast_cli_entry* e, int cmd, struct ast_cli_a
 	return CLI_SUCCESS;
 }
 
+CLI_ALIASES(cli_show_version, "show version", "show version", "Shows the version of module")
+
 static char* cli_cmd(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
 	switch (cmd)
 	{
-		case CLI_INIT:
-			e->command =	"quectel cmd";
-			e->usage   =	"Usage: quectel cmd <device> <command>\n"
-					"       Send <command> to the rfcomm port on the device\n"
-					"       with the specified <device>.\n";
-			return NULL;
-
 		case CLI_GENERATE:
 			if (a->pos == 2) {
 				return complete_device(a->word, a->n);
@@ -427,19 +425,12 @@ static char* cli_cmd(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 	return CLI_SUCCESS;
 }
 
+CLI_ALIASES(cli_cmd, "cmd", "cmd <device> <command>", "Send <command> to the rfcomm port on the device with the specified <device>")
+
 static char* cli_ussd (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
-
 	switch (cmd)
 	{
-		case CLI_INIT:
-			e->command = "quectel ussd";
-			e->usage =
-				"Usage: quectel ussd <device> <command>\n"
-				"       Send ussd <command> to the quectel\n"
-				"       with the specified <device>.\n";
-			return NULL;
-
 		case CLI_GENERATE:
 			if (a->pos == 2)
 			{
@@ -459,6 +450,8 @@ static char* cli_ussd (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 	return CLI_SUCCESS;
 }
 
+CLI_ALIASES(cli_ussd, "ussd", "ussd <device> <command>", "Send ussd <command> with the specified <device>")
+
 static char* cli_sms (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
 	struct ast_str * buf;
@@ -466,13 +459,6 @@ static char* cli_sms (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 
 	switch (cmd)
 	{
-		case CLI_INIT:
-			e->command = "quectel sms";
-			e->usage =
-				"Usage: quectel sms <device> <number> <message>\n"
-				"       Send a SMS to <number> with the <message> from <device>\n";
-			return NULL;
-
 		case CLI_GENERATE:
 			if (a->pos == 2)
 			{
@@ -506,6 +492,8 @@ static char* cli_sms (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 	return CLI_SUCCESS;
 }
 
+CLI_ALIASES(cli_sms, "sms", "sms <device> <number> <message>", "Send a SMS to <number> with the <message> from <device>")
+
 #if ASTERISK_VERSION_NUM >= 10800 /* 1.8+ */
 typedef const char * const * ast_cli_complete2_t;
 #else /* 1.8- */
@@ -519,13 +507,6 @@ static char* cli_ccwa_set (struct ast_cli_entry* e, int cmd, struct ast_cli_args
 
 	switch (cmd)
 	{
-		case CLI_INIT:
-			e->command = "quectel callwaiting";
-			e->usage =
-				"Usage: quectel callwaiting disable|enable <device>\n"
-				"       Disable/Enable Call-Waiting on <device>\n";
-			return NULL;
-
 		case CLI_GENERATE:
 			if (a->pos == 2)
 			{
@@ -555,17 +536,12 @@ static char* cli_ccwa_set (struct ast_cli_entry* e, int cmd, struct ast_cli_args
 	return CLI_SUCCESS;
 }
 
+CLI_ALIASES(cli_ccwa_set, "callwaiting", "callwaiting disable|enable <device>", "Disable/Enable Call-Waiting on <device>")
+
 static char* cli_reset (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
 	switch (cmd)
 	{
-		case CLI_INIT:
-			e->command = "quectel reset";
-			e->usage =
-				"Usage: quectel reset <device>\n"
-				"       Reset <device>\n";
-			return NULL;
-
 		case CLI_GENERATE:
 			if (a->pos == 2)
 			{
@@ -585,6 +561,8 @@ static char* cli_reset (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a
 	return CLI_SUCCESS;
 }
 
+CLI_ALIASES(cli_reset, "reset", "reset <device>", "Reset <device>")
+
 static const char * const a_choices[] = { "now", "gracefully", "when", NULL };
 static const char * const a_choices2[] = { "convenient", NULL };
 
@@ -597,34 +575,12 @@ static const char * restate2str_msg(restate_time_t when)
 #/* */
 static char* cli_restart_event(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a, dev_state_t event)
 {
-
-	static char * const cmds[] = {
-		"quectel stop",
-		"quectel restart",
-		"quectel remove",
-		};
-	static const char * const usage[] = {
-		"Usage: quectel stop < now | gracefully | when convenient > <device>\n"
-		"       Stop <device>\n",
-
-		"Usage: quectel restart < now | gracefully | when convenient > <device>\n"
-		"       Restart <device>\n",
-
-		"Usage: quectel remove < now | gracefully | when convenient > <device>\n"
-		"       Remove <device>\n",
-		};
-
 	const char * device = NULL;
 	int res;
 	int i;
 
 	switch (cmd)
 	{
-		case CLI_INIT:
-			e->command = cmds[event];
-			e->usage = usage[event];
-			return NULL;
-
 		case CLI_GENERATE:
 			switch(a->pos)
 			{
@@ -681,11 +637,15 @@ static char* cli_stop(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 	return cli_restart_event(e, cmd, a, DEV_STATE_STOPPED);
 }
 
+CLI_ALIASES(cli_stop, "stop", "stop < now | gracefully | when convenient > <device>", "Stop <device>")
+
 #/* */
 static char* cli_restart(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
 	return cli_restart_event(e, cmd, a, DEV_STATE_RESTARTED);
 }
+
+CLI_ALIASES(cli_restart, "restart", "restart < now | gracefully | when convenient > <device>", "Restart <device>")
 
 #/* */
 static char * cli_remove(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -693,17 +653,13 @@ static char * cli_remove(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 	return cli_restart_event(e, cmd, a, DEV_STATE_REMOVED);
 }
 
+CLI_ALIASES(cli_remove, "remove", "remove < now | gracefully | when convenient > <device>", "Remove <device>")
+
 #/* */
 static char* cli_start(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
 	switch (cmd)
 	{
-		case CLI_INIT:
-			e->command =	"quectel start";
-			e->usage   =	"Usage: quectel start <device>\n"
-					"       Start <device>\n";
-			return NULL;
-
 		case CLI_GENERATE:
 			if(a->pos == 2)
 				return complete_device(a->word, a->n);
@@ -721,6 +677,8 @@ static char* cli_start(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 	return CLI_SUCCESS;
 }
 
+CLI_ALIASES(cli_start, "start", "start <device>", "Start <device>")
+
 static char * cli_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int ok = 0;
@@ -728,12 +686,6 @@ static char * cli_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 
 	switch (cmd)
 	{
-		case CLI_INIT:
-			e->command =	"quectel reload";
-			e->usage   =	"Usage: quectel reload < now | gracefully | when convenient >\n"
-					"       Reloads the configuration\n";
-			return NULL;
-
 		case CLI_GENERATE:
 			switch(a->pos)
 			{
@@ -778,6 +730,8 @@ static char * cli_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 	return CLI_SHOWUSAGE;
 }
 
+CLI_ALIASES(cli_reload, "reload", "reload < now | gracefully | when convenient <device>", "Reloads the configuration")
+
 #/* */
 static char * cli_discovery(struct ast_cli_entry * e, int cmd, struct ast_cli_args * a)
 {
@@ -790,12 +744,6 @@ static char * cli_discovery(struct ast_cli_entry * e, int cmd, struct ast_cli_ar
 	int imsilen;
 
 	switch (cmd) {
-		case CLI_INIT:
-			e->command =	"quectel discovery";
-			e->usage   =	"Usage: quectel discovery\n"
-					"       Discovery devices and create config\n";
-			return NULL;
-
 		case CLI_GENERATE:
 			return NULL;
 	}
@@ -857,6 +805,8 @@ static char * cli_discovery(struct ast_cli_entry * e, int cmd, struct ast_cli_ar
 	return CLI_SUCCESS;
 }
 
+CLI_ALIASES(cli_discovery, "discovery", "discovery", "Discovery devices and create config")
+
 static char* cli_audio_loop(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
 	static const char * const choices[] = { "on", "off", NULL };
@@ -864,13 +814,6 @@ static char* cli_audio_loop(struct ast_cli_entry* e, int cmd, struct ast_cli_arg
 
 	switch (cmd)
 	{
-		case CLI_INIT:
-			e->command = "quectel audio loop";
-			e->usage =
-				"Usage: quectel audio loop <device> [on|off]\n"
-				"       Query/disable/enable audio loop on <device>\n";
-			return NULL;
-
 		case CLI_GENERATE:
 			if (a->pos == 4)
 			{
@@ -907,6 +850,8 @@ static char* cli_audio_loop(struct ast_cli_entry* e, int cmd, struct ast_cli_arg
 	return CLI_SUCCESS;
 }
 
+CLI_ALIASES(cli_audio_loop, "audio loop", "audio loop <device> [on|off]", "Query/disable/enable audio loop on <device>")
+
 static char* cli_audio_mode(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
 	static const char * const choices[] = {
@@ -922,13 +867,6 @@ static char* cli_audio_mode(struct ast_cli_entry* e, int cmd, struct ast_cli_arg
 
 	switch (cmd)
 	{
-		case CLI_INIT:
-			e->command = "quectel audio mode";
-			e->usage =
-				"Usage: quectel audio loop <device> [off|general|handset|headset|speaker|bluetooth]\n"
-				"       Query/set audio mode on <device>\n";
-			return NULL;
-
 		case CLI_GENERATE:
 			if (a->pos == 4)
 			{
@@ -973,6 +911,8 @@ static char* cli_audio_mode(struct ast_cli_entry* e, int cmd, struct ast_cli_arg
 	return CLI_SUCCESS;
 }
 
+CLI_ALIASES(cli_audio_mode, "audio mode", "audio mode <device> [off|general|handset|headset|speaker|bluetooth]", "Query/set audio mode on <device>")
+
 static const char * const audio_gain_choices[] = {
 	"off", "mute",
 	"full",
@@ -988,13 +928,6 @@ static char* cli_audio_gain_tx(struct ast_cli_entry* e, int cmd, struct ast_cli_
 {
 	switch (cmd)
 	{
-		case CLI_INIT:
-			e->command = "quectel audio gain tx";
-			e->usage =
-				"Usage: quectel audio gain tx <device> [level]\n"
-				"       Query/set microphone audio gain on <device>\n";
-			return NULL;
-
 		case CLI_GENERATE:
 			if (a->pos == 5)
 			{
@@ -1029,17 +962,12 @@ static char* cli_audio_gain_tx(struct ast_cli_entry* e, int cmd, struct ast_cli_
 	return CLI_SUCCESS;
 }
 
+CLI_ALIASES(cli_audio_gain_tx, "audio gain tx", "audio gain tx <device> [level]", "Query/set microphone audio gain on <device>")
+
 static char* cli_audio_gain_rx(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
 	switch (cmd)
 	{
-		case CLI_INIT:
-			e->command = "quectel audio gain rx";
-			e->usage =
-				"Usage: quectel audio gain rx <device> [level]\n"
-				"       Query/set RX audio gain on <device>\n";
-			return NULL;
-
 		case CLI_GENERATE:
 			if (a->pos == 5)
 			{
@@ -1074,30 +1002,32 @@ static char* cli_audio_gain_rx(struct ast_cli_entry* e, int cmd, struct ast_cli_
 	return CLI_SUCCESS;
 }
 
+CLI_ALIASES(cli_audio_gain_rx, "audio gain rx", "audio gain rx <device> [level]", "Query/set RX audio gain on <device>")
+
 static struct ast_cli_entry cli[] = {
-	AST_CLI_DEFINE (cli_show_devices,			"Show devices state"),
-	AST_CLI_DEFINE (cli_show_device_settings,	"Show device settings"),
-	AST_CLI_DEFINE (cli_show_device_state,	 	"Show device state"),
-	AST_CLI_DEFINE (cli_show_device_statistics,	"Show device statistics"),
-	AST_CLI_DEFINE (cli_show_version,			"Show module version"),
-	AST_CLI_DEFINE (cli_cmd,					"Send commands to port for debugging"),
-	AST_CLI_DEFINE (cli_ussd,					"Send USSD commands"),
-	AST_CLI_DEFINE (cli_sms,					"Send SMS"),
-	AST_CLI_DEFINE (cli_ccwa_set,				"Enable/Disable Call-Waiting"),
-	AST_CLI_DEFINE (cli_reset,					"Reset modem"),
+	CLI_DEF_ENTRIES(cli_show_devices,			"Show devices state")
+	CLI_DEF_ENTRIES(cli_show_device_settings,	"Show device settings")
+	CLI_DEF_ENTRIES(cli_show_device_state,	 	"Show device state")
+	CLI_DEF_ENTRIES(cli_show_device_statistics,	"Show device statistics")
+	CLI_DEF_ENTRIES(cli_show_version,			"Show module version")
+	CLI_DEF_ENTRIES(cli_cmd,					"Send commands to port for debugging")
+	CLI_DEF_ENTRIES(cli_ussd,					"Send USSD commands")
+	CLI_DEF_ENTRIES(cli_sms,					"Send SMS")
+	CLI_DEF_ENTRIES(cli_ccwa_set,				"Enable/Disable Call-Waiting")
+	CLI_DEF_ENTRIES(cli_reset,					"Reset modem")
 
-	AST_CLI_DEFINE (cli_stop,					"Stop channel"),
-	AST_CLI_DEFINE (cli_restart,				"Restart channel"),
-	AST_CLI_DEFINE (cli_remove,					"Remove channel"),
-	AST_CLI_DEFINE (cli_reload,					"Reload channel"),
+	CLI_DEF_ENTRIES(cli_stop,					"Stop channel")
+	CLI_DEF_ENTRIES(cli_restart,				"Restart channel")
+	CLI_DEF_ENTRIES(cli_remove,					"Remove channel")
+	CLI_DEF_ENTRIES(cli_reload,					"Reload channel")
 
-	AST_CLI_DEFINE (cli_start,					"Start channel"),
-	AST_CLI_DEFINE (cli_discovery,				"Discovery devices and create config"),
+	CLI_DEF_ENTRIES(cli_start,					"Start channel")
+	CLI_DEF_ENTRIES(cli_discovery,				"Discovery devices and create config")
 
-	AST_CLI_DEFINE (cli_audio_loop,				"Query/enable/disable audio loop test"),
-	AST_CLI_DEFINE (cli_audio_mode,				"Query/set audio mode"),
-	AST_CLI_DEFINE (cli_audio_gain_rx,			"Query/set RX audio gain"),
-	AST_CLI_DEFINE (cli_audio_gain_tx,			"Query/set TX audio gain"),
+	CLI_DEF_ENTRIES(cli_audio_loop,				"Query/enable/disable audio loop test")
+	CLI_DEF_ENTRIES(cli_audio_mode,				"Query/set audio mode")
+	CLI_DEF_ENTRIES(cli_audio_gain_rx,			"Query/set RX audio gain")
+	CLI_DEF_ENTRIES(cli_audio_gain_tx,			"Query/set TX audio gain")
 };
 
 #/* */
