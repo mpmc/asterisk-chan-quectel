@@ -3,7 +3,20 @@
 #
 
 INSTALL(
-  FILES diffconfig build-opk.sh
+  FILES diffconfig
+  DESTINATION openwrt
+  COMPONENT openwrt EXCLUDE_FROM_ALL
+)
+
+INSTALL(
+  FILES readme-package-building.txt
+  DESTINATION openwrt
+  COMPONENT openwrt EXCLUDE_FROM_ALL
+  RENAME README.txt
+)
+
+INSTALL(
+  PROGRAMS build-opk.sh
   DESTINATION openwrt
   COMPONENT openwrt EXCLUDE_FROM_ALL
 )
@@ -26,6 +39,8 @@ IF(OPENWRT_PACKAGE_STANDALONE)
       PATTERN "openwrt" EXCLUDE
       PATTERN "test" EXCLUDE
       PATTERN "tools" EXCLUDE
+      PATTERN "install" EXCLUDE
+      PATTERN "package" EXCLUDE
       PATTERN "etc" EXCLUDE
       PATTERN "uac" EXCLUDE
       PATTERN "doc" EXCLUDE
@@ -60,4 +75,8 @@ ELSE()
     RENAME Makefile
   )
 ENDIF()
-  
+
+INSTALL(
+  SCRIPT make-feeds-conf.cmake
+  COMPONENT openwrt EXCLUDE_FROM_ALL
+)
