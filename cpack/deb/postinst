@@ -1,0 +1,16 @@
+#!/bin/sh -e
+
+if [ "$1" = "configure" ]; then
+    echo
+    echo 'o-------------------------------------------------------------------o'
+    echo '| chan-quectel notes                                                |'
+    echo 'o-------------------------------------------------------------------o'
+    echo '| Adding the "asterisk" user to the "dialout" group might be        |'
+    echo '| required for Asterisk to be able to access the module.            |'
+    echo 'o-------------------------------------------------------------------o'
+    echo '| Adding the "asterisk" user to the "audio" group might be          |'
+    echo '| required for Asterisk to be able to access the audio device.      |'
+    echo 'o-------------------------------------------------------------=^_^=-o'
+    echo
+fi
+
