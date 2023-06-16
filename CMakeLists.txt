@@ -106,6 +106,7 @@ IF(OPENWRT_PACKAGE)
 ENDIF()
 SET(ASTERISK_VERSION_NUM 180000 CACHE STRING "Asterisk version")
 OPTION(ICONV_CONST "iconv() const declaration of input buffer" OFF)
+OPTION(USE_SYSV_UUCP_LOCKS "Use SYSV-style UUCP device locks" OFF)
 SET(ICONV_T iconv_t CACHE STRING "iconv type")
 SET(AST_MODULE chan_quectel)
 

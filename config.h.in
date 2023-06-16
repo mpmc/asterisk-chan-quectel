@@ -26,6 +26,8 @@
 /* The Asterisk version */
 #cmakedefine ASTERISK_VERSION_NUM @ASTERISK_VERSION_NUM@
 
+#cmakedefine USE_SYSV_UUCP_LOCKS
+
 /* Revision of package */
 #define PACKAGE_REVISION "@PROJECT_VERSION_TWEAK@@CHAN_STATUS@"
 

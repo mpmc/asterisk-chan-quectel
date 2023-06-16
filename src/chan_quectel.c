@@ -46,6 +46,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Rev: " PACKAGE_REVISION " $")
 #include <asterisk/causes.h>
 
 #include <sys/stat.h>			/* S_IRUSR | S_IRGRP | S_IROTH */
+#ifndef USE_SYSV_UUCP_LOCKS
+#include <sys/file.h>
+#endif
 #include <termios.h>			/* struct termios tcgetattr() tcsetattr()  */
 #include <pthread.h>			/* pthread_t pthread_kill() pthread_join() */
 #include <fcntl.h>			/* O_RDWR O_NOCTTY */
@@ -373,6 +376,8 @@ static int alsa_status(snd_pcm_t* const pcm1, snd_pcm_t* const pcm2) {
 	 return 0;
 }
 
+#ifdef USE_SYSV_UUCP_LOCKS
+
 #/* return length of lockname */
 static int lock_build(const char * devname, char * buf, unsigned length)
 {
@@ -464,8 +469,12 @@ int lock_try(const char * devname, char ** lockname)
 }
 
 #/* */
-void closetty(int fd, char ** lockfname)
+void closetty(const char* dev, int fd, char ** lockfname)
 {
+	if (ioctl(fd, TIOCNXCL) != 0) {
+		ast_log(LOG_WARNING, "ioctl(TIOCNXCL) failed for %s: %s\n", dev, strerror(errno));
+	}
+
 	close(fd);
 
 	/* remove lock */
@@ -491,7 +500,7 @@ int opentty(const char* dev, char ** lockfile, int typ)
 	fd = open(dev, O_RDWR | O_NOCTTY);
 	if (fd < 0) {
 		flags = errno;
-		closetty(fd, lockfile);
+		closetty(dev, fd, lockfile);
 		snprintf(buf, sizeof(buf), "Open Failed\r\nErrorCode: %d", flags);
 		ast_log(LOG_WARNING, "unable to open %s: %s\n", dev, strerror(flags));
 		return -1;
@@ -506,14 +515,14 @@ int opentty(const char* dev, char ** lockfile, int typ)
 	flags = fcntl(fd, F_GETFD);
 	if (flags == -1 || fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1) {
 		flags = errno;
-		closetty(fd, lockfile);
+		closetty(dev, fd, lockfile);
 		ast_log(LOG_WARNING, "fcntl(F_GETFD/F_SETFD) failed for %s: %s\n", dev, strerror(flags));
 		return -1;
 	}
 
 	if (tcgetattr(fd, &term_attr) != 0) {
 		flags = errno;
-		closetty(fd, lockfile);
+		closetty(dev, fd, lockfile);
 		ast_log (LOG_WARNING, "tcgetattr() failed for %s: %s\n", dev, strerror(flags));
 		return -1;
 	}
@@ -545,6 +554,118 @@ int opentty(const char* dev, char ** lockfile, int typ)
 	return fd;
 }
 
+#else
+
+static void internal_closetty(const char* dev, int fd, int exclusive, int flck)
+{
+	if (flck) {
+		if (flock(fd, LOCK_UN | LOCK_NB) < 0) {
+			const int errno_save = errno;
+			ast_log(LOG_WARNING, "Unable to unlock %s: %s\n", dev, strerror(errno_save));
+		}
+	}
+
+	if (exclusive) {
+		if (ioctl(fd, TIOCNXCL) < 0) {
+			const int errno_save = errno;
+			ast_log(LOG_WARNING, "Unable to disable exlusive mode for %s: %s\n", dev, strerror(errno_save));
+		}
+	}
+
+	close(fd);
+}
+
+void closetty(const char* dev, int fd)
+{
+	if (fd < 0) return;
+	internal_closetty(dev, fd, 1, 1);
+}
+
+int opentty(const char* dev, int typ)
+{
+	int fd;
+	struct termios term_attr;
+
+	fd = open(dev, O_RDWR | O_NOCTTY);
+	if (fd < 0) {
+		const int errno_save = errno;
+		internal_closetty(dev, fd, 0, 0);
+		ast_log(LOG_WARNING, "Unable to open %s: %s\n", dev, strerror(errno_save));
+		return -1;
+	}
+
+	int locking_status = 0;
+	if (ioctl(fd, TIOCGEXCL, &locking_status) < 0) {
+		const int errno_save = errno;
+		internal_closetty(dev, fd, 0, 0);
+		ast_log(LOG_WARNING, "Unable to get locking status for %s: %s\n", dev, strerror(errno_save));
+		return -1;
+	}
+
+	if (locking_status) {
+		internal_closetty(dev, fd, 0, 0);
+		ast_verb(1, "Device %s locked.\n", dev);
+		return -1;
+	}
+
+	if (ioctl(fd, TIOCEXCL) < 0) {
+		const int errno_save = errno;
+		internal_closetty(dev, fd, 0, 0);
+		ast_log(LOG_WARNING, "Unable to put %s into exclusive mode: %s\n", dev, strerror(errno_save));
+		return -1;
+	}
+
+	if (flock(fd, LOCK_EX | LOCK_NB) < 0) {
+		const int errno_save = errno;
+		internal_closetty(dev, fd, 1, 0);
+		ast_log(LOG_WARNING, "Unable to flock %s: %s\n", dev, strerror(errno_save));
+		return -1;
+	}
+
+	const int flags = fcntl(fd, F_GETFD);
+	if (flags == -1 || fcntl(fd, F_SETFD, flags | FD_CLOEXEC) < 0) {
+		const int errno_save = errno;
+		internal_closetty(dev, fd, 1, 1);
+		ast_log(LOG_WARNING, "fcntl(F_GETFD/F_SETFD) failed for %s: %s\n", dev, strerror(errno_save));
+		return -1;
+	}
+
+	if (tcgetattr(fd, &term_attr) != 0) {
+		const int errno_save = errno;
+		internal_closetty(dev, fd, 1, 1);
+		ast_log (LOG_WARNING, "tcgetattr() failed for %s: %s\n", dev, strerror(errno_save));
+		return -1;
+	}
+
+	switch(typ) {
+		case 2:
+		term_attr.c_cflag = B115200 | CS8 | CREAD | CLOCAL;
+		break;
+
+		case 1:
+		term_attr.c_cflag = B115200 | CS8 | CREAD | CRTSCTS | CLOCAL;
+		break;
+
+		default:
+		term_attr.c_cflag = B115200 | CS8 | CREAD | CRTSCTS;
+		break;
+	}
+
+	term_attr.c_iflag = 0;
+	term_attr.c_oflag = 0;
+	term_attr.c_lflag = 0;
+	term_attr.c_cc[VMIN] = 1;
+	term_attr.c_cc[VTIME] = 0;
+
+	if (tcsetattr(fd, TCSAFLUSH, &term_attr) != 0) {
+		ast_log (LOG_WARNING, "tcsetattr(TCSAFLUSH) failed for %s: %s\n", dev, strerror(errno));
+	}
+
+	return fd;
+}
+
+#endif
+
 static int pcm_close(snd_pcm_t** ad, snd_pcm_stream_t stream_type)
 {
 	if (*ad == NULL) return 0;
@@ -566,8 +687,13 @@ static int pcm_close(snd_pcm_t** ad, snd_pcm_stream_t stream_type)
 
 static int reopen_audio_port(struct pvt* pvt)
 {
-	closetty(pvt->audio_fd, &pvt->alock);
+#ifdef USE_SYSV_UUCP_LOCKS	
+	closetty(PVT_STATE(pvt, audio_tty), pvt->audio_fd, &pvt->alock);
 	pvt->audio_fd = opentty(PVT_STATE(pvt, audio_tty), &pvt->alock, pvt->is_simcom);
+#else
+	closetty(PVT_STATE(pvt, audio_tty), pvt->audio_fd);
+	pvt->audio_fd = opentty(PVT_STATE(pvt, audio_tty), pvt->is_simcom);
+#endif	
 
 	if (!PVT_NO_CHANS(pvt)) {
 		struct cpvt* cpvt;
@@ -614,10 +740,18 @@ static void disconnect_quectel(struct pvt* pvt)
 		}
     }
 	else {
-		closetty(pvt->audio_fd, &pvt->alock);
+#ifdef USE_SYSV_UUCP_LOCKS
+		closetty(PVT_STATE(pvt, audio_tty), pvt->audio_fd, &pvt->alock);
+#else
+		closetty(PVT_STATE(pvt, audio_tty), pvt->audio_fd);
+#endif		
 	}
 
-	closetty(pvt->data_fd, &pvt->dlock);
+#ifdef USE_SYSV_UUCP_LOCKS
+	closetty(PVT_STATE(pvt, audio_tty), pvt->data_fd, &pvt->dlock);
+#else
+	closetty(PVT_STATE(pvt, audio_tty), pvt->data_fd);
+#endif	
 
 	pvt->data_fd = -1;
 	pvt->audio_fd = -1;
@@ -997,7 +1131,11 @@ static void pvt_start(struct pvt * pvt)
 
 	ast_verb(3, "[%s] Trying to connect on %s...\n", PVT_ID(pvt), PVT_STATE(pvt, data_tty));
 
+#ifdef USE_SYSV_UUCP_LOCKS
 	pvt->data_fd = opentty(PVT_STATE(pvt, data_tty), &pvt->dlock, (CONF_UNIQ(pvt, uac) == TRIBOOL_NONE)? 2 : 0);
+#else
+	pvt->data_fd = opentty(PVT_STATE(pvt, data_tty), (CONF_UNIQ(pvt, uac) == TRIBOOL_NONE)? 2 : 0);
+#endif	
 	if (pvt->data_fd < 0) {
 		return;
 	}
@@ -1009,7 +1147,11 @@ static void pvt_start(struct pvt * pvt)
 	}
 	else {
 		// TODO: delay until device activate voice call or at pvt_on_create_1st_channel()
+#ifdef USE_SYSV_UUCP_LOCKS		
 		pvt->audio_fd = opentty(PVT_STATE(pvt, audio_tty), &pvt->alock, pvt->is_simcom);
+#else
+		pvt->audio_fd = opentty(PVT_STATE(pvt, audio_tty), pvt->is_simcom);
+#endif		
 		if (pvt->audio_fd < 0) {
 			goto cleanup_datafd;
 		}
@@ -1044,10 +1186,20 @@ static void pvt_start(struct pvt * pvt)
 	return;
 
 cleanup_audiofd:
-	if (pvt->audio_fd > 0) closetty(pvt->audio_fd, &pvt->alock);
+	if (pvt->audio_fd > 0) {
+#ifdef USE_SYSV_UUCP_LOCKS
+		closetty(PVT_STATE(pvt, audio_tty), pvt->audio_fd, &pvt->alock);
+#else
+		closetty(PVT_STATE(pvt, audio_tty), pvt->audio_fd);
+#endif		
+	}
 
 cleanup_datafd:
-	closetty(pvt->data_fd, &pvt->dlock);
+#ifdef USE_SYSV_UUCP_LOCKS
+	closetty(PVT_STATE(pvt, data_tty), pvt->data_fd, &pvt->dlock);
+#else
+	closetty(PVT_STATE(pvt, data_tty), pvt->data_fd);
+#endif
 }
 
 #/* */
