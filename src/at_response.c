@@ -338,6 +338,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 
 			case CMD_AT_COPS:
 			case CMD_AT_QSPN:
+			case CMD_AT_CSPN:
 				ast_debug (4, "[%s] Successfull provider query\n", PVT_ID(pvt));
 				break;
 
@@ -690,6 +691,7 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 
 			case CMD_AT_COPS:
 			case CMD_AT_QSPN:
+			case CMD_AT_CSPN:
 				ast_debug(1, "[%s] Could not get provider name\n", PVT_ID(pvt));
 				break;
 
@@ -1183,7 +1185,7 @@ static int at_response_qind(struct pvt* pvt, char* str)
 
 			if (act) {
 				if (pvt->is_simcom) {
-					if (at_enqueue_cops(&pvt->sys_chan)) {
+					if (at_enqueue_cspn_cops(&pvt->sys_chan)) {
 						ast_log(LOG_WARNING, "[%s] Error sending query for provider name\n", PVT_ID(pvt));
 					}
 				}
@@ -1842,28 +1844,28 @@ static int at_response_cnum (struct pvt* pvt, char* str)
 
 static int at_response_cops(struct pvt* pvt, char* str)
 {
-	char* provider_name = at_parse_cops(str);
+	const char* const operator = at_parse_cops(str);
 
-	if (!provider_name) {
+	if (!operator) {
 		ast_string_field_set(pvt, provider_name, "NONE");
-		ast_verb(1, "[%s] Provider name: %s\n", PVT_ID(pvt), pvt->provider_name);
+		ast_verb(1, "[%s] Operator: %s\n", PVT_ID(pvt), pvt->network_name);
 		return -1;
 	}
 
 
-	ast_string_field_set(pvt, provider_name, provider_name);
-	ast_verb(1, "[%s] Provider name: %s\n", PVT_ID(pvt), pvt->provider_name);
+	ast_string_field_set(pvt, network_name, operator);
+	ast_verb(1, "[%s] Operator: %s\n", PVT_ID(pvt), pvt->network_name);
 	return 0;
 }
 
-static int at_response_qspn(struct pvt* pvt, char* str)
+static int at_response_qspn(struct pvt* pvt, const struct ast_str* const response)
 {
 	char* fnn; // full network name
 	char* snn; // short network name
 	char* spn; // service provider name
 
-	if (at_parse_qspn(str, &fnn, &snn, &spn)) {
-		ast_log(LOG_ERROR, "[%s] Error parsing QSPN response - '%s'", PVT_ID(pvt), str);
+	if (at_parse_qspn(ast_str_buffer(response), &fnn, &snn, &spn)) {
+		ast_log(LOG_ERROR, "[%s] Error parsing QSPN response - '%s'", PVT_ID(pvt), ast_str_buffer(response));
 		return -1;
 	}
 
@@ -1872,6 +1874,20 @@ static int at_response_qspn(struct pvt* pvt, char* str)
 	ast_string_field_set(pvt, network_name, fnn);
 	ast_string_field_set(pvt, short_network_name, snn);
 	ast_string_field_set(pvt, provider_name, spn);
+	return 0;
+}
+
+static int at_response_cspn(struct pvt* pvt, const struct ast_str* const response)
+{
+	char* spn; // service provider name
+
+	if (at_parse_cspn(ast_str_buffer(response), &spn)) {
+		ast_log(LOG_ERROR, "[%s] Error parsing CSPN response - '%s'", PVT_ID(pvt), ast_str_buffer(response));
+		return -1;
+	}
+
+	ast_string_field_set(pvt, provider_name, spn);
+	ast_verb(1, "[%s] Service provider: %s\n", PVT_ID(pvt), pvt->provider_name);
 	return 0;
 }
 
@@ -1921,7 +1937,7 @@ static int at_response_creg(struct pvt* pvt, char* str, size_t len)
 
 	if (gsm_reg) {
 		if (pvt->is_simcom) {
-			if (at_enqueue_cops(&pvt->sys_chan)) {
+			if (at_enqueue_cspn_cops(&pvt->sys_chan)) {
 				ast_log(LOG_WARNING, "[%s] Error sending query for provider name\n", PVT_ID(pvt));
 			}
 		}
@@ -2635,7 +2651,11 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 				return 0;
 
 			case RES_QSPN:
-				at_response_qspn(pvt, str);
+				at_response_qspn(pvt, result);
+				return 0;
+
+			case RES_CSPN:
+				at_response_cspn(pvt, result);
 				return 0;
 
 			case RES_QNWINFO:

@@ -375,12 +375,16 @@ int at_enqueue_initialization_other(struct cpvt *cpvt)
  * \return 0 on success
  */
 
-int at_enqueue_cops(struct cpvt *cpvt)
+int at_enqueue_cspn_cops(struct cpvt *cpvt)
 {
-	static const char cmd[] = "AT+COPS?\r";
-	static at_queue_cmd_t at_cmd = ATQ_CMD_DECLARE_ST(CMD_AT_COPS, cmd);
+	static const char cmd_cspn[] = "AT+CSPN?\r";
+	static const char cmd_cops[] = "AT+COPS?\r";
+	static at_queue_cmd_t at_cmds[] = {
+		ATQ_CMD_DECLARE_STI(CMD_AT_CSPN, cmd_cspn),
+		ATQ_CMD_DECLARE_STI(CMD_AT_COPS, cmd_cops)
+	};
 
-	if (at_queue_insert_const(cpvt, &at_cmd, 1, 0) != 0) {
+	if (at_queue_insert_const(cpvt, at_cmds, ITEMS_OF(at_cmds), 0) != 0) {
 		chan_quectel_err = E_QUEUE;
 		return -1;
 	}

@@ -69,6 +69,7 @@ struct iovec;
 	_( RCEND,       "CALLEND",      "REMOTE CALL END") \
 	_( CCWA,        "+CCWA",        "+CCWA:") \
 	_( QSPN,        "+QSPN",        "+QSPN:") \
+	_( CSPN,        "+CSPN",        "+CSPN:") \
 	_( QNWINFO,		"+QNWINFO",		"+QNWINFO:") \
 	_( QTONEDET,	"+QTONEDET",	"+QTONEDET:") \
 	_( RXDTMF,		"+RXDTMF",		"+RXDTMF:") \

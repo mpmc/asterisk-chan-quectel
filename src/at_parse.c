@@ -184,6 +184,28 @@ int at_parse_qspn(char* str, char** fnn, char** snn, char** spn)
 	return -1;
 }
 
+int at_parse_cspn(char* str, char** spn)
+{
+	/*
+		+CSPN: <spn>,<display mode>
+	*/
+
+	static const char delimiters[] = ":,";
+	char* marks[STRLEN(delimiters)];
+
+	if (mark_line(str, delimiters, marks) == ITEMS_OF(marks)) {
+		marks[0]++;
+
+		marks[1][0] = '\000';
+		marks[1]++;
+
+		*spn = strip_quoted(marks[0]);
+		return 0;
+	}
+
+	return -1;
+}
+
 static int act2int(const char* act)
 {
 	static const struct {
