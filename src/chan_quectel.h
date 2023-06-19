@@ -164,6 +164,7 @@ typedef struct pvt
 		AST_STRING_FIELD(firmware);
 		AST_STRING_FIELD(imei);
 		AST_STRING_FIELD(imsi);
+		AST_STRING_FIELD(iccid);
 		AST_STRING_FIELD(network_name);
 		AST_STRING_FIELD(short_network_name);
 		AST_STRING_FIELD(provider_name);

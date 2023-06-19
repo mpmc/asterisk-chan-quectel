@@ -65,5 +65,6 @@ int at_parse_cring(char*, char**);
 int at_parse_psnwid(char*, int*, int*, char**, char**);
 int at_parse_psuttz(char*, int*, int*, int*, int*, int*, int*, int*, int*);
 int at_parse_revision(char*, char**);
+int at_parse_xccid(char*, char**);
 
 #endif /* CHAN_QUECTEL_AT_PARSE_H_INCLUDED */

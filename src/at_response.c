@@ -441,6 +441,15 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				ast_debug(2, "[%s] Tone duration updated\n", PVT_ID(pvt));
 				break;
 
+			case CMD_AT_CCID:
+				ast_debug(3, "[%s] ICCID obtained\n", PVT_ID(pvt));
+				break;
+
+			case CMD_AT_CICCID:
+			case CMD_AT_QCCID:
+				ast_debug(3, "[%s] ICCID obtained\n", PVT_ID(pvt));
+				break;
+
 			case CMD_USER:
 				break;
 
@@ -776,7 +785,16 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 
 			case CMD_AT_VTD:
 				ast_log(LOG_WARNING, "[%s] Could not set tone duration\n", PVT_ID(pvt));
-				break;			
+				break;
+
+			case CMD_AT_CCID:
+				ast_log(LOG_WARNING, "[%s] Could not get ICCID\n", PVT_ID(pvt));
+				break;
+
+			case CMD_AT_CICCID:
+			case CMD_AT_QCCID:
+				ast_log(LOG_WARNING, "[%s] Could not get ICCID\n", PVT_ID(pvt));
+				break;
 
 			case CMD_USER:
 				break;
@@ -1940,33 +1958,33 @@ static int at_response_creg(struct pvt* pvt, char* str, size_t len)
 /*!
  * \brief Handle AT+CGMI response
  * \param pvt -- pvt structure
- * \param str -- string containing response (null terminated)
+ * \param response -- string containing response
  * \param len -- string lenght
  * \retval  0 success
  * \retval -1 error
  */
 
-static int at_response_cgmi(struct pvt* pvt, const char* str)
+static int at_response_cgmi(struct pvt* pvt, const struct ast_str* const response)
 {
 	static const char MANUFACTURER_QUECTEL[] = "Quectel";
 	static const char MANUFACTURER_SIMCOM[] = "SimCom";
 
-	ast_string_field_set(pvt, manufacturer, str);
+	ast_string_field_set(pvt, manufacturer, ast_str_buffer(response));
 
-	if (!strncasecmp(str, MANUFACTURER_QUECTEL, STRLEN(MANUFACTURER_QUECTEL))) {
+	if (!strncasecmp(ast_str_buffer(response), MANUFACTURER_QUECTEL, STRLEN(MANUFACTURER_QUECTEL))) {
 		ast_verb(1, "[%s] Quectel module\n", PVT_ID(pvt));
 		pvt->is_simcom = 0;
 		pvt->has_voice = 0;
 		return at_enqueue_initialization_quectel(&pvt->sys_chan);
 	}
-	else if (!strncasecmp(str, MANUFACTURER_SIMCOM, STRLEN(MANUFACTURER_SIMCOM))) {
+	else if (!strncasecmp(ast_str_buffer(response), MANUFACTURER_SIMCOM, STRLEN(MANUFACTURER_SIMCOM))) {
 		ast_verb(1, "[%s] SimCOM module\n", PVT_ID(pvt));
 		pvt->is_simcom = 1;
 		pvt->has_voice = 0;
 		return at_enqueue_initialization_simcom(&pvt->sys_chan);
 	}
 	else {
-		ast_log(LOG_WARNING, "[%s] Unknown module manufacturer: %s", PVT_ID(pvt), str);
+		ast_log(LOG_WARNING, "[%s] Unknown module manufacturer: %s", PVT_ID(pvt), ast_str_buffer(response));
 		pvt->has_voice = 0;
 		return at_enqueue_initialization_other(&pvt->sys_chan);
 	}
@@ -1977,16 +1995,16 @@ static int at_response_cgmi(struct pvt* pvt, const char* str)
 /*!
  * \brief Handle AT+CGMM response
  * \param pvt -- pvt structure
- * \param str -- string containing response (null terminated)
+ * \param response -- string containing response
  * \param len -- string lenght
  * \retval  0 success
  * \retval -1 error
  */
 
 #/* */
-static int at_response_cgmm (struct pvt* pvt, const char* str)
+static int at_response_cgmm(struct pvt* pvt, const struct ast_str* const response)
 {
-	ast_string_field_set(pvt, model, str);
+	ast_string_field_set(pvt, model, ast_str_buffer(response));
 
 	return 0;
 }
@@ -1994,15 +2012,15 @@ static int at_response_cgmm (struct pvt* pvt, const char* str)
 /*!
  * \brief Handle AT+CGMR response
  * \param pvt -- pvt structure
- * \param str -- string containing response (null terminated)
+ * \param response -- string containing response
  * \param len -- string lenght
  * \retval  0 success
  * \retval -1 error
  */
 
-static int at_response_cgmr (struct pvt* pvt, const char* str)
+static int at_response_cgmr(struct pvt* pvt, const struct ast_str* const response)
 {
-	ast_string_field_set(pvt, firmware, str);
+	ast_string_field_set(pvt, firmware, ast_str_buffer(response));
 
 	return 0;
 }
@@ -2010,15 +2028,15 @@ static int at_response_cgmr (struct pvt* pvt, const char* str)
 /*!
  * \brief Handle AT+CGSN response
  * \param pvt -- pvt structure
- * \param str -- string containing response (null terminated)
+ * \param response -- string containing response
  * \param len -- string lenght
  * \retval  0 success
  * \retval -1 error
  */
 
-static int at_response_cgsn (struct pvt* pvt, const char* str)
+static int at_response_cgsn(struct pvt* pvt, const struct ast_str* const response)
 {
-	ast_string_field_set(pvt, imei, str);
+	ast_string_field_set(pvt, imei, ast_str_buffer(response));
 
 	return 0;
 }
@@ -2026,16 +2044,35 @@ static int at_response_cgsn (struct pvt* pvt, const char* str)
 /*!
  * \brief Handle AT+CIMI response
  * \param pvt -- pvt structure
- * \param str -- string containing response (null terminated)
+ * \param response -- string containing response
  * \param len -- string lenght
  * \retval  0 success
  * \retval -1 error
  */
 
-static int at_response_cimi (struct pvt* pvt, const char* str)
+static int at_response_cimi(struct pvt* pvt, const struct ast_str* const response)
 {
-	ast_string_field_set(pvt, imsi, str);
+	ast_string_field_set(pvt, imsi, ast_str_buffer(response));
 
+	return 0;
+}
+
+static int at_response_ccid(struct pvt* pvt, const struct ast_str* const response)
+{
+	ast_string_field_set(pvt, iccid, ast_str_buffer(response));
+
+	return 0;
+}
+
+static int at_response_xccid(struct pvt* pvt, const struct ast_str* const response)
+{
+	char* ccid;
+	if (at_parse_xccid(ast_str_buffer(response), &ccid)) {
+		ast_log(LOG_ERROR, "[%s] Error parsing CCID: '%s'\n", PVT_ID(pvt), ast_str_buffer(response));
+		return 0;
+	}
+
+	ast_string_field_set(pvt, iccid, ccid);
 	return 0;
 }
 
@@ -2766,29 +2803,38 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 			case RES_REVISION:
 				return at_response_revision(pvt, result);
 
+			case RES_ICCID:
+			case RES_QCCID:
+				return at_response_xccid(pvt, result);
+
 			case RES_UNKNOWN:
 				if (ecmd) {
 					switch (ecmd->cmd)
 					{
 						case CMD_AT_CGMI:
-							ast_debug (1, "[%s] Got AT_CGMI data (manufacturer info)\n", PVT_ID(pvt));
-							return at_response_cgmi (pvt, str);
+							ast_debug(2, "[%s] Got manufacturer info\n", PVT_ID(pvt));
+							return at_response_cgmi(pvt, result);
 
 						case CMD_AT_CGMM:
-							ast_debug (1, "[%s] Got AT_CGMM data (model info)\n", PVT_ID(pvt));
-							return at_response_cgmm (pvt, str);
+							ast_debug(2, "[%s] Got model info\n", PVT_ID(pvt));
+							return at_response_cgmm(pvt, result);
 
 						case CMD_AT_CGMR:
-							ast_debug (1, "[%s] Got AT+CGMR data (firmware info)\n", PVT_ID(pvt));
-							return at_response_cgmr (pvt, str);
+							ast_debug(2, "[%s] Got firmware info\n", PVT_ID(pvt));
+							return at_response_cgmr(pvt, result);
 
 						case CMD_AT_CGSN:
-							ast_debug (1, "[%s] Got AT+CGSN data (IMEI number)\n", PVT_ID(pvt));
-							return at_response_cgsn (pvt, str);
+							ast_debug(2, "[%s] Got IMEI number\n", PVT_ID(pvt));
+							return at_response_cgsn(pvt, result);
 
 						case CMD_AT_CIMI:
-							ast_debug (1, "[%s] Got AT+CIMI data (IMSI number)\n", PVT_ID(pvt));
-							return at_response_cimi (pvt, str);
+							ast_debug(2, "[%s] Got IMSI number\n", PVT_ID(pvt));
+							return at_response_cimi(pvt, result);
+
+						case CMD_AT_CCID:
+							ast_debug(2, "[%s] Got ICCID number\n", PVT_ID(pvt));
+							return at_response_ccid(pvt, result);
+
 						default:
 							break;
 					}

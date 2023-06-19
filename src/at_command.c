@@ -291,6 +291,8 @@ int at_enqueue_initialization_quectel(struct cpvt *cpvt)
 	static const char cmd_at_qtonedet_0[] = "AT+QTONEDET=0\r";
 	static const char cmd_at_qtonedet_1[] = "AT+QTONEDET=1\r";
 
+	static const char cmd_at_qccid[] = "AT+QCCID\r";
+
 	static const at_queue_cmd_t tonedet_cmds[] = {
 		ATQ_CMD_DECLARE_STI(CMD_AT_QTONEDET_0, cmd_at_qtonedet_0),
 		ATQ_CMD_DECLARE_STI(CMD_AT_QTONEDET_1, cmd_at_qtonedet_1),
@@ -302,6 +304,8 @@ int at_enqueue_initialization_quectel(struct cpvt *cpvt)
 	const unsigned int dtmf = CONF_SHARED(pvt, dtmf);
 
 	const at_queue_cmd_t cmds[] = {
+		ATQ_CMD_DECLARE_STI(CMD_AT_QCCID, cmd_at_qccid),
+		ATQ_CMD_DECLARE_STI(CMD_AT_QTONEDET_1, cmd_at_qtonedet_1),
 		ATQ_CMD_DECLARE_ST(CMD_AT_CVOICE, cmd_qpcmv),				/* read the current voice mode, and return sampling rate、data bit、frame period */
 		ATQ_CMD_DECLARE_ST(CMD_AT_QINDCFG_CC, cmd_at_qindcfg_cc),
 		ATQ_CMD_DECLARE_ST(CMD_AT_QINDCFG_CSQ, cmd_at_qindcfg_csq),
@@ -317,6 +321,9 @@ int at_enqueue_initialization_quectel(struct cpvt *cpvt)
 
 int at_enqueue_initialization_simcom(struct cpvt *cpvt)
 {
+	static const char cmd_at_ccid[] = "AT+CCID\r";
+	static const char cmd_at_ciccid[] = "AT+CICCID\r";
+
 	static const char cmd_cpcmreg[] = "AT+CPCMREG?\r";
 	static const char cmd_clcc_1[] = "AT+CLCC=1\r";
 	static const char cmd_cnsmod_1[] = "AT+CNSMOD=1\r";
@@ -337,6 +344,8 @@ int at_enqueue_initialization_simcom(struct cpvt *cpvt)
 	const unsigned int dtmf = CONF_SHARED(pvt, dtmf);
 
 	const at_queue_cmd_t cmds[] = {
+		ATQ_CMD_DECLARE_STI(CMD_AT_CCID, cmd_at_ccid),
+		ATQ_CMD_DECLARE_STI(CMD_AT_CICCID, cmd_at_ciccid),		
 		ATQ_CMD_DECLARE_STI(CMD_AT_CPCMREG, cmd_cpcmreg),
 		ATQ_CMD_DECLARE_ST(CMD_AT_CLCC, cmd_clcc_1),
 		ATQ_CMD_DECLARE_ST(CMD_AT_CREG_INIT, cmd_creg_init),

@@ -1339,8 +1339,7 @@ static void set_channel_vars(struct pvt* pvt, struct ast_channel* channel)
 	char mnc[20]; // mobile network code
 	snprintf(mnc, ITEMS_OF(mnc), "%02d", pvt->operator % 100);
 
-	const channel_var_t dev_vars[] =
-	{
+	const channel_var_t dev_vars[] = {
 		{ "QUECTELNAME", PVT_ID(pvt) },
 		{ "QUECTELNETWORKNAME", pvt->network_name },
 		{ "QUECTELSHORTNETWORKNAME", pvt->short_network_name },
@@ -1350,6 +1349,7 @@ static void set_channel_vars(struct pvt* pvt, struct ast_channel* channel)
 		{ "QUECTELMNC", mnc },
 		{ "QUECTELIMEI", pvt->imei },
 		{ "QUECTELIMSI", pvt->imsi },
+		{ "QUECTELICCID", pvt->iccid },
 		{ "QUECTELNUMBER", pvt->subscriber_number },
 	};
 

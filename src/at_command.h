@@ -113,6 +113,9 @@
 	_( AT_CPCMFRM_8K,	"AT+CPCMFRM=0") \
 	_( AT_CPCMFRM_16K,  "AT+CPCMFRM=1") \
 	_( AT_VTD,			"AT+VTD") \
+	_( AT_CCID,			"AT+CCID") \
+	_( AT_CICCID,		"AT+CICCID") \
+	_( AT_QCCID,		"AT+QCCID") \
 /* AT_COMMANDS_TABLE */
 
 typedef enum {

@@ -772,6 +772,7 @@ static void disconnect_quectel(struct pvt* pvt)
 	ast_string_field_set(pvt, firmware, NULL);
 	ast_string_field_set(pvt, imei, NULL);
 	ast_string_field_set(pvt, imsi, NULL);
+	ast_string_field_set(pvt, iccid, NULL);
 	ast_string_field_set(pvt, location_area_code, NULL);
 	ast_string_field_set(pvt, network_name, NULL);
 	ast_string_field_set(pvt, short_network_name, NULL);
@@ -1518,215 +1519,190 @@ struct pvt * find_device_by_resource_ex(struct public_state * state, const char 
 	/* Find requested device and make sure it's connected and initialized. */
 	AST_RWLIST_RDLOCK(&state->devices);
 
-	if (((resource[0] == 'g') || (resource[0] == 'G')) && ((resource[1] >= '0') && (resource[1] <= '9')))
-	{
+	if (((resource[0] == 'g') || (resource[0] == 'G')) && ((resource[1] >= '0') && (resource[1] <= '9'))) {
 		errno = 0;
-		group = (int) strtol (&resource[1], (char**) NULL, 10);
-		if (errno != EINVAL)
-		{
-			AST_RWLIST_TRAVERSE(&state->devices, pvt, entry)
-			{
-				ast_mutex_lock (&pvt->lock);
+		group = (int)strtol(&resource[1], (char**) NULL, 10);
+		if (errno != EINVAL) {
+			AST_RWLIST_TRAVERSE(&state->devices, pvt, entry) {
+				ast_mutex_lock(&pvt->lock);
 
-				if (CONF_SHARED(pvt, group) == group)
-				{
+				if (CONF_SHARED(pvt, group) == group) {
 					*exists = 1;
-					if(can_dial(pvt, opts, requestor))
-					{
+					if (can_dial(pvt, opts, requestor)) {
 						found = pvt;
 						break;
 					}
 				}
-				ast_mutex_unlock (&pvt->lock);
+				ast_mutex_unlock(&pvt->lock);
 			}
 		}
 	}
-	else if (((resource[0] == 'r') || (resource[0] == 'R')) && ((resource[1] >= '0') && (resource[1] <= '9')))
-	{
+	else if (((resource[0] == 'r') || (resource[0] == 'R')) && ((resource[1] >= '0') && (resource[1] <= '9'))) {
 		errno = 0;
-		group = (int) strtol (&resource[1], (char**) NULL, 10);
-		if (errno != EINVAL)
-		{
+		group = (int)strtol(&resource[1], (char**) NULL, 10);
+		if (errno != EINVAL) {
 			/* Generate a list of all available devices */
 			j = ITEMS_OF (round_robin);
 			c = 0; last_used = 0;
-			AST_RWLIST_TRAVERSE(&state->devices, pvt, entry)
-			{
-				ast_mutex_lock (&pvt->lock);
-				if (CONF_SHARED(pvt, group) == group)
-				{
+			AST_RWLIST_TRAVERSE(&state->devices, pvt, entry) {
+				ast_mutex_lock(&pvt->lock);
+				if (CONF_SHARED(pvt, group) == group) {
 					round_robin[c] = pvt;
-					if (pvt->group_last_used == 1)
-					{
+					if (pvt->group_last_used == 1) {
 						pvt->group_last_used = 0;
 						last_used = c;
 					}
 
-					c++;
+					++c;
 
-					if (c == j)
-					{
-						ast_mutex_unlock (&pvt->lock);
+					if (c == j) {
+						ast_mutex_unlock(&pvt->lock);
 						break;
 					}
 				}
-				ast_mutex_unlock (&pvt->lock);
+				ast_mutex_unlock(&pvt->lock);
 			}
 
 			/* Search for a available device starting at the last used device */
-			for (i = 0, j = last_used + 1; i < c; i++, j++)
-			{
-				if (j == c)
-				{
+			for (i = 0, j = last_used + 1; i < c; i++, j++) {
+				if (j == c) {
 					j = 0;
 				}
 
 				pvt = round_robin[j];
 				*exists = 1;
 
-				ast_mutex_lock (&pvt->lock);
-				if (can_dial(pvt, opts, requestor))
-				{
+				ast_mutex_lock(&pvt->lock);
+				if (can_dial(pvt, opts, requestor)) {
 					pvt->group_last_used = 1;
 					found = pvt;
 					break;
 				}
-				ast_mutex_unlock (&pvt->lock);
+				ast_mutex_unlock(&pvt->lock);
 			}
 		}
 	}
-	else if (((resource[0] == 'p') || (resource[0] == 'P')) && resource[1] == ':')
-	{
+	else if (((resource[0] == 'p') || (resource[0] == 'P')) && resource[1] == ':') {
 		/* Generate a list of all available devices */
 		j = ITEMS_OF(round_robin);
 		c = 0; last_used = 0;
-		AST_RWLIST_TRAVERSE(&state->devices, pvt, entry)
-		{
-			ast_mutex_lock (&pvt->lock);
-			if (!strcmp (pvt->provider_name, &resource[2]))
-			{
+		AST_RWLIST_TRAVERSE(&state->devices, pvt, entry) {
+			ast_mutex_lock(&pvt->lock);
+			if (!strcmp (pvt->provider_name, &resource[2])) {
 				round_robin[c] = pvt;
-				if (pvt->prov_last_used == 1)
-				{
+				if (pvt->prov_last_used == 1) {
 					pvt->prov_last_used = 0;
 					last_used = c;
 				}
 
-				c++;
+				++c;
 
-				if (c == j)
-				{
-					ast_mutex_unlock (&pvt->lock);
+				if (c == j) {
+					ast_mutex_unlock(&pvt->lock);
 					break;
 				}
 			}
-			ast_mutex_unlock (&pvt->lock);
+			ast_mutex_unlock(&pvt->lock);
 		}
 
 		/* Search for a available device starting at the last used device */
-		for (i = 0, j = last_used + 1; i < c; i++, j++)
-		{
-			if (j == c)
-			{
+		for (i = 0, j = last_used + 1; i < c; ++i, ++j) {
+			if (j == c) {
 				j = 0;
 			}
 
 			pvt = round_robin[j];
 			*exists = 1;
 
-			ast_mutex_lock (&pvt->lock);
-			if (can_dial(pvt, opts, requestor))
-			{
+			ast_mutex_lock(&pvt->lock);
+			if (can_dial(pvt, opts, requestor)) {
 				pvt->prov_last_used = 1;
 				found = pvt;
 				break;
 			}
-			ast_mutex_unlock (&pvt->lock);
+			ast_mutex_unlock(&pvt->lock);
 		}
 	}
-	else if (((resource[0] == 's') || (resource[0] == 'S')) && resource[1] == ':')
-	{
+	else if (((resource[0] == 's') || (resource[0] == 'S')) && resource[1] == ':') {
 		/* Generate a list of all available devices */
 		j = ITEMS_OF(round_robin);
 		c = 0; last_used = 0;
 		i = strlen (&resource[2]);
 
-		AST_RWLIST_TRAVERSE(&state->devices, pvt, entry)
-		{
-			ast_mutex_lock (&pvt->lock);
-			if (!strncmp (pvt->imsi, &resource[2], i))
-			{
+		AST_RWLIST_TRAVERSE(&state->devices, pvt, entry) {
+			ast_mutex_lock(&pvt->lock);
+			if (!strncmp (pvt->imsi, &resource[2], i)) {
 				round_robin[c] = pvt;
-				if (pvt->sim_last_used == 1)
-				{
+				if (pvt->sim_last_used == 1) {
 					pvt->sim_last_used = 0;
 					last_used = c;
 				}
 
-				c++;
+				++c;
 
-				if (c == j)
-				{
-					ast_mutex_unlock (&pvt->lock);
+				if (c == j) {
+					ast_mutex_unlock(&pvt->lock);
 					break;
 				}
 			}
-			ast_mutex_unlock (&pvt->lock);
+			ast_mutex_unlock(&pvt->lock);
 		}
 
 		/* Search for a available device starting at the last used device */
-		for (i = 0, j = last_used + 1; i < c; i++, j++)
-		{
-			if (j == c)
-			{
+		for (i = 0, j = last_used + 1; i < c; ++i, ++j) {
+			if (j == c) {
 				j = 0;
 			}
 
 			pvt = round_robin[j];
 			*exists = 1;
 
-			ast_mutex_lock (&pvt->lock);
-			if (can_dial(pvt, opts, requestor))
-			{
+			ast_mutex_lock(&pvt->lock);
+			if (can_dial(pvt, opts, requestor)) {
 				pvt->sim_last_used = 1;
 				found = pvt;
 				break;
 			}
-			ast_mutex_unlock (&pvt->lock);
+			ast_mutex_unlock(&pvt->lock);
 		}
 	}
-	else if (((resource[0] == 'i') || (resource[0] == 'I')) && resource[1] == ':')
-	{
-		AST_RWLIST_TRAVERSE(&state->devices, pvt, entry)
-		{
-			ast_mutex_lock (&pvt->lock);
-			if (!strcmp(pvt->imei, &resource[2]))
-			{
+	else if (((resource[0] == 'i') || (resource[0] == 'I')) && resource[1] == ':') {
+		AST_RWLIST_TRAVERSE(&state->devices, pvt, entry) {
+			ast_mutex_lock(&pvt->lock);
+			if (!strcmp(pvt->imei, &resource[2])) {
 				*exists = 1;
-				if(can_dial(pvt, opts, requestor))
-				{
+				if (can_dial(pvt, opts, requestor)) {
 					found = pvt;
 					break;
 				}
 			}
-			ast_mutex_unlock (&pvt->lock);
+			ast_mutex_unlock(&pvt->lock);
 		}
 	}
-	else
-	{
-		AST_RWLIST_TRAVERSE(&state->devices, pvt, entry)
-		{
-			ast_mutex_lock (&pvt->lock);
-			if (!strcmp (PVT_ID(pvt), resource))
-			{
+	else if (((resource[0] == 'j') || (resource[0] == 'J')) && resource[1] == ':') {
+		AST_RWLIST_TRAVERSE(&state->devices, pvt, entry) {
+			ast_mutex_lock(&pvt->lock);
+			if (!strcmp(pvt->iccid, &resource[2])) {
 				*exists = 1;
-				if(can_dial(pvt, opts, requestor))
-				{
+				if (can_dial(pvt, opts, requestor)) {
 					found = pvt;
 					break;
 				}
 			}
-			ast_mutex_unlock (&pvt->lock);
+			ast_mutex_unlock(&pvt->lock);
+		}
+	}	
+	else {
+		AST_RWLIST_TRAVERSE(&state->devices, pvt, entry) {
+			ast_mutex_lock(&pvt->lock);
+			if (!strcmp (PVT_ID(pvt), resource)) {
+				*exists = 1;
+				if(can_dial(pvt, opts, requestor)) {
+					found = pvt;
+					break;
+				}
+			}
+			ast_mutex_unlock(&pvt->lock);
 		}
 	}
 
@@ -1918,7 +1894,7 @@ static struct pvt * pvt_create(const pvt_config_t * settings)
 		pvt->gsm_reg_status		= -1;
 		pvt->incoming_sms_index	= -1;
 
-		ast_string_field_init(pvt, 14);
+		ast_string_field_init(pvt, 15);
 
 		ast_string_field_set(pvt, provider_name, "NONE");
 		ast_string_field_set(pvt, subscriber_number, "Unknown");

@@ -229,6 +229,18 @@ Supported modules:
     * Reorganized, improved and simplified code.
 
 * Fixed USSD sending/receiving.
+* Getting `ICCID` from SIM card.
+
+    `IICD`: Integrated Circuit Card Identifier.
+
+    It is possible to address device by `ICCID` (`j:` prefix):
+
+    ```
+    exten => s,n,Dial(Quectel/j:898600700907A6019125/+79139131234)
+    ```
+
+    Additional variable `QUECTELICCID` is also defined.
+
 * Using [`CMake` build system](//github.com/RoEdAl/asterisk-chan-quectel/wiki/Building).
 * Improved debug messages.
 

@@ -1470,3 +1470,13 @@ int at_parse_revision(char* str, char** rev)
 	*rev = t;
 	return 0;
 }
+
+int at_parse_xccid(char* str, char** ccid)
+{
+	char* t = ast_strsep(&str, ':', 0);
+	if (!t) return -1;
+	t = ast_strsep(&str, ':', AST_STRSEP_STRIP);
+	if (!t) return -1;
+	*ccid = t;
+	return 0;
+}

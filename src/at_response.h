@@ -92,6 +92,8 @@ struct iovec;
 	_( PSUTTZ,		"*PSUTTZ",		"*PSUTTZ:") \
 	_( DST,			"DST",			"DST:") \
 	_( REVISION,	"Revision",		"Revision:") \
+	_( ICCID,		"+ICCID",		"+ICCID:") \
+	_( QCCID,		"+QCCID",		"+QCCID:") \
 
 /* AT_RESPONSES_TABLE */
 
@@ -104,7 +106,7 @@ typedef enum {
 
 	/* Hackish way to maintain MAX and MIN responses for compatibility */
 	RES_MIN = RES_PARSE_ERROR,
-	RES_MAX = RES_REVISION,
+	RES_MAX = RES_QCCID,
 } at_res_t;
 
 /*! response description */
