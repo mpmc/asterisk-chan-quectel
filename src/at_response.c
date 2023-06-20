@@ -2422,7 +2422,7 @@ static int at_response_cnsmod(struct pvt* pvt, const struct ast_str* const respo
 		return -1;
 	}
 
-	if (act >=0) {
+	if (act >= 0) {
 		ast_verb(1, "[%s] Access technology: %s\n", PVT_ID(pvt), sys_act2str(act));
 		pvt_set_act(pvt, act);
 	}

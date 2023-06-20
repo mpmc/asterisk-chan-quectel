@@ -61,7 +61,7 @@ int at_parse_qaudloop(const char*, int*);
 int at_parse_qaudmod(const char*, int*);
 int at_parse_cgmr(const char*, char**);
 int at_parse_cpcmreg(const char*, int*);
-int at_parse_cnsmod(const char*, int*);
+int at_parse_cnsmod(char*, int*);
 int at_parse_cring(char*, char**);
 int at_parse_psnwid(char*, int*, int*, char**, char**);
 int at_parse_psuttz(char*, int*, int*, int*, int*, int*, int*, int*, int*);

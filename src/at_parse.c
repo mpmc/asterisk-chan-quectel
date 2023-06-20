@@ -1339,15 +1339,29 @@ int at_parse_cpcmreg(const char* str, int* pcmreg)
 	return sscanf(str, "+CPCMREG:%d,", pcmreg) == 1 ? 0 : -1;
 }
 
-int at_parse_cnsmod(const char* str, int* act)
+int at_parse_cnsmod(char* str, int* act)
 {
 	/*
 		Example:
 
 		+CNSMOD: 8
+		+CNSMOD: 1,7
 	*/
 
-	return sscanf(str, "+CNSMOD:%d,", act) == 1 ? 0 : -1;
+	const char* act_str = NULL;
+
+	const char* t = ast_strsep(&str, ':', 0);
+	if (!t) return -1;
+	t = ast_strsep(&str, ',', AST_STRSEP_TRIM);
+	if (!t) return -1;
+	act_str = t;
+	t = ast_strsep(&str, ',', AST_STRSEP_TRIM);
+	if (t) {
+		act_str = t;
+	}
+
+	if (!act_str) return -1;
+	return sscanf(act_str, "%d", act) == 1 ? 0 : -1;
 }
 
 int at_parse_cring(char* str, char** ring_type)
