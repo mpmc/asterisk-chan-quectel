@@ -237,7 +237,7 @@ static char* cli_show_device_state (struct ast_cli_entry* e, int cmd, struct ast
 		ast_cli (a->fd, "  Band                    : %s\n", pvt->band);
 		ast_cli (a->fd, "  Location area code      : %s\n", pvt->location_area_code);
 		ast_cli (a->fd, "  Cell ID                 : %s\n", pvt->cell_id);
-		ast_cli (a->fd, "  Subscriber Number       : %s\n", pvt->subscriber_number);
+		ast_cli (a->fd, "  Subscriber Number       : %s\n", S_OR(pvt->subscriber_number, "Unknown"));
 		ast_cli (a->fd, "  SMS Service Center      : %s\n", pvt->sms_scenter);
 		if (CONF_SHARED(pvt, query_time))
 		ast_cli (a->fd, "  Module time             : %s\n", pvt->module_time);

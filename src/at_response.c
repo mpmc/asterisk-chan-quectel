@@ -1815,22 +1815,19 @@ static int at_response_csqn(struct pvt* pvt, const struct ast_str* const respons
  * \retval -1 error
  */
 
-static int at_response_cnum (struct pvt* pvt, char* str)
+static int at_response_cnum(struct pvt* pvt, char* str)
 {
-	char* number = at_parse_cnum (str);
+	const char* const number = at_parse_cnum(str);
 
-	if (number)
-	{
-		ast_string_field_set(pvt, subscriber_number, number);
-		if(pvt->subscriber_number[0] != 0)
-			pvt->has_subscriber_number = 1;
-		return 0;
+	if (!number || !*number) {
+		ast_string_field_set(pvt, subscriber_number, NULL);
+		pvt->has_subscriber_number = 0;
+		return -1;
 	}
 
-	ast_string_field_set(pvt, subscriber_number, "Unknown");
-	pvt->has_subscriber_number = 0;
-
-	return -1;
+	ast_string_field_set(pvt, subscriber_number, number);
+	pvt->has_subscriber_number = 1;
+	return 0;
 }
 
 /*!

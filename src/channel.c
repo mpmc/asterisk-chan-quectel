@@ -1350,7 +1350,7 @@ static void set_channel_vars(struct pvt* pvt, struct ast_channel* channel)
 		{ "QUECTELIMEI", pvt->imei },
 		{ "QUECTELIMSI", pvt->imsi },
 		{ "QUECTELICCID", pvt->iccid },
-		{ "QUECTELNUMBER", pvt->subscriber_number },
+		{ "QUECTELNUMBER", S_OR(pvt->subscriber_number, "Unknown") },
 	};
 
 #if ASTERISK_VERSION_NUM >= 110000 /* 11+  */
@@ -1463,8 +1463,10 @@ struct ast_channel* new_channel(
 
 			set_channel_vars(pvt, channel);
 
-			if(dnid != NULL && dnid[0] != 0)
+			if(dnid && *dnid) {
+				ast_debug(1, "[%s] Setting chanvar CALLERID(dnid) = %s\n", PVT_ID(pvt), dnid);
 				pbx_builtin_setvar_helper(channel, "CALLERID(dnid)", dnid);
+			}
 
 			ast_jb_configure (channel, &CONF_GLOBAL(jbconf));
 
