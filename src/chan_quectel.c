@@ -691,7 +691,7 @@ static int reopen_audio_port(struct pvt* pvt)
 	closetty(PVT_STATE(pvt, audio_tty), pvt->audio_fd, &pvt->alock);
 	pvt->audio_fd = opentty(PVT_STATE(pvt, audio_tty), &pvt->alock, pvt->is_simcom);
 #else
-	closetty(PVT_STATE(pvt, audio_tty), pvt->audio_fd);
+	internal_closetty(PVT_STATE(pvt, audio_tty), pvt->audio_fd, 0 , 0);
 	pvt->audio_fd = opentty(PVT_STATE(pvt, audio_tty), pvt->is_simcom);
 #endif	
 
@@ -907,10 +907,10 @@ static void* do_monitor_phone(void* data)
 			case TRIBOOL_FALSE:
 			if (port_status(pvt->audio_fd, &err)) {
 				if (reopen_audio_port(pvt)) {
-					ast_log(LOG_WARNING, "[%s][AUDIO][TTY] Lost connection: %d\n", dev, err);
+					ast_log(LOG_WARNING, "[%s][AUDIO][TTY] Lost connection: %s\n", dev, strerror(err));
 				}
 				else {
-					ast_log(LOG_ERROR, "[%s][AUDIO][TTY] Lost connection: %d\n", dev, err);
+					ast_log(LOG_ERROR, "[%s][AUDIO][TTY] Lost connection: %s\n", dev, strerror(err));
 					goto e_cleanup;
 				}
 			}
