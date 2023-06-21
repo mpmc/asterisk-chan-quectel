@@ -41,6 +41,24 @@ static void trim_line(char * const pointers[], unsigned cnt)
 	for(unsigned i=0; i<cnt; ++i) pointers[i][0] = '\000';
 }
 
+static char* strip_quoted(char* buf)
+{
+	return ast_strip_quoted(buf, "\"", "\"");
+}
+
+static char *trim_blanks(char *str)
+{
+	char *work = str;
+
+	if (work) {
+		work += strlen(work) - 1;
+		while ((work >= str) &&
+			   (((unsigned char) *work) < 33 || *work == '@' || ((unsigned char) *work) >= 128 )
+			) *(work--) = '\0';
+	}
+	return str;
+}
+
 const char* at_qind2str(qind_t qind)
 {
 	static const char* qind_names[] = {
@@ -59,7 +77,7 @@ const char* at_qind2str(qind_t qind)
  * \return NULL on error (parse error) or a pointer to the subscriber number
  */
 
-char * at_parse_cnum (char* str)
+char* at_parse_cnum(char* str)
 {
 	/*
 	 * parse CNUM response in the following format:
@@ -74,36 +92,12 @@ char * at_parse_cnum (char* str)
 	char * marks[STRLEN(delimiters)];
 
 	/* parse URC only here */
-	if(mark_line(str, delimiters, marks) == ITEMS_OF(marks))
-	{
-		marks[1]++;
-		if(marks[1][0] == '"')
-			marks[1]++;
-		if(marks[2][-1] == '"')
-			marks[2]--;
-		marks[2][0] = 0;
-		return marks[1];
+	if(mark_line(str, delimiters, marks) != ITEMS_OF(marks)) {
+		return NULL;
 	}
 
-	return NULL;
-}
-
-static char* strip_quoted(char* buf)
-{
-	return ast_strip_quoted(buf, "\"", "\"");
-}
-
-static char *trim_blanks(char *str)
-{
-	char *work = str;
-
-	if (work) {
-		work += strlen(work) - 1;
-		while ((work >= str) &&
-			   (((unsigned char) *work) < 33 || *work == '@' || ((unsigned char) *work) >= 128 )
-			) *(work--) = '\0';
-	}
-	return str;
+	trim_line(marks, ITEMS_OF(marks));
+	return strip_quoted(marks[1]+1);
 }
 
 /*!
