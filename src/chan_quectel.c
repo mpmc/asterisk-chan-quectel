@@ -761,7 +761,6 @@ static void disconnect_quectel(struct pvt* pvt)
 	ast_debug(1, "[%s] Disconnecting - cleaning up\n", PVT_ID(pvt));
 
 	/* unaffected in case of restart */
-	pvt->use_ucs2_encoding = 0;
 	pvt->gsm_reg_status = -1;
 	pvt->rssi = 0;
 	pvt->act = 0;

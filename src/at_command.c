@@ -157,29 +157,29 @@ int at_enqueue_initialization(struct cpvt *cpvt)
 	static const char cmd_cscs[] = "AT+CSCS=\"UCS2\"\r";
 
 	static const at_queue_cmd_t st_cmds[] = {
-		ATQ_CMD_DECLARE_ST(CMD_AT, cmd_at),
+		ATQ_CMD_DECLARE_ST(CMD_AT, cmd_at),				/* Auto sense */
 		ATQ_CMD_DECLARE_ST(CMD_AT_Z, cmd_z),			/* Restore default settings */
 		ATQ_CMD_DECLARE_ST(CMD_AT_E, cmd_ate0),			/* Disable echo */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CSCS, cmd_cscs),		/* Set UCS-2 text encoding */
 
 		ATQ_CMD_DECLARE_ST(CMD_AT_CGMI, cmd_cgmi),		/* Getting manufacturer info */
 		ATQ_CMD_DECLARE_ST(CMD_AT_CGMM, cmd_cgmm),		/* Get Product name */
 		ATQ_CMD_DECLARE_ST(CMD_AT_CGMR, cmd_cgmr),		/* Get software version */
-		ATQ_CMD_DECLARE_ST(CMD_AT_CMEE, cmd_cmee),		/* set MS Error Report to 'ERROR' only  TODO: change to 1 or 2 and add support in response handlers */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CMEE, cmd_cmee),		/* Set MS Error Report to 'ERROR' only, TODO: change to 1 or 2 and add support in response handlers */
 		ATQ_CMD_DECLARE_ST(CMD_AT_CGSN, cmd_cgsn),		/* IMEI Read */
 		ATQ_CMD_DECLARE_ST(CMD_AT_CIMI, cmd_cimi),		/* IMSI Read */
-		ATQ_CMD_DECLARE_ST(CMD_AT_CPIN, cmd_cpin),		/* check is password authentication requirement and the remainder validation times */
-		ATQ_CMD_DECLARE_ST(CMD_AT_COPS_INIT, cmd_cops),/* Read operator name */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CPIN, cmd_cpin),		/* Check is password authentication requirement and the remainder validation times */
+		ATQ_CMD_DECLARE_ST(CMD_AT_COPS_INIT, cmd_cops),	/* Read operator name */
 
 		ATQ_CMD_DECLARE_STI(CMD_AT_CREG_INIT,cmd_creg_2),/* GSM registration status setting */
 		ATQ_CMD_DECLARE_ST(CMD_AT_CREG, cmd_creg),		/* GSM registration status */
 
 		ATQ_CMD_DECLARE_STI(CMD_AT_CNUM, cmd_cnum),		/* Get Subscriber number */
 
-		ATQ_CMD_DECLARE_STI(CMD_AT_CSCS, cmd_cscs),		/* UCS-2 text encoding */
 		ATQ_CMD_DECLARE_ST(CMD_AT_CSCA, cmd_csca),		/* Get SMS Service center address */
 
-//		ATQ_CMD_DECLARE_ST(CMD_AT_CLIP, cmd_clip),		/* disable  Calling line identification presentation in unsolicited response +CLIP: <number>,<type>[,<subaddr>,<satype>[,[<alpha>][,<CLI validitity>]] */
-		ATQ_CMD_DECLARE_ST(CMD_AT_CSSN, cmd_cssn),		/* activate Supplementary Service Notification with CSSI and CSSU */
+//		ATQ_CMD_DECLARE_ST(CMD_AT_CLIP, cmd_clip),		/* Disable Calling line identification presentation in unsolicited response +CLIP: <number>,<type>[,<subaddr>,<satype>[,[<alpha>][,<CLI validitity>]] */
+		ATQ_CMD_DECLARE_ST(CMD_AT_CSSN, cmd_cssn),		/* Activate Supplementary Service Notification with CSSI and CSSU */
 		ATQ_CMD_DECLARE_ST(CMD_AT_CMGF, cmd_cmgf),		/* Set Message Format */
 
 		ATQ_CMD_DECLARE_DYN(CMD_AT_CNMI),				/* SMS Event Reporting Configuration */

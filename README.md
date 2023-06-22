@@ -214,6 +214,7 @@ Supported modules:
 
 ## Internal
 
+* `UCS-2` encoding is mandatory now.
 * Hanging-up calls using `AT+QHUP` command with specific *release cause*.
 * Handling calls is based on `ccinfo` notifications (see `AT+QINDCFG="ccinfo"` command) instead of `DSCI` (`AT^DSCI` command) call status notifications.
 * Improved/extended *AT* commands response handler.

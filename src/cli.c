@@ -241,7 +241,6 @@ static char* cli_show_device_state (struct ast_cli_entry* e, int cmd, struct ast
 		ast_cli (a->fd, "  SMS Service Center      : %s\n", pvt->sms_scenter);
 		if (CONF_SHARED(pvt, query_time))
 		ast_cli (a->fd, "  Module time             : %s\n", pvt->module_time);
-		ast_cli (a->fd, "  Use UCS-2 encoding      : %s\n", AST_CLI_YESNO(pvt->use_ucs2_encoding));
 		ast_cli (a->fd, "  Tasks in queue          : %u\n", PVT_STATE(pvt, at_tasks));
 		ast_cli (a->fd, "  Commands in queue       : %u\n", PVT_STATE(pvt, at_cmds));
 		ast_cli (a->fd, "  Call Waiting            : %s\n", AST_CLI_ONOFF(pvt->has_call_waiting));

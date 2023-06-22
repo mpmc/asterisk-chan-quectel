@@ -63,6 +63,17 @@ const char* at_res2str (at_res_t res)
 	return "UNDEFINED";
 }
 
+static int from_ucs2(const char* const hucs2, char* const utf8_str, size_t utf8_str_size)
+{
+	const int nibbles = unhex(hucs2, (uint8_t*)hucs2);
+	const ssize_t res = ucs2_to_utf8((const uint16_t*)hucs2, (nibbles + 1) / 4, utf8_str, utf8_str_size);
+	if (res < 0) {
+		return -1;
+	}
+	utf8_str[res] = '\000';
+	return 0;
+}
+
 static void request_clcc(struct pvt* pvt)
 {
 	if (at_enqueue_clcc(&pvt->sys_chan)) {
@@ -259,9 +270,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CSCS:
-				ast_debug(1, "[%s] UCS-2 text encoding enabled\n", PVT_ID(pvt));
-
-				pvt->use_ucs2_encoding = 1;
+				ast_debug(2, "[%s] UCS-2 text encoding enabled\n", PVT_ID(pvt));
 				break;
 
 			case CMD_AT_CPMS:
@@ -607,9 +616,7 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CSCS:
-				ast_debug(1, "[%s] No UCS-2 encoding support\n", PVT_ID(pvt));
-
-				pvt->use_ucs2_encoding = 0;
+				ast_log(LOG_ERROR, "[%s] No UCS-2 encoding support\n", PVT_ID(pvt));
 				break;
 
 			case CMD_AT_A:
@@ -1222,32 +1229,26 @@ static int at_response_qind(struct pvt* pvt, char* str)
 /*!
  * \brief Handle +CSCA response
  * \param pvt -- pvt structure
- * \param str -- string containing response (null terminated)
+ * \param result -- string containing response
  * \param len -- string lenght
  * \retval  0 success
  * \retval -1 error
  */
-static int at_response_csca(struct pvt* pvt, char* str)
+static int at_response_csca(struct pvt* pvt,  const struct ast_str* const result)
 {
-	char*   csca;
-	if(at_parse_csca(str, &csca)) {
-		ast_debug(1, "[%s] Could not parse CSCA response '%s'\n", PVT_ID(pvt), str);
+	char* csca;
+	if (at_parse_csca(ast_str_buffer(result), &csca)) {
+		ast_debug(1, "[%s] Could not parse CSCA response '%s'\n", PVT_ID(pvt), ast_str_buffer(result));
 		return -1;
 	}
 
-	if (pvt->use_ucs2_encoding) {
-		char csca_utf8_str[20];
-		const int csca_nibbles = unhex(csca, (uint8_t*)csca);
-		const ssize_t res = ucs2_to_utf8((const uint16_t*)csca, (csca_nibbles + 1) / 4, csca_utf8_str, STRLEN(csca_utf8_str));
-		if (res < 0) {
-			return -1;
-		}
-		csca_utf8_str[res] = '\000';
-		ast_string_field_set(pvt, sms_scenter, csca_utf8_str);
-	} else { // ASCII
-		ast_string_field_set(pvt, sms_scenter, csca);
+	char utf8_str[20];
+	if (from_ucs2(csca, utf8_str, STRLEN(utf8_str))) {
+		ast_debug(1, "[%s] Could not decode CSCA: %s", PVT_ID(pvt), csca);
+		return -1;
 	}
 
+	ast_string_field_set(pvt, sms_scenter, utf8_str);
 	ast_debug(2, "[%s] CSCA: %s\n", PVT_ID(pvt), pvt->sms_scenter);
 	return 0;
 }
@@ -2452,33 +2453,18 @@ static int at_response_psnwid(struct pvt* pvt, const struct ast_str* const respo
 	}
 
 
-	if (pvt->use_ucs2_encoding) {
-		char fnn_utf8_str[50];
-		const int fnn_nibbles = unhex(fnn, (uint8_t*)fnn);
-		ssize_t res = ucs2_to_utf8((const uint16_t*)fnn, (fnn_nibbles + 1) / 4, fnn_utf8_str, STRLEN(fnn_utf8_str));
-		if (res < 0) {
-			ast_log(LOG_ERROR, "[%s] Error decoding full network name: %s\n", PVT_ID(pvt), fnn);
-			return -1;
-		}
-		fnn_utf8_str[res] = '\000';
-		ast_string_field_set(pvt, network_name, fnn_utf8_str);
-	} else { // ASCII
-		ast_string_field_set(pvt, network_name, fnn);
+	char utf8_str[50];
+	if (from_ucs2(fnn, utf8_str, STRLEN(utf8_str))) {
+		ast_log(LOG_ERROR, "[%s] Error decoding full network name: %s\n", PVT_ID(pvt), fnn);
+		return -1;
 	}
+	ast_string_field_set(pvt, network_name, utf8_str);
 
-	if (pvt->use_ucs2_encoding) {
-		char snn_utf8_str[50];
-		const int snn_nibbles = unhex(snn, (uint8_t*)snn);
-		ssize_t res = ucs2_to_utf8((const uint16_t*)snn, (snn_nibbles + 1) / 4, snn_utf8_str, STRLEN(snn_utf8_str));
-		if (res < 0) {
-			ast_log(LOG_ERROR, "[%s] Error decoding short network name: %s\n", PVT_ID(pvt), snn);
-			return -1;
-		}
-		snn_utf8_str[res] = '\000';
-		ast_string_field_set(pvt, short_network_name, snn_utf8_str);
-	} else { // ASCII
-		ast_string_field_set(pvt, short_network_name, snn);
+	if (from_ucs2(snn, utf8_str, STRLEN(utf8_str))) {
+		ast_log(LOG_ERROR, "[%s] Error decoding short network name: %s\n", PVT_ID(pvt), snn);
+		return -1;
 	}
+	ast_string_field_set(pvt, short_network_name, utf8_str);
 
 	pvt->operator = mcc * 100 + mnc;
 	ast_verb(1, "[%s] Operator: %s/%s\n", PVT_ID(pvt), pvt->network_name, pvt->short_network_name);
@@ -2738,7 +2724,7 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 
 			case RES_CSCA:
 				/* An error here is not fatal. Just keep going. */
-				at_response_csca (pvt, str);
+				at_response_csca(pvt, result);
 				return 0;
 
 			case RES_QTONEDET:
