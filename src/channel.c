@@ -37,6 +37,12 @@
 #define ESTRPIPE EPIPE
 #endif
 
+static int setvar_helper(const struct pvt* const pvt, struct ast_channel *chan, const char *name, const char *value)
+{
+	ast_debug(1, "[%s] Setting chanvar %s = %s\n", PVT_ID(pvt), S_OR(name, "(null)"), S_OR(value, "(null)"));
+	return pbx_builtin_setvar_helper(chan, name, value);
+}
+
 #/* */
 static int parse_dial_string(char * dialstr, const char** number, int * opts)
 {
@@ -1360,12 +1366,8 @@ static void set_channel_vars(struct pvt* pvt, struct ast_channel* channel)
 	//ast_string_field_set (channel, language, CONF_SHARED(pvt, language);
 #endif /* ^11- */
 
-	for (size_t idx = 0; idx < ITEMS_OF(dev_vars); ++idx) {
-		ast_debug(1, "[%s] Setting chanvar %s = %s\n",
-			PVT_ID(pvt),
-			(dev_vars[idx].name ? dev_vars[idx].name : "(null)"),
-			(dev_vars[idx].value ? dev_vars[idx].value : "(null)"));
-		pbx_builtin_setvar_helper(channel, dev_vars[idx].name, dev_vars[idx].value);
+	for (size_t i = 0; i < ITEMS_OF(dev_vars); ++i) {
+		setvar_helper(pvt, channel, dev_vars[i].name, dev_vars[i].value);
 	}
 }
 
@@ -1463,12 +1465,11 @@ struct ast_channel* new_channel(
 
 			set_channel_vars(pvt, channel);
 
-			if(dnid && *dnid) {
-				ast_debug(1, "[%s] Setting chanvar CALLERID(dnid) = %s\n", PVT_ID(pvt), dnid);
-				pbx_builtin_setvar_helper(channel, "CALLERID(dnid)", dnid);
+			if (!ast_strlen_zero(dnid)) {
+				setvar_helper(pvt, channel, "CALLERID(dnid)", dnid);
 			}
 
-			ast_jb_configure (channel, &CONF_GLOBAL(jbconf));
+			ast_jb_configure(channel, &CONF_GLOBAL(jbconf));
 
 			if (state != CALL_STATE_INIT) {
 				change_channel_state(cpvt, state, AST_CAUSE_NORMAL_UNSPECIFIED);
@@ -1589,8 +1590,9 @@ void start_local_channel(struct pvt* pvt, const char* exten, const char* number,
 		set_channel_vars(pvt, channel);
 		ast_set_callerid(channel, number, PVT_ID(pvt), number);
 
-		for(; vars->name; ++vars)
-			pbx_builtin_setvar_helper (channel, vars->name, vars->value);
+		for(; !ast_strlen_zero(vars->name); ++vars) {
+			setvar_helper(pvt, channel, vars->name, vars->value);
+		}
 
 		cause = ast_pbx_start(channel);
 		if (cause) {
@@ -1600,7 +1602,7 @@ void start_local_channel(struct pvt* pvt, const char* exten, const char* number,
 	}
 	else
 	{
-		ast_log (LOG_ERROR, "[%s] Unable to request channel Local/%s\n", PVT_ID(pvt), channel_name);
+		ast_log(LOG_ERROR, "[%s] Unable to request channel Local/%s\n", PVT_ID(pvt), channel_name);
 	}
 }
 
