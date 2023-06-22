@@ -189,5 +189,6 @@ int at_enqueue_coutgain(struct cpvt* cpvt, int gain);
 int at_enqueue_cpcmreg(struct cpvt*, int);
 int at_cpcmreg_immediately(struct pvt*, int);
 int at_enqueue_cpcmfrm(struct cpvt*, int);
+int at_enqueue_csq(struct cpvt*);
 
 #endif /* CHAN_QUECTEL_AT_SEND_H_INCLUDED */

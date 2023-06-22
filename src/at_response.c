@@ -195,6 +195,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 					pvt_set_act(pvt, 1); // GSM
 				}
 				pvt->initialized = 1;
+				at_enqueue_csq(task->cpvt);
 				break;
 
 			case CMD_AT_COPS_INIT:

@@ -1594,3 +1594,16 @@ int at_enqueue_cpcmfrm(struct cpvt* cpvt, int frm)
 
 	return 0;
 }
+
+int at_enqueue_csq(struct cpvt *cpvt)
+{
+	static const char cmd_at_csq[] = "AT+CSQ\r";
+	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_STI(CMD_AT_CSQ, cmd_at_csq);
+
+	if (at_queue_insert_const(cpvt, &cmd, 1, 0) != 0) {
+		chan_quectel_err = E_QUEUE;
+		return -1;
+	}
+
+	return 0;
+}
