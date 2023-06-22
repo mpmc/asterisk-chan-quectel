@@ -1025,23 +1025,27 @@ int at_parse_qind_cc(char* params, unsigned* call_idx, unsigned* dir, unsigned* 
 #/* */
 int at_parse_csca(char* str, char ** csca)
 {
-	/*
-	 * parse CSCA info in the following format:
+	/**
+	 * Parse CSCA info in the following format:
+	 * 
 	 * +CSCA: <SCA>,<TOSCA>
-	 *  +CSCA: "+79139131234",145
-	 *  +CSCA: "",145
+	 * +CSCA: "+79139131234",145
+	 * +CSCA: "",145
 	 */
-	static char delimiters[] = "\"\"";
-	char * marks[STRLEN(delimiters)];
 
-	if(mark_line(str, delimiters, marks) == ITEMS_OF(marks))
-	{
-		*csca = marks[0] + 1;
-		marks[1][0] = 0;
-		return 0;
+	static char delimiters[] = ":,";
+	static unsigned delimiters_cnt = STRLEN(delimiters) - 1u;
+
+	char* marks[STRLEN(delimiters)];
+	const unsigned markscnt = mark_line(str, delimiters, marks);
+
+	if (markscnt < delimiters_cnt) {
+		return -1;
 	}
 
-	return -1;
+	trim_line(marks, markscnt);
+	*csca = strip_quoted(marks[0]+1);
+	return 0;
 }
 
 #/* */

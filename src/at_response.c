@@ -1242,14 +1242,19 @@ static int at_response_csca(struct pvt* pvt,  const struct ast_str* const result
 		return -1;
 	}
 
-	char utf8_str[20];
-	if (from_ucs2(csca, utf8_str, STRLEN(utf8_str))) {
-		ast_debug(1, "[%s] Could not decode CSCA: %s", PVT_ID(pvt), csca);
-		return -1;
-	}
+	if (ast_strlen_zero(csca)) {
+		ast_string_field_set(pvt, sms_scenter, NULL);
+		ast_debug(2, "[%s] CSCA: (null)\n", PVT_ID(pvt));
+	} else {
+		char utf8_str[40];
+		if (from_ucs2(csca, utf8_str, STRLEN(utf8_str))) {
+			ast_debug(1, "[%s] Could not decode CSCA: %s", PVT_ID(pvt), csca);
+			return -1;
+		}
 
-	ast_string_field_set(pvt, sms_scenter, utf8_str);
-	ast_debug(2, "[%s] CSCA: %s\n", PVT_ID(pvt), pvt->sms_scenter);
+		ast_string_field_set(pvt, sms_scenter, utf8_str);
+		ast_debug(2, "[%s] CSCA: %s\n", PVT_ID(pvt), pvt->sms_scenter);
+	}
 	return 0;
 }
 
