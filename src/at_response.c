@@ -29,12 +29,21 @@
 #include "error.h"
 #include "helpers.h"
 
-#define CCWA_STATUS_NOT_ACTIVE	0
-#define CCWA_STATUS_ACTIVE	1
+// ================================================================
 
-#define CLCC_CALL_TYPE_VOICE	0
-#define CLCC_CALL_TYPE_DATA	1
-#define CLCC_CALL_TYPE_FAX	2
+static const int CCWA_STATUS_NOT_ACTIVE = 0;
+static const int CCWA_STATUS_ACTIVE = 1;
+
+static const unsigned int CLCC_CALL_TYPE_VOICE = 0;
+/*
+static const unsigned int CLCC_CALL_TYPE_DATA = 1;
+static const unsigned int CLCC_CALL_TYPE_FAX = 2;
+*/
+
+static const char MANUFACTURER_QUECTEL[] = "Quectel";
+static const char MANUFACTURER_SIMCOM[] = "SimCom";
+
+// ================================================================
 
 static const at_response_t at_responses_list[] = {
 
@@ -1979,16 +1988,12 @@ static int at_response_creg(struct pvt* pvt, char* str, size_t len)
  * \brief Handle AT+CGMI response
  * \param pvt -- pvt structure
  * \param response -- string containing response
- * \param len -- string lenght
  * \retval  0 success
  * \retval -1 error
  */
 
 static int at_response_cgmi(struct pvt* pvt, const struct ast_str* const response)
 {
-	static const char MANUFACTURER_QUECTEL[] = "Quectel";
-	static const char MANUFACTURER_SIMCOM[] = "SimCom";
-
 	ast_string_field_set(pvt, manufacturer, ast_str_buffer(response));
 
 	if (!strncasecmp(ast_str_buffer(response), MANUFACTURER_QUECTEL, STRLEN(MANUFACTURER_QUECTEL))) {
@@ -2016,7 +2021,6 @@ static int at_response_cgmi(struct pvt* pvt, const struct ast_str* const respons
  * \brief Handle AT+CGMM response
  * \param pvt -- pvt structure
  * \param response -- string containing response
- * \param len -- string lenght
  * \retval  0 success
  * \retval -1 error
  */
@@ -2026,6 +2030,15 @@ static int at_response_cgmm(struct pvt* pvt, const struct ast_str* const respons
 {
 	ast_string_field_set(pvt, model, ast_str_buffer(response));
 
+	static const char MODEL_A760E[] = "A7670E";
+
+	if (!strncasecmp(ast_str_buffer(response), MODEL_A760E, STRLEN(MODEL_A760E))) {
+		ast_verb(1, "[%s] SimCOM module\n", PVT_ID(pvt));
+		ast_string_field_set(pvt, manufacturer, MANUFACTURER_SIMCOM);
+		pvt->is_simcom = 1;
+		return at_enqueue_initialization_simcom(&pvt->sys_chan);
+	}
+
 	return 0;
 }
 
@@ -2033,7 +2046,6 @@ static int at_response_cgmm(struct pvt* pvt, const struct ast_str* const respons
  * \brief Handle AT+CGMR response
  * \param pvt -- pvt structure
  * \param response -- string containing response
- * \param len -- string lenght
  * \retval  0 success
  * \retval -1 error
  */
@@ -2049,7 +2061,6 @@ static int at_response_cgmr(struct pvt* pvt, const struct ast_str* const respons
  * \brief Handle AT+CGSN response
  * \param pvt -- pvt structure
  * \param response -- string containing response
- * \param len -- string lenght
  * \retval  0 success
  * \retval -1 error
  */
@@ -2065,7 +2076,6 @@ static int at_response_cgsn(struct pvt* pvt, const struct ast_str* const respons
  * \brief Handle AT+CIMI response
  * \param pvt -- pvt structure
  * \param response -- string containing response
- * \param len -- string lenght
  * \retval  0 success
  * \retval -1 error
  */

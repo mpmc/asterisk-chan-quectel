@@ -8,7 +8,8 @@ Supported modules:
 
 * Quectel *EC25-E*,
 * SimCOM *SIM7600G-H*,
-* SimCOM *SIM900* (see [here](//github.com/RoEdAl/asterisk-chan-quectel/wiki/Using-SIM900-board-with-analog-input-and-output) for more details).
+* SimCOM *SIM900* (analog input/output, see [here](//github.com/RoEdAl/asterisk-chan-quectel/wiki/Using-SIM900-board-with-analog-input-and-output) for more details),
+* SimCOM *A7670E* (analog input/output, see [here](//github.com/RoEdAl/asterisk-chan-quectel/wiki/SimCOM-A7670X-limitations) for more details).
 
 # Changes
 
