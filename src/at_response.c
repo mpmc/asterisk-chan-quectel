@@ -1510,32 +1510,22 @@ static int at_response_msg(struct pvt* pvt, const struct ast_str* const response
 		case PDUTYPE_MTI_SMS_DELIVER: {
 			struct ast_str* fullmsg = ast_str_create(MAX_MSG_LEN);
 			if (udh.parts > 1) {
-				ast_verb(2, "[%s] Got SM part from %s: '%s'; [ref=%d, parts=%d, order=%d]\n", PVT_ID(pvt), ast_str_buffer(oa), ast_str_buffer(msg), udh.ref, udh.parts, udh.order);
+				ast_verb(2, "[%s] Got SM part from %s: '%s'; [ref=%d, parts=%d, order=%d]\n", PVT_ID(pvt), ast_str_buffer(oa), ast_str_buffer(msg), (int)udh.ref, (int)udh.parts, (int)udh.order);
 				int csms_cnt = smsdb_put(pvt->imsi, ast_str_buffer(oa), udh.ref, udh.parts, udh.order, ast_str_buffer(msg), ast_str_buffer(fullmsg));
 				if (csms_cnt <= 0) {
 					ast_log(LOG_ERROR, "[%s] Error putting SMS to SMSDB\n", PVT_ID(pvt));
 					goto receive_as_is;
 				}
 				ast_str_update(fullmsg);
+				msg_ack = TRIBOOL_TRUE;
+				msg_complete = (csms_cnt < (int)udh.parts)? 0 : 1;
 
-				if (pvt->is_simcom) {
-					msg_ack = TRIBOOL_TRUE;
-				}
-				else {
-					msg_ack = (udh.order == 1)? TRIBOOL_TRUE : TRIBOOL_NONE;
-				}
-
-				if (udh.order < udh.parts) {
-					msg_complete = 0;
+				if (!msg_complete) {
+					if (csms_cnt < (int)udh.parts) {
+						ast_debug(1, "[%s] Incomplete SMS, got %d of %d [last: %d] parts\n", PVT_ID(pvt), csms_cnt, (int)udh.parts, (int)udh.order);
+					}
 					goto msg_done;
 				}
-				else {
-					msg_complete = 1;
-					if (csms_cnt < (int)udh.parts) {
-						ast_log(LOG_WARNING, "[%s] Incomplete SMS, got %d of %d parts\n", PVT_ID(pvt), csms_cnt, (int)udh.parts);
-					}
-				}
-
 			} else {
 receive_as_is:
 				msg_ack = TRIBOOL_TRUE;
@@ -1546,20 +1536,30 @@ receive_as_is:
 
 			ast_verb(1, "[%s] Got SMS from %s: [TS:%s][%s]\n", PVT_ID(pvt), ast_str_buffer(oa), scts, ast_str_buffer(fullmsg));
 
-			struct ast_str* b64 = ast_str_create(40800);
-			ast_base64encode(ast_str_buffer(b64), (unsigned char*)ast_str_buffer(fullmsg), ast_str_strlen(fullmsg), ast_str_size(b64));
-			ast_str_update(b64);
+			if (ast_str_strlen(fullmsg)) {
+				struct ast_str* b64 = ast_str_create(40800);
+				ast_base64encode(ast_str_buffer(b64), (unsigned char*)ast_str_buffer(fullmsg), ast_str_strlen(fullmsg), ast_str_size(b64));
+				ast_str_update(b64);
 
-			const channel_var_t vars[] =
-			{
-				{ "SMS", ast_str_buffer(fullmsg) } ,
-				{ "SMS_BASE64", ast_str_buffer(b64) },
-				{ "SMS_TS", scts },
-				{ NULL, NULL },
-			};
-			start_local_channel(pvt, "sms", ast_str_buffer(oa), vars);
+				const channel_var_t vars[] =
+				{
+					{ "SMS", ast_str_buffer(fullmsg) } ,
+					{ "SMS_BASE64", ast_str_buffer(b64) },
+					{ "SMS_TS", scts },
+					{ NULL, NULL },
+				};
+				start_local_channel(pvt, "sms", ast_str_buffer(oa), vars);
 
-			ast_free(b64);
+				ast_free(b64);
+			}
+			else {
+				const channel_var_t vars[] =
+				{
+					{ "SMS_TS", scts },
+					{ NULL, NULL },
+				};
+				start_local_channel(pvt, "sms", ast_str_buffer(oa), vars);
+			}
 			ast_free(fullmsg);
 			break;
 		}
