@@ -2106,18 +2106,6 @@ static int at_response_xccid(struct pvt* pvt, const struct ast_str* const respon
 	return 0;
 }
 
-static void at_response_busy(struct pvt* pvt, enum ast_control_frame_type control)
-{
-	const struct at_queue_task * task = at_queue_head_task (pvt);
-	struct cpvt* cpvt = task->cpvt;
-
-	if(cpvt)
-	{
-		CPVT_SET_FLAGS(cpvt, CALL_FLAG_NEED_HANGUP);
-		queue_control_channel (cpvt, control);
-	}
-}
-
 static void send_dtmf_frame(struct pvt* const pvt, char c)
 {
 	if (!CONF_SHARED(pvt, dtmf)) {
@@ -2713,12 +2701,11 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 				return at_response_ccwa (pvt, str);
 
 			case RES_BUSY:
-				ast_log (LOG_ERROR, "[%s] Receive BUSY\n", PVT_ID(pvt));
+				ast_debug(2, "[%s] Receive BUSY\n", PVT_ID(pvt));
 				return 0;
 
 			case RES_NO_DIALTONE:
-				ast_log (LOG_ERROR, "[%s] Receive NO DIALTONE\n", PVT_ID(pvt));
-				at_response_busy(pvt, AST_CONTROL_CONGESTION);
+				ast_debug(2, "[%s] Receive NO DIALTONE\n", PVT_ID(pvt));
 				break;
 
 			case RES_NO_ANSWER:
