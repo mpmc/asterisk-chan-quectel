@@ -1510,7 +1510,7 @@ static int at_response_msg(struct pvt* pvt, const struct ast_str* const response
 		case PDUTYPE_MTI_SMS_DELIVER: {
 			struct ast_str* fullmsg = ast_str_create(MAX_MSG_LEN);
 			if (udh.parts > 1) {
-				ast_verb(2, "[%s] Got SM part from %s: '%s'; [ref=%d, parts=%d, order=%d]\n", PVT_ID(pvt), ast_str_buffer(oa), ast_str_buffer(msg), (int)udh.ref, (int)udh.parts, (int)udh.order);
+				ast_verb(2, "[%s] Got SM part from %s: [TS:%s][%s][ref=%d, order=%d, parts=%d]\n", PVT_ID(pvt), ast_str_buffer(oa), scts, ast_str_buffer(msg), (int)udh.ref, (int)udh.order, (int)udh.parts);
 				int csms_cnt = smsdb_put(pvt->imsi, ast_str_buffer(oa), udh.ref, udh.parts, udh.order, ast_str_buffer(msg), ast_str_buffer(fullmsg));
 				if (csms_cnt <= 0) {
 					ast_log(LOG_ERROR, "[%s] Error putting SMS to SMSDB\n", PVT_ID(pvt));
@@ -1521,8 +1521,8 @@ static int at_response_msg(struct pvt* pvt, const struct ast_str* const response
 				msg_complete = (csms_cnt < (int)udh.parts)? 0 : 1;
 
 				if (!msg_complete) {
-					if (csms_cnt < (int)udh.parts) {
-						ast_debug(1, "[%s] Incomplete SMS, got %d of %d [last: %d] parts\n", PVT_ID(pvt), csms_cnt, (int)udh.parts, (int)udh.order);
+					if ((int)udh.order == (int)udh.parts) {
+						ast_debug(1, "[%s] Incomplete SMS, got %d of %d parts\n", PVT_ID(pvt), csms_cnt, (int)udh.parts);
 					}
 					goto msg_done;
 				}
@@ -1530,7 +1530,7 @@ static int at_response_msg(struct pvt* pvt, const struct ast_str* const response
 receive_as_is:
 				msg_ack = TRIBOOL_TRUE;
 				msg_complete = 1;
-				ast_verb(2, "[%s] Got single SM from %s: [%s]\n", PVT_ID(pvt), ast_str_buffer(oa), ast_str_buffer(msg));
+				ast_verb(2, "[%s] Got single SM from %s: [TS:%s][%s]\n", PVT_ID(pvt), ast_str_buffer(oa), scts, ast_str_buffer(msg));
 				ast_str_copy_string(&fullmsg, msg);
 			}
 
@@ -1599,12 +1599,10 @@ msg_done_ack:
 			switch(msg_ack) {
 				case TRIBOOL_FALSE: // negative ACT
 				at_enqueue_msg_ack(&pvt->sys_chan);
-				// at_enqueue_msg_ack_n(&pvt->sys_chan, 2);
 				break;
 
 				case TRIBOOL_TRUE: // positive ACK
 				at_enqueue_msg_ack(&pvt->sys_chan);
-				// at_enqueue_msg_ack_n(&pvt->sys_chan, 1);
 				break;
 
 				default:

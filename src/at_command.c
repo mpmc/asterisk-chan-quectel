@@ -963,6 +963,38 @@ int at_enqueue_delete_sms(struct cpvt *cpvt, int index, tristate_bool_t ack)
 	return 0;
 }
 
+int at_enqueue_delete_sms_n(struct cpvt *cpvt, int index, tristate_bool_t ack)
+{
+	at_queue_cmd_t cmds[] = {
+		ATQ_CMD_DECLARE_DYNI(CMD_AT_CNMA),
+		ATQ_CMD_DECLARE_DYNI(CMD_AT_CMGD)
+	};
+
+	if (index < 0) return 0;
+
+	if (ack) {
+		const int err = at_fill_generic_cmd(&cmds[0], "AT+CNMA=%d\r", (ack<0)? 2: 1);
+		if (err) {
+			chan_quectel_err = E_UNKNOWN;
+			return err;
+		}
+	}
+
+	int err = at_fill_generic_cmd(&cmds[1], "AT+CMGD=%d\r", index);
+	if (err) {
+		chan_quectel_err = E_UNKNOWN;
+		return err;
+	}
+
+	err = at_queue_insert(cpvt, &cmds[ack? 0 : 1], ack? 2 : 1, 1);
+	if (err) {
+		chan_quectel_err = E_QUEUE;
+		return err;
+	}
+
+	return 0;
+}
+
 int at_enqueue_msg_ack(struct cpvt *cpvt)
 {
 	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_STI(CMD_AT_CNMA, cmd_cnma);
