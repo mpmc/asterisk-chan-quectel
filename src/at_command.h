@@ -71,7 +71,7 @@
 \
 	_( AT_CPCMREG1,		"AT+CPCMREG=1") \
 	_( AT_CPCMREG0,		"AT+CPCMREG=0") \
-	_( AT_DTMF,         "AT^DTMF") \
+	_( AT_DTMF,         "AT+VTS") \
 	_( AT_E,            "ATE") \
 \
 	_( AT_Z,            "ATZ") \

@@ -570,19 +570,22 @@ int at_enqueue_ussd(struct cpvt *cpvt, const char *code, int gsm7)
 
 int at_enqueue_dtmf(struct cpvt *cpvt, char digit)
 {
-	switch (digit)
-	{
-/* unsupported, but AT^DTMF=1,22 OK and "2" sent
-*/
+	switch (digit) {
 		case 'a':
 		case 'b':
 		case 'c':
 		case 'd':
+		{
+			char d = 'A';
+			d += digit - 'a';
+			return at_enqueue_generic(cpvt, CMD_AT_DTMF, 1, "AT+VTS=\"%c\"\r", d);
+		}
+
 		case 'A':
 		case 'B':
 		case 'C':
 		case 'D':
-			return -1974; // TODO: ???
+
 		case '0':
 		case '1':
 		case '2':
@@ -596,7 +599,7 @@ int at_enqueue_dtmf(struct cpvt *cpvt, char digit)
 
 		case '*':
 		case '#':
-			return at_enqueue_generic(cpvt, CMD_AT_DTMF, 1, "AT+VTS=%c\r", digit);
+			return at_enqueue_generic(cpvt, CMD_AT_DTMF, 1, "AT+VTS=\"%c\"\r", digit);
 	}
 	return -1;
 }

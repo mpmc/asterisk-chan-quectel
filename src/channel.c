@@ -465,14 +465,12 @@ static int channel_answer (struct ast_channel* channel)
 }
 
 #/* */
-static int channel_digit_begin (struct ast_channel* channel, char digit)
+static int channel_digit_begin(struct ast_channel* channel, char digit)
 {
 	struct cpvt* cpvt = ast_channel_tech_pvt(channel);
 	struct pvt* pvt;
-	int rv;
 
-	if(!cpvt || cpvt->channel != channel || !cpvt->pvt)
-	{
+	if (!cpvt || cpvt->channel != channel || !cpvt->pvt) {
 		ast_log (LOG_WARNING, "call on unreferenced %s\n", ast_channel_name(channel));
 		return -1;
 	}
@@ -480,27 +478,24 @@ static int channel_digit_begin (struct ast_channel* channel, char digit)
 
 	ast_mutex_lock (&pvt->lock);
 
-	rv = at_enqueue_dtmf(cpvt, digit);
-	if (rv)
-	{
-		ast_mutex_unlock (&pvt->lock);
+	const int rv = at_enqueue_dtmf(cpvt, digit);
+	if (rv) {
 		if(rv == -1974)
-			ast_log (LOG_WARNING, "[%s] Sending DTMF %c not supported by quectel. Tell Asterisk to generate inband\n", PVT_ID(pvt), digit);
+			ast_log(LOG_WARNING, "[%s] Sending DTMF %c not supported. Tell Asterisk to generate inband\n", PVT_ID(pvt), digit);
 		else
-			ast_log (LOG_ERROR, "[%s] Error adding DTMF %c command to queue\n", PVT_ID(pvt), digit);
+			ast_log(LOG_ERROR, "[%s] Error adding DTMF %c command to queue\n", PVT_ID(pvt), digit);
+		ast_mutex_unlock (&pvt->lock);
 		return -1;
 	}
 
+	ast_verb(1, "[%s] Send DTMF: %c\n", PVT_ID(pvt), digit);
 	ast_mutex_unlock (&pvt->lock);
-
-	ast_debug (3, "[%s] Send DTMF %c\n", PVT_ID(pvt), digit);
-
 	return 0;
 }
 
 
 #/* */
-static int channel_digit_end (attribute_unused struct ast_channel* channel, attribute_unused char digit, attribute_unused unsigned int duration)
+static int channel_digit_end(attribute_unused struct ast_channel* channel, attribute_unused char digit, attribute_unused unsigned int duration)
 {
 	return 0;
 }
