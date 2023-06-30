@@ -116,7 +116,7 @@ static int __attribute__ ((format(printf, 4, 5))) at_enqueue_generic(struct cpvt
 
 int at_enqueue_at(struct cpvt* cpvt)
 {
-	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_STIT(CMD_AT, cmd_at, ATQ_CMD_TIMEOUT_SHORT, 0);
+	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_STFT(CMD_AT, RES_OK, cmd_at, 0, ATQ_CMD_TIMEOUT_SHORT, 0);
 
 	if (at_queue_insert_const(cpvt, &cmd, 1, 1) != 0) {
 		chan_quectel_err = E_QUEUE;
@@ -838,7 +838,7 @@ int at_enqueue_ping(struct cpvt *cpvt)
 		return at_enqueue_at(cpvt);
 
 		case PING_QUECTEL:
-		return at_enqueue_qlts(cpvt, 1);
+		return at_enqueue_qlts_1(cpvt);
 
 		case PING_SIMCOM:
 		return at_enqueue_cclk_query(cpvt);
@@ -1248,7 +1248,7 @@ int at_enqueue_enable_uac(struct cpvt* cpvt)
 
 int at_enqueue_qlts(struct cpvt* cpvt, int mode)
 {
-	at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYNI(CMD_AT_QLTS);
+	at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_QLTS);
 
 	const int err = at_fill_generic_cmd(&cmd, "AT+QLTS=%d\r", mode);
 	if (err) {
@@ -1264,10 +1264,23 @@ int at_enqueue_qlts(struct cpvt* cpvt, int mode)
 	return 0;
 }
 
+int at_enqueue_qlts_1(struct cpvt* cpvt)
+{
+	static const char cmd_qlts[] = "AT+QLTS=1\r";
+	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_ST(CMD_AT_QLTS_1, cmd_qlts);
+
+	if (at_queue_insert_const(cpvt, &cmd, 1, 1) != 0) {
+		chan_quectel_err = E_QUEUE;
+		return -1;
+	}
+
+	return 0;
+}
+
 int at_enqueue_cclk_query(struct cpvt* cpvt)
 {
 	static const char cmd_cclk[] = "AT+CCLK?\r";
-	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_STI(CMD_AT_CCLK, cmd_cclk);
+	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_ST(CMD_AT_CCLK, cmd_cclk);
 
 	if (at_queue_insert_const(cpvt, &cmd, 1, 1) != 0) {
 		chan_quectel_err = E_QUEUE;

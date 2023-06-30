@@ -955,7 +955,7 @@ static void* do_monitor_phone(void* data)
 					goto e_cleanup;
 				}
 			}
-			at_enqueue_ping(&pvt->sys_chan);
+			if (pvt->initialized) at_enqueue_ping(&pvt->sys_chan);
 			ast_mutex_unlock (&pvt->lock);
 			continue;
 		}

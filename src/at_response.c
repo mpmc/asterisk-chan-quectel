@@ -194,6 +194,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 			case CMD_AT_QINDCFG_CC:
 			case CMD_AT_DSCI:
 			case CMD_AT_QLTS:
+			case CMD_AT_QLTS_1:
 			case CMD_AT_CCLK:
 				ast_debug (4, "[%s] %s sent successfully\n", PVT_ID(pvt), at_cmd2str (ecmd->cmd));
 				break;
@@ -713,6 +714,7 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_QLTS:
+			case CMD_AT_QLTS_1:
 			case CMD_AT_CCLK:
 				ast_debug(1, "[%s] Could not query time\n", PVT_ID(pvt));
 				break;

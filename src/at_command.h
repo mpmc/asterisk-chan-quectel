@@ -98,6 +98,7 @@
 	_( AT_DDET_0,		"AT+DDET=0") \
 	_( AT_DDET_1,		"AT+DDET=1") \
 	_( AT_QLTS,			"AT+QLTS") \
+	_( AT_QLTS_1,		"AT+QLTS=1") \
 	_( AT_CCLK,			"AT+CCLK") \
 	_( AT_QMIC,			"AT+QMIC") \
 	_( AT_QRXGAIN,		"AT+QRXGAIN") \
@@ -168,6 +169,7 @@ int at_enqueue_enable_tty(struct cpvt *cpvt);
 int at_enqueue_enable_uac(struct cpvt *cpvt);
 int at_enqueue_mute(struct cpvt *cpvt, int mute);
 int at_enqueue_qlts(struct cpvt* cpvt, int mode);
+int at_enqueue_qlts_1(struct cpvt* cpvt);
 int at_enqueue_cclk_query(struct cpvt* cpvt);
 int at_enqueue_query_qgains(struct cpvt* cpvt);
 int at_enqueue_qgains(struct cpvt* cpvt, int txgain, int rxdgain);
