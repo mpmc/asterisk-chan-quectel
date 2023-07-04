@@ -673,7 +673,7 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 
 			case CMD_AT_CMGS:
 			case CMD_AT_SMSTEXT:
-				log_cmd_response_error(pvt, ecmd, "[%s] Error sending SMS message %p %s\n", PVT_ID(pvt), task, at_cmd2str(ecmd->cmd));
+				log_cmd_response_error(pvt, ecmd, "[%s][SMS:%d] Error sending message\n", PVT_ID(pvt), task->uid);
 				at_response_cmgs_error(pvt, task);
 				pvt_try_restate(pvt);
 				break;

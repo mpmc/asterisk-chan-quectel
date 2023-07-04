@@ -878,15 +878,15 @@ static void* do_monitor_phone(void* data)
 
 	clean_read_data(dev, fd, &rb);
 
-	/* schedule quectel initilization  */
+	/* schedule initilization  */
 	if (at_enqueue_initialization(&pvt->sys_chan)) {
 		ast_log(LOG_ERROR, "[%s] Error adding initialization commands to queue\n", dev);
 		goto e_cleanup;
 	}
 
-	/* Poll first SMS, if any */
-	if (at_poll_sms(pvt) == 0) {
-		ast_debug(1, "[%s] Polling first SMS message\n", PVT_ID(pvt));
+	/* poll unread messages */
+	if (!at_poll_sms(pvt)) {
+		ast_debug(2, "[%s] Polling unread messages\n", PVT_ID(pvt));
 	}
 
 	ast_mutex_unlock(&pvt->lock);
@@ -898,7 +898,7 @@ static void* do_monitor_phone(void* data)
 		handle_expired_reports(pvt);
 		int err;
 		if (port_status(pvt->data_fd, &err)) {
-			ast_log(LOG_ERROR, "[%s][DATA] Lost connection: %d\n", dev, err);
+			ast_log(LOG_ERROR, "[%s][DATA] Lost connection: %s\n", dev, strerror(err));
 			goto e_cleanup;
 		}
 
