@@ -616,6 +616,7 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 				log_cmd_response_error(pvt, ecmd, "[%s] Error Supplementary Service Notification activation failed\n", PVT_ID(pvt));
 				goto e_return;
 
+			case CMD_AT_CSCA:
 			case CMD_AT_CMGF:
 			case CMD_AT_CPMS:
 			case CMD_AT_CNMI:
@@ -1256,17 +1257,18 @@ static int at_response_csca(struct pvt* pvt,  const struct ast_str* const result
 
 	if (ast_strlen_zero(csca)) {
 		ast_string_field_set(pvt, sms_scenter, NULL);
-		ast_debug(2, "[%s] CSCA: (null)\n", PVT_ID(pvt));
-	} else {
-		char utf8_str[40];
-		if (from_ucs2(csca, utf8_str, STRLEN(utf8_str))) {
-			ast_debug(1, "[%s] Could not decode CSCA: %s", PVT_ID(pvt), csca);
-			return -1;
-		}
-
-		ast_string_field_set(pvt, sms_scenter, utf8_str);
-		ast_debug(2, "[%s] CSCA: %s\n", PVT_ID(pvt), pvt->sms_scenter);
+		ast_verb(1, "[%s] No SMS service centre\n", PVT_ID(pvt));
+		return 0;
 	}
+
+	char utf8_str[40];
+	if (from_ucs2(csca, utf8_str, STRLEN(utf8_str))) {
+		ast_debug(1, "[%s] Could not decode CSCA: %s", PVT_ID(pvt), csca);
+		return -1;
+	}
+
+	ast_string_field_set(pvt, sms_scenter, utf8_str);
+	ast_verb(2, "[%s] SMS service centre: %s\n", PVT_ID(pvt), pvt->sms_scenter);
 	return 0;
 }
 
