@@ -173,6 +173,7 @@ int at_read_result_iov(
 	static const char M_CMT[] = 		"+CMT:";
 	static const char M_CBM[] = 		"+CBM:";
 	static const char M_CDS[] = 		"+CDS:";
+	static const char M_CLASS0[] = 		"+CLASS0:";
 
 	static const char T_OK[] =			"\r\n\r\nOK\r\n";
 	static const char T_CMGL[] =		"\r\n+CMGL:";
@@ -184,21 +185,22 @@ int at_read_result_iov(
 
 		if (*read_result == 0) {
 			const int res = rb_memcmp(rb, M_EOL, STRLEN(M_EOL));
-			if (res == 0) {
+			if (!res) {
 				rb_read_upd(rb, STRLEN(M_EOL));
 				*read_result = 1;
 
 				return at_read_result_iov(dev, read_result, skip, rb, iov, buf);
 			}
 			else if (res > 0) {
-				if (rb_memcmp(rb, "\n", 1) == 0) {
+				if (!rb_memcmp(rb, "\n", 1)) {
 					rb_read_upd(rb, 1);
-
 					return at_read_result_iov(dev, read_result, skip, rb, iov, buf);
 				}
 
-				if (rb_read_until_char_iov(rb, iov, '\r') > 0) {
-					s = at_get_iov_size(iov) + 1u;
+				if (rb_read_until_char_iov(rb, iov, '\r')) {
+					s = at_get_iov_size(iov);
+					rb_read_upd(rb, s + 1u);
+					return at_read_result_iov(dev, read_result, skip, rb, iov, buf);
 				}
 
 				rb_read_upd(rb, s);
@@ -208,7 +210,7 @@ int at_read_result_iov(
 			return 0;
 		}
 		else {
-			if (rb_memcmp (rb, M_CSSI, STRLEN(M_CSSI)) == 0) {
+			if (!rb_memcmp(rb, M_CSSI, STRLEN(M_CSSI))) {
 				const int iovcnt = rb_read_n_iov(rb, iov, STRLEN(M_CSSI));
 				if (iovcnt) {
 					*read_result = 0;
@@ -216,15 +218,15 @@ int at_read_result_iov(
 
 				return iovcnt;
 			}
-			else if (rb_memcmp(rb, M_CSSU, STRLEN(M_CSSU)) == 0 || rb_memcmp(rb, M_CMS_ERROR, STRLEN(M_CMS_ERROR)) == 0 ||  rb_memcmp(rb, M_CMGS, STRLEN(M_CMGS)) == 0) {
+			else if (!(rb_memcmp(rb, M_CSSU, STRLEN(M_CSSU)) && rb_memcmp(rb, M_CMS_ERROR, STRLEN(M_CMS_ERROR)) && rb_memcmp(rb, M_CMGS, STRLEN(M_CMGS)))) {
 				rb_read_upd(rb, 2);
 				return at_read_result_iov(dev, read_result, skip, rb, iov, buf);
 			}
-			else if (rb_memcmp(rb, M_SMS_PROMPT, STRLEN(M_SMS_PROMPT)) == 0) {
+			else if (!rb_memcmp(rb, M_SMS_PROMPT, STRLEN(M_SMS_PROMPT))) {
 				*read_result = 0;
 				return rb_read_n_iov(rb, iov, STRLEN(M_SMS_PROMPT));
 			}
-			else if (rb_memcmp(rb, M_CMGR, STRLEN(M_CMGR)) == 0 || rb_memcmp(rb, M_CNUM, STRLEN(M_CNUM)) == 0 || rb_memcmp(rb, M_ERROR_CNUM, STRLEN(M_ERROR_CNUM)) == 0) {
+			else if (!(rb_memcmp(rb, M_CMGR, STRLEN(M_CMGR)) && rb_memcmp(rb, M_CNUM, STRLEN(M_CNUM)) && rb_memcmp(rb, M_ERROR_CNUM, STRLEN(M_ERROR_CNUM)))) {
 				const int iovcnt = rb_read_until_mem_iov(rb, iov, T_OK, STRLEN(T_OK));
 				if (iovcnt) {
 					*skip += 4;
@@ -232,7 +234,7 @@ int at_read_result_iov(
 
 				return iovcnt;
 			}
-			else if (rb_memcmp(rb, M_CMGL, STRLEN(M_CMGL)) == 0) {
+			else if (!rb_memcmp(rb, M_CMGL, STRLEN(M_CMGL))) {
 				int iovcnt = rb_read_until_mem_iov(rb, iov, T_CMGL, STRLEN(T_CMGL));
 				if (iovcnt) {
 					*skip += 2;
@@ -245,19 +247,20 @@ int at_read_result_iov(
 				}
 				return iovcnt;
 			}
-			else if (rb_memcmp(rb, M_CMT, STRLEN(M_CMT)) == 0 || rb_memcmp(rb, M_CBM, STRLEN(M_CBM)) == 0 || rb_memcmp(rb, M_CDS, STRLEN(M_CDS)) == 0) {
+			else if (!(rb_memcmp(rb, M_CMT, STRLEN(M_CMT)) && rb_memcmp(rb, M_CBM, STRLEN(M_CBM)) && rb_memcmp(rb, M_CDS, STRLEN(M_CDS)) && rb_memcmp(rb, M_CLASS0, STRLEN(M_CLASS0)))) {
 				s = get_2ndeol_pos(rb, iov, buf);
 				if (s) {
 					*read_result = 0;
-					return rb_read_n_iov(rb, iov, s + 1u);
+					*skip += 1;
+					return rb_read_n_iov(rb, iov, s);
 				}
 			}
 			else {
 				const int iovcnt = rb_read_until_mem_iov(rb, iov, M_EOL, STRLEN(M_EOL));
 				if (iovcnt) {
 					*read_result = 0;
-					s = at_get_iov_size_n(iov, iovcnt) + 1u;
-					return rb_read_n_iov(rb, iov, s);
+					*skip += 1;
+					return iovcnt;
 				}
 			}
 		}
@@ -269,13 +272,27 @@ int at_read_result_iov(
 at_res_t at_str2res(const struct ast_str* const result)
 {
 	at_res_t at_res = RES_UNKNOWN;
+	const size_t len = ast_str_strlen(result);
+	if (!len) return at_res;
 	const char* const buf = ast_str_buffer(result);
 
-	for(unsigned idx = at_responses.ids_first; idx < at_responses.ids; ++idx) {
-		if (!memcmp(buf,at_responses.responses[idx].id, at_responses.responses[idx].idlen)) {
-			at_res = at_responses.responses[idx].res;
-			break;
+	for(unsigned i = at_responses.ids_first; i < at_responses.ids; ++i) {
+		if (at_responses.responses[i].idlen) {
+			const at_response_t* const resp = &at_responses.responses[i];
+			const size_t idlen1 = resp->idlen - 1;
+			const char lc = buf[len-1];
+			if (resp->id[idlen1] == '\r' && lc != '\r') {
+				if (idlen1 != len || memcmp(buf, resp->id, idlen1)) continue;
+				at_res = resp->res;
+				break;
+			}
 		}
+
+		if (len < at_responses.responses[i].idlen ||
+			memcmp(buf, at_responses.responses[i].id, at_responses.responses[i].idlen)) continue;
+
+		at_res = at_responses.responses[i].res;
+		break;
 	}
 
 	return at_res;

@@ -27,6 +27,7 @@ struct iovec;
 	_( CDSI,        "+CDSI",        "+CDSI:") \
 	_( CDS,			"+CDS",			"+CDS:") \
 	_( CBM,			"+CBM",			"+CBM:") \
+	_( CLASS0,		"+CLASS0",		"+CLASS0:") \
 \
 	_( CNUM,        "+CNUM",        "+CNUM:") \
 		/* and "ERROR+CNUM:", hacked later on */ \

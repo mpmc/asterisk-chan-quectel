@@ -975,10 +975,12 @@ static void* do_monitor_phone(void* data)
 
 		while ((iovcnt = at_read_result_iov(dev, &read_result, &skip, &rb, iov, result)) > 0) {
 			const size_t len = at_combine_iov(result, iov, iovcnt);
-			const at_res_t at_res = at_str2res(result);
-			if (at_res != RES_UNKNOWN) ast_str_trim_blanks(result);
 			rb_read_upd(&rb, len + skip);
 			skip = 0u;
+			if (!len) continue;
+
+			const at_res_t at_res = at_str2res(result);
+			if (at_res != RES_UNKNOWN) ast_str_trim_blanks(result);
 
 			ast_mutex_lock(&pvt->lock);
 			PVT_STAT(pvt, at_responses) ++;

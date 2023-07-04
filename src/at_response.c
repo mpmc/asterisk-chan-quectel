@@ -1326,7 +1326,7 @@ static int at_response_cmgs(struct pvt* pvt, const struct ast_str* const respons
 			if (partcnt <= 1)
 				ast_verb(3, "[%s][SMS:%d REF:%d] Successfully sent message\n", PVT_ID(pvt), task->uid, refid);
 			else
-				ast_verb(3, "[%s][SMS:%d] Successfully sent message in %d parts\n", PVT_ID(pvt), task->uid, partcnt);
+				ast_verb(3, "[%s][SMS:%d] Successfully sent message [%d parts]\n", PVT_ID(pvt), task->uid, partcnt);
 
 			pvt->outgoing_sms = 0;
 			pvt_try_restate(pvt);
@@ -1343,7 +1343,7 @@ static int at_response_cmgs_error(struct pvt* pvt, const at_queue_task_t * const
 
 	const ssize_t payload_len = smsdb_outgoing_clear(task->uid, dst, payload);
 	if (payload_len >= 0) {
-		ast_verb(3, "[%s] Error sending SMS message[%p-%d]: [%.*s]\n", PVT_ID(pvt), task, task->uid, (int)payload_len, payload);
+		ast_verb(3, "[%s][SMS:%d] Error sending message: [%.*s]\n", PVT_ID(pvt), task->uid, (int)payload_len, payload);
 		start_local_report_channel(pvt, dst, payload, NULL, NULL, 0, 'i', NULL);
 	}
 	pvt->outgoing_sms = 0;
@@ -1469,6 +1469,7 @@ static int at_response_msg(struct pvt* pvt, const struct ast_str* const response
 
 	switch (cmd) {
 		case RES_CMGR:
+		case RES_CLASS0:
 		res = at_parse_cmgr(ast_str_buffer(response), ast_str_strlen(response), &tpdu_type, ast_str_buffer(sca), ast_str_size(sca), ast_str_buffer(oa), ast_str_size(oa), scts, &mr, &st, dt, ast_str_buffer(msg), &msg_len, &udh);
 		break;
 
@@ -1625,6 +1626,7 @@ msg_done_ack:
 		case RES_CMT:
 		case RES_CDS:
 		case RES_CMGL:
+		case RES_CLASS0:
 		if (CONF_SHARED(pvt, msg_service) > 0) {
 			switch(msg_ack) {
 				case TRIBOOL_FALSE: // negative ACT
@@ -2692,6 +2694,7 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 			case RES_CMT:
 			case RES_CBM:
 			case RES_CDS:
+			case RES_CLASS0:
 				return at_response_msg(pvt, result, at_res);
 
 			case RES_SMS_PROMPT:

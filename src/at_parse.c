@@ -528,8 +528,14 @@ static int parse_pdu(const char *str, size_t len, int *tpdu_type, char *sca, siz
 int at_parse_cmgr(char *str, size_t len, int *tpdu_type, char *sca, size_t sca_len, char *oa, size_t oa_len, char *scts, int *mr, int *st, char *dt, char *msg, size_t *msg_len, pdu_udh_t *udh)
 {
 	/* skip "+CMGR:" */
-	str += 6;
-	len -= 6;
+	while (len > 0 && *str != ':') {
+		++str;
+		--len;
+	}
+	if (len > 0 && *str == ':') {
+		++str;
+		--len;
+	}
 
 	/* skip leading spaces */
 	while (len > 0 && *str == ' ') {
