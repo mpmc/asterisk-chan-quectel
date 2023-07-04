@@ -334,15 +334,8 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CMGS:
-				ast_debug(1, "[%s] Sending SMS message in progress\n", PVT_ID(pvt));
-				break;
-
 			case CMD_AT_SMSTEXT:
-				pvt->outgoing_sms = 0;
-				pvt_try_restate(pvt);
-
-				/* TODO: move to +CMGS: handler */
-				ast_verb(3, "[%s] Successfully sent SMS message %p\n", PVT_ID(pvt), task);
+				ast_debug(4, "[%s] Sending SMS message in progress\n", PVT_ID(pvt));
 				break;
 
 			case CMD_AT_DTMF:
@@ -1319,8 +1312,25 @@ static int at_response_cmgs(struct pvt* pvt, const struct ast_str* const respons
 
 	const ssize_t payload_len = smsdb_outgoing_part_put(task->uid, refid, dst, payload);
 	if (payload_len >= 0) {
-		ast_verb (3, "[%s] SMS payload[%d]: [%.*s]\n", PVT_ID(pvt), refid, (int)payload_len, payload);
+		ast_verb(3, "[%s][SMS:%d REF:%d] SMS payload: [%.*s]\n", PVT_ID(pvt), task->uid, refid, (int)payload_len, payload);
 		start_local_report_channel(pvt, dst, payload, NULL, NULL, 1, 'i', NULL);
+	}
+	else {
+		const int partcnt = task->cmdsno / 2;
+		const int partno = 1 + (task->cindex / 2);
+
+		if (partno < partcnt) {
+			ast_debug(4, "[%s][SMS:%d REF:%d] Successfully sent message part %d/%d\n", PVT_ID(pvt), task->uid, refid, partno, partcnt);
+		}
+		else {
+			if (partcnt <= 1)
+				ast_verb(3, "[%s][SMS:%d REF:%d] Successfully sent message\n", PVT_ID(pvt), task->uid, refid);
+			else
+				ast_verb(3, "[%s][SMS:%d] Successfully sent message in %d parts\n", PVT_ID(pvt), task->uid, partcnt);
+
+			pvt->outgoing_sms = 0;
+			pvt_try_restate(pvt);
+		}
 	}
 
 	return 0;

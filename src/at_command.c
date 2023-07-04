@@ -407,89 +407,109 @@ int at_enqueue_qspn_qnwinfo(struct cpvt *cpvt)
 }
 
 /* SMS sending */
-static int at_enqueue_pdu(struct cpvt *cpvt, const char *pdu, size_t length, size_t tpdulen, int uid)
+static int at_enqueue_pdu(const char *pdu, size_t length, size_t tpdulen, at_queue_cmd_t* cmds)
 {
-	char buf[8+25+1];
-	at_queue_cmd_t at_cmd[] = {
+	static const at_queue_cmd_t at_cmds[] = {
 		{ CMD_AT_CMGS,    RES_SMS_PROMPT, ATQ_CMD_FLAG_DEFAULT, { ATQ_CMD_TIMEOUT_MEDIUM, 0}, NULL, 0 },
 		{ CMD_AT_SMSTEXT, RES_OK,         ATQ_CMD_FLAG_DEFAULT, { ATQ_CMD_TIMEOUT_LONG, 0},   NULL, 0 }
-		};
+	};
 
-	at_cmd[1].data = ast_malloc(length + 2);
-	if(!at_cmd[1].data)
-	{
+	// data
+	cmds[1] = at_cmds[1];
+	cmds[1].data = ast_malloc(length + 2);
+	if (!cmds[1].data) {
 		return -ENOMEM;
 	}
 
-	at_cmd[1].length = length + 1;
+	cmds[1].length = length + 1;
+	memcpy(cmds[1].data, pdu, length);
+	cmds[1].data[length] = 0x1A;
+	cmds[1].data[length + 1] = 0x0;
 
-	memcpy(at_cmd[1].data, pdu, length);
-	at_cmd[1].data[length] = 0x1A;
-	at_cmd[1].data[length + 1] = 0x0;
-
-	at_cmd[0].length = snprintf(buf, sizeof(buf), "AT+CMGS=%d\r", (int)tpdulen);
-	at_cmd[0].data = ast_strdup(buf);
-	if(!at_cmd[0].data)
-	{
-		ast_free(at_cmd[1].data);
+	// AT
+	char buf[8+25+1];
+	cmds[0] = at_cmds[0];
+	cmds[0].length = snprintf(buf, sizeof(buf), "AT+CMGS=%d\r", (int)tpdulen);
+	cmds[0].data = ast_strdup(buf);
+	if (!cmds[0].data) {
+		ast_free(cmds[1].data);
 		return -ENOMEM;
 	}
 
-	if (at_queue_insert_uid(cpvt, at_cmd, ITEMS_OF(at_cmd), 0, uid) != 0) {
-		chan_quectel_err = E_QUEUE;
-		return -1;
-	}
 	return 0;
 }
 
+static void clear_pdus(at_queue_cmd_t* cmds, ssize_t idx)
+{
+	if (idx <= 0) return;
+	const ssize_t u = idx * 2;
+	for(ssize_t i=0; i<u; ++i) ast_free(cmds[i].data);
+}
+
 /*!
- * \brief Enqueue a SMS message
+ * \brief Enqueue a SMS message(s)
  * \param cpvt -- cpvt structure
  * \param number -- the destination of the message
  * \param msg -- utf-8 encoded message
  */
 int at_enqueue_sms(struct cpvt *cpvt, const char *destination, const char *msg, unsigned validity_minutes, int report_req, const char *payload, size_t payload_len)
 {
-	ssize_t res;
-	struct pvt* pvt = cpvt->pvt;
+	struct pvt* const pvt = cpvt->pvt;
 
 	/* set default validity period */
 	if (validity_minutes <= 0)
 		validity_minutes = 3 * 24 * 60;
 
-	int msg_len = strlen(msg);
+	const int msg_len = strlen(msg);
 	uint16_t msg_ucs2[msg_len * 2];
-	res = utf8_to_ucs2(msg, msg_len, msg_ucs2, sizeof(msg_ucs2));
+	ssize_t res = utf8_to_ucs2(msg, msg_len, msg_ucs2, sizeof(msg_ucs2));
 	if (res < 0) {
 		chan_quectel_err = E_PARSE_UTF8;
 		return -1;
 	}
 
-	char hexbuf[PDU_LENGTH * 2 + 1];
-
-	pdu_part_t pdus[255];
-	int csmsref = smsdb_get_refid(pvt->imsi, destination);
+	const int csmsref = smsdb_get_refid(pvt->imsi, destination);
 	if (csmsref < 0) {
 		chan_quectel_err = E_SMSDB;
 		return -1;
 	}
+
+	pdu_part_t pdus[255];
 	res = pdu_build_mult(pdus, "" /* pvt->sms_scenter */, destination, msg_ucs2, res, validity_minutes, !!report_req, csmsref);
 	if (res < 0) {
 		/* pdu_build_mult sets chan_quectel_err */
 		return -1;
 	}
-	int uid = smsdb_outgoing_add(pvt->imsi, destination, res, validity_minutes * 60, report_req, payload, payload_len);
+
+	const int uid = smsdb_outgoing_add(pvt->imsi, destination, res, validity_minutes * 60, report_req, payload, payload_len);
 	if (uid < 0) {
 		chan_quectel_err = E_SMSDB;
 		return -1;
 	}
-	for (int i = 0; i < res; ++i) {
+
+	at_queue_cmd_t cmds[res*2];
+	at_queue_cmd_t* pcmds = cmds;
+	char hexbuf[PDU_LENGTH * 2 + 1];
+
+	for (ssize_t i = 0; i < res; ++i, pcmds += 2) {
 		hexify(pdus[i].buffer, pdus[i].length, hexbuf);
-		if (at_enqueue_pdu(cpvt, hexbuf, pdus[i].length * 2, pdus[i].tpdu_length, uid) < 0) {
+		if (at_enqueue_pdu(hexbuf, pdus[i].length * 2, pdus[i].tpdu_length, pcmds) < 0) {
+			clear_pdus(cmds, i);
 			return -1;
 		}
 	}
 
+	if (at_queue_insert_uid(cpvt, cmds, res*2, 0, uid) != 0) {
+		chan_quectel_err = E_QUEUE;
+		return -1;
+	}
+
+	if (res <= 1) {
+		ast_verb(1, "[%s] SMD ID: %d\n", PVT_ID(pvt), uid);
+	}
+	else {
+		ast_verb(1, "[%s] SMD ID: %d [%d parts]\n", PVT_ID(pvt), uid, (int)res);
+	}
 	return 0;
 }
 
