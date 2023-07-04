@@ -267,11 +267,6 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				at_enqueue_query_qgains(&pvt->sys_chan);
 				break;
 
-/*
-			case CMD_AT_CLIP:
-				ast_debug(1, "[%s] Calling line indication disabled\n", PVT_ID(pvt));
-				break;
-*/
 			case CMD_AT_CSSN:
 				ast_debug(1, "[%s] Supplementary Service Notification enabled successful\n", PVT_ID(pvt));
 				break;
@@ -607,11 +602,7 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 					pvt->has_voice = 0;
 				}
 				break;
-/*
-			case CMD_AT_CLIP:
-				log_cmd_response_error(pvt, ecmd, "[%s] Error enabling calling line indication\n", PVT_ID(pvt));
-				goto e_return;
-*/
+				
 			case CMD_AT_CSSN:
 				log_cmd_response_error(pvt, ecmd, "[%s] Error Supplementary Service Notification activation failed\n", PVT_ID(pvt));
 				goto e_return;
@@ -2670,10 +2661,7 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 
 			case RES_SMMEMFULL:
 				return at_response_smmemfull (pvt);
-/*
-			case RES_CLIP:
-				return at_response_clip (pvt, str, len);
-*/
+
 			case RES_CDSI:
 				return at_response_cdsi (pvt, str);
 

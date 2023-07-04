@@ -151,7 +151,6 @@ int at_enqueue_initialization(struct cpvt *cpvt)
 	static const char cmd_creg[] = "AT+CREG?\r";
 	static const char cmd_cnum[] = "AT+CNUM\r";
 
-//	static const char cmd_clip[] = "AT+CLIP=0\r";
 	static const char cmd_cssn[] = "AT+CSSN=1,1\r";
 	static const char cmd_cmgf[] = "AT+CMGF=0\r";
 	static const char cmd_cscs[] = "AT+CSCS=\"UCS2\"\r";
@@ -178,7 +177,6 @@ int at_enqueue_initialization(struct cpvt *cpvt)
 
 		ATQ_CMD_DECLARE_ST(CMD_AT_CSCA, cmd_csca),		/* Get SMS Service center address */
 
-//		ATQ_CMD_DECLARE_ST(CMD_AT_CLIP, cmd_clip),		/* Disable Calling line identification presentation in unsolicited response +CLIP: <number>,<type>[,<subaddr>,<satype>[,[<alpha>][,<CLI validitity>]] */
 		ATQ_CMD_DECLARE_ST(CMD_AT_CSSN, cmd_cssn),		/* Activate Supplementary Service Notification with CSSI and CSSU */
 		ATQ_CMD_DECLARE_ST(CMD_AT_CMGF, cmd_cmgf),		/* Set Message Format */
 
