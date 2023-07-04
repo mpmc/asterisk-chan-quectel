@@ -1048,6 +1048,8 @@ int at_parse_csca(char* str, char ** csca)
 	return 0;
 }
 
+#ifdef HANDLE_DSCI
+
 #/* */
 int at_parse_dsci(char* str, unsigned* call_idx, unsigned* dir, unsigned* state, unsigned* call_type, char** number, unsigned* toa)
 {
@@ -1081,6 +1083,8 @@ int at_parse_dsci(char* str, unsigned* call_idx, unsigned* dir, unsigned* state,
 
 	return -1;
 }
+
+#endif
 
 #/* */
 int at_parse_clcc(char* str, unsigned* call_idx, unsigned* dir, unsigned* state, unsigned* mode, unsigned* mpty, char** number, unsigned* toa)
