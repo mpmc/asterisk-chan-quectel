@@ -90,6 +90,8 @@ static void request_clcc(struct pvt* pvt)
 	}
 }
 
+static int at_response_cmgs_error(struct pvt*, const at_queue_task_t * const);
+
 #ifdef HANDLE_RCEND
 static int at_response_rcend(struct pvt * pvt)
 {
@@ -332,7 +334,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CMGS:
-				ast_debug(1, "[%s] Sending sms message in progress\n", PVT_ID(pvt));
+				ast_debug(1, "[%s] Sending SMS message in progress\n", PVT_ID(pvt));
 				break;
 
 			case CMD_AT_SMSTEXT:
@@ -678,21 +680,9 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 
 			case CMD_AT_CMGS:
 			case CMD_AT_SMSTEXT:
-				pvt->outgoing_sms = 0;
+				log_cmd_response_error(pvt, ecmd, "[%s] Error sending SMS message %p %s\n", PVT_ID(pvt), task, at_cmd2str(ecmd->cmd));
+				at_response_cmgs_error(pvt, task);
 				pvt_try_restate(pvt);
-
-				{
-					char payload[SMSDB_PAYLOAD_MAX_LEN];
-					char dst[SMSDB_DST_MAX_LEN];
-					ssize_t payload_len = smsdb_outgoing_clear(task->uid, dst, payload);
-					if (payload_len >= 0) {
-						ast_verb(3, "[%s] Error payload: %.*s\n", PVT_ID(pvt), (int) payload_len, payload);
-						start_local_report_channel(pvt, dst, payload, NULL, NULL, 0, 'i', NULL);
-					}
-				}
-
-				ast_verb(3, "[%s] Error sending SMS message %p\n", PVT_ID(pvt), task);
-				log_cmd_response_error(pvt, ecmd, "[%s] Error sending SMS message %p %s\n", PVT_ID(pvt), task, at_cmd2str (ecmd->cmd));
 				break;
 
 			case CMD_AT_DTMF:
@@ -1316,14 +1306,47 @@ static int at_response_ccwa(struct pvt* pvt, char* str)
 	return 0;
 }
 
+static int at_response_cmgs(struct pvt* pvt, const struct ast_str* const response, const at_queue_task_t * const task)
+{
+	const int refid = at_parse_cmgs(ast_str_buffer(response));
+	if (refid < 0) {
+		ast_verb(1, "[%s] Error parsing CMGS: [%s]\n", PVT_ID(pvt), ast_str_buffer(response));
+		return -1;
+	}
+
+	char payload[SMSDB_PAYLOAD_MAX_LEN];
+	char dst[SMSDB_DST_MAX_LEN];
+
+	const ssize_t payload_len = smsdb_outgoing_part_put(task->uid, refid, dst, payload);
+	if (payload_len >= 0) {
+		ast_verb (3, "[%s] SMS payload[%d]: [%.*s]\n", PVT_ID(pvt), refid, (int)payload_len, payload);
+		start_local_report_channel(pvt, dst, payload, NULL, NULL, 1, 'i', NULL);
+	}
+
+	return 0;
+}
+
+static int at_response_cmgs_error(struct pvt* pvt, const at_queue_task_t * const task)
+{
+	char payload[SMSDB_PAYLOAD_MAX_LEN];
+	char dst[SMSDB_DST_MAX_LEN];
+
+	const ssize_t payload_len = smsdb_outgoing_clear(task->uid, dst, payload);
+	if (payload_len >= 0) {
+		ast_verb(3, "[%s] Error sending SMS message[%p-%d]: [%.*s]\n", PVT_ID(pvt), task, task->uid, (int)payload_len, payload);
+		start_local_report_channel(pvt, dst, payload, NULL, NULL, 0, 'i', NULL);
+	}
+	pvt->outgoing_sms = 0;
+	return 0;
+}
+
 /*!
  * \brief Poll for SMS messages
  * \param pvt -- pvt structure
  * \retval 0 success
  * \retval -1 failure
  */
-int
-at_poll_sms(struct pvt *pvt)
+int at_poll_sms(struct pvt *pvt)
 {
 	if (CONF_SHARED(pvt, disablesms)) {
 		return -1;
@@ -1331,6 +1354,8 @@ at_poll_sms(struct pvt *pvt)
 
 	return at_enqueue_list_messages(&pvt->sys_chan, MSG_STAT_REC_UNREAD);
 }
+
+
 
 /*!
  * \brief Handle +CMTI response
@@ -1622,21 +1647,19 @@ msg_ret:
  * \retval -1 error
  */
 
-static int at_response_sms_prompt (struct pvt* pvt)
+static int at_response_sms_prompt(struct pvt* pvt)
 {
-	const struct at_queue_cmd * ecmd = at_queue_head_cmd (pvt);
-	if (ecmd && ecmd->res == RES_SMS_PROMPT)
-	{
-		at_queue_handle_result (pvt, RES_SMS_PROMPT);
+	const struct at_queue_cmd * ecmd = at_queue_head_cmd(pvt);
+
+	if (ecmd && ecmd->res == RES_SMS_PROMPT) {
+		at_queue_handle_result(pvt, RES_SMS_PROMPT);
 	}
-	else if (ecmd)
-	{
-		ast_log (LOG_ERROR, "[%s] Received sms prompt when expecting '%s' response to '%s', ignoring\n", PVT_ID(pvt),
-				at_res2str (ecmd->res), at_cmd2str (ecmd->cmd));
+	else if (ecmd) {
+		ast_log(LOG_ERROR, "[%s] Received SMS prompt when expecting '%s' response to '%s', ignoring\n", PVT_ID(pvt),
+			at_res2str(ecmd->res), at_cmd2str(ecmd->cmd));
 	}
-	else
-	{
-		ast_log (LOG_ERROR, "[%s] Received unexpected sms prompt\n", PVT_ID(pvt));
+	else {
+		ast_log(LOG_ERROR, "[%s] Received unexpected SMS prompt\n", PVT_ID(pvt));
 	}
 
 	return 0;
@@ -2575,20 +2598,6 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 			case RES_DST:
 			return 0;
 
-			case RES_CMGS:
-				{
-					const int res = at_parse_cmgs(str);
-
-					char payload[SMSDB_PAYLOAD_MAX_LEN];
-					char dst[SMSDB_DST_MAX_LEN];
-					ssize_t payload_len = smsdb_outgoing_part_put(task->uid, res, dst, payload);
-					if (payload_len >= 0) {
-						ast_verb (3, "[%s] Error payload: %.*s\n", PVT_ID(pvt), (int) payload_len, payload);
-						start_local_report_channel(pvt, dst, payload, NULL, NULL, 1, 'i', NULL);
-					}
-				}
-				return 0;
-
 			case RES_OK:
 				at_response_ok (pvt, at_res);
 				return 0;
@@ -2676,7 +2685,11 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 				return at_response_msg(pvt, result, at_res);
 
 			case RES_SMS_PROMPT:
-				return at_response_sms_prompt (pvt);
+				return at_response_sms_prompt(pvt);
+
+			case RES_CMGS:
+				at_response_cmgs(pvt, result, task);
+				return 0;
 
 			case RES_CUSD:
 				/* An error here is not fatal. Just keep going. */

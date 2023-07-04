@@ -782,11 +782,9 @@ int at_parse_cmgs (const char* str)
 	/*
 	 * parse CMGS info in the following format:
 	 * +CMGS:<mr>[,<scts>]
-	 * (sscanf is lax about extra spaces)
-	 * TODO: not ignore parse errors ;)
 	 */
-	sscanf (str, "+CMGS:%d", &cmgs);
-	return cmgs;
+	return sscanf(str, "+CMGS:%d", &cmgs)? cmgs : -1;
+
 }
 
  /*!
