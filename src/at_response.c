@@ -2438,13 +2438,15 @@ static int at_response_cnsmod(struct pvt* pvt, const struct ast_str* const respo
 
 static int at_response_cring(struct pvt* pvt, const struct ast_str* const response)
 {
-	char* ring_type;
-	if (at_parse_cring(ast_str_buffer(response), &ring_type)) {
-		ast_log(LOG_ERROR, "[%s] Error parsing '%s'\n", PVT_ID(pvt), ast_str_buffer(response));
-		return -1;
-	}
+	if (DEBUG_ATLEAST(2)) {
+		char* ring_type;
+		if (at_parse_cring(ast_str_buffer(response), &ring_type)) {
+			ast_log(LOG_ERROR, "[%s] Error parsing '%s'\n", PVT_ID(pvt), ast_str_buffer(response));
+			return -1;
+		}
 
-	ast_verb(3, "[%s] Ring: %s\n", PVT_ID(pvt), ring_type);
+		ast_debug(2, "[%s] Receive RING: %s\n", PVT_ID(pvt), ring_type);
+	}
 	return 0;
 }
 
@@ -2665,9 +2667,6 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 			case RES_ERROR:
 				return at_response_error (pvt, at_res);
 
-			case RES_RING:
-				ast_log(LOG_NOTICE, "[%s] Receive RING\n", PVT_ID(pvt) );
-				break;
 
 			case RES_SMMEMFULL:
 				return at_response_smmemfull (pvt);
@@ -2701,6 +2700,13 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 
 			case RES_CCWA:
 				return at_response_ccwa (pvt, str);
+
+			case RES_CRING:
+				return at_response_cring(pvt, result);
+
+			case RES_RING:
+				ast_debug(2, "[%s] Receive RING\n", PVT_ID(pvt) );
+				break;
 
 			case RES_BUSY:
 				ast_debug(2, "[%s] Receive BUSY\n", PVT_ID(pvt));
@@ -2799,8 +2805,6 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 				ast_log (LOG_ERROR, "[%s] Error parsing result\n", PVT_ID(pvt));
 				return -1;
 
-			case RES_CRING:
-				return at_response_cring(pvt, result);
 
 			case RES_PSNWID:
 				return at_response_psnwid(pvt, result);
