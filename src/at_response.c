@@ -935,7 +935,7 @@ static void handle_clcc(struct pvt* pvt,
 	switch(state) {
 		case CALL_STATE_ACTIVE:
 			if (cpvt && pvt->is_simcom && CONF_UNIQ(pvt, uac) == TRIBOOL_FALSE && pvt->has_voice) {
-				at_enqueue_cpcmreg(cpvt, 1);
+				at_enqueue_cpcmreg(&pvt->sys_chan, 1);
 			}
 			break;
 
@@ -1011,7 +1011,7 @@ static void handle_clcc(struct pvt* pvt,
 			pvt->cwaiting = 0;
 
 			if (cpvt && pvt->is_simcom && CONF_UNIQ(pvt, uac) == TRIBOOL_FALSE && pvt->has_voice) {
-				at_enqueue_cpcmreg(cpvt, 0);
+				at_enqueue_cpcmreg(&pvt->sys_chan, 0);
 			}
 			break;
 		}
