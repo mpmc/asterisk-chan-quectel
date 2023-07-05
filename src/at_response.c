@@ -1629,20 +1629,25 @@ msg_done_ack:
 		case RES_CMT:
 		case RES_CDS:
 		case RES_CMGL:
-		case RES_CLASS0:
 		if (CONF_SHARED(pvt, msg_service) > 0) {
 			switch(msg_ack) {
 				case TRIBOOL_FALSE: // negative ACT
-				at_enqueue_msg_ack(&pvt->sys_chan);
+				at_enqueue_msg_ack_n(&pvt->sys_chan, 0);
 				break;
 
 				case TRIBOOL_TRUE: // positive ACK
-				at_enqueue_msg_ack(&pvt->sys_chan);
+				at_enqueue_msg_ack_n(&pvt->sys_chan, 0);
 				break;
 
 				default:
 				break;
 			}
+		}
+		break;
+
+		case RES_CLASS0:
+		if (msg_ack) {
+			at_enqueue_msg_ack(&pvt->sys_chan);
 		}
 		break;
 
