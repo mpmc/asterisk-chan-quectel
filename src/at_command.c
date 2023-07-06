@@ -505,10 +505,10 @@ int at_enqueue_sms(struct cpvt *cpvt, const char *destination, const char *msg, 
 	}
 
 	if (res <= 1) {
-		ast_verb(1, "[%s] SMD ID: %d\n", PVT_ID(pvt), uid);
+		ast_verb(1, "[%s][SMS:%d] Message enqueued\n", PVT_ID(pvt), uid);
 	}
 	else {
-		ast_verb(1, "[%s] SMD ID: %d [%d parts]\n", PVT_ID(pvt), uid, (int)res);
+		ast_verb(1, "[%s][SMS:%d] Message enqueued [%d parts]\n", PVT_ID(pvt), uid, (int)res);
 	}
 	return 0;
 }

@@ -1320,13 +1320,13 @@ static int at_response_cmgs(struct pvt* pvt, const struct ast_str* const respons
 		const int partno = 1 + (task->cindex / 2);
 
 		if (partno < partcnt) {
-			ast_debug(4, "[%s][SMS:%d REF:%d] Successfully sent message part %d/%d\n", PVT_ID(pvt), task->uid, refid, partno, partcnt);
+			ast_debug(3, "[%s][SMS:%d REF:%d] Successfully sent message part %d/%d\n", PVT_ID(pvt), task->uid, refid, partno, partcnt);
 		}
 		else {
 			if (partcnt <= 1)
-				ast_verb(3, "[%s][SMS:%d REF:%d] Successfully sent message\n", PVT_ID(pvt), task->uid, refid);
+				ast_verb(1, "[%s][SMS:%d REF:%d] Successfully sent message\n", PVT_ID(pvt), task->uid, refid);
 			else
-				ast_verb(3, "[%s][SMS:%d] Successfully sent message [%d parts]\n", PVT_ID(pvt), task->uid, partcnt);
+				ast_verb(1, "[%s][SMS:%d] Successfully sent message [%d parts]\n", PVT_ID(pvt), task->uid, partcnt);
 
 			pvt->outgoing_sms = 0;
 			pvt_try_restate(pvt);
@@ -1343,8 +1343,11 @@ static int at_response_cmgs_error(struct pvt* pvt, const at_queue_task_t * const
 
 	const ssize_t payload_len = smsdb_outgoing_clear(task->uid, dst, payload);
 	if (payload_len >= 0) {
-		ast_verb(3, "[%s][SMS:%d] Error sending message: [%.*s]\n", PVT_ID(pvt), task->uid, (int)payload_len, payload);
+		ast_verb(1, "[%s][SMS:%d] Error sending message: [%.*s]\n", PVT_ID(pvt), task->uid, (int)payload_len, payload);
 		start_local_report_channel(pvt, dst, payload, NULL, NULL, 0, 'i', NULL);
+	}
+	else {
+		ast_verb(1, "[%s][SMS:%d] Error sending message\n", PVT_ID(pvt), task->uid);
 	}
 	pvt->outgoing_sms = 0;
 	return 0;
@@ -1510,7 +1513,7 @@ static int at_response_msg(struct pvt* pvt, const struct ast_str* const response
 	switch (PDUTYPE_MTI(tpdu_type)) {
 		case PDUTYPE_MTI_SMS_STATUS_REPORT: {
 			static const size_t STATUS_REPORT_STR_LEN = 255 * 4 + 1;
-			ast_verb(1, "[%s] Got status report with ref %d from %s and status code %d\n", PVT_ID(pvt), mr, ast_str_buffer(oa), st);
+			ast_verb(1, "[%s][SMS:%d] Got status report from %s and status code %d\n", PVT_ID(pvt), mr, ast_str_buffer(oa), st);
 
 			int* const status_report = (int*)ast_malloc(sizeof(int)*256);
 			struct ast_str* status_report_str = ast_str_create(STATUS_REPORT_STR_LEN);
@@ -1526,7 +1529,7 @@ static int at_response_msg(struct pvt* pvt, const struct ast_str* const response
 				}
 				*(ast_str_buffer(payload) + payload_len) = '\0';
 				ast_str_update(payload);
-				ast_verb(2, "[%s] Success: %d; Payload: %.*s; Report string: %s\n", PVT_ID(pvt), success, (int)payload_len, ast_str_buffer(payload), ast_str_buffer(status_report_str));
+				ast_verb(2, "[%s][SMS:%d] Report: success:%d payload:[%.*s] report:[%s]\n", PVT_ID(pvt), mr, success, (int)payload_len, ast_str_buffer(payload), ast_str_buffer(status_report_str));
 				msg_ack = TRIBOOL_TRUE;
 				msg_complete = 1;
 				start_local_report_channel(pvt, ast_str_buffer(oa), ast_str_buffer(payload), scts, dt, success, 'e', ast_str_buffer(status_report_str));
@@ -1541,10 +1544,10 @@ static int at_response_msg(struct pvt* pvt, const struct ast_str* const response
 		case PDUTYPE_MTI_SMS_DELIVER: {
 			struct ast_str* fullmsg = ast_str_create(MAX_MSG_LEN);
 			if (udh.parts > 1) {
-				ast_verb(2, "[%s] Got SM part from %s: [TS:%s][%s][ref=%d, order=%d, parts=%d]\n", PVT_ID(pvt), ast_str_buffer(oa), scts, ast_str_buffer(msg), (int)udh.ref, (int)udh.order, (int)udh.parts);
+				ast_verb(2, "[%s][SMS:%d PART:%d/%d TS:%s] Got message part from %s: [%s]\n", PVT_ID(pvt), (int)udh.ref, (int)udh.order, (int)udh.parts, scts, ast_str_buffer(oa), ast_str_buffer(msg));
 				int csms_cnt = smsdb_put(pvt->imsi, ast_str_buffer(oa), udh.ref, udh.parts, udh.order, ast_str_buffer(msg), ast_str_buffer(fullmsg));
 				if (csms_cnt <= 0) {
-					ast_log(LOG_ERROR, "[%s] Error putting SMS to SMSDB\n", PVT_ID(pvt));
+					ast_log(LOG_ERROR, "[%s][SMS:%d PART:%d/%d TS:%s] Error putting message part to database\n", PVT_ID(pvt), (int)udh.ref, (int)udh.order, (int)udh.parts, scts);
 					goto receive_as_is;
 				}
 				ast_str_update(fullmsg);
@@ -1553,7 +1556,7 @@ static int at_response_msg(struct pvt* pvt, const struct ast_str* const response
 
 				if (!msg_complete) {
 					if ((int)udh.order == (int)udh.parts) {
-						ast_debug(1, "[%s] Incomplete SMS, got %d of %d parts\n", PVT_ID(pvt), csms_cnt, (int)udh.parts);
+						ast_debug(1, "[%s][SMS:%d PART:%d/%d TS:%s] Incomplete message, got %d parts\n", PVT_ID(pvt), (int)udh.ref, (int)udh.order, (int)udh.parts, scts, csms_cnt);
 					}
 					goto msg_done;
 				}
@@ -1561,11 +1564,11 @@ static int at_response_msg(struct pvt* pvt, const struct ast_str* const response
 receive_as_is:
 				msg_ack = TRIBOOL_TRUE;
 				msg_complete = 1;
-				ast_verb(2, "[%s] Got single SM from %s: [TS:%s][%s]\n", PVT_ID(pvt), ast_str_buffer(oa), scts, ast_str_buffer(msg));
+				ast_verb(2, "[%s][SMS:%d TS:%s] Got message part from %s: [%s]\n", PVT_ID(pvt), (int)udh.ref, scts, ast_str_buffer(oa), ast_str_buffer(msg));
 				ast_str_copy_string(&fullmsg, msg);
 			}
 
-			ast_verb(1, "[%s] Got SMS from %s: [TS:%s][%s]\n", PVT_ID(pvt), ast_str_buffer(oa), scts, ast_str_buffer(fullmsg));
+			ast_verb(1, "[%s][SMS:%d PARTS:%d TS:%s] Got message from %s: [%s]\n", PVT_ID(pvt), (int)udh.ref, (int)udh.parts, scts, ast_str_buffer(oa), ast_str_buffer(fullmsg));
 
 			if (ast_str_strlen(fullmsg)) {
 				struct ast_str* b64 = ast_str_create(40800);
