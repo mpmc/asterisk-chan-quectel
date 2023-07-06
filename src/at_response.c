@@ -784,7 +784,7 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CCID:
-				ast_log(LOG_WARNING, "[%s] Could not get ICCID\n", PVT_ID(pvt));
+				ast_debug(2, "[%s] Could not get ICCID\n", PVT_ID(pvt));
 				break;
 
 			case CMD_AT_CICCID:
@@ -1878,6 +1878,7 @@ static int at_response_cnum(struct pvt* pvt, char* str)
 	}
 
 	ast_string_field_set(pvt, subscriber_number, number);
+	ast_verb(2, "[%s] Subsciber number: %s\n", PVT_ID(pvt), pvt->subscriber_number);
 	pvt->has_subscriber_number = 1;
 	return 0;
 }
@@ -2031,6 +2032,7 @@ static int at_response_creg(struct pvt* pvt, char* str, size_t len)
 static int at_response_cgmi(struct pvt* pvt, const struct ast_str* const response)
 {
 	ast_string_field_set(pvt, manufacturer, ast_str_buffer(response));
+	ast_verb(3, "[%s] Manufacturer: %s\n", PVT_ID(pvt), pvt->manufacturer);
 
 	if (!strncasecmp(ast_str_buffer(response), MANUFACTURER_QUECTEL, STRLEN(MANUFACTURER_QUECTEL))) {
 		ast_verb(1, "[%s] Quectel module\n", PVT_ID(pvt));
@@ -2065,6 +2067,7 @@ static int at_response_cgmi(struct pvt* pvt, const struct ast_str* const respons
 static int at_response_cgmm(struct pvt* pvt, const struct ast_str* const response)
 {
 	ast_string_field_set(pvt, model, ast_str_buffer(response));
+	ast_verb(2, "[%s] Model: %s\n", PVT_ID(pvt), pvt->model);
 
 	static const char MODEL_A760E[] = "A7670E";
 
@@ -2089,7 +2092,7 @@ static int at_response_cgmm(struct pvt* pvt, const struct ast_str* const respons
 static int at_response_cgmr(struct pvt* pvt, const struct ast_str* const response)
 {
 	ast_string_field_set(pvt, firmware, ast_str_buffer(response));
-
+	ast_verb(2, "[%s] Revision identification: %s\n", PVT_ID(pvt), pvt->firmware);
 	return 0;
 }
 
@@ -2104,7 +2107,7 @@ static int at_response_cgmr(struct pvt* pvt, const struct ast_str* const respons
 static int at_response_cgsn(struct pvt* pvt, const struct ast_str* const response)
 {
 	ast_string_field_set(pvt, imei, ast_str_buffer(response));
-
+	ast_verb(2, "[%s] IMEI: %s\n", PVT_ID(pvt), pvt->imei);
 	return 0;
 }
 
@@ -2119,14 +2122,14 @@ static int at_response_cgsn(struct pvt* pvt, const struct ast_str* const respons
 static int at_response_cimi(struct pvt* pvt, const struct ast_str* const response)
 {
 	ast_string_field_set(pvt, imsi, ast_str_buffer(response));
-
+	ast_verb(2, "[%s] IMSI: %s\n", PVT_ID(pvt), pvt->imsi);
 	return 0;
 }
 
 static int at_response_ccid(struct pvt* pvt, const struct ast_str* const response)
 {
 	ast_string_field_set(pvt, iccid, ast_str_buffer(response));
-
+	ast_verb(2, "[%s] ICCID: %s\n", PVT_ID(pvt), pvt->iccid);
 	return 0;
 }
 
@@ -2139,6 +2142,7 @@ static int at_response_xccid(struct pvt* pvt, const struct ast_str* const respon
 	}
 
 	ast_string_field_set(pvt, iccid, ccid);
+	ast_verb(2, "[%s] ICCID: %s\n", PVT_ID(pvt), pvt->iccid);
 	return 0;
 }
 
@@ -2292,8 +2296,8 @@ static void at_response_qlts(struct pvt* pvt, const struct ast_str* const result
 		return;
 	}
 
-	ast_verb(3, "[%s] Module time: %s\n", PVT_ID(pvt), ts);
 	ast_string_field_set(pvt, module_time, ts);	
+	ast_verb(3, "[%s] Module time: %s\n", PVT_ID(pvt), pvt->module_time);
 }
 
 static void at_response_cclk(struct pvt* pvt, char* str, size_t len)
@@ -2305,8 +2309,8 @@ static void at_response_cclk(struct pvt* pvt, char* str, size_t len)
 		return;
 	}
 
-	ast_verb(3, "[%s] Module time: %s\n", PVT_ID(pvt), ts);
 	ast_string_field_set(pvt, module_time, ts);
+	ast_verb(3, "[%s] Module time: %s\n", PVT_ID(pvt), pvt->module_time);
 }
 
 static void at_response_qrxgain(struct pvt* pvt, const struct ast_str* const response)
@@ -2435,8 +2439,8 @@ static int at_response_cgmr_ex(struct pvt* pvt, const struct ast_str* const resp
 		return -1;
 	}
 
-	ast_verb(1, "[%s] Revision identification is %s\n", PVT_ID(pvt), cgmr);
 	ast_string_field_set(pvt, firmware, cgmr);
+	ast_verb(2, "[%s] Revision identification: %s\n", PVT_ID(pvt), pvt->firmware);
 	return 0;
 }
 
@@ -2529,8 +2533,8 @@ static int at_response_psuttz(struct pvt* pvt, const struct ast_str* const respo
 		"%02d/%02d/%02d,%02d:%02d:%02d%+d",
 		year % 100, month, day, hour, min, sec, time_zone);
 
-	ast_verb(3, "[%s] Module time: %s\n", PVT_ID(pvt), ast_str_buffer(module_time));
 	ast_string_field_set(pvt, module_time, ast_str_buffer(module_time));
+	ast_verb(3, "[%s] Module time: %s\n", PVT_ID(pvt), pvt->module_time);
 	return 0;
 }
 
@@ -2542,8 +2546,8 @@ static int at_response_revision(struct pvt* pvt, const struct ast_str* const res
 		return -1;
 	}
 
-	ast_debug(1, "[%s] Firmware: %s\n", PVT_ID(pvt), rev);
 	ast_string_field_set(pvt, firmware, rev);
+	ast_verb(2, "[%s] Revision identification: %s\n", PVT_ID(pvt), pvt->firmware);
 	return 0;
 }
 
