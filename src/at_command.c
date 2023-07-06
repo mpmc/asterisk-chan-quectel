@@ -133,6 +133,7 @@ int at_enqueue_at(struct cpvt* cpvt)
  */
 int at_enqueue_initialization(struct cpvt *cpvt)
 {
+	static const char cmd_eat[] = "\033AT\r";
 	static const char cmd_z[] = "ATZ\r";
 	static const char cmd_ate0[] = "ATE0\r";
 
@@ -156,7 +157,7 @@ int at_enqueue_initialization(struct cpvt *cpvt)
 	static const char cmd_cscs[] = "AT+CSCS=\"UCS2\"\r";
 
 	static const at_queue_cmd_t st_cmds[] = {
-		ATQ_CMD_DECLARE_ST(CMD_AT, cmd_at),				/* Auto sense */
+		ATQ_CMD_DECLARE_ST(CMD_AT, cmd_eat),			/* Auto sense */
 		ATQ_CMD_DECLARE_ST(CMD_AT_Z, cmd_z),			/* Restore default settings */
 		ATQ_CMD_DECLARE_ST(CMD_AT_E, cmd_ate0),			/* Disable echo */
 		ATQ_CMD_DECLARE_ST(CMD_AT_CSCS, cmd_cscs),		/* Set UCS-2 text encoding */
