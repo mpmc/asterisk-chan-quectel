@@ -831,23 +831,17 @@ void clean_read_data(const char* devname, int fd, struct ringbuffer* const rb)
 
 static void handle_expired_reports(struct pvt *pvt)
 {
-	char dst[SMSDB_DST_MAX_LEN];
-	char payload[SMSDB_PAYLOAD_MAX_LEN];
-	ssize_t payload_len = smsdb_outgoing_purge_one(dst, payload);
+	int uid;
+	struct ast_str* dst = ast_str_alloca(SMSDB_DST_MAX_LEN);
+	struct ast_str* payload = ast_str_create(SMSDB_PAYLOAD_MAX_LEN);
+	ssize_t payload_len = smsdb_outgoing_purge_one(&uid, dst, payload);
 	if (payload_len >= 0) {
-		ast_verb (3, "[%s] TTL payload: %.*s\n", PVT_ID(pvt), (int) payload_len, payload);
-		const channel_var_t vars[] =
-		{
-			{ "SMS_REPORT_PAYLOAD", payload },
-			{ "SMS_REPORT_TS", "" },
-			{ "SMS_REPORT_DT", "" },
-			{ "SMS_REPORT_SUCCESS", "0" },
-			{ "SMS_REPORT_TYPE", "t" },
-			{ "SMS_REPORT", "" },
-			{ NULL, NULL },
-		};
-		start_local_channel(pvt, "report", dst, vars);
+		ast_verb(3, "[%s][SMS:%d %s] Expired: [%s]\n", PVT_ID(pvt), uid, ast_str_buffer(dst), ast_str_buffer(payload));
+		struct ast_str* report = ast_str_alloca(SMSDB_DST_MAX_LEN);
+		ast_str_set(&report, SMSDB_DST_MAX_LEN, "[SMS:%d] Expired", uid);
+		start_local_report_channel(pvt, ast_str_buffer(dst), payload, NULL, NULL, 0, 't', report);
 	}
+	ast_free(payload);
 }
 
 /*!

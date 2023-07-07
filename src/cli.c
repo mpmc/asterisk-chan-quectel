@@ -452,41 +452,36 @@ static char* cli_ussd (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 
 CLI_ALIASES(cli_ussd, "ussd", "ussd <device> <command>", "Send ussd <command> with the specified <device>")
 
-static char* cli_sms (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
+static char* cli_sms(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
-	struct ast_str * buf;
-	int i;
+	static const char DEF_PAYLOAD[] = "CLI";
+	static const int DEF_VALIDITY = 15;
+	static const int DEF_REPORT = 1;
 
-	switch (cmd)
-	{
+	switch (cmd) {
 		case CLI_GENERATE:
-			if (a->pos == 2)
-			{
-				return complete_device (a->word, a->n);
+			if (a->pos == 2) {
+				return complete_device(a->word, a->n);
 			}
 			return NULL;
 	}
 
-	if (a->argc < 5)
-	{
+	if (a->argc < 5) {
 		return CLI_SHOWUSAGE;
 	}
 
-	buf = ast_str_create (160 * 255);
-	for (i = 4; i < a->argc; i++)
-	{
-		if (i < (a->argc - 1))
-		{
-			ast_str_append (&buf, 0, "%s ", a->argv[i]);
+	struct ast_str* buf = ast_str_create(160 * 255);
+	for (int i = 4; i < a->argc; ++i) {
+		if (i < (a->argc - 1)) {
+			ast_str_append(&buf, 0, "%s ", a->argv[i]);
 		}
-		else
-		{
-			ast_str_append (&buf, 0, "%s", a->argv[i]);
+		else {
+			ast_str_append(&buf, 0, "%s", a->argv[i]);
 		}
 	}
 
-	int res = send_sms(a->argv[2], a->argv[3], ast_str_buffer(buf), 0, "1", "UNKNOWN", 8);
-	ast_free (buf);
+	int res = send_sms(a->argv[2], a->argv[3], ast_str_buffer(buf), DEF_VALIDITY, DEF_REPORT, DEF_PAYLOAD, STRLEN(DEF_PAYLOAD));
+	ast_free(buf);
 	ast_cli(a->fd, "[%s] %s\n", a->argv[2], res < 0 ? error2str(chan_quectel_err) : "SMS queued for send");
 
 	return CLI_SUCCESS;

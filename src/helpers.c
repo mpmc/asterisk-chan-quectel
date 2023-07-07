@@ -89,10 +89,11 @@ int get_at_clir_value (struct pvt* pvt, int clir)
 
 typedef int (*at_cmd_f)(struct cpvt*, const char*, const char*, unsigned, int, const char*, size_t);
 
-void free_pvt(struct pvt *pvt)
+static void free_pvt(struct pvt *pvt)
 {
 	ast_mutex_unlock(&pvt->lock);
 }
+
 struct pvt *get_pvt(const char *dev_name, int online)
 {
 	struct pvt *pvt;
@@ -125,26 +126,18 @@ int send_ussd(const char *dev_name, const char *ussd)
 }
 
 #/* */
-int send_sms(const char *dev_name, const char *number, const char *message, const char *validity, const char *report, const char *payload, size_t payload_len)
+int send_sms(const char *const dev_name, const char * const number, const char * const message, int validity, int report, const char * const payload, size_t payload_len)
 {
 	if (!is_valid_phone_number(number)) {
 		chan_quectel_err = E_INVALID_PHONE_NUMBER;
 		return -1;
 	}
-
-	int val = 0;
-	if (validity) {
-		val = strtol(validity, NULL, 10);
-		val = val <= 0 ? 0 : val;
-	}
-
-	int srr = !report ? 0 : ast_true(report);
 	
 	struct pvt *pvt = get_pvt(dev_name, 1);
 	if (!pvt) {
 		return -1;
 	}
-	int res = at_enqueue_sms(&pvt->sys_chan, number, message, val, srr, payload, payload_len);
+	int res = at_enqueue_sms(&pvt->sys_chan, number, message, validity, report, payload, payload_len);
 	free_pvt(pvt);
 	return res;
 }

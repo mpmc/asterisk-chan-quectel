@@ -39,12 +39,12 @@ int queue_control_channel(struct cpvt* cpvt, enum ast_control_frame_type control
 int queue_hangup(struct ast_channel* channel, int hangupcause);
 void start_local_channel(struct pvt* pvt, const char* exten, const char* number, const channel_var_t* vars);
 void start_local_report_channel(struct pvt* pvt, const char* number, 
-	const char* payload,
+	const struct ast_str* const payload,
 	const char* ts,
 	const char* dt,
 	int success,
 	const char report_type,
-	const char* str
+	const struct ast_str* const report
 );
 void change_channel_state(struct cpvt* cpvt, unsigned newstate, int cause);
 int channels_loop(struct pvt* pvt, const struct ast_channel* requestor);

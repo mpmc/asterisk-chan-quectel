@@ -1540,23 +1540,22 @@ int queue_hangup(struct ast_channel* channel, int hangupcause)
 void start_local_report_channel(
 	struct pvt* pvt,
 	const char* number, 
-	const char* payload,
+	const struct ast_str* const payload,
 	const char* ts,
 	const char* dt,
 	int success,
 	const char report_type,
-	const char* str
+	const struct ast_str* const report
 )
 {
 	const char report_type_str[2] = {report_type, '\000'};
-	const channel_var_t vars[] =
-	{
-		{ "SMS_REPORT_PAYLOAD", S_OR(payload, "") } ,
-		{ "SMS_REPORT_TS", S_OR(ts, "") },
-		{ "SMS_REPORT_DT", S_OR(dt, "") },
+	const channel_var_t vars[] = {
+		{ "SMS_REPORT_PAYLOAD", ast_str_buffer(payload) } ,
+		{ "SMS_REPORT_TS", ts },
+		{ "SMS_REPORT_DT", dt },
 		{ "SMS_REPORT_SUCCESS", S_COR(success, "1", "0") },
 		{ "SMS_REPORT_TYPE", report_type_str },
-		{ "SMS_REPORT", S_OR(str, "") },
+		{ "SMS_REPORT", ast_str_buffer(report) },
 		{ NULL, NULL },
 	};
 	start_local_channel(pvt, "report", number, vars);

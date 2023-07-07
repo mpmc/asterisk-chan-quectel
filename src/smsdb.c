@@ -45,7 +45,7 @@ DEFINE_SQL_STATEMENT(get_cnt_stmt, "SELECT COUNT(seqorder) FROM incoming WHERE k
 DEFINE_SQL_STATEMENT(create_incoming_stmt, "CREATE TABLE IF NOT EXISTS incoming (key VARCHAR(256), seqorder INTEGER, expiration TIMESTAMP DEFAULT CURRENT_TIMESTAMP, message VARCHAR(256), PRIMARY KEY(key, seqorder))")
 DEFINE_SQL_STATEMENT(create_index_stmt, "CREATE INDEX IF NOT EXISTS incoming_key ON incoming(key)")
 DEFINE_SQL_STATEMENT(create_outgoingref_stmt, "CREATE TABLE IF NOT EXISTS outgoing_ref (key VARCHAR(256), refid INTEGER, PRIMARY KEY(key))") // key: IMSI/DEST_ADDR
-DEFINE_SQL_STATEMENT(create_outgoingmsg_stmt, "CREATE TABLE IF NOT EXISTS outgoing_msg (dev VARCHAR(256), dst VARCHAR(255), cnt INTEGER, expiration TIMESTAMP, srr BOOLEAN, payload BLOB)")
+DEFINE_SQL_STATEMENT(create_outgoingmsg_stmt, "CREATE TABLE IF NOT EXISTS outgoing_msg (uid INTEGER PRIMARY KEY AUTOINCREMENT, dev VARCHAR(256), dst VARCHAR(255), cnt INTEGER, expiration TIMESTAMP, srr BOOLEAN, payload BLOB)")
 DEFINE_SQL_STATEMENT(create_outgoingpart_stmt, "CREATE TABLE IF NOT EXISTS outgoing_part (key VARCHAR(256), msg INTEGER, status INTEGER, PRIMARY KEY(key))") // key: IMSI/DEST_ADDR/MR
 DEFINE_SQL_STATEMENT(create_outgoingmsg_index_stmt, "CREATE INDEX IF NOT EXISTS outgoing_part_msg ON outgoing_part(msg)")
 DEFINE_SQL_STATEMENT(ins_outgoingref_stmt, "INSERT INTO outgoing_ref (refid, key) VALUES (?, ?)") // This have to be the same order as set_outgoingref_stmt
@@ -53,16 +53,16 @@ DEFINE_SQL_STATEMENT(set_outgoingref_stmt, "UPDATE outgoing_ref SET refid = ? WH
 DEFINE_SQL_STATEMENT(get_outgoingref_stmt, "SELECT refid FROM outgoing_ref WHERE key = ?")
 DEFINE_SQL_STATEMENT(put_outgoingmsg_stmt, "INSERT INTO outgoing_msg (dev, dst, cnt, expiration, srr, payload) VALUES (?, ?, ?, datetime(julianday(CURRENT_TIMESTAMP) + ? / 86400.0), ?, ?)")
 DEFINE_SQL_STATEMENT(put_outgoingpart_stmt, "INSERT INTO outgoing_part (key, msg, status) VALUES (?, ?, NULL)")
-DEFINE_SQL_STATEMENT(del_outgoingmsg_stmt, "DELETE FROM outgoing_msg WHERE rowid = ?")
+DEFINE_SQL_STATEMENT(del_outgoingmsg_stmt, "DELETE FROM outgoing_msg WHERE uid = ?")
 DEFINE_SQL_STATEMENT(del_outgoingpart_stmt, "DELETE FROM outgoing_part WHERE msg = ?")
-DEFINE_SQL_STATEMENT(get_outgoingmsg_stmt, "SELECT dev, dst, srr FROM outgoing_msg WHERE rowid = ?")
+DEFINE_SQL_STATEMENT(get_outgoingmsg_stmt, "SELECT dev, dst, srr FROM outgoing_msg WHERE uid = ?")
 DEFINE_SQL_STATEMENT(set_outgoingpart_stmt, "UPDATE outgoing_part SET status = ? WHERE rowid = ?")
 DEFINE_SQL_STATEMENT(get_outgoingpart_stmt, "SELECT rowid, msg FROM outgoing_part WHERE key = ?")
 DEFINE_SQL_STATEMENT(cnt_outgoingpart_stmt, "SELECT m.cnt, (SELECT COUNT(p.rowid) FROM outgoing_part p WHERE p.msg = m.rowid AND (p.status & 64 != 0 OR p.status & 32 = 0)) FROM outgoing_msg m WHERE m.rowid = ?") // count all failed and completed messages; don't count messages without delivery notification and temporary failed ones
-DEFINE_SQL_STATEMENT(cnt_all_outgoingpart_stmt, "SELECT m.cnt, (SELECT COUNT(p.rowid) FROM outgoing_part p WHERE p.msg = m.rowid) FROM outgoing_msg m WHERE m.rowid = ?")
-DEFINE_SQL_STATEMENT(get_payload_stmt, "SELECT payload, dst FROM outgoing_msg WHERE rowid = ?")
+DEFINE_SQL_STATEMENT(cnt_all_outgoingpart_stmt, "SELECT m.cnt, (SELECT COUNT(p.rowid) FROM outgoing_part p WHERE p.msg = m.uid) FROM outgoing_msg m WHERE m.uid = ?")
+DEFINE_SQL_STATEMENT(get_payload_stmt, "SELECT payload, dst FROM outgoing_msg WHERE uid = ?")
 DEFINE_SQL_STATEMENT(get_all_status_stmt, "SELECT status FROM outgoing_part WHERE msg = ? ORDER BY rowid")
-DEFINE_SQL_STATEMENT(get_expired_stmt, "SELECT rowid, payload, dst FROM outgoing_msg WHERE expiration < CURRENT_TIMESTAMP LIMIT 1") // only fetch one expired row to balance the load of each transaction
+DEFINE_SQL_STATEMENT(get_expired_stmt, "SELECT uid, payload, dst FROM outgoing_msg WHERE expiration < CURRENT_TIMESTAMP LIMIT 1") // only fetch one expired row to balance the load of each transaction
 
 static int init_stmt(sqlite3_stmt **stmt, const char *sql, size_t len)
 {
@@ -510,7 +510,7 @@ static int smsdb_outgoing_clear_nolock(int uid)
 	
 	return res;
 }
-ssize_t smsdb_outgoing_clear(int uid, char *dst, char *payload)
+ssize_t smsdb_outgoing_clear(int uid, struct ast_str *dst, struct ast_str *payload)
 {
 	int res = 0;
 	smsdb_begin_transaction();
@@ -521,10 +521,9 @@ ssize_t smsdb_outgoing_clear(int uid, char *dst, char *payload)
 	} else if (sqlite3_step(get_payload_stmt) != SQLITE_ROW) {
 		res = -1;
 	} else {
-		strcpy(dst, (const char*)sqlite3_column_text(get_payload_stmt, 1));
-		res = sqlite3_column_bytes(get_payload_stmt, 0);
-		res = res > SMSDB_PAYLOAD_MAX_LEN ? SMSDB_PAYLOAD_MAX_LEN : res;
-		memcpy(payload, sqlite3_column_blob(get_payload_stmt, 0), res);
+		ast_str_set(&payload, SMSDB_PAYLOAD_MAX_LEN, "%.*s", sqlite3_column_bytes(get_payload_stmt, 0), (const char*)sqlite3_column_blob(get_payload_stmt, 0));
+		ast_str_set(&dst, SMSDB_DST_MAX_LEN, "%s", (const char*)sqlite3_column_text(get_payload_stmt, 1));
+		res = (int)ast_str_strlen(payload);
 	}
 	sqlite3_reset(get_payload_stmt);
 
@@ -536,7 +535,7 @@ ssize_t smsdb_outgoing_clear(int uid, char *dst, char *payload)
 
 	return res;
 }
-ssize_t smsdb_outgoing_part_put(int uid, int refid, char *dst, char *payload)
+ssize_t smsdb_outgoing_part_put(int uid, int refid, struct ast_str *dst, struct ast_str *payload)
 {
 	int res = 0;
 	char fullkey[MAX_DB_FIELD + 1];
@@ -576,7 +575,7 @@ ssize_t smsdb_outgoing_part_put(int uid, int refid, char *dst, char *payload)
 		sqlite3_reset(put_outgoingpart_stmt);
 	}
 
-	if (srr) {
+	if (!srr) {
 		res = -2;
 	}
 
@@ -603,10 +602,9 @@ ssize_t smsdb_outgoing_part_put(int uid, int refid, char *dst, char *payload)
 		} else if (sqlite3_step(get_payload_stmt) != SQLITE_ROW) {
 			res = -1;
 		} else {
-			strcpy(dst, (const char*)sqlite3_column_text(get_payload_stmt, 1));
-			res = sqlite3_column_bytes(get_payload_stmt, 0);
-			res = res > SMSDB_PAYLOAD_MAX_LEN ? SMSDB_PAYLOAD_MAX_LEN : res;
-			memcpy(payload, sqlite3_column_blob(get_payload_stmt, 0), res);
+			ast_str_set(&payload, SMSDB_PAYLOAD_MAX_LEN, "%.*s", sqlite3_column_bytes(get_payload_stmt, 0), (const char*)sqlite3_column_blob(get_payload_stmt, 0));
+			ast_str_set(&dst, SMSDB_DST_MAX_LEN, "%s", (const char*)sqlite3_column_text(get_payload_stmt, 1));
+			res = (int)ast_str_strlen(payload);
 		}
 		sqlite3_reset(get_payload_stmt);
 	}
@@ -621,7 +619,7 @@ ssize_t smsdb_outgoing_part_put(int uid, int refid, char *dst, char *payload)
 	return res;
 }
 
-ssize_t smsdb_outgoing_part_status(const char *id, const char *addr, int mr, int st, int *status_all, char *payload)
+ssize_t smsdb_outgoing_part_status(const char *id, const char *addr, int mr, int st, int *status_all, struct ast_str *payload)
 {
 	char fullkey[MAX_DB_FIELD + 1];
 	int fullkey_len;
@@ -696,9 +694,8 @@ ssize_t smsdb_outgoing_part_status(const char *id, const char *addr, int mr, int
 		} else if (sqlite3_step(get_payload_stmt) != SQLITE_ROW) {
 			res = -1;
 		} else {
-			res = sqlite3_column_bytes(get_payload_stmt, 0);
-			res = res > SMSDB_PAYLOAD_MAX_LEN ? SMSDB_PAYLOAD_MAX_LEN : res;
-			memcpy(payload, sqlite3_column_blob(get_payload_stmt, 0), res);
+			ast_str_set(&payload, SMSDB_PAYLOAD_MAX_LEN, "%.*s", sqlite3_column_bytes(get_payload_stmt, 0), (const char*)sqlite3_column_blob(get_payload_stmt, 0));
+			res = ast_str_strlen(payload);
 		}
 		sqlite3_reset(get_payload_stmt);
 	}
@@ -713,25 +710,23 @@ ssize_t smsdb_outgoing_part_status(const char *id, const char *addr, int mr, int
 	return res;
 }
 
-ssize_t smsdb_outgoing_purge_one(char *dst, char *payload)
+ssize_t smsdb_outgoing_purge_one(int* uid, struct ast_str *dst, struct ast_str *payload)
 {
-	int res = -1, uid;
+	int res = -1;
 
 	smsdb_begin_transaction();
 
 	if (sqlite3_step(get_expired_stmt) != SQLITE_ROW) {
 		res = -1;
 	} else {
-		uid = sqlite3_column_int(get_expired_stmt, 0);
-
-		strcpy(dst, (const char*)sqlite3_column_text(get_expired_stmt, 2));
-		res = sqlite3_column_bytes(get_expired_stmt, 1);
-		res = res > SMSDB_PAYLOAD_MAX_LEN ? SMSDB_PAYLOAD_MAX_LEN : res;
-		memcpy(payload, sqlite3_column_blob(get_expired_stmt, 1), res);
+		*uid = sqlite3_column_int(get_expired_stmt, 0);
+		ast_str_set(&payload, SMSDB_PAYLOAD_MAX_LEN, "%.*s", sqlite3_column_bytes(get_expired_stmt, 1), (const char*)sqlite3_column_blob(get_expired_stmt, 1));
+		ast_str_set(&dst, SMSDB_DST_MAX_LEN, "%s", (const char*)sqlite3_column_text(get_expired_stmt, 2));
+		res = (int)ast_str_strlen(payload);
 	}
 	sqlite3_reset(get_expired_stmt);
 
-	if (res != -1 && smsdb_outgoing_clear_nolock(uid) < 0) {
+	if (res != -1 && smsdb_outgoing_clear_nolock(*uid) < 0) {
 		res = -1;
 	}
 

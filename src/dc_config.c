@@ -323,47 +323,40 @@ void dc_sconfig_fill(struct ast_config * cfg, const char * cat, struct dc_sconfi
 #/* */
 void dc_gconfig_fill(struct ast_config * cfg, const char * cat, struct dc_gconfig * config)
 {
-	struct ast_variable * v;
-	int tmp;
-	const char * stmp, *smsdb, *csmsttl;
-
 	/* set default values */
 	memcpy(&config->jbconf, &jbconf_default, sizeof(config->jbconf));
 	config->discovery_interval = DEFAULT_DISCOVERY_INT;
-	ast_copy_string (config->sms_db, DEFAULT_SMS_DB, sizeof(DEFAULT_SMS_DB));
+	ast_copy_string(config->sms_db, DEFAULT_SMS_DB, sizeof(config->sms_db));
 	config->csms_ttl = DEFAULT_CSMS_TTL;
 
-	stmp = ast_variable_retrieve (cfg, cat, "interval");
-	if(stmp)
-	{
+	const char* const stmp = ast_variable_retrieve(cfg, cat, "interval");
+	if (stmp) {
 		errno = 0;
-		tmp = (int) strtol (stmp, (char**) NULL, 10);
+		const int tmp = (int) strtol (stmp, (char**) NULL, 10);
 		if (tmp == 0 && errno == EINVAL)
-			ast_log (LOG_NOTICE, "Error parsing 'interval' in general section, using default value %d\n", config->discovery_interval);
+			ast_log(LOG_NOTICE, "Error parsing 'interval' in general section, using default value %d\n", config->discovery_interval);
 		else
 			config->discovery_interval = tmp;
 	}
 
-	smsdb = ast_variable_retrieve (cfg, cat, "smsdb");
-	if(smsdb)
-	{
-		ast_copy_string (config->sms_db, smsdb, sizeof (config->sms_db));
+	const char* const smsdb = ast_variable_retrieve(cfg, cat, "smsdb");
+	if (smsdb) {
+		ast_copy_string(config->sms_db, smsdb, sizeof(config->sms_db));
 	}
 
-	csmsttl = ast_variable_retrieve (cfg, cat, "csmsttl");
-	if(csmsttl)
-	{
+	const char* const csmsttl = ast_variable_retrieve(cfg, cat, "csmsttl");
+	if (csmsttl) {
 		errno = 0;
-		tmp = (int) strtol (csmsttl, (char**) NULL, 10);
+		const long tmp = strtol(csmsttl, (char**) NULL, 10);
 		if (tmp == 0 && errno == EINVAL)
-			ast_log (LOG_NOTICE, "Error parsing 'csmsttl' in general section, using default value %d\n", config->csms_ttl);
+			ast_log(LOG_NOTICE, "Error parsing 'csmsttl' in general section, using default value %d\n", config->csms_ttl);
 		else
 			config->csms_ttl = tmp;
 	}
 
-	for (v = ast_variable_browse (cfg, cat); v; v = v->next)
+	for (const struct ast_variable* v = ast_variable_browse(cfg, cat); v; v = v->next)
 		/* handle jb conf */
-		ast_jb_read_conf (&config->jbconf, v->name, v->value);
+		ast_jb_read_conf(&config->jbconf, v->name, v->value);
 }
 
 #/* */

@@ -13,9 +13,9 @@ void smsdb_atexit();
 int smsdb_put(const char *id, const char *addr, int ref, int parts, int order, const char *msg, char *out);
 int smsdb_get_refid(const char *id, const char *addr);
 int smsdb_outgoing_add(const char *id, const char *addr, int cnt, int ttl, int srr, const char *payload, size_t len);
-ssize_t smsdb_outgoing_clear(int uid, char *dst, char *payload);
-ssize_t smsdb_outgoing_part_put(int uid, int refid, char *dst, char *payload);
-ssize_t smsdb_outgoing_part_status(const char *id, const char *addr, int mr, int st, int *status_all, char *payload);
-ssize_t smsdb_outgoing_purge_one(char *dst, char *payload);
+ssize_t smsdb_outgoing_clear(int uid, struct ast_str *dst, struct ast_str *payload);
+ssize_t smsdb_outgoing_part_put(int uid, int refid, struct ast_str *dst, struct ast_str *payload);
+ssize_t smsdb_outgoing_part_status(const char *id, const char *addr, int mr, int st, int *status_all, struct ast_str *payload);
+ssize_t smsdb_outgoing_purge_one(int* uid, struct ast_str *dst, struct ast_str *payload);
 
 #endif
