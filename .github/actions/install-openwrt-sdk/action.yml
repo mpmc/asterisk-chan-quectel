@@ -1,0 +1,52 @@
+name: Download OpenWRT SDK
+description: Download and extract OpenWRT SDK for specific architecture
+inputs:
+  openwrt-version:
+    required: true
+    description: OpenWRT version
+  arch:
+    required: true
+    description: Target architecture
+  eabi:
+    required: false
+    description: EABI
+    default: 0
+runs:
+  using: composite
+  steps:
+    - name: Restore OpenWRT SDK from cache
+      id: cache-owrt-sdk-restore
+      uses: actions/cache/restore@v3
+      with:
+        path: owrtsdk
+        key: openwrt-sdk-${{ inputs.openwrt-version }}-${{ inputs.arch }}
+  
+    - name: Download OpenWRT SDK
+      id: download-owrt-sdk
+      if: steps.cache-owrt-sdk-restore.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        mkdir owrtsdk
+        cd owrtsdk
+        sd=$(echo ${{ inputs.arch }}|cut -d '-' --output-delimiter '/' -f 1-2)
+        eabi="${{ inputs.eabi }}"
+        if [ "${eabi:-0}" -eq 1 ]; then
+          sdk=openwrt-sdk-${{ inputs.openwrt-version }}-${{ inputs.arch }}_gcc-11.2.0_musl_eabi.Linux-x86_64
+        else
+          sdk=openwrt-sdk-${{ inputs.openwrt-version }}-${{ inputs.arch }}_gcc-11.2.0_musl.Linux-x86_64
+        fi
+        wget -q https://downloads.openwrt.org/releases/${{ inputs.openwrt-version }}/targets/${sd}/${sdk}.tar.xz
+        tar -xf ${sdk}.tar.xz
+        rm ${sdk}.tar.xz
+        mv ${sdk} ${{ inputs.arch }}
+        cd ${{ inputs.arch }}
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+
+    - name: Cache OpenWRT SDK
+      id: cache-owrt-sdk-save
+      if: steps.cache-owrt-sdk-restore.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v3
+      with:
+        path: owrtsdk
+        key: ${{ steps.cache-owrt-sdk-restore.outputs.cache-primary-key }}

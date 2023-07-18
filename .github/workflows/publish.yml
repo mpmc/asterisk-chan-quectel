@@ -1,0 +1,154 @@
+#
+# Building and bublishing packages: Debian and OpenWRT
+#
+name: Build packages
+
+permissions:
+  contents: write
+
+on:
+  push:
+    tags: v202*.*.*
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+env:
+  BUILD_TYPE: Release
+  OWRTVER: 22.03.5
+  ASTVER: 18
+
+jobs:
+  pre-build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: ./.github/actions/install-required-packages
+    - uses: ./.github/actions/install-asterisk-headers
+      with:
+        asterisk-version: ${{ env.ASTVER }}
+
+  build-deb-pkg:
+    needs: pre-build
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - uses: ./.github/actions/install-required-packages
+    - uses: ./.github/actions/install-asterisk-headers
+      with:
+        asterisk-version: ${{ env.ASTVER }}
+   
+    - name: Configure project
+      run: cmake -P make-build-dir.cmake
+
+    - name: Build packages
+      run: cmake -P make-package.cmake
+
+    - name: Archive DEB
+      uses: actions/upload-artifact@v3
+      with:
+        name: pkg-deb
+        path: |
+          package/asterisk-chan-quectel_*.deb
+          package/asterisk-chan-quectel_*.deb.sha256
+        retention-days: 1
+        if-no-files-found: error
+
+  build-openwrt-pkg:
+    runs-on: ubuntu-latest
+    needs: pre-build
+    strategy:
+      matrix:
+        arch: [x86-64, ramips-mt7620, sunxi-cortexa7, sunxi-cortexa8, sunxi-cortexa53, bcm27xx-bcm2708]
+        include:
+          - arch: sunxi-cortexa7
+            eabi: 1
+          - arch: sunxi-cortexa8
+            eabi: 1
+          - arch: bcm27xx-bcm2708
+            eabi: 1
+    steps:
+    - name: Checkout actions
+      uses: actions/checkout@v3
+      with:
+        sparse-checkout: |
+          .github/actions
+        sparse-checkout-cone-mode: false
+    - uses: ./.github/actions/install-required-packages
+    - uses: ./.github/actions/install-asterisk-headers
+      with:
+        asterisk-version: ${{ env.ASTVER }}
+    - uses: ./.github/actions/install-openwrt-sdk
+      with:
+        openwrt-version: ${{ env.OWRTVER }}
+        arch: ${{ matrix.arch }}
+        eabi: ${{ matrix.eabi }}
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+        path: asterisk-modules/asterisk-chan-quectel
+    - name: Git describe
+      working-directory: asterisk-modules/asterisk-chan-quectel
+      run: git describe --long
+
+    - name: Configure project
+      working-directory: asterisk-modules/asterisk-chan-quectel
+      run: cmake -P make-build-dir.cmake
+
+    - name: Generate OpenWRT Makefile
+      working-directory: asterisk-modules/asterisk-chan-quectel
+      run: cmake -P install-openwrt-makefile.cmake
+
+    - name: Check OpenWRT SDK config file
+      id: check-owrt-cfg
+      uses: andstor/file-existence-action@v2
+      with:
+        files: "owrtsdk/${{ matrix.arch }}/.config"
+
+    - name: Prepare OpenWRT SDK (symlink)
+      run: |
+        owrtsdk=$(cd owrtsdk; pwd)
+        cd asterisk-modules/asterisk-chan-quectel/install/openwrt
+        ln -sf ${owrtsdk}/${{ matrix.arch }} ${{ matrix.arch }}
+
+    - name: Prepare OpenWRT SDK (files)
+      if: steps.check-owrt-cfg.outputs.files_exists != 'true'
+      working-directory: asterisk-modules/asterisk-chan-quectel/install/openwrt
+      run: cp feeds-strskx.conf diffconfig build-opk.sh ${{ matrix.arch }}
+
+    - name: Prepare OpenWRT SDK (feeds)
+      if: steps.check-owrt-cfg.outputs.files_exists == 'true'
+      working-directory: asterisk-modules/asterisk-chan-quectel/install/openwrt/${{ matrix.arch }}
+      run: ./scripts/feeds install asterisk-chan-quectel
+
+    - name: Build OpenWRT packages
+      working-directory: asterisk-modules/asterisk-chan-quectel/install/openwrt/${{ matrix.arch }}
+      run: ./build-opk.sh
+    - name: Archive IPK
+      uses: actions/upload-artifact@v3
+      with:
+        name: ipk-${{ matrix.arch }}
+        path: asterisk-modules/asterisk-chan-quectel/install/openwrt/${{ matrix.arch }}/bin/packages/*/strskx/*.ipk
+        retention-days: 1
+        if-no-files-found: error
+
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    needs: [build-openwrt-pkg, build-deb-pkg]
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+    - name: Download all workflow run artifacts
+      uses: actions/download-artifact@v3
+  
+    - name: Publish packages
+      uses: softprops/action-gh-release@v1
+      with:
+        draft: true
+        files: |
+          **/asterisk-chan-quectel*.deb
+          **/asterisk-chan-quectel*.deb.sha256
+          **/asterisk-chan-quectel*.ipk
