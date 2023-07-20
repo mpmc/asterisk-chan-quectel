@@ -89,9 +89,6 @@ jobs:
       with:
         fetch-depth: 0
         path: asterisk-modules/asterisk-chan-quectel
-    - name: Git describe
-      working-directory: asterisk-modules/asterisk-chan-quectel
-      run: git describe --long
 
     - name: Configure project
       working-directory: asterisk-modules/asterisk-chan-quectel

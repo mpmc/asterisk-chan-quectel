@@ -45,7 +45,7 @@ IF(IS_DIRECTORY ${CMAKE_SOURCE_DIR}/.git)
     SET(IS_GIT_REPO "TRUE")
     FIND_PROGRAM(GIT_EXECUTABLE git REQUIRED)
     EXECUTE_PROCESS(
-        COMMAND ${GIT_EXECUTABLE} describe --abbrev=6 --dirty --match "v*" --long
+        COMMAND ${GIT_EXECUTABLE} describe --abbrev=6 --dirty --match "v*" --long --tags
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         OUTPUT_VARIABLE GIT_DESCRIBE
         RESULT_VARIABLE GIT_ERROR_CODE
