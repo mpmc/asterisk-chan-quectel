@@ -41,7 +41,9 @@ jobs:
         fetch-depth: 0
     - uses: ./.github/actions/install-required-packages
     - name: Install lintian
-      run: sudo DEBIAN_FRONTEND=noninteractive apt-get install -qq lintian
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: sudo apt-get install -qq lintian
     - uses: ./.github/actions/install-asterisk-headers
       with:
         asterisk-version: ${{ env.ASTVER }}
@@ -64,6 +66,26 @@ jobs:
           package/asterisk-chan-quectel_*.deb.sha256
         retention-days: 1
         if-no-files-found: error
+
+  deb-pkg-try-install:
+    needs: build-deb-pkg
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    runs-on: ubuntu-latest
+    steps: 
+    - name: Install gdebi package
+      run: sudo apt-get install -qq gdebi-core
+    - uses: actions/download-artifact@v3
+      with:
+        name: pkg-deb
+        path: deb
+    - name: Install package
+      working-directory: deb
+      run: |
+        for p in $(ls *.deb); do
+          echo "::notice::Installing package $p"
+          sudo gdebi --non-interactive $p
+        done
 
   build-openwrt-pkg:
     runs-on: ubuntu-latest
@@ -146,7 +168,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    needs: [build-openwrt-pkg, build-deb-pkg]
+    needs: [build-openwrt-pkg, deb-pkg-try-install]
     if: startsWith(github.ref, 'refs/tags/')
     steps:
     - name: Download all workflow run artifacts
