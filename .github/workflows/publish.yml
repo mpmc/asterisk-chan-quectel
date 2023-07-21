@@ -22,7 +22,11 @@ jobs:
   pre-build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout actions
+      uses: actions/checkout@v3
+      with:
+        sparse-checkout: .github/actions
+        sparse-checkout-cone-mode: false
     - uses: ./.github/actions/install-required-packages
     - uses: ./.github/actions/install-asterisk-headers
       with:
@@ -61,13 +65,15 @@ jobs:
     needs: pre-build
     strategy:
       matrix:
-        arch: [x86-64, ramips-mt7620, sunxi-cortexa7, sunxi-cortexa8, sunxi-cortexa53, bcm27xx-bcm2708]
+        arch: [x86-64, x86-generic, ramips-mt7620, bcm47xx-generic, bcm63xx-generic, sunxi-cortexa7, sunxi-cortexa8, sunxi-cortexa53, armvirt-32, rockchip-armv8, bcm27xx-bcm2708]
         include:
           - arch: sunxi-cortexa7
             eabi: 1
           - arch: sunxi-cortexa8
             eabi: 1
           - arch: bcm27xx-bcm2708
+            eabi: 1
+          - arch: armvirt-32
             eabi: 1
     steps:
     - name: Checkout actions
