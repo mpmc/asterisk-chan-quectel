@@ -124,12 +124,10 @@ jobs:
         path: asterisk-modules/asterisk-chan-quectel
 
     - name: Configure project
-      working-directory: asterisk-modules/asterisk-chan-quectel
-      run: cmake -P make-build-dir.cmake
+      run: cmake -P asterisk-modules/asterisk-chan-quectel/make-build-dir.cmake
 
     - name: Generate OpenWRT Makefile
-      working-directory: asterisk-modules/asterisk-chan-quectel
-      run: cmake -P install-openwrt-makefile.cmake
+      run: cmake -P asterisk-modules/asterisk-chan-quectel/install-openwrt-makefile.cmake
 
     - name: Check OpenWRT SDK config file
       id: check-owrt-cfg

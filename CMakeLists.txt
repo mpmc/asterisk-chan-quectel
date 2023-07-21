@@ -2,7 +2,7 @@
 # asterisk-chan-quectel
 #
 
-CMAKE_MINIMUM_REQUIRED(VERSION 3.14)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.19)
 
 FUNCTION(SetProjectVersion cmajor cminor cpatch ctweak cstatus)
     MATH(EXPR MMAJOR "${cmajor}")
