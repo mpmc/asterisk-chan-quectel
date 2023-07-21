@@ -40,6 +40,8 @@ jobs:
       with:
         fetch-depth: 0
     - uses: ./.github/actions/install-required-packages
+    - name: Install lintian
+      run: sudo DEBIAN_FRONTEND=noninteractive apt-get install -qq lintian
     - uses: ./.github/actions/install-asterisk-headers
       with:
         asterisk-version: ${{ env.ASTVER }}
@@ -49,6 +51,9 @@ jobs:
 
     - name: Build packages
       run: cmake -P make-package.cmake
+
+    - name: Check package
+      run: lintian --verbose --info package/asterisk-chan-quectel_*.deb
 
     - name: Archive DEB
       uses: actions/upload-artifact@v3
