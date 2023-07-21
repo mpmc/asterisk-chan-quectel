@@ -68,13 +68,13 @@ jobs:
         arch: [x86-64, x86-generic, ramips-mt7620, bcm47xx-generic, bcm63xx-generic, sunxi-cortexa7, sunxi-cortexa8, sunxi-cortexa53, armvirt-32, rockchip-armv8, bcm27xx-bcm2708]
         include:
           - arch: sunxi-cortexa7
-            eabi: 1
+            eabi: true
           - arch: sunxi-cortexa8
-            eabi: 1
+            eabi: true
           - arch: bcm27xx-bcm2708
-            eabi: 1
+            eabi: true
           - arch: armvirt-32
-            eabi: 1
+            eabi: true
     steps:
     - name: Checkout actions
       uses: actions/checkout@v3
