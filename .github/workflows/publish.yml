@@ -67,6 +67,16 @@ jobs:
         retention-days: 1
         if-no-files-found: error
 
+    - name: Archive TAR.GZ
+      uses: actions/upload-artifact@v3
+      with:
+        name: pkg-tar-gz
+        path: |
+          package/asterisk-chan-quectel_*.tar.gz
+          package/asterisk-chan-quectel_*.tar.gz.sha256
+        retention-days: 1
+        if-no-files-found: error
+
   deb-pkg-try-install:
     needs: build-deb-pkg
     env:
@@ -177,6 +187,8 @@ jobs:
       with:
         draft: true
         files: |
+          **/asterisk-chan-quectel*.tar.gz
+          **/asterisk-chan-quectel*.tar.gz.sha256
           **/asterisk-chan-quectel*.deb
           **/asterisk-chan-quectel*.deb.sha256
           **/asterisk-chan-quectel*.ipk
