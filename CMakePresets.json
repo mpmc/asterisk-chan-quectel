@@ -83,6 +83,36 @@
       "environment": {
         "CMAKE_INSTALL_MODE": "COPY"
       }
+    },
+    {
+      "name": "arm",
+      "inherits": "default",
+      "toolchainFile": "${sourceDir}/cmake/toolchain/arm-linux-gnueabihf.toolchain.cmake",
+      "cacheVariables" : {
+        "CPACK_PACKAGE_ARCHITECTURE": {
+          "type": "STRING",
+          "value": "armhf"
+        },
+        "CPACK_DEBIAN_PACKAGE_ARCHITECTURE": {
+          "type": "STRING",
+          "value": "armhf"
+        }
+      }
+    },
+    {
+      "name": "arm64",
+      "inherits": "default",
+      "toolchainFile": "${sourceDir}/cmake/toolchain/aarch64-linux-gnu.toolchain.cmake",
+      "cacheVariables" : {
+        "CPACK_PACKAGE_ARCHITECTURE": {
+          "type": "STRING",
+          "value": "arm64"
+        },
+        "CPACK_DEBIAN_PACKAGE_ARCHITECTURE": {
+          "type": "STRING",
+          "value": "arm64"
+        }
+      }
     }
   ],
   "buildPresets": [
@@ -92,11 +122,35 @@
       "jobs": 0
     },
     {
+      "name": "arm",
+      "configurePreset": "arm",
+      "jobs": 0
+    },
+    {
+      "name": "arm64",
+      "configurePreset": "arm64",
+      "jobs": 0
+    },
+    {
       "name": "package",
       "configurePreset": "default",
       "jobs": 0,
       "cleanFirst": true,
       "targets": "package"
-    }    
+    },
+    {
+      "name": "package-arm",
+      "configurePreset": "arm",
+      "jobs": 0,
+      "cleanFirst": true,
+      "targets": "package"
+    },
+    {
+      "name": "package-arm64",
+      "configurePreset": "arm64",
+      "jobs": 0,
+      "cleanFirst": true,
+      "targets": "package"
+    }
   ]
 }
