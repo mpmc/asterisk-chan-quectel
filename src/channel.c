@@ -524,7 +524,7 @@ static ssize_t iov_write(struct pvt* pvt, int fd, const struct iovec* const iov,
 		return -err;
 	}
 	else if (w && w != len) {
-		ast_log(LOG_WARNING, "[%s][TTY] Incomplete frame written: %ld/%ld\n", PVT_ID(pvt), w, len);
+		ast_log(LOG_WARNING, "[%s][TTY] Incomplete frame written: %ld/%ld\n", PVT_ID(pvt), (long)w, (long)len);
 	}
 
 	return w;

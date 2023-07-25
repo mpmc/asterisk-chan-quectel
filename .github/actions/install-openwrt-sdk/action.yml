@@ -1,12 +1,15 @@
 name: Download OpenWRT SDK
-description: Download, extract and prepare OpenWRT SDK for specific target (architecture)
+description: Download, extract and prepare OpenWRT SDK for specific target
 inputs:
   openwrt-version:
     required: true
     description: OpenWRT version
-  arch:
+  target:
     required: true
-    description: Target name
+    description: Target-subtarget pair
+  arch:
+    required: false
+    description: Archtecture name
   eabi:
     required: false
     description: EABI
@@ -14,12 +17,12 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Restore OpenWRT SDK from cache
+    - name: Restore OpenWRT SDK from cache (${{ inputs.arch }})
       id: cache-owrt-sdk-restore
       uses: actions/cache/restore@v3
       with:
         path: owrtsdk
-        key: openwrt-sdk-${{ inputs.openwrt-version }}-${{ inputs.arch }}
+        key: openwrt-sdk-${{ inputs.openwrt-version }}-${{ inputs.target }}
 
     - name: Prepare OpenWRT SDK directory
       id: prepare-owrt-sdk-dir
@@ -32,25 +35,25 @@ runs:
       if: steps.cache-owrt-sdk-restore.outputs.cache-hit != 'true' && inputs.eabi == 'true'
       shell: bash
       working-directory: owrtsdk
-      run: ${{ github.action_path }}/download-owrt-sdk.sh ${{ inputs.arch }} ${{ inputs.openwrt-version }} openwrt-sdk-${{ inputs.openwrt-version }}-${{ inputs.arch }}_gcc-11.2.0_musl_eabi.Linux-x86_64
+      run: ${{ github.action_path }}/download-owrt-sdk.sh ${{ inputs.target }} ${{ inputs.openwrt-version }} openwrt-sdk-${{ inputs.openwrt-version }}-${{ inputs.target }}_gcc-11.2.0_musl_eabi.Linux-x86_64
 
     - name: Download OpenWRT SDK
       id: download-owrt-sdk
       if: steps.cache-owrt-sdk-restore.outputs.cache-hit != 'true' && inputs.eabi != 'true'
       shell: bash
       working-directory: owrtsdk
-      run: ${{ github.action_path }}/download-owrt-sdk.sh ${{ inputs.arch }} ${{ inputs.openwrt-version }} openwrt-sdk-${{ inputs.openwrt-version }}-${{ inputs.arch }}_gcc-11.2.0_musl.Linux-x86_64
+      run: ${{ github.action_path }}/download-owrt-sdk.sh ${{ inputs.target }} ${{ inputs.openwrt-version }} openwrt-sdk-${{ inputs.openwrt-version }}-${{ inputs.target }}_gcc-11.2.0_musl.Linux-x86_64
 
     - name: Prepare OpenWRT SDK
       id: prepare-owrt-sdk
       if: steps.cache-owrt-sdk-restore.outputs.cache-hit != 'true'
       shell: bash
-      working-directory: owrtsdk/${{ inputs.arch }}
+      working-directory: owrtsdk/${{ inputs.target }}
       run: |
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
-    - name: Cache OpenWRT SDK
+    - name: Cache OpenWRT SDK (${{ inputs.arch }})
       id: cache-owrt-sdk-save
       if: steps.cache-owrt-sdk-restore.outputs.cache-hit != 'true'
       uses: actions/cache/save@v3
