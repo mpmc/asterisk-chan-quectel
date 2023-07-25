@@ -878,7 +878,7 @@ static void handle_clcc(struct pvt* pvt,
 {
 	struct cpvt* cpvt = pvt_find_cpvt(pvt, (int)call_idx);
 
-	if(cpvt) {
+	if (cpvt) {
 		/* cpvt alive */
 		CPVT_SET_FLAGS(cpvt, CALL_FLAG_ALIVE);
 
@@ -887,20 +887,23 @@ static void handle_clcc(struct pvt* pvt,
 			return;
 		}
 
-		if (CONF_SHARED(pvt, multiparty)) {
-			if(mpty)
-				CPVT_SET_FLAGS(cpvt, CALL_FLAG_MULTIPARTY);
-			else
-				CPVT_RESET_FLAGS(cpvt, CALL_FLAG_MULTIPARTY);
-		}
-		else {
-			if (!CPVT_TEST_FLAG(cpvt, CALL_FLAG_MULTIPARTY) && mpty) {
-				ast_log(LOG_ERROR, "[%s] Rejecting multiparty call - idx:%d\n", PVT_ID(pvt), call_idx);
-				at_enqueue_hangup(&pvt->sys_chan, call_idx, AST_CAUSE_CALL_REJECTED);
+		// mpty == 2u : ignore this flag
+		if (mpty != 2u) {
+			if (CONF_SHARED(pvt, multiparty)) {
+				if (mpty)
+					CPVT_SET_FLAGS(cpvt, CALL_FLAG_MULTIPARTY);
+				else
+					CPVT_RESET_FLAGS(cpvt, CALL_FLAG_MULTIPARTY);
+			}
+			else {
+				if (!CPVT_TEST_FLAG(cpvt, CALL_FLAG_MULTIPARTY) && mpty) {
+					ast_log(LOG_ERROR, "[%s] Rejecting multiparty call - idx:%d\n", PVT_ID(pvt), call_idx);
+					at_enqueue_hangup(&pvt->sys_chan, call_idx, AST_CAUSE_CALL_REJECTED);
+				}
 			}
 		}
 
-		if(state != cpvt->state) {
+		if (state != cpvt->state) {
 			change_channel_state(cpvt, state, 0);
 		}
 		else {
@@ -908,14 +911,16 @@ static void handle_clcc(struct pvt* pvt,
 		}
 	}
 	else {
-		switch (state)
-		{
+		switch (state) {
 			case CALL_STATE_DIALING:
 			case CALL_STATE_ALERTING:
 			cpvt = last_initialized_cpvt(pvt);
-			if (!CONF_SHARED(pvt, multiparty)) {
-				if (!CPVT_TEST_FLAG(cpvt, CALL_FLAG_MULTIPARTY) && mpty) {
-					cpvt = NULL;
+			// mpty == 2u : ignore this flag
+			if (mpty != 2u) {
+				if (!CONF_SHARED(pvt, multiparty)) {
+					if (!CPVT_TEST_FLAG(cpvt, CALL_FLAG_MULTIPARTY) && mpty) {
+						cpvt = NULL;
+					}
 				}
 			}
 
@@ -1090,7 +1095,6 @@ static int at_response_clcc(struct pvt* pvt, char* str)
 	return 0;
 }
 
-#ifdef HANDLE_DSCI
 /*!
  * \brief Handle ^DSCI response
  * \param pvt -- pvt structure
@@ -1125,13 +1129,17 @@ static int at_response_dsci(struct pvt* pvt, char* str)
 		break;
 
 		default: // request CLCC anyway
-		request_clcc(pvt);
+		if (CONF_SHARED(pvt, multiparty)) {
+			request_clcc(pvt);
+		}
+		else {
+			handle_clcc(pvt, call_index, call_dir, call_state, call_type, 2u, number, number_type);
+		}
 		break;
 	}
 	
 	return 0;
 }
-#endif
 
 /*!
  * \brief Handle +QIND response.
@@ -2050,7 +2058,7 @@ static int at_response_cgmi(struct pvt* pvt, const struct ast_str* const respons
 		ast_verb(1, "[%s] Quectel module\n", PVT_ID(pvt));
 		pvt->is_simcom = 0;
 		pvt->has_voice = 0;
-		return at_enqueue_initialization_quectel(&pvt->sys_chan);
+		return at_enqueue_initialization_quectel(&pvt->sys_chan, CONF_SHARED(pvt, dsci));
 	}
 	else if (!strncasecmp(ast_str_buffer(response), MANUFACTURER_SIMCOM, STRLEN(MANUFACTURER_SIMCOM))) {
 		ast_verb(1, "[%s] SimCOM module\n", PVT_ID(pvt));
@@ -2644,11 +2652,7 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 				return 0;
 
 			case RES_DSCI:
-#ifdef HANDLE_DSCI			
 				return at_response_dsci(pvt, str);
-#else
-				return 0;
-#endif				
 
 			case RES_CEND:
 #ifdef HANDLE_CEND			

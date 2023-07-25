@@ -217,7 +217,11 @@ Supported modules:
 
 * `UCS-2` encoding is mandatory now.
 * Hanging-up calls using `AT+QHUP` command with specific *release cause*.
-* Handling calls is based on `ccinfo` notifications (see `AT+QINDCFG="ccinfo"` command) instead of `DSCI` (`AT^DSCI` command) call status notifications.
+* Call handling is based on automatic call status contifications.
+
+    * For *Quectel* modules `ccinfo` (`AT+QINDCFG="ccinfo"` command) notifications are used by default.\
+      You can switch back to (less efficient) `dsci` (`AT^DSCI` command) notifications by `dcsi` (on/**off**) configuration switch.
+    * For *SimCOM* modules `clcc` (`AT+CLCC=1` command) notifications are used.
 * Improved/extended *AT* commands response handler.
 
     Changes required to properly handle `AT+CMGL` command response.

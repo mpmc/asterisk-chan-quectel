@@ -157,6 +157,7 @@ static char* cli_show_device_settings (struct ast_cli_entry* e, int cmd, struct 
 		ast_cli (a->fd, "  Group                   : %d\n", CONF_SHARED(pvt, group));
 		ast_cli (a->fd, "  RX gain                 : %d\n", CONF_SHARED(pvt, rxgain));
 		ast_cli (a->fd, "  TX gain                 : %d\n", CONF_SHARED(pvt, txgain));
+		ast_cli (a->fd, "  Use ^DSCI notifications : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, dsci)));
 		ast_cli (a->fd, "  Use CallingPres         : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, usecallingpres)));
 		ast_cli (a->fd, "  Default CallingPres     : %s\n", CONF_SHARED(pvt, callingpres) < 0 ? "<Not set>" : ast_describe_caller_presentation (CONF_SHARED(pvt, callingpres)));
 		ast_cli (a->fd, "  Disable SMS             : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, disablesms)));

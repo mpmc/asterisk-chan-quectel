@@ -138,7 +138,7 @@ struct cpvt;
 const char *at_cmd2str(at_cmd_t cmd);
 int at_enqueue_at(struct cpvt* cpvt);
 int at_enqueue_initialization(struct cpvt *cpvt);
-int at_enqueue_initialization_quectel(struct cpvt*);
+int at_enqueue_initialization_quectel(struct cpvt*, unsigned int);
 int at_enqueue_initialization_simcom(struct cpvt*);
 int at_enqueue_initialization_other(struct cpvt*);
 int at_enqueue_ping(struct cpvt *cpvt);

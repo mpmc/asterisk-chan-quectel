@@ -105,6 +105,21 @@ const char* dc_3stbool2str_capitalized(int v)
 	return enum2str_def(b, strs, ITEMS_OF(strs), "None");
 }
 
+static unsigned int parse_on_off(const char* const name, const char* const value, unsigned int defval) {
+	if (!value) {
+		return defval;
+	}
+	if (ast_true(value)) {
+		return 1u;
+	}
+	if (ast_false(value)) {
+		return 0u;
+	}
+
+	ast_log(LOG_ERROR, "Invalid value '%s' for configuration option '%s'\n", value, name);
+	return defval;
+}
+
 static const char* const msgstor_strs[] = {
 	"AUTO",
 	"SM",
@@ -166,14 +181,13 @@ static int dc_uconfig_fill(struct ast_config * cfg, const char * cat, struct dc_
 	}
 
 	if (slin16_str) {
-		slin16 = ast_true(slin16_str);
+		slin16 = parse_on_off("slin16", slin16_str, 0u);
 	}
 	else {
 		slin16 = 0;
 	}
 
-	if(!data_tty && !imei && !imsi)
-	{
+	if (!data_tty && !imei && !imsi) {
 		ast_log (LOG_ERROR, "Skipping device %s. Missing required data_tty setting\n", cat);
 		return 1;
 	}
@@ -265,19 +279,20 @@ void dc_sconfig_fill(struct ast_config * cfg, const char * cat, struct dc_sconfi
 			}
 		}
 		else if (!strcasecmp (v->name, "usecallingpres")) {
-			config->usecallingpres = ast_true (v->value);		/* usecallingpres is set to 0 if invalid */
+			config->usecallingpres = parse_on_off(v->name, v->value, 0u); /* usecallingpres is set to 0 if invalid */
 		}
 		else if (!strcasecmp (v->name, "autodeletesms")) {
-			config->autodeletesms = ast_true (v->value);		/* autodeletesms is set to 0 if invalid */
+			config->autodeletesms = parse_on_off(v->name, v->value, 0u); /* autodeletesms is set to 0 if invalid */
 		}
 		else if (!strcasecmp (v->name, "resetquectel")) {
-			config->resetquectel = ast_true (v->value);		/* resetquectel is set to 0 if invalid */
+			config->resetquectel = parse_on_off(v->name, v->value, 0u); /* resetquectel is set to 0 if invalid */
 		}
 		else if (!strcasecmp (v->name, "disablesms")) {
-			config->disablesms = ast_true (v->value);		/* disablesms is set to 0 if invalid */
+			config->disablesms = parse_on_off(v->name, v->value, 0u); /* disablesms is set to 0 if invalid */
 		}
 		else if (!strcasecmp (v->name, "disable")) {
-			config->initstate = ast_true (v->value) ? DEV_STATE_REMOVED : DEV_STATE_STARTED;
+			const unsigned int is = parse_on_off(v->name, v->value, 0u);
+			config->initstate = is ? DEV_STATE_REMOVED : DEV_STATE_STARTED;
 		}
 		else if (!strcasecmp (v->name, "initstate")) {
 			const dev_state_t val = str2dev_state(v->value);
@@ -288,13 +303,13 @@ void dc_sconfig_fill(struct ast_config * cfg, const char * cat, struct dc_sconfi
 		}
 		else if (!strcasecmp (v->name, "callwaiting")) {
 			if(strcasecmp(v->value, "auto"))
-				config->callwaiting = ast_true (v->value);
+				config->callwaiting = parse_on_off(v->name, v->value, 0u);
 		}
 		else if (!strcasecmp (v->name, "multiparty")) {
-			config->multiparty = ast_true(v->value);
+			config->multiparty = parse_on_off(v->name, v->value, 0u);
 		}
 		else if (!strcasecmp (v->name, "dtmf")) {
-			config->dtmf = ast_true(v->value);
+			config->dtmf = parse_on_off(v->name, v->value, 0u);
 		}
 		else if (!strcasecmp (v->name, "dtmf_duration")) {
 			config->dtmf_duration = strtol(v->value, (char**) NULL, 10);
@@ -303,10 +318,13 @@ void dc_sconfig_fill(struct ast_config * cfg, const char * cat, struct dc_sconfi
 			}
 		}		
 		else if (!strcasecmp (v->name, "moh")) {
-			config->moh = ast_true(v->value);
+			config->moh = parse_on_off(v->name, v->value, 0u);
 		}
 		else if (!strcasecmp (v->name, "query_time")) {
-			config->query_time = ast_true(v->value);
+			config->query_time = parse_on_off(v->name, v->value, 0u);
+		}
+		else if (!strcasecmp (v->name, "dsci")) {
+			config->dsci = parse_on_off(v->name, v->value, 0u);
 		}
 		else if (!strcasecmp (v->name, "msg_direct")) {
 			config->msg_direct = dc_str23stbool(v->value);
