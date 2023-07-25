@@ -354,8 +354,10 @@ int at_queue_run_immediately(struct pvt* pvt)
 	AST_LIST_TRAVERSE(&pvt->at_queue, task, entry) {
 		if (!task->at_once) continue;
 		for(unsigned i=0; i<task->cmdsno; ++i) {
-			ast_str_append_substr(&buf, buflen, task->cmds[i].data, task->cmds[i].length);
-			ast_str_append_substr(&buf, buflen, (pos < cmdsno) ? ";" : "\r", 1);			
+			if (task->cmds[i].length) {
+				ast_str_append_substr(&buf, buflen, task->cmds[i].data, task->cmds[i].length);
+				ast_str_append_substr(&buf, buflen, (pos < cmdsno) ? ";" : "\r", 1);
+			}
 			pos += 1u;
 		}
 	}

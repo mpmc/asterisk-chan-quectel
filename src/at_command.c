@@ -1218,14 +1218,12 @@ int at_hangup_immediately(struct cpvt* cpvt, int release_cause)
 
 int at_disable_uac_immediately(struct pvt *pvt)
 {
-	if (!pvt->is_simcom) {
-		static const char cmd_qpcmv[] = "+QPCMV=0";
-		static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_ST(CMD_AT_QPCMV_0, cmd_qpcmv);
+	static const char cmd_qpcmv[] = "+QPCMV=0";
+	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_ST(CMD_AT_QPCMV_0, cmd_qpcmv);
 
-		if (at_queue_add(&pvt->sys_chan, &cmd, 1, 0, 1u) == NULL) {
-			chan_quectel_err = E_QUEUE;
-			return -1;
-		}
+	if (at_queue_add(&pvt->sys_chan, &cmd, 1, 0, 1u) == NULL) {
+		chan_quectel_err = E_QUEUE;
+		return -1;
 	}
 
 	return 0;

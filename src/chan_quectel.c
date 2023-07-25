@@ -717,7 +717,7 @@ static void disconnect_quectel(struct pvt* pvt)
 		}
 	}
 
-	if (CONF_UNIQ(pvt, uac) == TRIBOOL_TRUE) {
+	if (!pvt->is_simcom && CONF_UNIQ(pvt, uac) == TRIBOOL_TRUE) {
 		at_disable_uac_immediately(pvt);
 	}
 
