@@ -116,30 +116,24 @@ static char* cli_show_devices (struct ast_cli_entry* e, int cmd, struct ast_cli_
 
 CLI_ALIASES(cli_show_devices, "show devices", "show devices", "Shows the state of devices")
 
-static char* cli_show_device_settings (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
+static char* cli_show_device_settings(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
-	struct pvt* pvt;
-
-	switch (cmd)
-	{
+	switch (cmd) {
 		case CLI_GENERATE:
-			if (a->pos == 4)
-			{
-				return complete_device (a->word, a->n);
+			if (a->pos == 4) {
+				return complete_device(a->word, a->n);
 			}
 			return NULL;
 	}
 
-	if (a->argc != 5)
-	{
+	if (a->argc != 5) {
 		return CLI_SHOWUSAGE;
 	}
 
-	pvt = find_device (a->argv[4]);
-	if (pvt)
-	{
+	struct pvt* const pvt = find_device(a->argv[4]);
+	if (pvt) {
 		const struct ast_format* const fmt = pvt_get_audio_format(pvt);
-		const char* codec_name = ast_format_get_name(fmt);
+		const char* const codec_name = ast_format_get_name(fmt);
 
 		ast_cli (a->fd, "------------- Settings ------------\n");
 		ast_cli (a->fd, "  Device                  : %s\n", PVT_ID(pvt));
@@ -155,11 +149,12 @@ static char* cli_show_device_settings (struct ast_cli_entry* e, int cmd, struct 
 		ast_cli (a->fd, "  Context                 : %s\n", CONF_SHARED(pvt, context));
 		ast_cli (a->fd, "  Exten                   : %s\n", CONF_SHARED(pvt, exten));
 		ast_cli (a->fd, "  Group                   : %d\n", CONF_SHARED(pvt, group));
+		ast_cli (a->fd, "  Used Notifications      : %s\n", S_COR(CONF_SHARED(pvt, dsci), "DSCI", "CCINFO"));
+		ast_cli (a->fd, "  16kHz audio             : %s\n", AST_CLI_YESNO(CONF_UNIQ(pvt, slin16)));
 		ast_cli (a->fd, "  RX gain                 : %d\n", CONF_SHARED(pvt, rxgain));
 		ast_cli (a->fd, "  TX gain                 : %d\n", CONF_SHARED(pvt, txgain));
-		ast_cli (a->fd, "  Use ^DSCI notifications : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, dsci)));
 		ast_cli (a->fd, "  Use CallingPres         : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, usecallingpres)));
-		ast_cli (a->fd, "  Default CallingPres     : %s\n", CONF_SHARED(pvt, callingpres) < 0 ? "<Not set>" : ast_describe_caller_presentation (CONF_SHARED(pvt, callingpres)));
+		ast_cli (a->fd, "  Default CallingPres     : %s\n", S_COR(CONF_SHARED(pvt, callingpres) < 0, "<Not set>", ast_describe_caller_presentation(CONF_SHARED(pvt, callingpres))));
 		ast_cli (a->fd, "  Disable SMS             : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, disablesms)));
 		ast_cli (a->fd, "  Message Service         : %d\n", CONF_SHARED(pvt, msg_service));
 		ast_cli (a->fd, "  Message Storage         : %s\n", dc_msgstor2str(CONF_SHARED(pvt, msg_storage)));
@@ -176,8 +171,7 @@ static char* cli_show_device_settings (struct ast_cli_entry* e, int cmd, struct 
 
 		ast_mutex_unlock (&pvt->lock);
 	}
-	else
-	{
+	else {
 		ast_cli (a->fd, "Device %s not found\n", a->argv[4]);
 	}
 
