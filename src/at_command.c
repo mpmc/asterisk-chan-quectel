@@ -419,29 +419,27 @@ static int at_enqueue_pdu(const char *pdu, size_t length, size_t tpdulen, at_que
 {
 	static const at_queue_cmd_t at_cmds[] = {
 		{ CMD_AT_CMGS,    RES_SMS_PROMPT, ATQ_CMD_FLAG_DEFAULT, { ATQ_CMD_TIMEOUT_MEDIUM, 0}, NULL, 0 },
-		{ CMD_AT_SMSTEXT, RES_OK,         ATQ_CMD_FLAG_DEFAULT, { ATQ_CMD_TIMEOUT_LONG, 0},   NULL, 0 }
+		{ CMD_AT_SMSTEXT, RES_OK,         ATQ_CMD_FLAG_STATIC, { ATQ_CMD_TIMEOUT_LONG, 0},   NULL, 0 }
 	};
 
-	// data
+	// DATA
 	cmds[1] = at_cmds[1];
-	cmds[1].data = ast_malloc(length + 2);
-	if (!cmds[1].data) {
+	char* cdata = cmds[1].data = ast_malloc(length + 2);
+	if (!cdata) {
 		return -ENOMEM;
 	}
 
 	cmds[1].length = length + 1;
-	memcpy(cmds[1].data, pdu, length);
-	cmds[1].data[length] = 0x1A;
-	cmds[1].data[length + 1] = 0x0;
+	memcpy(cdata, pdu, length);
+	cdata[length] = 0x1A;
+	cdata[length + 1] = 0x0;
 
 	// AT
-	char buf[8+25+1];
 	cmds[0] = at_cmds[0];
-	cmds[0].length = snprintf(buf, sizeof(buf), "AT+CMGS=%d\r", (int)tpdulen);
-	cmds[0].data = ast_strdup(buf);
-	if (!cmds[0].data) {
+	const int err = at_fill_generic_cmd(&cmds[0], "AT+CMGS=%d\r", (int)tpdulen);
+	if (err) {
 		ast_free(cmds[1].data);
-		return -ENOMEM;
+		return E_UNKNOWN;
 	}
 
 	return 0;
@@ -1035,23 +1033,50 @@ int at_enqueue_msg_ack(struct cpvt *cpvt)
 	return 0;
 }
 
-int at_enqueue_msg_ack_n(struct cpvt *cpvt, int n)
+int at_enqueue_msg_ack_n(struct cpvt *cpvt, int n, int uid)
 {
 	at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYNI(CMD_AT_CNMA);
-
-	int err = at_fill_generic_cmd(&cmd, "AT+CNMA=%d\r", n);
+	const int err = at_fill_generic_cmd(&cmd, "AT+CNMA=%d\r", n);
 	if (err) {
 		chan_quectel_err = E_UNKNOWN;
 		return err;
 	}
 
-	if (at_queue_insert(cpvt, &cmd, 1, 1) != 0) {
+	if (at_queue_insert_uid(cpvt, &cmd, 1, 1, uid) != 0) {
 		chan_quectel_err = E_QUEUE;
 		return -1;
 	}
 
 	return 0;
 }
+
+#if 0
+static int at_enqueue_msg_ack_n(struct cpvt *cpvt, int n, int uid)
+{
+	static const char ctrl_z[2] = { 0x1A, 0x00 };
+
+	at_queue_cmd_t at_cmds[] = {
+		{ CMD_AT_CNMA,    RES_SMS_PROMPT, ATQ_CMD_FLAG_DEFAULT, { ATQ_CMD_TIMEOUT_MEDIUM, 0}, NULL, 0 },
+		{ CMD_AT_SMSTEXT, RES_OK,         ATQ_CMD_FLAG_STATIC, { ATQ_CMD_TIMEOUT_LONG, 0},   NULL, 0 }
+	};
+
+	const int err = at_fill_generic_cmd(&at_cmds[0], "AT+CNMA=%d,0\r", n);
+	if (err) {
+		chan_quectel_err = E_UNKNOWN;
+		return err;
+	}
+
+	at_cmds[1].length = 1;
+	at_cmds[1].data = (void*)ctrl_z;
+
+	if (at_queue_insert_uid(cpvt, at_cmds, ITEMS_OF(at_cmds), 1, uid) != 0) {
+		chan_quectel_err = E_QUEUE;
+		return -1;
+	}
+
+	return 0;
+}
+#endif
 
 static int map_hangup_cause(int hangup_cause)
 {

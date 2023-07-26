@@ -176,7 +176,7 @@ int at_enqueue_qgains(struct cpvt* cpvt, int txgain, int rxdgain);
 int at_enqueue_query_cgains(struct cpvt* cpvt);
 int at_enqueue_cgains(struct cpvt* cpvt, int txgain, int rxgain);
 int at_enqueue_msg_ack(struct cpvt* cpvt);
-int at_enqueue_msg_ack_n(struct cpvt* cpvt, int n);
+int at_enqueue_msg_ack_n(struct cpvt* cpvt, int n, int uid);
 int at_enqueue_query_qaudloop(struct cpvt* cpvt);
 int at_enqueue_qaudloop(struct cpvt* cpvt, int aloop);
 int at_enqueue_query_qaudmod(struct cpvt* cpvt);

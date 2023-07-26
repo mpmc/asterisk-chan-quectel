@@ -28,7 +28,7 @@ typedef struct at_queue_cmd
 #define ATQ_CMD_TIMEOUT_MEDIUM	5		/*!< timeout value  5 sec */
 #define ATQ_CMD_TIMEOUT_LONG	40		/*!< timeout value 40 sec */
 
-	char*			data;			/*!< command and data to send in device */
+	void*			data;			/*!< command and data to send in device */
 	unsigned		length;			/*!< data length */
 } at_queue_cmd_t;
 

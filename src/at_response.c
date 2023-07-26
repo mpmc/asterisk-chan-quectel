@@ -341,9 +341,22 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CMGS:
-			case CMD_AT_SMSTEXT:
 				ast_debug(4, "[%s] Sending SMS message in progress\n", PVT_ID(pvt));
 				break;
+
+			case CMD_AT_SMSTEXT: {
+				const at_cmd_t cmd = task->cmds[0].cmd;
+				if (cmd == CMD_AT_CMGS) {
+					ast_debug(4, "[%s] Sending SMS message in progress\n", PVT_ID(pvt));
+				}
+				else if (cmd == CMD_AT_CNMA) {
+					ast_debug(4, "[%s] SMS message confirmed\n", PVT_ID(pvt));
+				}
+				else {
+					ast_log(LOG_ERROR, "[%s] Unexpected SMS text response\n", PVT_ID(pvt));
+				}
+				break;
+			}
 
 			case CMD_AT_DTMF:
 				ast_debug(4, "[%s] DTMF sent successfully for call idx %d\n", PVT_ID(pvt), task->cpvt->call_idx);
@@ -679,11 +692,26 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CMGS:
-			case CMD_AT_SMSTEXT:
 				log_cmd_response_error(pvt, ecmd, "[%s][SMS:%d] Error sending message\n", PVT_ID(pvt), task->uid);
 				at_response_cmgs_error(pvt, task);
 				pvt_try_restate(pvt);
 				break;
+
+			case CMD_AT_SMSTEXT: {
+				const at_cmd_t cmd = task->cmds[0].cmd;
+				if (cmd == CMD_AT_CMGS) {
+					log_cmd_response_error(pvt, ecmd, "[%s][SMS:%d] Error sending message\n", PVT_ID(pvt), task->uid);
+					at_response_cmgs_error(pvt, task);
+					pvt_try_restate(pvt);
+				}
+				else if (cmd == CMD_AT_CNMA) {
+					log_cmd_response_error(pvt, ecmd, "[%s][SMS:%d] Cannot acknowledge message\n", PVT_ID(pvt), task->uid);
+				}
+				else {
+					log_cmd_response_error(pvt, ecmd, "[%s] Unexpected SMS text prompt\n", PVT_ID(pvt));
+				}
+				break;
+			}
 
 			case CMD_AT_DTMF:
 				log_cmd_response_error(pvt, ecmd, "[%s] Error sending DTMF\n", PVT_ID(pvt));
@@ -1480,6 +1508,7 @@ static int at_response_msg(struct pvt* pvt, const struct ast_str* const response
 	int tpdu_type, idx;
 	pdu_udh_t udh;
 	tristate_bool_t msg_ack = TRIBOOL_NONE;
+	int msg_ack_uid = 0;
 	int msg_complete = 0;
 
 	pdu_udh_init(&udh);
@@ -1549,6 +1578,7 @@ static int at_response_msg(struct pvt* pvt, const struct ast_str* const response
 				}
 				ast_verb(2, "[%s][SMS:%d] Report: success:%d payload:[%s] report:[%s]\n", PVT_ID(pvt), mr, success, ast_str_buffer(payload), ast_str_buffer(status_report_str));
 				msg_ack = TRIBOOL_TRUE;
+				msg_ack_uid = mr;
 				msg_complete = 1;
 				start_local_report_channel(pvt, ast_str_buffer(oa), payload, scts, dt, success, 'e', status_report_str);
 			}
@@ -1570,6 +1600,7 @@ static int at_response_msg(struct pvt* pvt, const struct ast_str* const response
 				}
 				ast_str_update(fullmsg);
 				msg_ack = TRIBOOL_TRUE;
+				msg_ack_uid = (int)udh.ref;
 				msg_complete = (csms_cnt < (int)udh.parts)? 0 : 1;
 
 				if (!msg_complete) {
@@ -1581,6 +1612,7 @@ static int at_response_msg(struct pvt* pvt, const struct ast_str* const response
 			} else {
 receive_as_is:
 				msg_ack = TRIBOOL_TRUE;
+				msg_ack_uid = (int)udh.ref;
 				msg_complete = 1;
 				ast_verb(2, "[%s][SMS:%d TS:%s] Got message part from %s: [%s]\n", PVT_ID(pvt), (int)udh.ref, scts, ast_str_buffer(oa), ast_str_buffer(msg));
 				ast_str_copy_string(&fullmsg, msg);
@@ -1630,7 +1662,7 @@ msg_done:
 			break;
 
 			case RES_CMGL:
-			at_enqueue_delete_sms(&pvt->sys_chan, idx, (CONF_SHARED(pvt, msg_service) > 0)? msg_ack : TRIBOOL_NONE);
+			at_enqueue_delete_sms(&pvt->sys_chan, idx, TRIBOOL_NONE);
 			goto msg_ret;
 
 			default:
@@ -1646,15 +1678,14 @@ msg_done_ack:
 
 		case RES_CMT:
 		case RES_CDS:
-		case RES_CMGL:
 		if (CONF_SHARED(pvt, msg_service) > 0) {
 			switch(msg_ack) {
 				case TRIBOOL_FALSE: // negative ACT
-				at_enqueue_msg_ack_n(&pvt->sys_chan, 0);
+				at_enqueue_msg_ack_n(&pvt->sys_chan, 0, msg_ack_uid);
 				break;
 
 				case TRIBOOL_TRUE: // positive ACK
-				at_enqueue_msg_ack_n(&pvt->sys_chan, 0);
+				at_enqueue_msg_ack_n(&pvt->sys_chan, 0, msg_ack_uid);
 				break;
 
 				default:
