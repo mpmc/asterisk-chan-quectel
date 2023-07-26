@@ -213,6 +213,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 					pvt_set_act(pvt, 1); // GSM
 				}
 				pvt->initialized = 1;
+				at_enqueue_list_messages(task->cpvt, MSG_STAT_REC_UNREAD);
 				at_enqueue_csq(task->cpvt);
 				break;
 
@@ -1388,23 +1389,6 @@ static int at_response_cmgs_error(struct pvt* pvt, const at_queue_task_t * const
 	ast_free(payload);
 	return 0;
 }
-
-/*!
- * \brief Poll for SMS messages
- * \param pvt -- pvt structure
- * \retval 0 success
- * \retval -1 failure
- */
-int at_poll_sms(struct pvt *pvt)
-{
-	if (CONF_SHARED(pvt, disablesms)) {
-		return -1;
-	}
-
-	return at_enqueue_list_messages(&pvt->sys_chan, MSG_STAT_REC_UNREAD);
-}
-
-
 
 /*!
  * \brief Handle +CMTI response

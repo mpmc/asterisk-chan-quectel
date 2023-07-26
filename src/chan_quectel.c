@@ -878,11 +878,6 @@ static void* do_monitor_phone(void* data)
 		goto e_cleanup;
 	}
 
-	/* poll unread messages */
-	if (!at_poll_sms(pvt)) {
-		ast_debug(2, "[%s] Polling unread messages\n", PVT_ID(pvt));
-	}
-
 	ast_mutex_unlock(&pvt->lock);
 
 	int	read_result = 0;
