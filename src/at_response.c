@@ -1095,6 +1095,20 @@ static int at_response_clcc(struct pvt* pvt, char* str)
 	return 0;
 }
 
+static unsigned int map_dsci(unsigned int dsci)
+{
+	switch(dsci) {
+		case 3u: // connect
+		return CALL_STATE_ACTIVE;
+
+		case 7u: // allerting
+		return CALL_STATE_ALERTING;
+
+		default:
+		return dsci;
+	}
+}
+
 /*!
  * \brief Handle ^DSCI response
  * \param pvt -- pvt structure
@@ -1125,7 +1139,7 @@ static int at_response_dsci(struct pvt* pvt, char* str)
 
 	switch (call_state) {
 		case CALL_STATE_RELEASED: // released call will not be listed by AT+CLCC command, handle directly
-		handle_clcc(pvt, call_index, call_dir, call_state, call_type, 2u, number, number_type);
+		handle_clcc(pvt, call_index, call_dir, map_dsci(call_state), call_type, 2u, number, number_type);
 		break;
 
 		default: // request CLCC anyway
@@ -1133,7 +1147,7 @@ static int at_response_dsci(struct pvt* pvt, char* str)
 			request_clcc(pvt);
 		}
 		else {
-			handle_clcc(pvt, call_index, call_dir, call_state, call_type, 2u, number, number_type);
+			handle_clcc(pvt, call_index, call_dir, map_dsci(call_state), call_type, 2u, number, number_type);
 		}
 		break;
 	}
