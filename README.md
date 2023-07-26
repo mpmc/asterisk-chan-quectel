@@ -91,13 +91,25 @@ Supported modules:
 
     | value | description |
     | :---: | ----------- |
-    | on | *ping* module with `AT+QLTS` (or `AT+CCLK` for *SimCOM* module) command |
+    | on | *ping* module with `AT+QLTS` (*Quectel*) or `AT+CCLK` (*SimCOM*) command |
     | **off** | *ping* module with standard `AT` command |
 
 * New `slin16` option (on/**off**).
 
     Enable/disable 16kHz audio (default is 8kHz).\
     Currently only *SimCOM* SIM7600X module handles 16kHz audio.
+
+* New `dsci` option (on/**off**).
+
+   For *Quectel* modules `ccinfo` (`AT+QINDCFG="ccinfo"` command) notifications are used by default.
+   You can switch back to (less efficient) `dsci` (`AT^DSCI` command) notifications if your module does not support `ccinfo` notifications.
+
+* `smsdb` option in `[general]` section defaulted to `:memory:`
+
+    Internal *SQLite3* database now is stored in memory by default.
+    You can specify full path to database file but it is **not recommended**.
+
+    See also: [SQLIte3: In-Memory Databases](//www.sqlite.org/inmemorydb.html).
 
 ## Commands
 
@@ -219,9 +231,9 @@ Supported modules:
 * Hanging-up calls using `AT+QHUP` command with specific *release cause*.
 * Call handling is based on automatic call status contifications.
 
-    * For *Quectel* modules `ccinfo` (`AT+QINDCFG="ccinfo"` command) notifications are used by default.\
-      You can switch back to (less efficient) `dsci` (`AT^DSCI` command) notifications by `dcsi` (on/**off**) configuration switch.
-    * For *SimCOM* modules `clcc` (`AT+CLCC=1` command) notifications are used.
+    * For *Quectel* modules `ccinfo` (default) or `dsci` notifications are used.
+    * For *SimCOM* modules `clcc` notifications are used.
+
 * Improved/extended *AT* commands response handler.
 
     Changes required to properly handle `AT+CMGL` command response.
@@ -234,10 +246,10 @@ Supported modules:
     * More debug messages.
     * Reorganized, improved and simplified code.
 
-* Fixed USSD sending/receiving.
+* Fixed `USSD` sending/receiving.
 * Getting `ICCID` from SIM card.
 
-    `IICD`: Integrated Circuit Card Identifier.
+    `ICCID`: Integrated Circuit Card Identifier.
 
     It is possible to address device by `ICCID` (`j:` prefix):
 
