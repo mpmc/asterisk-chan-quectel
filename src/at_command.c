@@ -895,12 +895,17 @@ int at_enqueue_user_cmd(struct cpvt *cpvt, const char *input)
  */
 void at_sms_retrieved(struct cpvt *cpvt, int confirm)
 {
-	pvt_t *pvt = cpvt->pvt;
-	if (confirm) {
-		if (pvt->incoming_sms_index >= 0) {
-			ast_log(LOG_WARNING, "[%s] Message ID:%d not retrieved\n", PVT_ID(pvt), pvt->incoming_sms_index);
+	pvt_t * const pvt = cpvt->pvt;
+
+	if (pvt->incoming_sms_index >= 0) {
+		if (CONF_SHARED(pvt, autodeletesms)) {
+			at_enqueue_delete_sms(cpvt, pvt->incoming_sms_index, TRIBOOL_NONE);
+		}
+		if (confirm) {
+			ast_log(LOG_WARNING, "[%s][SMS:%d] Message not retrieved\n", PVT_ID(pvt), pvt->incoming_sms_index);
 		}
 	}
+
 	pvt->incoming_sms_index = -1;
 }
 

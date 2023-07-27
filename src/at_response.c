@@ -217,9 +217,9 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				if (CONF_UNIQ(pvt, uac) == TRIBOOL_NONE) {
 					pvt_set_act(pvt, 1); // GSM
 				}
-				pvt->initialized = 1;
-				at_enqueue_list_messages(task->cpvt, MSG_STAT_REC_UNREAD);
+				if (pvt->has_sms && !CONF_SHARED(pvt, disablesms)) at_enqueue_list_messages(task->cpvt, MSG_STAT_REC_UNREAD);
 				at_enqueue_csq(task->cpvt);
+				pvt->initialized = 1;
 				break;
 
 			case CMD_AT_COPS_INIT:
@@ -378,7 +378,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CMGR:
-				ast_debug(3, "[%s] SMS message\n", PVT_ID(pvt));
+				ast_debug(4, "[%s] CMGR command executed successfully\n", PVT_ID(pvt));
 				at_sms_retrieved(&pvt->sys_chan, 1);
 				break;
 
@@ -693,6 +693,7 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 
 			case CMD_AT_CMGR:
 				// log_cmd_response_error(pvt, ecmd, "[%s] Error reading SMS message, resetting index\n", PVT_ID(pvt));
+				ast_debug(1, "[%s][SMS:%d] Fail to read message\n", PVT_ID(pvt), pvt->incoming_sms_index);
 				at_sms_retrieved(&pvt->sys_chan, 0);
 				break;
 
@@ -1451,10 +1452,10 @@ static int at_response_cmti(struct pvt* pvt, const char* str)
 	}
 
 	if (idx > -1) {
-		ast_debug(1, "[%s] Incoming SMS message - IDX:%d\n", PVT_ID(pvt), idx);
+		ast_debug(1, "[%s][SMS:%d] New message\n", PVT_ID(pvt), idx);
 
 		if (at_enqueue_retrieve_sms(&pvt->sys_chan, idx)) {
-			ast_log(LOG_ERROR, "[%s] Error sending CMGR to retrieve SMS message\n", PVT_ID(pvt));
+			ast_log(LOG_ERROR, "[%s][SMS:%d] Could not read message\n", PVT_ID(pvt), idx);
 			return -1;
 		}
 	}
@@ -1474,21 +1475,21 @@ static int at_response_cmti(struct pvt* pvt, const char* str)
  * \retval -1 error
  */
 
-static int at_response_cdsi (struct pvt* pvt, const char* str)
+static int at_response_cdsi(struct pvt* pvt, const char* str)
 {
 // FIXME: check format in PDU mode
-	int index = at_parse_cdsi(str);
+	int idx = at_parse_cdsi(str);
 
 	if (CONF_SHARED(pvt, disablesms)) {
 		ast_log(LOG_WARNING, "[%s] SMS reception has been disabled in the configuration.\n", PVT_ID(pvt));
 		return 0;
 	}
 
-	if (index > -1) {
-		ast_debug(1, "[%s] Incoming SMS message\n", PVT_ID(pvt));
+	if (idx > -1) {
+		ast_debug(1, "[%s][SMS:%d] New message\n", PVT_ID(pvt), idx);
 
-		if (at_enqueue_retrieve_sms(&pvt->sys_chan, index)) {
-			ast_log(LOG_ERROR, "[%s] Error sending CMGR to retrieve SMS message\n", PVT_ID(pvt));
+		if (at_enqueue_retrieve_sms(&pvt->sys_chan, idx)) {
+			ast_log(LOG_ERROR, "[%s][SMS:%d] Could not read message\n", PVT_ID(pvt), idx);
 			return -1;
 		}
 	}
@@ -1496,7 +1497,7 @@ static int at_response_cdsi (struct pvt* pvt, const char* str)
 		/* Not sure why this happens, but we don't want to disconnect standing calls.
 		 * [Jun 14 19:57:57] ERROR[3056]: at_response.c:1173 at_response_cmti:
 		 *   [m1-1] Error parsing incoming sms message alert '+CMTI: "SM",-1' */
-		ast_log(LOG_WARNING, "[%s] Error parsing incoming sms message alert '%s', ignoring\n", PVT_ID(pvt), str);
+		ast_log(LOG_WARNING, "[%s] Error parsing incoming message alert '%s', ignoring\n", PVT_ID(pvt), str);
 	}
 
 	return 0;

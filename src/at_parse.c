@@ -431,9 +431,10 @@ int at_parse_cmti(const char* str)
 	 * Example:
 	 * 
 	 *   +CMTI: ,2
+	 *   +CMTI: ,-1
 	 */
 
-	return sscanf(str, "+CMTI:%*[^,],%u", &idx) == 1 ? idx : -1;
+	return sscanf(str, "+CMTI:%*[^,],%d", &idx) == 1 ? idx : -1;
 }
 
 /*!
@@ -453,7 +454,7 @@ int at_parse_cdsi(const char* str)
 	 * +CMTI: <mem>,<index>
 	 */
 
-	return sscanf(str, "+CDSI:%*[^,],%u", &index) == 1 ? index : -1;
+	return sscanf(str, "+CDSI:%*[^,],%d", &index) == 1 ? index : -1;
 }
 
 static int parse_pdu(const char *str, size_t len, int *tpdu_type, char *sca, size_t sca_len, char *oa, size_t oa_len, char *scts, int *mr, int *st, char *dt, char *msg, size_t *msg_len, pdu_udh_t *udh)
