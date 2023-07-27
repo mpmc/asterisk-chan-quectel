@@ -427,6 +427,55 @@ struct ast_str* const gain2str_simcom(int gain)
 	return res;
 }
 
+static char escape_sequences[] = {
+	0x1A, 0x1B, '\a', '\b', '\f', '\n', '\r', '\t', '\v', '\0'
+};
+
+static char escape_sequences_map[] = {
+	'z', 'e', 'a', 'b', 'f', 'n', 'r', 't', 'v', '\0'
+};
+
+static char *escape_c(char *dest, const char *s, size_t size)
+{
+	/*
+	 * Note - This is an optimized version of ast_escape. When looking only
+	 * for escape_sequences a couple of checks used in the generic case can
+	 * be left out thus making it slightly more efficient.
+	 */
+	char *p;
+	char *c;
+
+	if (!dest || !size) {
+		return dest;
+	}
+	if (ast_strlen_zero(s)) {
+		*dest = '\0';
+		return dest;
+	}
+
+	for (p = dest; *s && --size; ++s, ++p) {
+		/*
+		 * See if the character to escape is part of the standard escape
+		 * sequences. If so use its mapped counterpart.
+		 */
+		c = strchr(escape_sequences, *s);
+		if (c) {
+			if (!--size) {
+				/* Not enough room left for the escape sequence. */
+				break;
+			}
+
+			*p++ = '\\';
+			*p = escape_sequences_map[c - escape_sequences];
+		} else {
+			*p = *s;
+		}
+	}
+	*p = '\0';
+
+	return dest;
+}
+
 static size_t get_esc_str_buffer_size(size_t len)
 {
 	return (len * 2u) + 1u;
@@ -449,7 +498,7 @@ struct ast_str* escape_nstr(const char* buf, size_t cnt)
 
 	// unescape string
 	struct ast_str* const ebuf = ast_str_create(get_esc_str_buffer_size(cnt));
-	ast_escape_c(ast_str_buffer(ebuf), ast_str_buffer(nbuf), ast_str_size(ebuf));
+	escape_c(ast_str_buffer(ebuf), ast_str_buffer(nbuf), ast_str_size(ebuf));
 	ast_str_update(ebuf);
 
 	ast_free(nbuf);
@@ -466,7 +515,7 @@ struct ast_str* escape_str(const struct ast_str* const str)
 
 	const size_t len = ast_str_strlen(str);
 	struct ast_str* const ebuf = ast_str_create(get_esc_str_buffer_size(len));
-	ast_escape_c(ast_str_buffer(ebuf), ast_str_buffer(str), ast_str_size(ebuf));
+	escape_c(ast_str_buffer(ebuf), ast_str_buffer(str), ast_str_size(ebuf));
 	ast_str_update(ebuf);
 
 	return ebuf;
