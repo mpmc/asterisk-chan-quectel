@@ -419,7 +419,7 @@ static int at_enqueue_pdu(const char *pdu, size_t length, size_t tpdulen, at_que
 {
 	static const at_queue_cmd_t at_cmds[] = {
 		{ CMD_AT_CMGS,    RES_SMS_PROMPT, ATQ_CMD_FLAG_DEFAULT, { ATQ_CMD_TIMEOUT_MEDIUM, 0}, NULL, 0 },
-		{ CMD_AT_SMSTEXT, RES_OK,         ATQ_CMD_FLAG_STATIC, { ATQ_CMD_TIMEOUT_LONG, 0},   NULL, 0 }
+		{ CMD_AT_SMSTEXT, RES_OK,         ATQ_CMD_FLAG_DEFAULT, { ATQ_CMD_TIMEOUT_LONG, 0},   NULL, 0 }
 	};
 
 	// DATA
@@ -1698,6 +1698,19 @@ int at_enqueue_csq(struct cpvt *cpvt)
 	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_STI(CMD_AT_CSQ, cmd_at_csq);
 
 	if (at_queue_insert_const(cpvt, &cmd, 1, 0) != 0) {
+		chan_quectel_err = E_QUEUE;
+		return -1;
+	}
+
+	return 0;
+}
+
+int at_enqueue_escape(struct cpvt *cpvt, int uid)
+{
+	static const char cmd_esc[2] = { 0x1B, 0x00 };
+	static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_ST(CMD_ESC, cmd_esc);
+
+	if (at_queue_insert_uid(cpvt, (at_queue_cmd_t*)&cmd, 1, 1, uid)) {
 		chan_quectel_err = E_QUEUE;
 		return -1;
 	}

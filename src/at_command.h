@@ -118,6 +118,7 @@
 	_( AT_CCID,			"AT+CCID") \
 	_( AT_CICCID,		"AT+CICCID") \
 	_( AT_QCCID,		"AT+QCCID") \
+	_( ESC,				"ESC") \
 /* AT_COMMANDS_TABLE */
 
 typedef enum {
@@ -193,5 +194,6 @@ int at_enqueue_cpcmreg(struct cpvt*, int);
 int at_cpcmreg_immediately(struct pvt*, int);
 int at_enqueue_cpcmfrm(struct cpvt*, int);
 int at_enqueue_csq(struct cpvt*);
+int at_enqueue_escape(struct cpvt*, int);
 
 #endif /* CHAN_QUECTEL_AT_SEND_H_INCLUDED */

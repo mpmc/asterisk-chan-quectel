@@ -167,6 +167,11 @@ static int at_response_cend(struct pvt * pvt, const char* str)
 }
 #endif
 
+static int safe_task_uid(const at_queue_task_t* const task)
+{
+	return task? task->uid : -1;
+}
+
 static int at_response_ok(struct pvt* pvt, at_res_t res)
 {
 	const at_queue_task_t* task = at_queue_head_task(pvt);
@@ -350,7 +355,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 					ast_debug(4, "[%s] Sending SMS message in progress\n", PVT_ID(pvt));
 				}
 				else if (cmd == CMD_AT_CNMA) {
-					ast_debug(4, "[%s] SMS message confirmed\n", PVT_ID(pvt));
+					ast_debug(1, "[%s][SMD:%d] Message confirmed\n", PVT_ID(pvt), safe_task_uid(task));
 				}
 				else {
 					ast_log(LOG_ERROR, "[%s] Unexpected SMS text response\n", PVT_ID(pvt));
@@ -437,7 +442,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CNMA:
-				ast_debug(1, "[%s] Message confirmed\n", PVT_ID(pvt));
+				ast_debug(1, "[%s][SMS:%d] Message confirmed\n", PVT_ID(pvt), safe_task_uid(task));
 				break;
 
 			case CMD_AT_CSMS:
@@ -479,6 +484,10 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 			case CMD_AT_CICCID:
 			case CMD_AT_QCCID:
 				ast_debug(3, "[%s] ICCID obtained\n", PVT_ID(pvt));
+				break;
+
+			case CMD_ESC:
+				ast_debug(1, "[%s][SMS:%d] Message confirmed\n", PVT_ID(pvt), safe_task_uid(task));
 				break;
 
 			case CMD_USER:
@@ -712,6 +721,10 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 				}
 				break;
 			}
+
+			case CMD_ESC:
+			log_cmd_response_error(pvt, ecmd, "[%s] Cannot acknowledge message\n", PVT_ID(pvt));
+			break;
 
 			case CMD_AT_DTMF:
 				log_cmd_response_error(pvt, ecmd, "[%s] Error sending DTMF\n", PVT_ID(pvt));
@@ -1709,6 +1722,12 @@ msg_ret:
 	return 0;
 }
 
+static struct cpvt* safe_get_cpvt(const at_queue_task_t* const task, struct pvt* const pvt)
+{
+	if (task && task->cpvt) return task->cpvt;
+	return &pvt->sys_chan;
+}
+
 /*!
  * \brief Send an SMS message from the queue.
  * \param pvt -- pvt structure
@@ -1716,19 +1735,44 @@ msg_ret:
  * \retval -1 error
  */
 
-static int at_response_sms_prompt(struct pvt* pvt)
+static int at_response_sms_prompt(struct pvt* pvt, const at_queue_task_t* const task)
 {
-	const struct at_queue_cmd * ecmd = at_queue_head_cmd(pvt);
+	const struct at_queue_cmd * const ecmd = at_queue_head_cmd(pvt);
 
-	if (ecmd && ecmd->res == RES_SMS_PROMPT) {
-		at_queue_handle_result(pvt, RES_SMS_PROMPT);
+	if (!ecmd) {
+		ast_log(LOG_ERROR, "[%s] Received unexpected SMS PROMPT\n", PVT_ID(pvt));
+		return 0;
 	}
-	else if (ecmd) {
-		ast_log(LOG_ERROR, "[%s] Received SMS prompt when expecting '%s' response to '%s', ignoring\n", PVT_ID(pvt),
-			at_res2str(ecmd->res), at_cmd2str(ecmd->cmd));
-	}
-	else {
-		ast_log(LOG_ERROR, "[%s] Received unexpected SMS prompt\n", PVT_ID(pvt));
+
+	switch(ecmd->cmd) {
+		case CMD_AT_CNMA:
+		switch (ecmd->res) {
+			case RES_OK:
+			// SIM800C workaround
+			at_enqueue_escape(safe_get_cpvt(task, pvt), safe_task_uid(task));
+			at_queue_handle_result(pvt, ecmd->res);
+			break;
+
+			case RES_SMS_PROMPT:
+			at_queue_handle_result(pvt, ecmd->res);
+			break;
+
+			default:
+			ast_log(LOG_ERROR, "[%s] Received SMS prompt when expecting '%s' response to '%s', ignoring\n", PVT_ID(pvt),
+				at_res2str(ecmd->res), at_cmd2str(ecmd->cmd));
+			break;
+		}
+		break;
+
+		default:
+		if (ecmd->res == RES_SMS_PROMPT) {
+			at_queue_handle_result(pvt, RES_SMS_PROMPT);
+		}
+		else {
+			ast_log(LOG_ERROR, "[%s] Received SMS prompt when expecting '%s' response to '%s', ignoring\n", PVT_ID(pvt),
+				at_res2str(ecmd->res), at_cmd2str(ecmd->cmd));
+		}
+		break;
 	}
 
 	return 0;
@@ -2755,7 +2799,7 @@ int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at
 				return at_response_msg(pvt, result, at_res);
 
 			case RES_SMS_PROMPT:
-				return at_response_sms_prompt(pvt);
+				return at_response_sms_prompt(pvt, task);
 
 			case RES_CMGS:
 				at_response_cmgs(pvt, result, task);
