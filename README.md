@@ -100,6 +100,12 @@ Supported modules:
     Enable/disable 16kHz audio (default is 8kHz).\
     Currently only *SimCOM* SIM7600X module handles 16kHz audio.
 
+* New `qhup` option (**on**/off).
+
+    For *Quectel* modules hang up calls using
+     `AT+QHUP` (*Hang up Call with a Specific Release Cause*)
+     or standard `AT+CHUP` (*Hang up Voice Call*) command.
+
 * New `dsci` option (on/**off**).
 
    For *Quectel* modules `ccinfo` (`AT+QINDCFG="ccinfo"` command) notifications are used by default.
@@ -229,7 +235,6 @@ Supported modules:
 ## Internal
 
 * `UCS-2` encoding is mandatory now.
-* Hanging-up calls using `AT+QHUP` command with specific *release cause*.
 * Call handling is based on automatic call status contifications.
 
     * For *Quectel* modules `ccinfo` (default) or `dsci` notifications are used.
@@ -272,6 +277,11 @@ Supported modules:
     DEBUG[13411]: at_queue.c:181 at_write: [quectel0] [AT+QSPN;+QNWINFO\r]
     ```
 
+ * Using modern serial port locking methods:
+
+    * `ioctl(fd, TIOCGEXCL, &locking_status)` and `ioctl(fd, TIOCEXCL)`,
+    * `flock(fd, LOCK_EX | LOCK_NB)`.
+    
 * Many small optimizations.
 
 
