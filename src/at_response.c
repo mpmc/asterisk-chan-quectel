@@ -205,7 +205,9 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 			case CMD_AT_QINDCFG_ACT:
 			case CMD_AT_QINDCFG_RING:
 			case CMD_AT_QINDCFG_CC:
+			case CMD_AT_QINDCFG_CC_OFF:
 			case CMD_AT_DSCI:
+			case CMD_AT_DSCI_OFF:
 			case CMD_AT_QLTS:
 			case CMD_AT_QLTS_1:
 			case CMD_AT_CCLK:
@@ -611,6 +613,13 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 			case CMD_AT_DSCI:
 				ast_debug(1, "[%s] Error enabling indications\n", PVT_ID(pvt));
 				break;
+
+			case CMD_AT_QINDCFG_CC_OFF:
+				ast_debug(CONF_SHARED(pvt, dsci)? 1 : 4, "[%s] Error disabling indications\n", PVT_ID(pvt));
+				break;
+
+			case CMD_AT_DSCI_OFF:
+				ast_debug(CONF_SHARED(pvt, dsci)? 4 : 1, "[%s] Error disabling indications\n", PVT_ID(pvt));
 
 			case CMD_AT_CVOICE:
 				ast_debug (1, "[%s] Voice calls not supported\n", PVT_ID(pvt));

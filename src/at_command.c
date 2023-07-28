@@ -283,7 +283,10 @@ int at_enqueue_initialization_quectel(struct cpvt *cpvt, unsigned int dsci)
 	static const char cmd_qpcmv[] = "AT+QPCMV?\r";
 
 	static const char cmd_at_qindcfg_cc[] = "AT+QINDCFG=\"ccinfo\",1,0\r";
+	static const char cmd_at_qindcfg_cc_off[] = "AT+QINDCFG=\"ccinfo\",0,0\r";
+
 	static const char cmd_at_dsci[] = "AT^DSCI=1\r";
+	static const char cmd_at_dsci_off[] = "AT^DSCI=0\r";
 
 	static const char cmd_at_qindcfg_csq[] = "AT+QINDCFG=\"csq\",1,0\r";
 	static const char cmd_at_qindcfg_act[] = "AT+QINDCFG=\"act\",1,0\r";
@@ -296,7 +299,9 @@ int at_enqueue_initialization_quectel(struct cpvt *cpvt, unsigned int dsci)
 
 	static const at_queue_cmd_t ccinfo_cmds[] = {
 		ATQ_CMD_DECLARE_ST(CMD_AT_QINDCFG_CC, cmd_at_qindcfg_cc),
-		ATQ_CMD_DECLARE_ST(CMD_AT_DSCI, cmd_at_dsci)
+		ATQ_CMD_DECLARE_ST(CMD_AT_DSCI, cmd_at_dsci),
+		ATQ_CMD_DECLARE_STI(CMD_AT_QINDCFG_CC_OFF, cmd_at_qindcfg_cc_off),
+		ATQ_CMD_DECLARE_STI(CMD_AT_DSCI_OFF, cmd_at_dsci_off)		
 	};
 
 	static const at_queue_cmd_t tonedet_cmds[] = {
@@ -313,6 +318,7 @@ int at_enqueue_initialization_quectel(struct cpvt *cpvt, unsigned int dsci)
 		ATQ_CMD_DECLARE_STI(CMD_AT_QCCID, cmd_at_qccid),
 		ATQ_CMD_DECLARE_STI(CMD_AT_QTONEDET_1, cmd_at_qtonedet_1),
 		ATQ_CMD_DECLARE_ST(CMD_AT_CVOICE, cmd_qpcmv),				/* read the current voice mode, and return sampling rate、data bit、frame period */
+		ccinfo_cmds[dsci? 2:3],
 		ccinfo_cmds[dsci? 1:0],
 		ATQ_CMD_DECLARE_ST(CMD_AT_QINDCFG_CSQ, cmd_at_qindcfg_csq),
 		ATQ_CMD_DECLARE_ST(CMD_AT_QINDCFG_ACT, cmd_at_qindcfg_act),
