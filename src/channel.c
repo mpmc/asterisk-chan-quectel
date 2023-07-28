@@ -516,10 +516,10 @@ static ssize_t iov_write(struct pvt* pvt, int fd, const struct iovec* const iov,
 	if (w < 0) {
 		const int err = errno;
 		if (err == EINTR || err == EAGAIN) {
-			ast_debug(3, "[%s][TTY] Write error: %d\n", PVT_ID(pvt), err);
+			ast_debug(3, "[%s][TTY] Write error: %s\n", PVT_ID(pvt), strerror(err));
 		}
 		else {
-			ast_log(LOG_WARNING, "[%s][TTY] Write error: %d\n", PVT_ID(pvt), err);
+			ast_log(LOG_WARNING, "[%s][TTY] Write error: %s\n", PVT_ID(pvt), strerror(err));
 		}
 		return -err;
 	}
@@ -613,18 +613,16 @@ static void timing_write_tty(struct pvt* pvt, size_t frame_size)
 static void write_conference(struct pvt* pvt, const char* const buffer, size_t length)
 {
 	struct cpvt* cpvt;
-	size_t wr;
 
 	AST_LIST_TRAVERSE(&pvt->chans, cpvt, entry) {
 		if(CPVT_IS_ACTIVE(cpvt) && !CPVT_IS_MASTER(cpvt) && CPVT_TEST_FLAG(cpvt, CALL_FLAG_MULTIPARTY) && cpvt->rd_pipe[PIPE_WRITE] >= 0) {
-			wr = write_all(cpvt->rd_pipe[PIPE_WRITE], buffer, length);
+			const size_t wr = write_all(cpvt->rd_pipe[PIPE_WRITE], buffer, length);
 //			ast_debug (6, "[%s] write2 | call idx %d pipe fd %d wrote %d bytes\n", PVT_ID(pvt), cpvt->call_idx, cpvt->rd_pipe[PIPE_WRITE], wr);
 			if(wr != length) {
-				ast_debug(1, "[%s][PIPE] Write error: %d\n", PVT_ID(pvt), errno);
+				ast_debug(1, "[%s][PIPE] Write error: %s\n", PVT_ID(pvt), strerror(errno));
 			}
 		}
 	}
-
 }
 
 static struct ast_frame* prepare_voice_frame(struct cpvt* const cpvt, void* const buf, int samples, const struct ast_format* const fmt)
@@ -660,7 +658,7 @@ static struct ast_frame* channel_read_tty(struct cpvt* cpvt, struct pvt* pvt, si
 	const int res = read(fd, buf, frame_size);
 	if (res <= 0) {
 		if (errno && errno != EAGAIN && errno != EINTR) {
-			ast_debug(1, "[%s][TTY] Read error: %d\n", PVT_ID(pvt), errno);
+			ast_debug(1, "[%s][TTY] Read error: %s\n", PVT_ID(pvt), strerror(errno));
 		}
 
 		return NULL;

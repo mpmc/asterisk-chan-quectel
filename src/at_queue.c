@@ -182,11 +182,10 @@ int at_write(struct pvt* pvt, const char* buf, size_t count)
 		ast_free(ebuf);
 	}
 
-	size_t wrote = write_all(pvt->data_fd, buf, count);
+	const size_t wrote = write_all(pvt->data_fd, buf, count);
 	PVT_STAT(pvt, d_write_bytes) += wrote;
-	if(wrote != count)
-	{
-		ast_debug (1, "[%s] write() error: %d\n", PVT_ID(pvt), errno);
+	if(wrote != count) {
+		ast_debug(1, "[%s][DATA] Write: %s\n", PVT_ID(pvt), strerror(errno));
 	}
 
 	return wrote != count;
