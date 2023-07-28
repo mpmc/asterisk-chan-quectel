@@ -717,23 +717,28 @@ static void disconnect_quectel(struct pvt* pvt)
 		}
 	}
 
-	if (!pvt->is_simcom && CONF_UNIQ(pvt, uac) == TRIBOOL_TRUE) {
-		at_disable_uac_immediately(pvt);
-	}
 
-	if (pvt->is_simcom && CONF_UNIQ(pvt, uac) == TRIBOOL_TRUE && pvt->has_voice) {
-		at_cpcmreg_immediately(pvt, 0);
-	}
+	if (pvt->initialized) {
+		if (!pvt->is_simcom && CONF_UNIQ(pvt, uac) == TRIBOOL_TRUE) {
+			at_disable_uac_immediately(pvt);
+		}
 
-	at_queue_run_immediately(pvt);
-	at_queue_flush(pvt);
+		if (pvt->is_simcom && CONF_UNIQ(pvt, uac) == TRIBOOL_TRUE && pvt->has_voice) {
+			at_cpcmreg_immediately(pvt, 0);
+		}
+
+		at_queue_run_immediately(pvt);
+		at_queue_flush(pvt);
+	}
 
     if (CONF_UNIQ(pvt, uac) > TRIBOOL_FALSE) {
-		const int err = snd_pcm_unlink(pvt->icard);
-		if (err < 0) {
-			ast_log(LOG_WARNING, "[%s][ALSA] Couldn't unlink devices: %s", PVT_ID(pvt), snd_strerror(err));
+		if (pvt->icard) {
+			const int err = snd_pcm_unlink(pvt->icard);
+			if (err < 0) {
+				ast_log(LOG_WARNING, "[%s][ALSA] Couldn't unlink devices: %s", PVT_ID(pvt), snd_strerror(err));
+			}
+			pcm_close(&pvt->icard, SND_PCM_STREAM_CAPTURE);
 		}
-		if (pvt->icard) pcm_close(&pvt->icard, SND_PCM_STREAM_CAPTURE);
 		if (pvt->ocard)	{
 			pcm_close(&pvt->ocard, SND_PCM_STREAM_PLAYBACK);
 			pvt->ocard_channels = 0;
@@ -748,9 +753,9 @@ static void disconnect_quectel(struct pvt* pvt)
 	}
 
 #ifdef USE_SYSV_UUCP_LOCKS
-	closetty(PVT_STATE(pvt, audio_tty), pvt->data_fd, &pvt->dlock);
+	closetty(PVT_STATE(pvt, data_tty), pvt->data_fd, &pvt->dlock);
 #else
-	closetty(PVT_STATE(pvt, audio_tty), pvt->data_fd);
+	closetty(PVT_STATE(pvt, data_tty), pvt->data_fd);
 #endif	
 
 	pvt->data_fd = -1;
@@ -809,8 +814,10 @@ static void disconnect_quectel(struct pvt* pvt)
 	ast_copy_string(PVT_STATE(pvt, data_tty),  CONF_UNIQ(pvt, data_tty), sizeof (PVT_STATE(pvt, data_tty)));
 	ast_copy_string(PVT_STATE(pvt, audio_tty), CONF_UNIQ(pvt, audio_tty), sizeof (PVT_STATE(pvt, audio_tty)));
 
-	ao2_cleanup(pvt->local_format_cap);
-	pvt->local_format_cap = NULL;
+	if (pvt->local_format_cap) {
+		ao2_cleanup(pvt->local_format_cap);
+		pvt->local_format_cap = NULL;
+	}
 
 	ast_verb(3, "[%s] Disconnected\n", PVT_ID(pvt));
 }
