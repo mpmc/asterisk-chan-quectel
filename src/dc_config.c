@@ -235,6 +235,7 @@ void dc_sconfig_fill_defaults(struct dc_sconfig * config)
 	config->txgain			= -1;
 	config->msg_service		= -1;
 	config->dtmf_duration	= DEF_DTMF_DURATION;
+	config->qhup			= 1u;
 }
 
 #/* */
@@ -326,6 +327,9 @@ void dc_sconfig_fill(struct ast_config * cfg, const char * cat, struct dc_sconfi
 		else if (!strcasecmp (v->name, "dsci")) {
 			config->dsci = parse_on_off(v->name, v->value, 0u);
 		}
+		else if (!strcasecmp (v->name, "qhup")) {
+			config->qhup = parse_on_off(v->name, v->value, 1u);
+		}		
 		else if (!strcasecmp (v->name, "msg_direct")) {
 			config->msg_direct = dc_str23stbool(v->value);
 		}

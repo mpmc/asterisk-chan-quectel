@@ -167,7 +167,8 @@ static char* cli_show_device_settings(struct ast_cli_entry* e, int cmd, struct a
 		ast_cli (a->fd, "  DTMF Duration           : %ld\n", CONF_SHARED(pvt, dtmf_duration));
 		ast_cli (a->fd, "  Hold/Unhold Action      : %s\n", S_COR(CONF_SHARED(pvt, dtmf), "MOH", "Mute"));
 		ast_cli (a->fd, "  Query Time              : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, query_time)));
-		ast_cli (a->fd, "  Initial device state    : %s\n\n", dev_state2str(CONF_SHARED(pvt, initstate)));
+		ast_cli (a->fd, "  Initial Device State    : %s\n", dev_state2str(CONF_SHARED(pvt, initstate)));
+		ast_cli (a->fd, "  Use QHUP Command        : %s\n\n", AST_CLI_YESNO(CONF_SHARED(pvt, qhup)));
 
 		ast_mutex_unlock (&pvt->lock);
 	}

@@ -94,6 +94,7 @@ typedef struct dc_sconfig
 	unsigned int	moh:1;					/*! 0 */
 	unsigned int	query_time:1;			/*! 0 */
 	unsigned int	dsci:1;					/*!< use ^DSCI call state notifications */	
+	unsigned int	qhup:1;					/*!< use QHUP command */	
 
 	long				dtmf_duration;		/*! duration of DTMF in miliseconds */
 	dev_state_t			initstate;			/*! DEV_STATE_STARTED */

@@ -1105,6 +1105,38 @@ static int map_hangup_cause(int hangup_cause)
 	}
 }
 
+static int at_enqueue_chup(struct cpvt * const cpvt)
+{
+	static const char cmd_chup[] = "AT+CHUP\r";
+	static const at_queue_cmd_t at_chup = ATQ_CMD_DECLARE_STFT(CMD_AT_CHUP, RES_OK, cmd_chup, ATQ_CMD_FLAG_DEFAULT, ATQ_CMD_TIMEOUT_LONG, 0);
+
+	if (at_queue_insert_const(cpvt, &at_chup, 1, 1) != 0) {
+		chan_quectel_err = E_QUEUE;
+		return -1;
+	}
+
+	return 0;
+}
+
+static int at_enqueue_qhup(struct cpvt * const cpvt, int call_idx, int release_cause)
+{
+	// AT+QHUP=<cause>,<idx>
+	at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYNFT(CMD_AT_QHUP, RES_OK, ATQ_CMD_FLAG_DEFAULT, ATQ_CMD_TIMEOUT_LONG, 0);
+
+	const int err = at_fill_generic_cmd(&cmd, "AT+QHUP=%d,%d\r", map_hangup_cause(release_cause), call_idx);
+	if (err) {
+		chan_quectel_err = E_UNKNOWN;
+		return err;
+	}
+
+	if (at_queue_insert(cpvt, &cmd, 1, 1) != 0) {
+		chan_quectel_err = E_QUEUE;
+		return -1;
+	}
+
+	return 0;
+}
+
 /*!
  * \brief Enqueue AT+CHLD1x or AT+CHUP hangup command
  * \param cpvt -- channel_pvt structure
@@ -1130,29 +1162,13 @@ int at_enqueue_hangup(struct cpvt *cpvt, int call_idx, int release_cause)
 	}
 
 	if (pvt->is_simcom) { // AT+CHUP
-		static const char cmd_chup[] = "AT+CHUP\r";
-		static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_STFT(CMD_AT_CHUP, RES_OK, cmd_chup, ATQ_CMD_FLAG_DEFAULT, ATQ_CMD_TIMEOUT_LONG, 0);
-
-		if (at_queue_insert_const(cpvt, &cmd, 1, 1) != 0) {
-			chan_quectel_err = E_QUEUE;
-			return -1;
-		}
+		return at_enqueue_chup(cpvt);
 	}
-	else { // AT+QHUP=<cause>,<idx>
-		at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYNFT(CMD_AT_QHUP, RES_OK, ATQ_CMD_FLAG_DEFAULT, ATQ_CMD_TIMEOUT_LONG, 0);
-
-		const int err = at_fill_generic_cmd(&cmd, "AT+QHUP=%d,%d\r", map_hangup_cause(release_cause), call_idx);
-		if (err) {
-			chan_quectel_err = E_UNKNOWN;
-			return err;
-		}
-
-		if (at_queue_insert(cpvt, &cmd, 1, 1) != 0) {
-			chan_quectel_err = E_QUEUE;
-			return -1;
-		}
+	else {
+		return (CONF_SHARED(pvt, qhup))? 
+			at_enqueue_qhup(cpvt, call_idx, release_cause) :
+			at_enqueue_chup(cpvt);
 	}
-	return 0;
 }
 
 /*!
