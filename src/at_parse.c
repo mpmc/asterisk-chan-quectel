@@ -411,18 +411,8 @@ int at_parse_creg(char* str, unsigned, int* gsm_reg, int* gsm_reg_status, char**
 	return 0;
 }
 
-/*!
- * \brief Parse a CMTI notification
- * \param str -- string to parse (null terminated)
- * \param len -- string lenght
- * @note str will be modified when the CMTI message is parsed
- * \return -1 on error (parse error) or the index of the new sms message
- */
-
-int at_parse_cmti(const char* str)
+int at_parse_cmti(const char* str, int* idx)
 {
-	int idx;
-
 	/*
 	 * Parse cmti info in the following format:
 	 *
@@ -434,27 +424,32 @@ int at_parse_cmti(const char* str)
 	 *   +CMTI: ,-1
 	 */
 
-	return sscanf(str, "+CMTI:%*[^,],%d", &idx) == 1 ? idx : -1;
+	int lidx;
+	const int res = sscanf(str, "+CMTI:%*[^,],%d", &lidx);
+	if (res != 1) {
+		return -1;
+	}
+
+	*idx = lidx;
+	return 0;
 }
 
-/*!
- * \brief Parse a CMSI notification
- * \param str -- string to parse (null terminated)
- * \param len -- string lenght
- * @note str will be modified when the CMTI message is parsed
- * \return -1 on error (parse error) or the index of the new sms message
- */
-
-int at_parse_cdsi(const char* str)
+int at_parse_cdsi(const char* str, int* idx)
 {
-	int index;
-
 	/*
-	 * parse cmti info in the following format:
-	 * +CMTI: <mem>,<index>
+	 * parse cdsi info in the following format:
+	 *
+	 *   +CDSI: <mem>,<index>
 	 */
 
-	return sscanf(str, "+CDSI:%*[^,],%d", &index) == 1 ? index : -1;
+	int lidx;
+	const int res = sscanf(str, "+CDSI:%*[^,],%d", &lidx);
+	if (res != 1) {
+		return -1;
+	}
+
+	*idx = lidx;
+	return 0;
 }
 
 static int parse_pdu(const char *str, size_t len, int *tpdu_type, char *sca, size_t sca_len, char *oa, size_t oa_len, char *scts, int *mr, int *st, char *dt, char *msg, size_t *msg_len, pdu_udh_t *udh)
