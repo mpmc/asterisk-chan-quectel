@@ -158,6 +158,7 @@ int at_enqueue_user_cmd(struct cpvt *cpvt, const char *input);
 int at_enqueue_list_messages(struct cpvt* cpvt, enum msg_status_t stat);
 int at_enqueue_retrieve_sms(struct cpvt *cpvt, int index);
 void at_sms_retrieved(struct cpvt *cpvt, int confirm);
+int at_enqueue_cmgd(struct cpvt *cpvt, unsigned int index, int delflag);
 int at_enqueue_delete_sms(struct cpvt *cpvt, int index, tristate_bool_t ack);
 int at_enqueue_delete_sms_n(struct cpvt *cpvt, int index, tristate_bool_t ack);
 int at_enqueue_hangup(struct cpvt *cpvt, int call_idx, int release_cause);

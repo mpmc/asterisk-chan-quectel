@@ -133,11 +133,33 @@ int send_sms(const char *const dev_name, const char * const number, const char *
 		return -1;
 	}
 	
-	struct pvt *pvt = get_pvt(dev_name, 1);
+	struct pvt * const pvt = get_pvt(dev_name, 1);
 	if (!pvt) {
 		return -1;
 	}
-	int res = at_enqueue_sms(&pvt->sys_chan, number, message, validity, report, payload, payload_len);
+	const int res = at_enqueue_sms(&pvt->sys_chan, number, message, validity, report, payload, payload_len);
+	free_pvt(pvt);
+	return res;
+}
+
+int list_sms(const char *const dev_name, enum msg_status_t stat)
+{
+	struct pvt * const pvt = get_pvt(dev_name, 1);
+	if (!pvt) {
+		return -1;
+	}
+	const int res = at_enqueue_list_messages(&pvt->sys_chan, stat);
+	free_pvt(pvt);
+	return res;
+}
+
+int delete_sms(const char* const dev_name, unsigned int idx, int delflag)
+{
+	struct pvt * const pvt = get_pvt(dev_name, 1);
+	if (!pvt) {
+		return -1;
+	}
+	const int res = at_enqueue_cmgd(&pvt->sys_chan, idx, delflag);
 	free_pvt(pvt);
 	return res;
 }

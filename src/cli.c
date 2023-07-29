@@ -448,7 +448,7 @@ static char* cli_ussd (struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 
 CLI_ALIASES(cli_ussd, "ussd", "ussd <device> <command>", "Send ussd <command> with the specified <device>")
 
-static char* cli_sms(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
+static char* cli_sms_send(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
 	static const char DEF_PAYLOAD[] = "CLI";
 	static const int DEF_VALIDITY = 15;
@@ -456,7 +456,7 @@ static char* cli_sms(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 
 	switch (cmd) {
 		case CLI_GENERATE:
-			if (a->pos == 2) {
+			if (a->pos == 3) {
 				return complete_device(a->word, a->n);
 			}
 			return NULL;
@@ -467,7 +467,7 @@ static char* cli_sms(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 	}
 
 	struct ast_str* buf = ast_str_create(160 * 255);
-	for (int i = 4; i < a->argc; ++i) {
+	for (int i = 5; i < a->argc; ++i) {
 		if (i < (a->argc - 1)) {
 			ast_str_append(&buf, 0, "%s ", a->argv[i]);
 		}
@@ -476,14 +476,152 @@ static char* cli_sms(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 		}
 	}
 
-	int res = send_sms(a->argv[2], a->argv[3], ast_str_buffer(buf), DEF_VALIDITY, DEF_REPORT, DEF_PAYLOAD, STRLEN(DEF_PAYLOAD));
+	int res = send_sms(a->argv[3], a->argv[4], ast_str_buffer(buf), DEF_VALIDITY, DEF_REPORT, DEF_PAYLOAD, STRLEN(DEF_PAYLOAD));
 	ast_free(buf);
-	ast_cli(a->fd, "[%s] %s\n", a->argv[2], res < 0 ? error2str(chan_quectel_err) : "SMS queued for send");
+	ast_cli(a->fd, "[%s] %s\n", a->argv[3], res < 0 ? error2str(chan_quectel_err) : "SMS queued for send");
 
 	return CLI_SUCCESS;
 }
 
-CLI_ALIASES(cli_sms, "sms", "sms <device> <number> <message>", "Send a SMS to <number> with the <message> from <device>")
+CLI_ALIASES(cli_sms_send, "sms send", "sms send <device> <number> <message>", "Send a SMS to <number> with the <message> from <device>")
+
+static char* cli_sms_list_received_unread(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
+{
+	switch (cmd) {
+		case CLI_GENERATE:
+			if (a->pos == 5) {
+				return complete_device(a->word, a->n);
+			}
+			return NULL;
+	}
+
+	if (a->argc < 5) {
+		return CLI_SHOWUSAGE;
+	}
+
+	const int res = list_sms(a->argv[5], MSG_STAT_REC_UNREAD);
+	ast_cli(a->fd, "[%s] %s\n", a->argv[5], res < 0 ? error2str(chan_quectel_err) : "Operation queued");
+
+	return CLI_SUCCESS;
+}
+
+CLI_ALIASES(cli_sms_list_received_unread, "sms list received unread", "sms list received unread <device>", "List unread received mesages from <device>")
+
+static char* cli_sms_list_received_read(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
+{
+	switch (cmd) {
+		case CLI_GENERATE:
+			if (a->pos == 5) {
+				return complete_device(a->word, a->n);
+			}
+			return NULL;
+	}
+
+	if (a->argc < 5) {
+		return CLI_SHOWUSAGE;
+	}
+
+	const int res = list_sms(a->argv[5], MSG_STAT_REC_READ);
+	ast_cli(a->fd, "[%s] %s\n", a->argv[5], res < 0 ? error2str(chan_quectel_err) : "Operation queued");
+
+	return CLI_SUCCESS;
+}
+
+CLI_ALIASES(cli_sms_list_received_read, "sms list received read", "sms list received read <device>", "List read received mesages from <device>")
+
+static char* cli_sms_list_all(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
+{
+	switch (cmd) {
+		case CLI_GENERATE:
+			if (a->pos == 4) {
+				return complete_device(a->word, a->n);
+			}
+			return NULL;
+	}
+
+	if (a->argc < 4) {
+		return CLI_SHOWUSAGE;
+	}
+
+	const int res = list_sms(a->argv[4], MSG_STAT_ALL);
+	ast_cli(a->fd, "[%s] %s\n", a->argv[4], res < 0 ? error2str(chan_quectel_err) : "Operation queued");
+
+	return CLI_SUCCESS;
+}
+
+CLI_ALIASES(cli_sms_list_all, "sms list all", "sms list all <device>", "List all mesages from <device>")
+
+static char* cli_sms_delete_received_read(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
+{
+	switch (cmd) {
+		case CLI_GENERATE:
+			if (a->pos == 5) {
+				return complete_device(a->word, a->n);
+			}
+			return NULL;
+	}
+
+	if (a->argc < 5) {
+		return CLI_SHOWUSAGE;
+	}
+
+	const int res = delete_sms(a->argv[5], 0, 1);
+	ast_cli(a->fd, "[%s] %s\n", a->argv[5], res < 0 ? error2str(chan_quectel_err) : "Operation queued");
+
+	return CLI_SUCCESS;
+}
+
+CLI_ALIASES(cli_sms_delete_received_read, "sms delete received read", "sms delete received read <device>", "Delete read mesages from <device>")
+
+static char* cli_sms_delete_all(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
+{
+	switch (cmd) {
+		case CLI_GENERATE:
+			if (a->pos == 4) {
+				return complete_device(a->word, a->n);
+			}
+			return NULL;
+	}
+
+	if (a->argc < 4) {
+		return CLI_SHOWUSAGE;
+	}
+
+	const int res = delete_sms(a->argv[4], 0, 4);
+	ast_cli(a->fd, "[%s] %s\n", a->argv[4], res < 0 ? error2str(chan_quectel_err) : "Operation queued");
+
+	return CLI_SUCCESS;
+}
+
+CLI_ALIASES(cli_sms_delete_all, "sms delete all", "sms delete all <device>", "Delete all mesages from <device>")
+
+static char* cli_sms_delete(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
+{
+	switch (cmd) {
+		case CLI_GENERATE:
+			if (a->pos == 3) {
+				return complete_device(a->word, a->n);
+			}
+			return NULL;
+	}
+
+	if (a->argc < 4) {
+		return CLI_SHOWUSAGE;
+	}
+
+	const unsigned long idx = strtoul(a->argv[4], NULL, 10);
+	if (errno == ERANGE) {
+		ast_cli(a->fd, "[%s] Invalid message index\n", a->argv[3]);
+		return CLI_FAILURE;
+	}
+
+	const int res = delete_sms(a->argv[3], (unsigned int)idx, 0);
+	ast_cli(a->fd, "[%s] %s\n", a->argv[3], res < 0 ? error2str(chan_quectel_err) : "Operation queued");
+
+	return CLI_SUCCESS;
+}
+
+CLI_ALIASES(cli_sms_delete, "sms delete", "sms delete <device> <idx>", "Delete specified mesage from <device>")
 
 #if ASTERISK_VERSION_NUM >= 10800 /* 1.8+ */
 typedef const char * const * ast_cli_complete2_t;
@@ -1003,7 +1141,15 @@ static struct ast_cli_entry cli[] = {
 	CLI_DEF_ENTRIES(cli_show_version,			"Show module version")
 	CLI_DEF_ENTRIES(cli_cmd,					"Send commands to port for debugging")
 	CLI_DEF_ENTRIES(cli_ussd,					"Send USSD commands")
-	CLI_DEF_ENTRIES(cli_sms,					"Send SMS")
+
+	CLI_DEF_ENTRIES(cli_sms_send,					"Send message")
+	CLI_DEF_ENTRIES(cli_sms_list_received_unread,	"List unread messages")
+	CLI_DEF_ENTRIES(cli_sms_list_received_read,		"List read messages")
+	CLI_DEF_ENTRIES(cli_sms_list_all,				"List messages")
+	CLI_DEF_ENTRIES(cli_sms_delete_received_read,	"Delete read messages")
+	CLI_DEF_ENTRIES(cli_sms_delete_all,				"Delete all messages")
+	CLI_DEF_ENTRIES(cli_sms_delete,					"Delete message by index")
+
 	CLI_DEF_ENTRIES(cli_ccwa_set,				"Enable/Disable Call-Waiting")
 	CLI_DEF_ENTRIES(cli_reset,					"Reset modem")
 

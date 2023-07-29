@@ -969,6 +969,24 @@ error:
 	return -1;
 }
 
+int at_enqueue_cmgd(struct cpvt *cpvt, unsigned int idx, int delflag)
+{
+	at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYNI(CMD_AT_CMGD);
+	int err = at_fill_generic_cmd(&cmd, "AT+CMGD=%u,%d\r", idx, delflag);
+	if (err) {
+		chan_quectel_err = E_UNKNOWN;
+		return err;
+	}
+
+	err = at_queue_insert(cpvt, &cmd, 1, 0);
+	if (err) {
+		chan_quectel_err = E_QUEUE;
+		return err;
+	}
+
+	return 0;
+}
+
 static const char cmd_cnma[] = "AT+CNMA\r";
 
 /*!

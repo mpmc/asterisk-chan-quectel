@@ -13,6 +13,8 @@ int get_at_clir_value (struct pvt* pvt, int clir);
 /* return status string of sending, status arg is optional */
 int send_ussd(const char *dev_name, const char *ussd);
 int send_sms(const char * const dev_name, const char * const number, const char * const message, int validity, int report, const char * const payload, size_t payload_len);
+int list_sms(const char * const dev_name, enum msg_status_t stat);
+int delete_sms(const char* const dev_name, unsigned int idx, int delflag);
 int send_reset(const char *dev_name);
 int send_ccwa_set(const char *dev_name, call_waiting_t enable);
 int query_qaudloop(const char *dev_name);
