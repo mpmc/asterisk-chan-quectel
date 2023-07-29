@@ -1,0 +1,23 @@
+#
+# Building chan_quectel
+#
+name: Build channel
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ "master" ]
+  push:
+
+jobs:
+  build-deb-pkg:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - uses: ./.github/actions/install-required-packages
+    - name: Configure project
+      run: cmake -P make-build-dir.cmake
+    - name: Build
+      run: cmake -P build-chan-quectel.cmake

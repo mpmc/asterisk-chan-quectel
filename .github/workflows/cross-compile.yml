@@ -2,10 +2,6 @@ name: Cross compile
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - master
-      - cross-compile
 
 env:
   BUILD_TYPE: Release

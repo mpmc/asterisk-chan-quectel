@@ -9,8 +9,6 @@ permissions:
 on:
   push:
     tags: v202*.*.*
-  pull_request:
-    branches: [ "master" ]
   workflow_dispatch:
 
 env:
