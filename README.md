@@ -122,8 +122,21 @@ Supported modules:
 
 * `simcom` is an alias of `quectel` commands now.
 
-    You may type `simcom ...` command instead of `quectel ...` one.
+    You may type `simcom…` command instead of `quectel…` one.
     For example `quectel show device status` command is equivalent of `simcom show device status` one.
+
+* More SMS commands.
+
+  `quectel sms <device> <number> <msg>…` command renamed to `quectel sms send <device> <number> <msg>…`.
+
+  Additional commands:
+
+  * `quectel sms list received unread <device>`
+  * `quectel sms list received read <device>`
+  * `quectel sms list all <device>`
+  * `quectel sms delete received read <device>`
+  * `quectel sms delete all <device>`
+  * `quectel sms delete <device> <idx>`
 
 * Additional fields in `show device status` command.
 
