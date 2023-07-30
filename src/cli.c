@@ -155,7 +155,6 @@ static char* cli_show_device_settings(struct ast_cli_entry* e, int cmd, struct a
 		ast_cli (a->fd, "  TX gain                 : %d\n", CONF_SHARED(pvt, txgain));
 		ast_cli (a->fd, "  Use CallingPres         : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, usecallingpres)));
 		ast_cli (a->fd, "  Default CallingPres     : %s\n", S_COR(CONF_SHARED(pvt, callingpres) < 0, "<Not set>", ast_describe_caller_presentation(CONF_SHARED(pvt, callingpres))));
-		ast_cli (a->fd, "  Disable SMS             : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, disablesms)));
 		ast_cli (a->fd, "  Message Service         : %d\n", CONF_SHARED(pvt, msg_service));
 		ast_cli (a->fd, "  Message Storage         : %s\n", dc_msgstor2str(CONF_SHARED(pvt, msg_storage)));
 		ast_cli (a->fd, "  Direct Message          : %s\n", dc_3stbool2str_capitalized(CONF_SHARED(pvt, msg_direct)));

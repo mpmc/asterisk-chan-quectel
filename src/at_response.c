@@ -219,7 +219,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				if (CONF_UNIQ(pvt, uac) == TRIBOOL_NONE) {
 					pvt_set_act(pvt, 1); // GSM
 				}
-				if (pvt->has_sms && !CONF_SHARED(pvt, disablesms)) at_enqueue_list_messages(task->cpvt, MSG_STAT_REC_UNREAD);
+				if (pvt->has_sms) at_enqueue_list_messages(task->cpvt, MSG_STAT_REC_UNREAD);
 				at_enqueue_csq(task->cpvt);
 				pvt->initialized = 1;
 				break;
@@ -1463,11 +1463,6 @@ static int at_response_cmti(struct pvt* pvt, const char* str)
 		return 0;
 	}
 
-	if (CONF_SHARED(pvt, disablesms)) {
-		ast_log(LOG_WARNING, "[%s] SMS reception has been disabled in the configuration\n", PVT_ID(pvt));
-		return 0;
-	}
-
 	ast_debug(1, "[%s][SMS:%d] New message\n", PVT_ID(pvt), idx);
 
 	if (at_enqueue_retrieve_sms(&pvt->sys_chan, idx)) {
@@ -1500,11 +1495,6 @@ static int at_response_cdsi(struct pvt* pvt, const char* str)
 		 * [Jun 14 19:57:57] ERROR[3056]: at_response.c:1173 at_response_cmti:
 		 *   [m1-1] Error parsing incoming sms message alert '+CMTI: "SM",-1' */
 		ast_debug(2, "[%s][SMS:%d] Negative message index, ignoring\n", PVT_ID(pvt), idx);
-		return 0;
-	}
-
-	if (CONF_SHARED(pvt, disablesms)) {
-		ast_log(LOG_WARNING, "[%s] SMS reception has been disabled in the configuration\n", PVT_ID(pvt));
 		return 0;
 	}
 
@@ -1605,6 +1595,7 @@ static int at_response_msg(struct pvt* pvt, const struct ast_str* const response
 					ast_str_append(&status_report_str, STATUS_REPORT_MAX_STR_LEN, "%03d,", status_report[i]);
 					srroff += 4;
 				}
+
 				ast_verb(2, "[%s][SMS:%d] Report: success:%d payload:[%s] report:[%s]\n", PVT_ID(pvt), mr, success, ast_str_buffer(payload), ast_str_buffer(status_report_str));
 				msg_ack = TRIBOOL_TRUE;
 				msg_ack_uid = mr;

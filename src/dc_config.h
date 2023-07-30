@@ -88,7 +88,6 @@ typedef struct dc_sconfig
 	unsigned int	usecallingpres:1;		/*! -1 */
 	unsigned int	autodeletesms:1;		/*! 0 */
 	unsigned int	resetquectel:1;			/*! 1 */
-	unsigned int	disablesms:1;			/*! 0 */
 	unsigned int	multiparty:1;			/*! 0 */
 	unsigned int	dtmf:1;					/*! 0 */
 	unsigned int	moh:1;					/*! 0 */

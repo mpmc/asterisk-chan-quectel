@@ -288,9 +288,6 @@ void dc_sconfig_fill(struct ast_config * cfg, const char * cat, struct dc_sconfi
 		else if (!strcasecmp (v->name, "resetquectel")) {
 			config->resetquectel = parse_on_off(v->name, v->value, 0u); /* resetquectel is set to 0 if invalid */
 		}
-		else if (!strcasecmp (v->name, "disablesms")) {
-			config->disablesms = parse_on_off(v->name, v->value, 0u); /* disablesms is set to 0 if invalid */
-		}
 		else if (!strcasecmp (v->name, "disable")) {
 			const unsigned int is = parse_on_off(v->name, v->value, 0u);
 			config->initstate = is ? DEV_STATE_REMOVED : DEV_STATE_STARTED;
