@@ -211,7 +211,8 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 			case CMD_AT_QLTS:
 			case CMD_AT_QLTS_1:
 			case CMD_AT_CCLK:
-				ast_debug (4, "[%s] %s sent successfully\n", PVT_ID(pvt), at_cmd2str (ecmd->cmd));
+				// U+2713 : Check mark
+				ast_debug(4, "[%s][%s] \xE2\x9C\x93\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
 				break;
 
 			case CMD_AT_FINAL:
@@ -508,13 +509,36 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 	return 0;
 }
 
-static void log_cmd_response_error(const struct pvt* pvt, const at_queue_cmd_t *ecmd, const char *fmt, ...)
+static void __attribute__ ((format(printf, 7, 8))) at_err_response_log(int level, const char *file, int line, const char *function, const struct pvt* const pvt, const at_queue_cmd_t *const ecmd, const char* const fmt, ...)
 {
-	va_list ap;
-	va_start(ap, fmt);
-	ast_log_ap(LOG_ERROR, fmt, ap);
-	va_end(ap);
+	static const ssize_t MSG_LEN = 128;
+	static const ssize_t MSG_MAX_LEN = 1024;
+	// U+237B: Not check mark
+
+	struct ast_str* msg = ast_str_alloca(MSG_LEN);
+
+	if (ecmd)
+		ast_str_append(&msg, MSG_MAX_LEN, "[%s][%s] \xE2\x8D\xBB", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
+	else
+		ast_str_append(&msg, MSG_MAX_LEN, "[%s] \xE2\x8D\xBB", PVT_ID(pvt));
+
+	if (fmt) {
+		ast_str_append(&msg, MSG_MAX_LEN, " ");
+		va_list ap;
+		va_start(ap, fmt);
+		ast_str_append_va(&msg, MSG_MAX_LEN, fmt, ap);
+		va_end(ap);
+	}
+
+	ast_log(level, file, line, function, "%s\n", ast_str_buffer(msg));
 }
+
+#define at_err_response_dbg(level, pvt, ecmd, ...) \
+	do { \
+		if (DEBUG_ATLEAST(level)) { \
+			at_err_response_log(AST_LOG_DEBUG, pvt, ecmd,  __VA_ARGS__); \
+		} \
+	} while (0)
 
 /*!
  * \brief Handle ERROR response
@@ -536,12 +560,12 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 			case CMD_AT_Z:
 			case CMD_AT_E:
 			case CMD_AT_CLCC:
-				log_cmd_response_error(pvt, ecmd, "[%s] Command '%s' failed\n", PVT_ID(pvt), at_cmd2str (ecmd->cmd));
+				at_err_response_log(LOG_ERROR, pvt, ecmd, NULL);
 				/* mean disconnected from device */
 				goto e_return;
 
 			case CMD_AT_FINAL:
-				log_cmd_response_error(pvt, ecmd, "[%s] Channel not initialized\n", PVT_ID(pvt));
+				at_err_response_log(LOG_ERROR, pvt, ecmd, "Channel not initialized");
 				pvt->initialized = 0;
 				goto e_return;
 
@@ -549,61 +573,61 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 			case CMD_AT_CCWA_SET:
 			case CMD_AT_CCWA_STATUS:
 			case CMD_AT_CNUM:
-				log_cmd_response_error(pvt, ecmd, "[%s] Command '%s' failed\n", PVT_ID(pvt), at_cmd2str (ecmd->cmd));
+				at_err_response_log(LOG_ERROR, pvt, ecmd, NULL);
 				/* mean ignore error */
 				break;
 
 			case CMD_AT_CGMI:
-				log_cmd_response_error(pvt, ecmd, "[%s] Getting manufacturer info failed\n", PVT_ID(pvt));
+				at_err_response_log(LOG_ERROR, pvt, ecmd, "Unable to get manufacturer info");
 				goto e_return;
 
 			case CMD_AT_CGMM:
-				log_cmd_response_error(pvt, ecmd, "[%s] Getting model info failed\n", PVT_ID(pvt));
+				at_err_response_log(LOG_ERROR, pvt, ecmd, "Unable to get model info");
 				goto e_return;
 
 			case CMD_AT_CGMR:
-				log_cmd_response_error(pvt, ecmd, "[%s] Getting firmware info failed\n", PVT_ID(pvt));
+				at_err_response_log(LOG_ERROR, pvt, ecmd, "Unable to get firmware info");
 				goto e_return;
 
 			case CMD_AT_CMEE:
-				log_cmd_response_error(pvt, ecmd, "[%s] Setting error verbosity level failed\n", PVT_ID(pvt));
+				at_err_response_log(LOG_ERROR, pvt, ecmd, "Fail to set verbosity level");
 				goto e_return;
 
 			case CMD_AT_CGSN:
-				log_cmd_response_error(pvt, ecmd, "[%s] Getting IMEI number failed\n", PVT_ID(pvt));
+				at_err_response_log(LOG_ERROR, pvt, ecmd, "Unable to get IMEI number");
 				goto e_return;
 
 			case CMD_AT_CIMI:
-				log_cmd_response_error(pvt, ecmd, "[%s] Getting IMSI number failed\n", PVT_ID(pvt));
+				at_err_response_log(LOG_ERROR, pvt, ecmd, "Unable to get IMSI number");
 				goto e_return;
 
 			case CMD_AT_CPIN:
-				log_cmd_response_error(pvt, ecmd, "[%s] Error checking PIN state\n", PVT_ID(pvt));
+				at_err_response_log(LOG_ERROR, pvt, ecmd, "Error checking PIN state");
 				goto e_return;
 
 			case CMD_AT_COPS_INIT:
-				log_cmd_response_error(pvt, ecmd, "[%s] Error setting operator select parameters\n", PVT_ID(pvt));
+				at_err_response_log(LOG_ERROR, pvt, ecmd, "Error setting operator select parameters");
 				goto e_return;
 
 			case CMD_AT_CREG_INIT:
-				log_cmd_response_error(pvt, ecmd, "[%s] Error enabling registration info\n", PVT_ID(pvt));
+				at_err_response_log(LOG_ERROR, pvt, ecmd, "Error enabling registration info");
 				goto e_return;
 
 			case CMD_AT_CEREG_INIT:
-				ast_debug(1, "[%s] Error enabling registration info\n", PVT_ID(pvt));
+				at_err_response_dbg(1, pvt, ecmd, "Error enabling registration info");
 				break;
 
 			case CMD_AT_AUTOCSQ_INIT:
 			case CMD_AT_EXUNSOL_INIT:
-				ast_debug(1, "[%s] Error enabling CSQ(E) report\n", PVT_ID(pvt));
+				at_err_response_dbg(1, pvt, ecmd, "Error enabling CSQ(E) report");
 				break;
 
 			case CMD_AT_CLTS_INIT:
-				ast_debug(2, "[%s] Time update notifications not available\n", PVT_ID(pvt));
+				at_err_response_dbg(2, pvt, ecmd, "Time update notifications not available");
 				break;
 
 			case CMD_AT_CREG:
-				ast_debug(1, "[%s] Error getting registration info\n", PVT_ID(pvt));
+				at_err_response_dbg(1, pvt, ecmd, "Error getting registration info");
 				break;
 
 			case CMD_AT_QINDCFG_CSQ:
@@ -611,18 +635,18 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 			case CMD_AT_QINDCFG_RING:
 			case CMD_AT_QINDCFG_CC:
 			case CMD_AT_DSCI:
-				ast_debug(1, "[%s] Error enabling indications\n", PVT_ID(pvt));
+				at_err_response_dbg(1, pvt, ecmd, "Error enabling indications");
 				break;
 
 			case CMD_AT_QINDCFG_CC_OFF:
-				ast_debug(CONF_SHARED(pvt, dsci)? 1 : 4, "[%s] Error disabling indications\n", PVT_ID(pvt));
+				at_err_response_dbg(CONF_SHARED(pvt, dsci)? 1 : 4, pvt, ecmd, "Error disabling indications");
 				break;
 
 			case CMD_AT_DSCI_OFF:
-				ast_debug(CONF_SHARED(pvt, dsci)? 4 : 1, "[%s] Error disabling indications\n", PVT_ID(pvt));
+				at_err_response_dbg(CONF_SHARED(pvt, dsci)? 4 : 1, pvt, ecmd, "Error disabling indications");
 
 			case CMD_AT_CVOICE:
-				ast_debug (1, "[%s] Voice calls not supported\n", PVT_ID(pvt));
+				at_err_response_dbg(1, pvt, ecmd, "Voice calls not supported");
 				pvt->has_voice = 0;
                 break;
 
@@ -631,43 +655,41 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 					pvt->has_voice = 1;
 				}
 				else {
-					ast_debug(1, "[%s] Voice calls not supported\n", PVT_ID(pvt));
+					at_err_response_dbg(1, pvt, ecmd, "Voice calls not supported");
 					pvt->has_voice = 0;
 				}
 				break;
 				
 			case CMD_AT_CSSN:
-				log_cmd_response_error(pvt, ecmd, "[%s] Error Supplementary Service Notification activation failed\n", PVT_ID(pvt));
+				at_err_response_log(LOG_ERROR, pvt, ecmd, "Unable to activate Supplementary Service Notifications");
 				goto e_return;
 
 			case CMD_AT_CSCA:
 			case CMD_AT_CMGF:
 			case CMD_AT_CPMS:
 			case CMD_AT_CNMI:
-				ast_debug (1, "[%s] No SMS support\n", PVT_ID(pvt));
-				ast_debug (1, "[%s] Command '%s' failed\n", PVT_ID(pvt), at_cmd2str (ecmd->cmd));
-
+				at_err_response_dbg(1, pvt, ecmd, "No SMS support");
 				pvt->has_sms = 0;
 				pvt->timeout = DATA_READ_TIMEOUT;
 				break;
 
 			case CMD_AT_CSCS:
-				ast_log(LOG_ERROR, "[%s] No UCS-2 encoding support\n", PVT_ID(pvt));
+				at_err_response_log(LOG_ERROR, pvt, ecmd, "No UCS-2 encoding support");
 				break;
 
 			case CMD_AT_A:
 			case CMD_AT_CHLD_2x:
-				log_cmd_response_error(pvt, ecmd, "[%s] Answer failed for call idx %d\n", PVT_ID(pvt), task->cpvt->call_idx);
+				at_err_response_log(LOG_ERROR, pvt, ecmd, "Answer failed for call idx:%d", task->cpvt->call_idx);
 				queue_hangup (task->cpvt->channel, AST_CAUSE_CALL_REJECTED);
 				break;
 
 			case CMD_AT_CHLD_3:
-				log_cmd_response_error(pvt, ecmd, "[%s] Can't begin conference call idx %d\n", PVT_ID(pvt), task->cpvt->call_idx);
+				at_err_response_log(LOG_ERROR, pvt, ecmd, "Can't begin conference call idx:%d", task->cpvt->call_idx);
 				queue_hangup(task->cpvt->channel, AST_CAUSE_CALL_REJECTED);
 				break;
 
 			case CMD_AT_CLIR:
-				log_cmd_response_error(pvt, ecmd, "[%s] Setting CLIR failed\n", PVT_ID(pvt));
+				at_err_response_log(LOG_ERROR, pvt, ecmd, "Setting CLIR failed");
 				break;
 
 			case CMD_AT_CHLD_2:
@@ -676,42 +698,42 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 				}
 				/* fall through */
 			case CMD_AT_D:
-				log_cmd_response_error(pvt, ecmd, "[%s] Dial failed\n", PVT_ID(pvt));
+				at_err_response_log(LOG_ERROR, pvt, ecmd, "Dial failed");
 				queue_control_channel (task->cpvt, AST_CONTROL_CONGESTION);
 				break;
 
 			case CMD_AT_CPCMREG1:
 				if (CONF_UNIQ(pvt, uac) == TRIBOOL_FALSE && CPVT_IS_SOUND_SOURCE(task->cpvt)) {
-					ast_debug(3, "[%s] Trying to activate audio stream again\n", PVT_ID(pvt));
+					at_err_response_dbg(3, pvt, ecmd, "Trying to activate audio stream again");
 					at_enqueue_cpcmreg(task->cpvt, 1);
 				}
 				else {
-					log_cmd_response_error(pvt, ecmd, "[%s] Could not activate audio stream\n", PVT_ID(pvt));
+					at_err_response_log(LOG_ERROR, pvt, ecmd, "Could not activate audio stream");
 				}
 				break;
 
 			case CMD_AT_CPCMREG0:
-				log_cmd_response_error(pvt, ecmd, "[%s] Could not deactivate audio stream\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
+				at_err_response_log(LOG_ERROR, pvt, ecmd, "Could not deactivate audio stream");
 				break;
 
 			case CMD_AT_CHUP:
 			case CMD_AT_QHUP:
 			case CMD_AT_CHLD_1x:
-				log_cmd_response_error(pvt, ecmd, "[%s] Error sending hangup for call idx %d\n", PVT_ID(pvt), task->cpvt->call_idx);
+				at_err_response_log(LOG_ERROR, pvt, ecmd, "Error sending hangup for call idx:%d", task->cpvt->call_idx);
 				break;
 
 			case CMD_AT_CMGR:
-				// log_cmd_response_error(pvt, ecmd, "[%s] Error reading SMS message, resetting index\n", PVT_ID(pvt));
-				ast_debug(1, "[%s][SMS:%d] Fail to read message\n", PVT_ID(pvt), pvt->incoming_sms_index);
+				// log_cmd_response(LOG_ERROR, pvt, ecmd, "Error reading SMS message, resetting index");
+				at_err_response_dbg(1, pvt, ecmd, "[SMS:%d] Fail to read message", pvt->incoming_sms_index);
 				at_sms_retrieved(&pvt->sys_chan, 0);
 				break;
 
 			case CMD_AT_CMGD:
-				log_cmd_response_error(pvt, ecmd, "[%s] Error deleting SMS message\n", PVT_ID(pvt));
+				at_err_response_log(LOG_ERROR, pvt, ecmd, "Error deleting message");
 				break;
 
 			case CMD_AT_CMGS:
-				log_cmd_response_error(pvt, ecmd, "[%s][SMS:%d] Error sending message\n", PVT_ID(pvt), task->uid);
+				at_err_response_log(LOG_ERROR, pvt, ecmd, "[SMS:%d] Error sending message", task->uid);
 				at_response_cmgs_error(pvt, task);
 				pvt_try_restate(pvt);
 				break;
@@ -719,151 +741,148 @@ static int at_response_error(struct pvt* pvt, at_res_t res)
 			case CMD_AT_SMSTEXT: {
 				const at_cmd_t cmd = task->cmds[0].cmd;
 				if (cmd == CMD_AT_CMGS) {
-					log_cmd_response_error(pvt, ecmd, "[%s][SMS:%d] Error sending message\n", PVT_ID(pvt), task->uid);
+					at_err_response_log(LOG_ERROR, pvt, ecmd, "[SMS:%d] Error sending message", task->uid);
 					at_response_cmgs_error(pvt, task);
 					pvt_try_restate(pvt);
 				}
 				else if (cmd == CMD_AT_CNMA) {
-					log_cmd_response_error(pvt, ecmd, "[%s][SMS:%d] Cannot acknowledge message\n", PVT_ID(pvt), task->uid);
+					at_err_response_log(LOG_ERROR, pvt, ecmd, "[SMS:%d] Cannot acknowledge message", task->uid);
 				}
 				else {
-					log_cmd_response_error(pvt, ecmd, "[%s] Unexpected SMS text prompt\n", PVT_ID(pvt));
+					at_err_response_log(LOG_ERROR, pvt, ecmd, "Unexpected SMS text prompt");
 				}
 				break;
 			}
 
 			case CMD_ESC:
-			log_cmd_response_error(pvt, ecmd, "[%s] Cannot acknowledge message\n", PVT_ID(pvt));
+			at_err_response_log(LOG_ERROR, pvt, ecmd, "Cannot acknowledge message");
 			break;
 
 			case CMD_AT_DTMF:
-				log_cmd_response_error(pvt, ecmd, "[%s] Error sending DTMF\n", PVT_ID(pvt));
+				at_err_response_log(LOG_ERROR, pvt, ecmd, "Error sending DTMF");
 				break;
 
 			case CMD_AT_COPS:
 			case CMD_AT_QSPN:
 			case CMD_AT_CSPN:
-				ast_debug(1, "[%s] Could not get provider name\n", PVT_ID(pvt));
+				at_err_response_dbg(1, pvt, ecmd, "Could not get provider name");
 				break;
 
 			case CMD_AT_QLTS:
 			case CMD_AT_QLTS_1:
 			case CMD_AT_CCLK:
-				ast_debug(1, "[%s] Could not query time\n", PVT_ID(pvt));
+				at_err_response_dbg(2, pvt, ecmd, "Could not query time");
 				break;
 
 			case CMD_AT_CLVL:
-				ast_debug(1, "[%s] Audio level synchronization failed at step %d/%d\n", PVT_ID(pvt), pvt->volume_sync_step, VOLUME_SYNC_DONE-1);
+				at_err_response_dbg(1, pvt, ecmd, "Audio level synchronization failed at step %d/%d", pvt->volume_sync_step, VOLUME_SYNC_DONE-1);
 				pvt->volume_sync_step = VOLUME_SYNC_BEGIN;
 				break;
 
 			case CMD_AT_CUSD:
 				ast_verb(3, "[%s] Error sending USSD %p\n", PVT_ID(pvt), task);
-				log_cmd_response_error(pvt, ecmd, "[%s] Error sending USSD %p\n", PVT_ID(pvt), task);
+				at_err_response_log(LOG_ERROR, pvt, ecmd, "Error sending USSD %p", task);
 				break;
 
 			case CMD_AT_CMUT_0:
-				ast_debug(1, "[%s] Cannot unmute uplink voice\n", PVT_ID(pvt));
+				at_err_response_dbg(1, pvt, ecmd, "Cannot unmute uplink voice");
 				break;
 			
 			case CMD_AT_CMUT_1:			
-				ast_debug(1, "[%s] Cannot mute uplink voice\n", PVT_ID(pvt));
+				at_err_response_dbg(1, pvt, ecmd, "Cannot mute uplink voice");
 				break;
 
 			case CMD_AT_QPCMV_0:
-				ast_log(LOG_WARNING, "[%s] Cannot disable UAC\n", PVT_ID(pvt));
+				at_err_response_log(LOG_WARNING, pvt, ecmd, "Cannot disable UAC");
 				break;
 
 			case CMD_AT_QPCMV_TTY:
-				ast_log(LOG_WARNING, "[%s] Cannot enable audio on serial port\n", PVT_ID(pvt));
+				at_err_response_log(LOG_WARNING, pvt, ecmd, "Cannot enable audio on serial port");
 				break;
 
 			case CMD_AT_QPCMV_UAC:
-				ast_log(LOG_WARNING, "[%s] Cannot enable UAC\n", PVT_ID(pvt));
+				at_err_response_log(LOG_WARNING, pvt, ecmd, "Cannot enable UAC");
 				break;
 
 			case CMD_AT_QTONEDET_0:
 			case CMD_AT_DDET_0:
-				ast_log(LOG_WARNING, "[%s] Cannot disable tone detection\n", PVT_ID(pvt));
+				at_err_response_log(LOG_WARNING, pvt, ecmd, "Cannot disable tone detection");
 				break;
 
 			case CMD_AT_QTONEDET_1:
 			case CMD_AT_DDET_1:
-				ast_log(LOG_WARNING, "[%s] Cannot enable tone detection\n", PVT_ID(pvt));
+				at_err_response_log(LOG_WARNING, pvt, ecmd, "Cannot enable tone detection");
 				break;
 
 			case CMD_AT_QMIC:
 			case CMD_AT_QRXGAIN:
 			case CMD_AT_COUTGAIN:
 			case CMD_AT_CMICGAIN:
-				ast_log(LOG_WARNING, "[%s] Cannot update TX/RG gain\n", PVT_ID(pvt));
+				at_err_response_log(LOG_WARNING, pvt, ecmd, "Cannot update TX/RG gain");
 				break;
 
 			case CMD_AT_CTXVOL:
 			case CMD_AT_CRXVOL:
-				ast_log(LOG_WARNING, "[%s] Cannot update TX/RG volume\n", PVT_ID(pvt));
+				at_err_response_log(LOG_WARNING, pvt, ecmd, "Cannot update TX/RG volume");
 				break;
 
 			case CMD_AT_CMGL:
-				ast_debug(1, "[%s] Cannot list messages\n", PVT_ID(pvt));
+				at_err_response_dbg(1, pvt, ecmd, "Cannot list messages");
 				break;
 
 			case CMD_AT_CNMA:
-				ast_log(LOG_WARNING, "[%s] Cannot confirm message reception\n", PVT_ID(pvt));
+				at_err_response_log(LOG_WARNING, pvt, ecmd, "Cannot confirm message reception");
 				break;
 
 			case CMD_AT_CSMS:
-				ast_log(LOG_WARNING, "[%s] Message service channel not configured\n", PVT_ID(pvt));
+				at_err_response_log(LOG_WARNING, pvt, ecmd, "Message service channel not configured");
 				break;
 
 			case CMD_AT_QAUDLOOP:
-				ast_log(LOG_WARNING, "[%s] Audio loop not configured\n", PVT_ID(pvt));
+				at_err_response_log(LOG_WARNING, pvt, ecmd, "Audio loop not configured");
 				break;
 
 			case CMD_AT_QAUDMOD:
-				ast_log(LOG_WARNING, "[%s] Audio mode not configured\n", PVT_ID(pvt));
+				at_err_response_log(LOG_WARNING, pvt, ecmd, "Audio mode not configured");
 				break;
 
 			case CMD_AT_CNSMOD_0:
-				ast_log(LOG_WARNING, "[%s] Could not disable network mode notifications\n", PVT_ID(pvt));
+				at_err_response_log(LOG_WARNING, pvt, ecmd, "Could not disable network mode notifications");
 				break;
 
 			case CMD_AT_CNSMOD_1:
-				ast_log(LOG_WARNING, "[%s] Could not enable network mode notifications\n", PVT_ID(pvt));
+				at_err_response_log(LOG_WARNING, pvt, ecmd, "Could not enable network mode notifications");
 				break;
 
 			case CMD_AT_CPCMFRM_8K:
 			case CMD_AT_CPCMFRM_16K:
-				ast_log(LOG_WARNING, "[%s] Could not set audio sample rate\n", PVT_ID(pvt));
+				at_err_response_log(LOG_WARNING, pvt, ecmd, "Could not set audio sample rate");
 				break;
 
 			case CMD_AT_VTD:
-				ast_log(LOG_WARNING, "[%s] Could not set tone duration\n", PVT_ID(pvt));
+				at_err_response_log(LOG_WARNING, pvt, ecmd, "Could not set tone duration");
 				break;
 
 			case CMD_AT_CCID:
-				ast_debug(2, "[%s] Could not get ICCID\n", PVT_ID(pvt));
+				at_err_response_dbg(2, pvt, ecmd, "Could not get ICCID");
 				break;
 
 			case CMD_AT_CICCID:
 			case CMD_AT_QCCID:
-				ast_log(LOG_WARNING, "[%s] Could not get ICCID\n", PVT_ID(pvt));
+				at_err_response_log(LOG_WARNING, pvt, ecmd, "Could not get ICCID");
 				break;
 
 			case CMD_USER:
 				break;
 
 			default:
-				log_cmd_response_error(pvt, ecmd, "[%s] Received 'ERROR' for unhandled command '%s'\n", PVT_ID(pvt), at_cmd2str (ecmd->cmd));
+				at_err_response_log(LOG_ERROR, pvt, ecmd, "Unhandled command");
 				break;
 		}
 		at_queue_handle_result(pvt, res);
 	}
-	else if (ecmd) {
-		log_cmd_response_error(pvt, ecmd, "[%s] Received 'ERROR' when expecting '%s', ignoring\n", PVT_ID(pvt), at_res2str (ecmd->res));
-	}
 	else {
-		log_cmd_response_error(pvt, ecmd, "[%s] Received unexpected 'ERROR'\n", PVT_ID(pvt));
+		at_err_response_log(LOG_ERROR, pvt, ecmd, "Received unexpected ERROR, ignoring");
 	}
 
 	return 0;
