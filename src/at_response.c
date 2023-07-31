@@ -1620,7 +1620,9 @@ static int at_response_msg(struct pvt* pvt, const struct ast_str* const response
 					srroff += 4;
 				}
 
-				ast_verb(2, "[%s][SMS:%d] Report: success:%d payload:[%s] report:[%s]\n", PVT_ID(pvt), mr, success, ast_str_buffer(payload), ast_str_buffer(status_report_str));
+				struct ast_str* const escaped_report = escape_str(status_report_str);
+				ast_verb(2, "[%s][SMS:%d] Report: success:%d payload:[%s] report:[%s]\n", PVT_ID(pvt), mr, success, ast_str_buffer(payload), ast_str_buffer(escaped_report));
+				ast_free(escaped_report);
 				msg_ack = TRIBOOL_TRUE;
 				msg_ack_uid = mr;
 				msg_complete = 1;
@@ -1636,7 +1638,9 @@ static int at_response_msg(struct pvt* pvt, const struct ast_str* const response
 		case PDUTYPE_MTI_SMS_DELIVER: {
 			struct ast_str* fullmsg = ast_str_create(MAX_MSG_LEN);
 			if (udh.parts > 1) {
-				ast_verb(2, "[%s][SMS:%d PART:%d/%d TS:%s] Got message part from %s: [%s]\n", PVT_ID(pvt), (int)udh.ref, (int)udh.order, (int)udh.parts, scts, ast_str_buffer(oa), ast_str_buffer(msg));
+				struct ast_str* const escaped_msg = escape_str(msg);
+				ast_verb(2, "[%s][SMS:%d PART:%d/%d TS:%s] Got message part from %s: [%s]\n", PVT_ID(pvt), (int)udh.ref, (int)udh.order, (int)udh.parts, scts, ast_str_buffer(oa), ast_str_buffer(escaped_msg));
+				ast_free(escaped_msg);
 				int csms_cnt = smsdb_put(pvt->imsi, ast_str_buffer(oa), udh.ref, udh.parts, udh.order, ast_str_buffer(msg), ast_str_buffer(fullmsg));
 				if (csms_cnt <= 0) {
 					ast_log(LOG_ERROR, "[%s][SMS:%d PART:%d/%d TS:%s] Error putting message part to database\n", PVT_ID(pvt), (int)udh.ref, (int)udh.order, (int)udh.parts, scts);
@@ -1658,11 +1662,17 @@ receive_as_is:
 				msg_ack = TRIBOOL_TRUE;
 				msg_ack_uid = (int)udh.ref;
 				msg_complete = 1;
-				ast_verb(2, "[%s][SMS:%d TS:%s] Got message part from %s: [%s]\n", PVT_ID(pvt), (int)udh.ref, scts, ast_str_buffer(oa), ast_str_buffer(msg));
+				struct ast_str* const escaped_msg = escape_str(msg);
+				ast_verb(2, "[%s][SMS:%d TS:%s] Got message part from %s: [%s]\n", PVT_ID(pvt), (int)udh.ref, scts, ast_str_buffer(oa), ast_str_buffer(escaped_msg));
+				ast_free(escaped_msg);
 				ast_str_copy_string(&fullmsg, msg);
 			}
 
-			ast_verb(1, "[%s][SMS:%d PARTS:%d TS:%s] Got message from %s: [%s]\n", PVT_ID(pvt), (int)udh.ref, (int)udh.parts, scts, ast_str_buffer(oa), ast_str_buffer(fullmsg));
+			{
+				struct ast_str* const escaped_msg = escape_str(fullmsg);
+				ast_verb(1, "[%s][SMS:%d PARTS:%d TS:%s] Got message from %s: [%s]\n", PVT_ID(pvt), (int)udh.ref, (int)udh.parts, scts, ast_str_buffer(oa), ast_str_buffer(escaped_msg));
+				ast_free(escaped_msg);
+			}
 
 			if (ast_str_strlen(fullmsg)) {
 				struct ast_str* b64 = ast_str_create(40800);
