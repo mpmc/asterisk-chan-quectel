@@ -2701,23 +2701,24 @@ static int check_at_res(at_res_t at_res)
 
 static void show_response(const struct pvt* const pvt, const at_queue_cmd_t* const ecmd, const struct ast_str* const result, at_res_t at_res)
 {
+	// U+2190 : Leftwards arrow : 0xE2 0x86 0x90
 	struct ast_str* const resc = escape_str(result);
 	if (ecmd && ecmd->cmd == CMD_USER) {
 		if (check_at_res(at_res)) {
-			ast_verb(2, "[%s][%s] <-- [%s][%s]\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd), at_res2str(at_res), ast_str_buffer(resc));			
+			ast_verb(2, "[%s][%s] \xE2\x86\x90 [%s][%s]\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd), at_res2str(at_res), ast_str_buffer(resc));			
 		}
 		else {
-			ast_verb(1, "[%s][%s] <-- [%s][%s]\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd), at_res2str(at_res), ast_str_buffer(resc));
+			ast_verb(1, "[%s][%s] \xE2\x86\x90 [%s][%s]\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd), at_res2str(at_res), ast_str_buffer(resc));
 		}
 		goto show_done;
 	}
 
 	const int lvl = check_at_res(at_res)? 4 : 2;
 	if (ecmd) {
-		ast_debug(lvl, "[%s][%s] <-- [%s][%s]\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd), at_res2str(at_res), ast_str_buffer(resc));
+		ast_debug(lvl, "[%s][%s] \xE2\x86\x90 [%s][%s]\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd), at_res2str(at_res), ast_str_buffer(resc));
 	}
 	else {
-		ast_debug(lvl, "[%s] <-- [%s][%s]\n", PVT_ID(pvt), at_res2str(at_res), ast_str_buffer(resc));
+		ast_debug(lvl, "[%s] \xE2\x86\x90 [%s][%s]\n", PVT_ID(pvt), at_res2str(at_res), ast_str_buffer(resc));
 	}
 
 show_done:

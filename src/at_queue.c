@@ -277,15 +277,17 @@ int at_queue_run(struct pvt* pvt)
 		}
 
 		if (DEBUG_ATLEAST(2)) {
+			// U+2192 : Rightwards arrow : 0xE2 0x86 0x92
 			struct ast_str* const ebuf = escape_str(buf);
-			ast_debug(2, "[%s][%s] --> [%s]\n", PVT_ID(pvt), at_cmd2str(t->cmds[0].cmd), ast_str_buffer(ebuf));
+			ast_debug(2, "[%s][%s] \xE2\x86\x92 [%s]\n", PVT_ID(pvt), at_cmd2str(t->cmds[0].cmd), ast_str_buffer(ebuf));
 			ast_free(ebuf);
 		}
 
 		fail = at_write(pvt, ast_str_buffer(buf), ast_str_strlen(buf));
 		if (fail) {
+			// U+2947 : Rightwards Arrow Through X : 0xE2 0xA5 0x87 
 			struct ast_str* const ebuf = escape_str(buf);
-			ast_log(LOG_WARNING, "[%s][%s] !-> [%s]\n", PVT_ID(pvt), at_cmd2str(t->cmds[0].cmd), ast_str_buffer(ebuf));
+			ast_log(LOG_WARNING, "[%s][%s] \xE2\xA5\x87 [%s]\n", PVT_ID(pvt), at_cmd2str(t->cmds[0].cmd), ast_str_buffer(ebuf));
 			ast_free(ebuf);
 
 			at_queue_remove_task_at_once(pvt);
@@ -305,14 +307,14 @@ int at_queue_run(struct pvt* pvt)
 
 		if (DEBUG_ATLEAST(2)) {
 			struct ast_str* const ebuf = escape_nstr(cmd->data, cmd->length);
-			ast_debug(2, "[%s][%s] --> [%s]\n", PVT_ID(pvt), at_cmd2str(cmd->cmd), ast_str_buffer(ebuf));
+			ast_debug(2, "[%s][%s] \xE2\x86\x92 [%s]\n", PVT_ID(pvt), at_cmd2str(cmd->cmd), ast_str_buffer(ebuf));
 			ast_free(ebuf);
 		}
 
 		fail = at_write(pvt, cmd->data, cmd->length);
 		if(fail) {
 			struct ast_str* const ebuf = escape_nstr(cmd->data, cmd->length);
-			ast_log(LOG_ERROR, "[%s][%s] !-> [%s]\n", PVT_ID(pvt), at_cmd2str(cmd->cmd), ast_str_buffer(ebuf));
+			ast_log(LOG_ERROR, "[%s][%s] \xE2\xA5\x87 [%s]\n", PVT_ID(pvt), at_cmd2str(cmd->cmd), ast_str_buffer(ebuf));
 			ast_free(ebuf);
 
 			at_queue_remove_cmd(pvt, cmd->res + 1);
@@ -362,15 +364,17 @@ int at_queue_run_immediately(struct pvt* pvt)
 	}
 
 	if (DEBUG_ATLEAST(2)) {
+		// U+21D2 : Rightwards Double Arrow : 0xE2 0x87 0x92
 		struct ast_str* const ebuf = escape_str(buf);
-		ast_debug(2, "[%s] ==> [%s]\n", PVT_ID(pvt), ast_str_buffer(ebuf));
+		ast_debug(2, "[%s] \xE2\x87\x92 [%s]\n", PVT_ID(pvt), ast_str_buffer(ebuf));
 		ast_free(ebuf);
 	}
 
 	fail = at_write(pvt, ast_str_buffer(buf), ast_str_strlen(buf));
 	if (fail) {
+		// U+21CF : Rightwards Double Arrow with Stroke : 0xE2 0x87 0x8F
 		struct ast_str* const ebuf = escape_str(buf);
-		ast_log(LOG_WARNING, "[%s] !=> [%s]\n", PVT_ID(pvt), ast_str_buffer(ebuf));
+		ast_log(LOG_WARNING, "[%s] \xE2\x87\x8F [%s]\n", PVT_ID(pvt), ast_str_buffer(ebuf));
 		ast_free(ebuf);
 	}
 
