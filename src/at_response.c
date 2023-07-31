@@ -172,6 +172,37 @@ static int safe_task_uid(const at_queue_task_t* const task)
 	return task? task->uid : -1;
 }
 
+static void __attribute__ ((format(printf, 7, 8))) at_ok_response_log(int level, const char *file, int line, const char *function, const struct pvt* const pvt, const at_queue_cmd_t *const ecmd, const char* const fmt, ...)
+{
+	static const ssize_t MSG_LEN = 128;
+	static const ssize_t MSG_MAX_LEN = 1024;
+	// U+2713 : Check mark : 0xE2 0x9C 0x93
+
+	struct ast_str* msg = ast_str_alloca(MSG_LEN);
+
+	if (ecmd)
+		ast_str_append(&msg, MSG_MAX_LEN, "[%s][%s] \xE2\x9C\x93", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
+	else
+		ast_str_append(&msg, MSG_MAX_LEN, "[%s] \xE2\x9C\x93", PVT_ID(pvt));
+
+	if (fmt) {
+		ast_str_append(&msg, MSG_MAX_LEN, " ");
+		va_list ap;
+		va_start(ap, fmt);
+		ast_str_append_va(&msg, MSG_MAX_LEN, fmt, ap);
+		va_end(ap);
+	}
+
+	ast_log(level, file, line, function, "%s\n", ast_str_buffer(msg));
+}
+
+#define at_ok_response_dbg(level, pvt, ecmd, ...) \
+	do { \
+		if (DEBUG_ATLEAST(level)) { \
+			at_ok_response_log(AST_LOG_DEBUG, pvt, ecmd,  __VA_ARGS__); \
+		} \
+	} while (0)
+
 static int at_response_ok(struct pvt* pvt, at_res_t res)
 {
 	const at_queue_task_t* task = at_queue_head_task(pvt);
@@ -212,7 +243,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 			case CMD_AT_QLTS_1:
 			case CMD_AT_CCLK:
 				// U+2713 : Check mark
-				ast_debug(4, "[%s][%s] \xE2\x9C\x93\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
+				at_ok_response_dbg(4, pvt, ecmd, NULL);
 				break;
 
 			case CMD_AT_FINAL:
@@ -226,24 +257,24 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_COPS_INIT:
-				ast_debug(1, "[%s] Operator select parameters set\n", PVT_ID(pvt));
+				at_ok_response_dbg(1, pvt, ecmd, "Operator select parameters set");
 				break;
 
 			case CMD_AT_CREG_INIT:
 			case CMD_AT_CEREG_INIT:
-				ast_debug(1, "[%s] Registration info enabled\n", PVT_ID(pvt));
+				at_ok_response_dbg(1, pvt, ecmd, "Registration info enabled");
 				break;
 
 			case CMD_AT_CREG:
-				ast_debug(1, "[%s] Registration query sent\n", PVT_ID(pvt));
+				at_ok_response_dbg(1, pvt, ecmd, "Registration query sent");
 				break;
 
 			case CMD_AT_CNUM:
-				ast_debug(1, "[%s] Subscriber phone number query successed\n", PVT_ID(pvt));
+				at_ok_response_dbg(1, pvt, ecmd, "Subscriber phone number query successed");
 				break;
 
 			case CMD_AT_CVOICE:
-				ast_debug(1, "[%s] Voice calls supported\n", PVT_ID(pvt));
+				at_ok_response_dbg(1, pvt, ecmd, "Voice calls supported");
 
 				switch (CONF_UNIQ(pvt, uac)) {
 					case TRIBOOL_TRUE:
@@ -260,7 +291,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CPCMREG:
-				ast_debug(1, "[%s] Voice calls supported\n", PVT_ID(pvt));
+				at_ok_response_dbg(1, pvt, ecmd, "Voice calls supported");
 
 				pvt->has_voice = 1;
 				at_enqueue_cpcmfrm(task->cpvt, CONF_UNIQ(pvt, slin16));
@@ -270,14 +301,14 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_QPCMV_0:
-				ast_debug(4, "[%s] %s sent successfully\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
+				at_ok_response_dbg(4, pvt, ecmd, NULL);
 
 				pvt->has_voice = 0;
 				break;
 			
 			case CMD_AT_QPCMV_TTY:
 			case CMD_AT_QPCMV_UAC:
-				ast_debug(4, "[%s] %s sent successfully\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
+				at_ok_response_dbg(4, pvt, ecmd, NULL);
 
 				pvt->has_voice = 1;
 				at_enqueue_qgains(&pvt->sys_chan, CONF_SHARED(pvt, txgain), CONF_SHARED(pvt, rxgain));
@@ -285,30 +316,31 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CSSN:
-				ast_debug(1, "[%s] Supplementary Service Notification enabled successful\n", PVT_ID(pvt));
+				at_ok_response_dbg(1, pvt, ecmd, "Supplementary Service Notification enabled successfuly");
 				break;
 
 			case CMD_AT_CMGF:
-				ast_debug(1, "[%s] SMS operation mode set to PDU\n", PVT_ID(pvt));
+				at_ok_response_dbg(1, pvt, ecmd, "SMS operation mode set to PDU");
 				break;
 
 			case CMD_AT_CSCS:
-				ast_debug(2, "[%s] UCS-2 text encoding enabled\n", PVT_ID(pvt));
+				at_ok_response_dbg(2, pvt, ecmd, "UCS-2 text encoding enabled");
 				break;
 
 			case CMD_AT_CPMS:
-				ast_debug(1, "[%s] SMS storage location is established\n", PVT_ID(pvt));
+				at_ok_response_dbg(1, pvt, ecmd, "Messae storage location is configured");
 				break;
 
 			case CMD_AT_CNMI:
 				if (!pvt->initialized) {
 					ast_debug(1, "[%s] SMS supported\n", PVT_ID(pvt));
-					ast_debug(2, "[%s] SMS indication mode configured\n", PVT_ID(pvt));
+					at_ok_response_dbg(2, pvt, ecmd, "SMS indication mode configured");
 
 					pvt->has_sms = 1;
 					pvt->timeout = DATA_READ_TIMEOUT;
 				}
 				else {
+					at_ok_response_dbg(2, pvt, ecmd, "SMS indication mode configured");
 					ast_verb(2, "[%s] Message indication mode configured\n", PVT_ID(pvt));
 				}
 				break;
@@ -323,7 +355,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				task->cpvt->needhangup = 1;
 */
 				CPVT_SET_FLAGS(task->cpvt, CALL_FLAG_NEED_HANGUP);
-				ast_debug(4, "[%s] %s sent successfully for call id %d\n", PVT_ID(pvt), at_cmd2str (ecmd->cmd), task->cpvt->call_idx);
+				at_ok_response_dbg(4, pvt, ecmd, "Call id:%d\n", task->cpvt->call_idx);
 				break;
 
 			case CMD_AT_CFUN:
@@ -334,7 +366,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CPCMREG1:
-				ast_debug(4, "[%s] %s sent successfully\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
+				at_ok_response_dbg(4, pvt, ecmd, NULL);
 				if (!pvt->initialized) {
 					pvt->timeout = DATA_READ_TIMEOUT;
 					pvt->initialized = 1;
@@ -343,172 +375,173 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CPCMREG0:
-				ast_debug(4, "[%s] %s sent successfully\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
+				at_ok_response_dbg(4, pvt, ecmd, NULL);
 				break;
 
 			case CMD_AT_CHUP:
 			case CMD_AT_QHUP:
      		case CMD_AT_CHLD_1x:
 				CPVT_RESET_FLAGS(task->cpvt, CALL_FLAG_NEED_HANGUP);
-				ast_debug(1, "[%s] Successful hangup for call idx %d\n", PVT_ID(pvt), task->cpvt->call_idx);
+				at_ok_response_dbg(1, pvt, ecmd, "Successful hangup for call idx:%d", task->cpvt->call_idx);
 				break;
 
 			case CMD_AT_CMGS:
-				ast_debug(4, "[%s] Sending SMS message in progress\n", PVT_ID(pvt));
+				at_ok_response_dbg(4, pvt, ecmd, "Sending message in progress");
 				break;
 
 			case CMD_AT_SMSTEXT: {
 				const at_cmd_t cmd = task->cmds[0].cmd;
 				if (cmd == CMD_AT_CMGS) {
-					ast_debug(4, "[%s] Sending SMS message in progress\n", PVT_ID(pvt));
+					at_ok_response_dbg(4, pvt, ecmd, "Sending SMS message in progress");
 				}
 				else if (cmd == CMD_AT_CNMA) {
-					ast_debug(1, "[%s][SMD:%d] Message confirmed\n", PVT_ID(pvt), safe_task_uid(task));
+					at_ok_response_dbg(1, pvt, ecmd, "[SMS:%d] Message confirmed\n", safe_task_uid(task));
 				}
 				else {
-					ast_log(LOG_ERROR, "[%s] Unexpected SMS text response\n", PVT_ID(pvt));
+					at_ok_response_log(LOG_ERROR, pvt, ecmd, "Unexpected message text response");
 				}
 				break;
 			}
 
 			case CMD_AT_DTMF:
-				ast_debug(4, "[%s] DTMF sent successfully for call idx %d\n", PVT_ID(pvt), task->cpvt->call_idx);
+				at_ok_response_dbg(4, pvt, ecmd, "DTMF sent successfully for call idx:%d", task->cpvt->call_idx);
 				break;
 
 			case CMD_AT_CUSD:
+				at_ok_response_dbg(4, pvt, ecmd, "Successfully sent USSD %p", task);
 				ast_verb(3, "[%s] Successfully sent USSD %p\n", PVT_ID(pvt), task);
 				break;
 
 			case CMD_AT_COPS:
 			case CMD_AT_QSPN:
 			case CMD_AT_CSPN:
-				ast_debug (4, "[%s] Successfull provider query\n", PVT_ID(pvt));
+				at_ok_response_dbg(4, pvt, ecmd, "Successfull provider query");
 				break;
 
 			case CMD_AT_CMGR:
-				ast_debug(4, "[%s] CMGR command executed successfully\n", PVT_ID(pvt));
+				at_ok_response_dbg(4, pvt, ecmd, NULL);
 				at_sms_retrieved(&pvt->sys_chan, 1);
 				break;
 
 			case CMD_AT_CMGD:
-				ast_debug(4, "[%s] SMS message deleted successfully\n", PVT_ID(pvt));
+				at_ok_response_dbg(4, pvt, ecmd, "Message deleted successfully");
 				break;
 
 			case CMD_AT_CSQ:
-				ast_debug(1, "[%s] Got signal strength result\n", PVT_ID(pvt));
+				at_ok_response_dbg(4, pvt, ecmd, "Got signal strength");
 				break;
 
 			case CMD_AT_AUTOCSQ_INIT:
 			case CMD_AT_EXUNSOL_INIT:
-				ast_debug(1, "[%s] Signal change notifications enabled\n", PVT_ID(pvt));
+				at_ok_response_dbg(1, pvt, ecmd, "Signal strength change notifications enabled");
 				break;
 
 			case CMD_AT_CLTS_INIT:
-				ast_debug(1, "[%s] Time update notifications enabled\n", PVT_ID(pvt));
+				at_ok_response_dbg(1, pvt, ecmd, "Time update notifications enabled");
 				break;
 
 			case CMD_AT_CLVL:
 				pvt->volume_sync_step++;
 				if(pvt->volume_sync_step == VOLUME_SYNC_DONE) {
-					ast_debug(1, "[%s] Volume level synchronized\n", PVT_ID(pvt));
+					at_ok_response_dbg(1, pvt, ecmd, "Volume level synchronized");
 					pvt->volume_sync_step = VOLUME_SYNC_BEGIN;
 				}
 				break;
 
 			case CMD_AT_CMUT_0:
-				ast_debug(1, "[%s] Uplink voice unmuted\n", PVT_ID(pvt));
+				at_ok_response_dbg(1, pvt, ecmd, "Uplink voice unmuted");
 				break;
 
 			case CMD_AT_CMUT_1:			
-				ast_debug(1, "[%s] Uplink voice muted\n", PVT_ID(pvt));
+				at_ok_response_dbg(1, pvt, ecmd, "Uplink voice muted");
 				break;
 
 			case CMD_AT_QTONEDET_0:
 			case CMD_AT_DDET_0:
-				ast_debug(1, "[%s] Tone detection disabled\n", PVT_ID(pvt));
+				at_ok_response_dbg(1, pvt, ecmd, "Tone detection disabled");
 				break;
 
 			case CMD_AT_QTONEDET_1:
 			case CMD_AT_DDET_1:
-				ast_debug(1, "[%s] Tone detection enabled\n", PVT_ID(pvt));
+				at_ok_response_dbg(1, pvt, ecmd, "Tone detection enabled");
 				break;
 
 			case CMD_AT_QMIC:
 			case CMD_AT_QRXGAIN:
 			case CMD_AT_CMICGAIN:
 			case CMD_AT_COUTGAIN:
-				ast_debug(1, "[%s] TX/RX gains updated\n", PVT_ID(pvt));
+				at_ok_response_dbg(1, pvt, ecmd, "TX/RX gains updated");
 				break;
 
 			case CMD_AT_CRXVOL:
 			case CMD_AT_CTXVOL:
-				ast_debug(3, "[%s] TX/RX volume updated\n", PVT_ID(pvt));
+				at_ok_response_dbg(3, pvt, ecmd, "TX/RX volume updated");
 				break;
 
 			case CMD_AT_CMGL:
-				ast_debug(1, "[%s] Messages listed\n", PVT_ID(pvt));
+				at_ok_response_dbg(1, pvt, ecmd, "Messages listed");
 				break;
 
 			case CMD_AT_CNMA:
-				ast_debug(1, "[%s][SMS:%d] Message confirmed\n", PVT_ID(pvt), safe_task_uid(task));
+				at_ok_response_dbg(1, pvt, ecmd, "[SMS:%d] Message confirmed", safe_task_uid(task));
 				break;
 
 			case CMD_AT_CSMS:
-				ast_debug(1, "[%s] Message service channel configured\n", PVT_ID(pvt));
+				at_ok_response_dbg(1, pvt, ecmd, "Message service channel configured");
 				break;
 
 			case CMD_AT_QAUDLOOP:
-				ast_debug(1, "[%s] Audio loop configured\n", PVT_ID(pvt));
+				at_ok_response_dbg(1, pvt, ecmd, "Audio loop configured");
 				break;
 
 			case CMD_AT_QAUDMOD:
-				ast_debug(1, "[%s] Audio mode configured\n", PVT_ID(pvt));
+				at_ok_response_dbg(1, pvt, ecmd, "Audio mode configured");
 				break;
 
 			case CMD_AT_CNSMOD_0:
-				ast_debug(1, "[%s] Network mode notifications disabled\n", PVT_ID(pvt));
+				at_ok_response_dbg(1, pvt, ecmd, "Network mode notifications disabled");
 				break;
 
 			case CMD_AT_CNSMOD_1:
-				ast_debug(1, "[%s] Network mode notifications enabled\n", PVT_ID(pvt));
+				at_ok_response_dbg(1, pvt, ecmd, "Network mode notifications enabled");
 				break;
 
 			case CMD_AT_CPCMFRM_8K:
-				ast_log(LOG_NOTICE, "[%s] Audio sample rate set to 8kHz\n", PVT_ID(pvt));
+				at_ok_response_log(LOG_NOTICE, pvt, ecmd, "Audio sample rate set to 8kHz");
 				break;
 
 			case CMD_AT_CPCMFRM_16K:
-				ast_log(LOG_NOTICE, "[%s] Audio sample rate set to 16kHz\n", PVT_ID(pvt));
+				at_ok_response_log(LOG_NOTICE, pvt, ecmd, "Audio sample rate set to 16kHz");
 				break;
 
 			case CMD_AT_VTD:
-				ast_debug(2, "[%s] Tone duration updated\n", PVT_ID(pvt));
+				at_ok_response_dbg(2, pvt, ecmd, "Tone duration updated");
 				break;
 
 			case CMD_AT_CCID:
-				ast_debug(3, "[%s] ICCID obtained\n", PVT_ID(pvt));
+				at_ok_response_dbg(3, pvt, ecmd, "ICCID obtained");
 				break;
 
 			case CMD_AT_CICCID:
 			case CMD_AT_QCCID:
-				ast_debug(3, "[%s] ICCID obtained\n", PVT_ID(pvt));
+				at_ok_response_dbg(3, pvt, ecmd, "ICCID obtained");
 				break;
 
 			case CMD_ESC:
-				ast_debug(1, "[%s][SMS:%d] Message confirmed\n", PVT_ID(pvt), safe_task_uid(task));
+				at_ok_response_dbg(1, pvt, ecmd, "[SMS:%d] Message confirmed", safe_task_uid(task));
 				break;
 
 			case CMD_USER:
 				break;
 
 			default:
-				ast_log(LOG_ERROR, "[%s] Received 'OK' for unhandled command '%s'\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
+				at_ok_response_log(LOG_ERROR, pvt, ecmd, "Unhandled command");
 				break;
 		}
 		at_queue_handle_result(pvt, res);
 	}
 	else {
-		ast_log(LOG_ERROR, "[%s] Received 'OK' when expecting '%s', ignoring\n", PVT_ID(pvt), at_res2str(ecmd->res));
+		at_ok_response_log(LOG_ERROR, pvt, ecmd, "Received OK when expecting '%s', ignoring", at_res2str(ecmd->res));
 	}
 
 	return 0;
