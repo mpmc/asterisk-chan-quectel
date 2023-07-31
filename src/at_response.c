@@ -1744,10 +1744,6 @@ msg_done:
 
 	if (CONF_SHARED(pvt, autodeletesms) && msg_complete) {
 		switch(cmd) {
-			case RES_CMGR:
-			at_enqueue_delete_sms(&pvt->sys_chan, pvt->incoming_sms_index, TRIBOOL_NONE);
-			break;
-
 			case RES_CMGL:
 			at_enqueue_delete_sms(&pvt->sys_chan, idx, TRIBOOL_NONE);
 			goto msg_ret;
