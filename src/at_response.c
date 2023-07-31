@@ -301,11 +301,16 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CNMI:
-				ast_debug(1, "[%s] SMS supported\n", PVT_ID(pvt));
-				ast_debug(1, "[%s] SMS new message indication mode enabled\n", PVT_ID(pvt));
+				if (!pvt->initialized) {
+					ast_debug(1, "[%s] SMS supported\n", PVT_ID(pvt));
+					ast_debug(2, "[%s] SMS indication mode configured\n", PVT_ID(pvt));
 
-				pvt->has_sms = 1;
-				pvt->timeout = DATA_READ_TIMEOUT;
+					pvt->has_sms = 1;
+					pvt->timeout = DATA_READ_TIMEOUT;
+				}
+				else {
+					ast_verb(2, "[%s] Message indication mode configured\n", PVT_ID(pvt));
+				}
 				break;
 
 			case CMD_AT_D:

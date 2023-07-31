@@ -164,6 +164,29 @@ int delete_sms(const char* const dev_name, unsigned int idx, int delflag)
 	return res;
 }
 
+int sms_direct(const char* const dev_name, int directflag)
+{
+	struct pvt * const pvt = get_pvt(dev_name, 1);
+	if (!pvt) {
+		return -1;
+	}
+
+	if (directflag) {
+		const int res = at_enqueue_msg_direct(&pvt->sys_chan, directflag > 0);
+		free_pvt(pvt);
+		return res;
+	}
+
+	if (!CONF_SHARED(pvt, msg_direct)) {
+		chan_quectel_err = 	E_UNKNOWN;
+		return -1;
+	}
+
+	const int res = at_enqueue_msg_direct(&pvt->sys_chan, CONF_SHARED(pvt, msg_direct) > 0);
+	free_pvt(pvt);
+	return res;
+}
+
 #/* */
 int send_reset(const char *dev_name)
 {

@@ -137,6 +137,9 @@ Supported modules:
   * `quectel sms delete received read <device>`
   * `quectel sms delete all <device>`
   * `quectel sms delete <device> <idx>`
+  * `quectel sms direct on <device>`
+  * `quectel sms direct off <device>`
+  * `quectel sms direct auto <device>`
 
 * Additional fields in `show device status` command.
 

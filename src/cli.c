@@ -622,6 +622,72 @@ static char* cli_sms_delete(struct ast_cli_entry* e, int cmd, struct ast_cli_arg
 
 CLI_ALIASES(cli_sms_delete, "sms delete", "sms delete <device> <idx>", "Delete specified mesage from <device>")
 
+static char* cli_sms_direct_on(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
+{
+	switch (cmd) {
+		case CLI_GENERATE:
+			if (a->pos == 4) {
+				return complete_device(a->word, a->n);
+			}
+			return NULL;
+	}
+
+	if (a->argc < 4) {
+		return CLI_SHOWUSAGE;
+	}
+
+	const int res = sms_direct(a->argv[4], 1);
+	ast_cli(a->fd, "[%s] %s\n", a->argv[4], res < 0 ? error2str(chan_quectel_err) : "Operation queued");
+
+	return CLI_SUCCESS;
+}
+
+CLI_ALIASES(cli_sms_direct_on, "sms direct on", "sms direct on <device>", "Receive messages from <device> directly")
+
+static char* cli_sms_direct_off(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
+{
+	switch (cmd) {
+		case CLI_GENERATE:
+			if (a->pos == 4) {
+				return complete_device(a->word, a->n);
+			}
+			return NULL;
+	}
+
+	if (a->argc < 4) {
+		return CLI_SHOWUSAGE;
+	}
+
+	const int res = sms_direct(a->argv[4], -1);
+	ast_cli(a->fd, "[%s] %s\n", a->argv[4], res < 0 ? error2str(chan_quectel_err) : "Operation queued");
+
+	return CLI_SUCCESS;
+}
+
+CLI_ALIASES(cli_sms_direct_off, "sms direct off", "sms direct off <device>", "Receive messages from <device> indirectly")
+
+static char* cli_sms_direct_auto(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
+{
+	switch (cmd) {
+		case CLI_GENERATE:
+			if (a->pos == 4) {
+				return complete_device(a->word, a->n);
+			}
+			return NULL;
+	}
+
+	if (a->argc < 4) {
+		return CLI_SHOWUSAGE;
+	}
+
+	const int res = sms_direct(a->argv[4], 0);
+	ast_cli(a->fd, "[%s] %s\n", a->argv[4], res < 0 ? error2str(chan_quectel_err) : "Operation queued");
+
+	return CLI_SUCCESS;
+}
+
+CLI_ALIASES(cli_sms_direct_auto, "sms direct auto", "sms direct auto <device>", "Receive messages from <device> in a way specified in configuration")
+
 #if ASTERISK_VERSION_NUM >= 10800 /* 1.8+ */
 typedef const char * const * ast_cli_complete2_t;
 #else /* 1.8- */
@@ -1148,6 +1214,9 @@ static struct ast_cli_entry cli[] = {
 	CLI_DEF_ENTRIES(cli_sms_delete_received_read,	"Delete read messages")
 	CLI_DEF_ENTRIES(cli_sms_delete_all,				"Delete all messages")
 	CLI_DEF_ENTRIES(cli_sms_delete,					"Delete message by index")
+	CLI_DEF_ENTRIES(cli_sms_direct_on,				"Receive messages directly")
+	CLI_DEF_ENTRIES(cli_sms_direct_off,				"Receive messages indirectly")
+	CLI_DEF_ENTRIES(cli_sms_direct_auto,			"Receive messages in a way specified in configuration")
 
 	CLI_DEF_ENTRIES(cli_ccwa_set,				"Enable/Disable Call-Waiting")
 	CLI_DEF_ENTRIES(cli_reset,					"Reset modem")
