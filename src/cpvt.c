@@ -14,7 +14,7 @@
 #include "mutils.h"				/* ITEMS_OF() */
 
 #/* return 0 on success */
-// TODO: move to activation time, save resouces
+// TODO: move to activation time, save resources
 static int init_pipe(int filedes[2])
 {
 	int x;
@@ -87,7 +87,8 @@ struct cpvt* cpvt_alloc(struct pvt* pvt, int call_idx, unsigned dir, call_state_
 #/* */
 void cpvt_free(struct cpvt* cpvt)
 {
-	pvt_t * pvt = cpvt->pvt;
+	pvt_t * const pvt = cpvt->pvt;
+
 	struct cpvt * found;
 	struct at_queue_task * task;
 
@@ -100,7 +101,7 @@ void cpvt_free(struct cpvt* cpvt)
 	close(cpvt->rd_pipe[1]);
 	close(cpvt->rd_pipe[0]);
 
-	ast_debug (3, "[%s] Destroy cpvt - idx:%d dir:%d state:%s flags:%d has%s channel\n",  PVT_ID(pvt), cpvt->call_idx, cpvt->dir, call_state2str(cpvt->state), cpvt->flags, cpvt->channel ? "" : "'t");
+	ast_debug(3, "[%s] Destroy cpvt - idx:%d dir:%d state:%s flags:%d channel:%s\n",  PVT_ID(pvt), cpvt->call_idx, cpvt->dir, call_state2str(cpvt->state), cpvt->flags, cpvt->channel ? "attached" : "detached");
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&pvt->chans, found, entry) {
 		if(found == cpvt)
 		{
