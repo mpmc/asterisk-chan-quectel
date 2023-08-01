@@ -243,7 +243,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 			case CMD_AT_QLTS_1:
 			case CMD_AT_CCLK:
 				// U+2713 : Check mark
-				at_ok_response_dbg(4, pvt, ecmd, NULL);
+				at_ok_response_dbg(3, pvt, ecmd, NULL);
 				break;
 
 			case CMD_AT_FINAL:
@@ -301,14 +301,14 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_QPCMV_0:
-				at_ok_response_dbg(4, pvt, ecmd, NULL);
+				at_ok_response_dbg(3, pvt, ecmd, NULL);
 
 				pvt->has_voice = 0;
 				break;
 			
 			case CMD_AT_QPCMV_TTY:
 			case CMD_AT_QPCMV_UAC:
-				at_ok_response_dbg(4, pvt, ecmd, NULL);
+				at_ok_response_dbg(3, pvt, ecmd, NULL);
 
 				pvt->has_voice = 1;
 				at_enqueue_qgains(&pvt->sys_chan, CONF_SHARED(pvt, txgain), CONF_SHARED(pvt, rxgain));
@@ -355,7 +355,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				task->cpvt->needhangup = 1;
 */
 				CPVT_SET_FLAGS(task->cpvt, CALL_FLAG_NEED_HANGUP);
-				at_ok_response_dbg(4, pvt, ecmd, "Call id:%d\n", task->cpvt->call_idx);
+				at_ok_response_dbg(3, pvt, ecmd, "Call id:%d\n", task->cpvt->call_idx);
 				break;
 
 			case CMD_AT_CFUN:
@@ -366,7 +366,7 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CPCMREG1:
-				at_ok_response_dbg(4, pvt, ecmd, NULL);
+				at_ok_response_dbg(3, pvt, ecmd, NULL);
 				if (!pvt->initialized) {
 					pvt->timeout = DATA_READ_TIMEOUT;
 					pvt->initialized = 1;
@@ -386,13 +386,13 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 				break;
 
 			case CMD_AT_CMGS:
-				at_ok_response_dbg(4, pvt, ecmd, "Sending message in progress");
+				at_ok_response_dbg(3, pvt, ecmd, "Sending message in progress");
 				break;
 
 			case CMD_AT_SMSTEXT: {
 				const at_cmd_t cmd = task->cmds[0].cmd;
 				if (cmd == CMD_AT_CMGS) {
-					at_ok_response_dbg(4, pvt, ecmd, "Sending SMS message in progress");
+					at_ok_response_dbg(3, pvt, ecmd, "Sending SMS message in progress");
 				}
 				else if (cmd == CMD_AT_CNMA) {
 					at_ok_response_dbg(1, pvt, ecmd, "[SMS:%d] Message confirmed\n", safe_task_uid(task));
@@ -404,31 +404,31 @@ static int at_response_ok(struct pvt* pvt, at_res_t res)
 			}
 
 			case CMD_AT_DTMF:
-				at_ok_response_dbg(4, pvt, ecmd, "DTMF sent successfully for call idx:%d", task->cpvt->call_idx);
+				at_ok_response_dbg(3, pvt, ecmd, "DTMF sent successfully for call idx:%d", task->cpvt->call_idx);
 				break;
 
 			case CMD_AT_CUSD:
-				at_ok_response_dbg(4, pvt, ecmd, "Successfully sent USSD %p", task);
+				at_ok_response_dbg(3, pvt, ecmd, "Successfully sent USSD %p", task);
 				ast_verb(3, "[%s] Successfully sent USSD %p\n", PVT_ID(pvt), task);
 				break;
 
 			case CMD_AT_COPS:
 			case CMD_AT_QSPN:
 			case CMD_AT_CSPN:
-				at_ok_response_dbg(4, pvt, ecmd, "Successfull provider query");
+				at_ok_response_dbg(3, pvt, ecmd, "Successfull provider query");
 				break;
 
 			case CMD_AT_CMGR:
-				at_ok_response_dbg(4, pvt, ecmd, NULL);
+				at_ok_response_dbg(3, pvt, ecmd, NULL);
 				at_sms_retrieved(&pvt->sys_chan, 1);
 				break;
 
 			case CMD_AT_CMGD:
-				at_ok_response_dbg(4, pvt, ecmd, "Message deleted successfully");
+				at_ok_response_dbg(3, pvt, ecmd, "Message deleted successfully");
 				break;
 
 			case CMD_AT_CSQ:
-				at_ok_response_dbg(4, pvt, ecmd, "Got signal strength");
+				at_ok_response_dbg(3, pvt, ecmd, "Got signal strength");
 				break;
 
 			case CMD_AT_AUTOCSQ_INIT:
