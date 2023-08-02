@@ -413,9 +413,11 @@ CLI_ALIASES(cli_ussd, "ussd", "ussd <device> <command>", "Send ussd <command> wi
 
 static char* cli_sms_send(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
-	static const char DEF_PAYLOAD[] = "CLI";
-	static const int DEF_VALIDITY   = 15;
-	static const int DEF_REPORT     = 1;
+	static const char DEF_PAYLOAD[]  = "CLI";
+	static const int DEF_VALIDITY    = 15;
+	static const int DEF_REPORT      = 1;
+	static const ssize_t MSG_LEN     = 160;
+	static const ssize_t MAX_MSG_LEN = MSG_LEN * 255;
 
 	switch (cmd) {
 		case CLI_GENERATE:
@@ -423,14 +425,14 @@ static char* cli_sms_send(struct ast_cli_entry* e, int cmd, struct ast_cli_args*
 			return NULL;
 	}
 
-	if (a->argc < 5) { return CLI_SHOWUSAGE; }
+	if (a->argc < 6) { return CLI_SHOWUSAGE; }
 
-	struct ast_str* buf = ast_str_create(160 * 255);
+	struct ast_str* buf = ast_str_create(MSG_LEN);
 	for (int i = 5; i < a->argc; ++i) {
 		if (i < (a->argc - 1)) {
-			ast_str_append(&buf, 0, "%s ", a->argv[i]);
+			ast_str_append(&buf, MAX_MSG_LEN, "%s ", a->argv[i]);
 		} else {
-			ast_str_append(&buf, 0, "%s", a->argv[i]);
+			ast_str_append(&buf, MAX_MSG_LEN, "%s", a->argv[i]);
 		}
 	}
 
