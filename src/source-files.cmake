@@ -1,0 +1,47 @@
+#
+# source-files.cmake
+#
+
+SET(SOURCES
+    at_command.c
+    at_parse.c
+    at_queue.c
+    at_read.c
+    at_response.c
+    chan_quectel.c
+    channel.c
+    char_conv.c
+    cli.c
+    helpers.c
+    memmem.c
+    ringbuffer.c
+    cpvt.c
+    dc_config.c
+    pdu.c
+    mixbuffer.c
+    pdiscovery.c
+    error.c
+    smsdb.c
+)
+
+SET(HEADERS
+    at_command.h
+    at_parse.h
+    at_queue.h
+    at_read.h
+    at_response.h
+    chan_quectel.h
+    channel.h
+    char_conv.h
+    cli.h
+    helpers.h
+    memmem.h
+    ringbuffer.h
+    cpvt.h
+    dc_config.h
+    pdu.h
+    mixbuffer.h
+    pdiscovery.h
+    error.h
+    smsdb.h
+)
