@@ -10,8 +10,19 @@ on:
   push:
 
 jobs:
-  build-deb-pkg:
+  formatting-check:
+    name: Formatting Check
     runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: jidicula/clang-format-action@v4.11.0
+      with:
+        clang-format-version: 16
+        check-path: src
+
+  build:
+    runs-on: ubuntu-latest
+    needs: formatting-check
     steps:
     - uses: actions/checkout@v3
       with:

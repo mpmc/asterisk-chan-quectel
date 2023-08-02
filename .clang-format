@@ -1,6 +1,5 @@
 ---
 Language:        Cpp
-# BasedOnStyle:  Google
 AccessModifierOffset: -1
 AlignAfterOpenBracket: Align
 AlignArrayOfStructures: Left
@@ -203,7 +202,6 @@ RawStringFormats:
     BasedOnStyle:    google
 ReferenceAlignment: Pointer
 ReflowComments:  true
-RemoveParentheses: ReturnStatement
 RemoveSemicolon: true
 RemoveBracesLLVM: false
 RemoveSemicolon: false
