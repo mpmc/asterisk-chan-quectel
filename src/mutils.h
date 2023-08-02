@@ -6,35 +6,34 @@
 
 #include <string.h>
 
-#define ITEMS_OF(x)				(sizeof(x)/sizeof((x)[0]))
-#define STRLEN(string)				(sizeof(string)-1u)
+#define ITEMS_OF(x) (sizeof(x) / sizeof((x)[0]))
+#define STRLEN(string) (sizeof(string) - 1u)
 
 #ifndef MIN
-#define MIN(a,b) (((a) < (b)) ? (a) : (b))
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif
 
-static inline const char * enum2str_def(unsigned value, const char * const names[], unsigned items, const char * def)
+static inline const char* enum2str_def(unsigned value, const char* const names[], unsigned items, const char* def)
 {
-	const char * name;
-	if(value < items)
+	const char* name;
+	if (value < items) {
 		name = names[value];
-	else
+	} else {
 		name = def;
+	}
 	return name;
 }
 
-static inline const char * enum2str(unsigned value, const char * const names[], unsigned items)
+static inline const char* enum2str(unsigned value, const char* const names[], unsigned items)
 {
 	return enum2str_def(value, names, items, "unknown");
 }
 
-static inline int str2enum(const char * value, const char * const options[], unsigned items)
+static inline int str2enum(const char* value, const char* const options[], unsigned items)
 {
 	unsigned index;
-	for(index = 0; index < items; index++)
-	{
-		if(strcasecmp(value, options[index]) == 0)
-			return index;
+	for (index = 0; index < items; index++) {
+		if (strcasecmp(value, options[index]) == 0) { return index; }
 	}
 
 	return -1;

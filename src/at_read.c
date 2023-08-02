@@ -10,22 +10,22 @@
    bg <bg_one@mail.ru>
 */
 #ifndef _GNU_SOURCE
-#define _GNU_SOURCE			/* vasprintf() in asterisk/utils.h */
-#endif /* #ifndef _GNU_SOURCE */
+#define _GNU_SOURCE /* vasprintf() in asterisk/utils.h */
+#endif              /* #ifndef _GNU_SOURCE */
+
+#include <errno.h>
+#include <sys/types.h>
 
 #include "ast_config.h"
 
-#include <sys/types.h>
-#include <errno.h>
+#include <asterisk/channel.h> /* ast_waitfor_n_fd() */
+#include <asterisk/logger.h>  /* ast_debug() */
 
-#include <asterisk/channel.h>		/* ast_waitfor_n_fd() */
-#include <asterisk/logger.h>		/* ast_debug() */
+#include "at_read.h"
 
 #include "chan_quectel.h"
-#include "at_read.h"
-#include "ringbuffer.h"
 #include "helpers.h"
-
+#include "ringbuffer.h"
 
 /*!
  * \brief Wait for activity on an socket
@@ -35,81 +35,71 @@
  * \retval 0 timeout
  */
 
-int at_wait (int fd, int* ms)
+int at_wait(int fd, int* ms)
 {
 	int exception, outfd;
 
-	outfd = ast_waitfor_n_fd (&fd, 1, ms, &exception);
+	outfd = ast_waitfor_n_fd(&fd, 1, ms, &exception);
 
-	if (outfd < 0)
-	{
-		outfd = 0;
-	}
+	if (outfd < 0) { outfd = 0; }
 
 	return outfd;
 }
 
 #/* return number of bytes read */
-ssize_t at_read (int fd, const char * dev, struct ringbuffer* rb)
+
+ssize_t at_read(int fd, const char* dev, struct ringbuffer* rb)
 {
-	struct iovec	iov[2];
-	int		iovcnt;
-	ssize_t		n = -1;
+	struct iovec iov[2];
+	int iovcnt;
+	ssize_t n = -1;
 
 	/* TODO: read until major error */
-	iovcnt = rb_write_iov (rb, iov);
+	iovcnt = rb_write_iov(rb, iov);
 
-	if (iovcnt > 0)
-	{
-		n = readv (fd, iov, iovcnt);
+	if (iovcnt > 0) {
+		n = readv(fd, iov, iovcnt);
 
-		if (n < 0)
-		{
-			if (errno != EINTR && errno != EAGAIN)
-			{
-				ast_debug (1, "[%s] readv() error: %d\n", dev, errno);
+		if (n < 0) {
+			if (errno != EINTR && errno != EAGAIN) {
+				ast_debug(1, "[%s] readv() error: %d\n", dev, errno);
 				return n;
 			}
 
 			return 0;
-		}
-		else if (n > 0)
-		{
-			rb_write_upd (rb, n);
+		} else if (n > 0) {
+			rb_write_upd(rb, n);
 
-			ast_debug (6, "[%s] receive %zu byte, used %zu, free %zu, read %zu, write %zu\n",
-				dev, n, rb_used (rb), rb_free (rb), rb->read, rb->write);
+			ast_debug(6, "[%s] receive %zu byte, used %zu, free %zu, read %zu, write %zu\n", dev, n, rb_used(rb),
+					  rb_free(rb), rb->read, rb->write);
 
-			iovcnt = rb_read_all_iov (rb, iov);
+			iovcnt = rb_read_all_iov(rb, iov);
 
 			if (iovcnt > 0 && DEBUG_ATLEAST(5)) {
 				struct ast_str* const e0 = escape_nstr((const char*)iov[0].iov_base, iov[0].iov_len);
 				if (iovcnt == 2) {
 					struct ast_str* const e1 = escape_nstr((const char*)iov[1].iov_base, iov[1].iov_len);
-					ast_debug(5, "[%s] [%u+%u][%s%s]\n", dev, (unsigned)iov[0].iov_len, (unsigned)iov[1].iov_len, ast_str_buffer(e0), ast_str_buffer(e1));
+					ast_debug(5, "[%s] [%u+%u][%s%s]\n", dev, (unsigned)iov[0].iov_len, (unsigned)iov[1].iov_len,
+							  ast_str_buffer(e0), ast_str_buffer(e1));
 					ast_free(e1);
-				}
-				else {
+				} else {
 					ast_debug(5, "[%s] [%u][%s]\n", dev, (unsigned)iov[0].iov_len, ast_str_buffer(e0));
 				}
 				ast_free(e0);
 			}
 		}
+	} else {
+		ast_log(LOG_ERROR, "[%s] at cmd receive buffer overflow\n", dev);
 	}
-	else
-		ast_log (LOG_ERROR, "[%s] at cmd receive buffer overflow\n", dev);
 	return n;
 }
 
-size_t at_get_iov_size(const struct iovec* iov)
-{
-	return iov[0].iov_len + iov[1].iov_len;
-}
+size_t at_get_iov_size(const struct iovec* iov) { return iov[0].iov_len + iov[1].iov_len; }
 
 size_t at_get_iov_size_n(const struct iovec* iov, int iovcnt)
 {
 	size_t res = 0u;
-	for(int i=0; i<iovcnt; ++i) res += iov[i].iov_len;
+	for (int i = 0; i < iovcnt; ++i) { res += iov[i].iov_len; }
 	return res;
 }
 
@@ -118,70 +108,64 @@ size_t at_combine_iov(struct ast_str* const result, const struct iovec* const io
 	const size_t len = at_get_iov_size_n(iov, iovcnt);
 
 	ast_str_reset(result);
-	if (iovcnt>0) {
-		char* const buf = ast_str_buffer(result);		
+	if (iovcnt > 0) {
+		char* const buf = ast_str_buffer(result);
 		memcpy(buf, iov[0].iov_base, iov[0].iov_len);
-		if (iovcnt>1) {
-			memcpy(buf + iov[0].iov_len, iov[1].iov_base, iov[1].iov_len);
-		}
-		buf[len] = '\000';
+		if (iovcnt > 1) { memcpy(buf + iov[0].iov_len, iov[1].iov_base, iov[1].iov_len); }
+		buf[len]     = '\000';
 		result->used = len;
-		//ast_str_update(result);	
+		// ast_str_update(result);
 	}
 
 	return len;
 }
 
-static size_t get_2ndeol_pos(const struct ringbuffer* const rb, struct iovec *iov, struct ast_str* buf)
+static size_t get_2ndeol_pos(const struct ringbuffer* const rb, struct iovec* iov, struct ast_str* buf)
 {
 	static const char EOL[2] = {'\r', '\n'};
 
 	const int iovcnt = rb_read_all_iov(rb, iov);
-	if (!iovcnt) return 0u;
+	if (!iovcnt) { return 0u; }
 
-	const size_t len = at_combine_iov(buf, iov, iovcnt);
+	const size_t len    = at_combine_iov(buf, iov, iovcnt);
 	const char* const b = ast_str_buffer(buf);
 
 	const char* pos = (const char*)memmem(b, len, EOL, ITEMS_OF(EOL));
-	if (!pos) return 0u;
+	if (!pos) { return 0u; }
 
 	const size_t shift = (pos - b) + ITEMS_OF(EOL);
-	pos = (const char*)memmem(b + shift, len - shift, EOL, ITEMS_OF(EOL));
-	if (!pos) return 0u;
+	pos                = (const char*)memmem(b + shift, len - shift, EOL, ITEMS_OF(EOL));
+	if (!pos) { return 0u; }
 
 	return pos - b;
 }
 
-int at_read_result_iov(
-	const char* dev,
-	int* read_result,
-	size_t* skip,
-	struct ringbuffer* rb,
-	struct iovec *iov,
-	struct ast_str* buf)
+int at_read_result_iov(const char* dev, int* read_result, size_t* skip, struct ringbuffer* rb, struct iovec* iov,
+					   struct ast_str* buf)
 {
-	static const char M_CSSI[] =		"+CSSI:";
-	static const char M_CSSU[] =		"\r\n+CSSU:";
-	static const char M_CMS_ERROR[] =	"\r\n+CMS ERROR:";
-	static const char M_CMGS[] =		"\r\n+CMGS:";
-	static const char M_CMGR[] =		"+CMGR:";
-	static const char M_CNUM[] =		"+CNUM:";
-	static const char M_ERROR_CNUM[] =	"ERROR+CNUM:";
-	static const char M_CMGL[] =		"+CMGL:";
-	static const char M_EOL[] =			"\r\n";
-	static const char M_SMS_PROMPT[] =	"> ";
-	static const char M_CMT[] = 		"+CMT:";
-	static const char M_CBM[] = 		"+CBM:";
-	static const char M_CDS[] = 		"+CDS:";
-	static const char M_CLASS0[] = 		"+CLASS0:";
+	static const char M_CSSI[]       = "+CSSI:";
+	static const char M_CSSU[]       = "\r\n+CSSU:";
+	static const char M_CMS_ERROR[]  = "\r\n+CMS ERROR:";
+	static const char M_CMGS[]       = "\r\n+CMGS:";
+	static const char M_CMGR[]       = "+CMGR:";
+	static const char M_CNUM[]       = "+CNUM:";
+	static const char M_ERROR_CNUM[] = "ERROR+CNUM:";
+	static const char M_CMGL[]       = "+CMGL:";
+	static const char M_EOL[]        = "\r\n";
+	static const char M_SMS_PROMPT[] = "> ";
+	static const char M_CMT[]        = "+CMT:";
+	static const char M_CBM[]        = "+CBM:";
+	static const char M_CDS[]        = "+CDS:";
+	static const char M_CLASS0[]     = "+CLASS0:";
 
-	static const char T_OK[] =			"\r\n\r\nOK\r\n";
-	static const char T_CMGL[] =		"\r\n+CMGL:";
+	static const char T_OK[]   = "\r\n\r\nOK\r\n";
+	static const char T_CMGL[] = "\r\n+CMGL:";
 
 	size_t s = rb_used(rb);
 
 	if (s > 0) {
-/*		ast_debug (5, "[%s] d_read_result %d len %d input [%.*s]\n", dev, *read_result, s, MIN(s, rb->size - rb->read), (char*)rb->buffer + rb->read); */
+		/*		ast_debug (5, "[%s] d_read_result %d len %d input [%.*s]\n", dev, *read_result, s, MIN(s, rb->size -
+		 * rb->read), (char*)rb->buffer + rb->read); */
 
 		if (*read_result == 0) {
 			const int res = rb_memcmp(rb, M_EOL, STRLEN(M_EOL));
@@ -190,8 +174,7 @@ int at_read_result_iov(
 				*read_result = 1;
 
 				return at_read_result_iov(dev, read_result, skip, rb, iov, buf);
-			}
-			else if (res > 0) {
+			} else if (res > 0) {
 				if (!rb_memcmp(rb, "\n", 1)) {
 					rb_read_upd(rb, 1);
 					return at_read_result_iov(dev, read_result, skip, rb, iov, buf);
@@ -208,54 +191,43 @@ int at_read_result_iov(
 			}
 
 			return 0;
-		}
-		else {
+		} else {
 			if (!rb_memcmp(rb, M_CSSI, STRLEN(M_CSSI))) {
 				const int iovcnt = rb_read_n_iov(rb, iov, STRLEN(M_CSSI));
-				if (iovcnt) {
-					*read_result = 0;
-				}
+				if (iovcnt) { *read_result = 0; }
 
 				return iovcnt;
-			}
-			else if (!(rb_memcmp(rb, M_CSSU, STRLEN(M_CSSU)) && rb_memcmp(rb, M_CMS_ERROR, STRLEN(M_CMS_ERROR)) && rb_memcmp(rb, M_CMGS, STRLEN(M_CMGS)))) {
+			} else if (!(rb_memcmp(rb, M_CSSU, STRLEN(M_CSSU)) && rb_memcmp(rb, M_CMS_ERROR, STRLEN(M_CMS_ERROR)) &&
+						 rb_memcmp(rb, M_CMGS, STRLEN(M_CMGS)))) {
 				rb_read_upd(rb, 2);
 				return at_read_result_iov(dev, read_result, skip, rb, iov, buf);
-			}
-			else if (!rb_memcmp(rb, M_SMS_PROMPT, STRLEN(M_SMS_PROMPT))) {
+			} else if (!rb_memcmp(rb, M_SMS_PROMPT, STRLEN(M_SMS_PROMPT))) {
 				*read_result = 0;
 				return rb_read_n_iov(rb, iov, STRLEN(M_SMS_PROMPT));
-			}
-			else if (!(rb_memcmp(rb, M_CMGR, STRLEN(M_CMGR)) && rb_memcmp(rb, M_CNUM, STRLEN(M_CNUM)) && rb_memcmp(rb, M_ERROR_CNUM, STRLEN(M_ERROR_CNUM)))) {
+			} else if (!(rb_memcmp(rb, M_CMGR, STRLEN(M_CMGR)) && rb_memcmp(rb, M_CNUM, STRLEN(M_CNUM)) &&
+						 rb_memcmp(rb, M_ERROR_CNUM, STRLEN(M_ERROR_CNUM)))) {
 				const int iovcnt = rb_read_until_mem_iov(rb, iov, T_OK, STRLEN(T_OK));
-				if (iovcnt) {
-					*skip += 4;
-				}
+				if (iovcnt) { *skip += 4; }
 
 				return iovcnt;
-			}
-			else if (!rb_memcmp(rb, M_CMGL, STRLEN(M_CMGL))) {
+			} else if (!rb_memcmp(rb, M_CMGL, STRLEN(M_CMGL))) {
 				int iovcnt = rb_read_until_mem_iov(rb, iov, T_CMGL, STRLEN(T_CMGL));
 				if (iovcnt) {
 					*skip += 2;
-				}
-				else {
+				} else {
 					iovcnt = rb_read_until_mem_iov(rb, iov, T_OK, STRLEN(T_OK));
-					if (iovcnt) {
-						*skip += 4;
-					}
+					if (iovcnt) { *skip += 4; }
 				}
 				return iovcnt;
-			}
-			else if (!(rb_memcmp(rb, M_CMT, STRLEN(M_CMT)) && rb_memcmp(rb, M_CBM, STRLEN(M_CBM)) && rb_memcmp(rb, M_CDS, STRLEN(M_CDS)) && rb_memcmp(rb, M_CLASS0, STRLEN(M_CLASS0)))) {
+			} else if (!(rb_memcmp(rb, M_CMT, STRLEN(M_CMT)) && rb_memcmp(rb, M_CBM, STRLEN(M_CBM)) &&
+						 rb_memcmp(rb, M_CDS, STRLEN(M_CDS)) && rb_memcmp(rb, M_CLASS0, STRLEN(M_CLASS0)))) {
 				s = get_2ndeol_pos(rb, iov, buf);
 				if (s) {
 					*read_result = 0;
 					*skip += 1;
 					return rb_read_n_iov(rb, iov, s);
 				}
-			}
-			else {
+			} else {
 				const int iovcnt = rb_read_until_mem_iov(rb, iov, M_EOL, STRLEN(M_EOL));
 				if (iovcnt) {
 					*read_result = 0;
@@ -271,25 +243,27 @@ int at_read_result_iov(
 
 at_res_t at_str2res(const struct ast_str* const result)
 {
-	at_res_t at_res = RES_UNKNOWN;
+	at_res_t at_res  = RES_UNKNOWN;
 	const size_t len = ast_str_strlen(result);
-	if (!len) return at_res;
+	if (!len) { return at_res; }
 	const char* const buf = ast_str_buffer(result);
 
-	for(unsigned i = at_responses.ids_first; i < at_responses.ids; ++i) {
+	for (unsigned i = at_responses.ids_first; i < at_responses.ids; ++i) {
 		if (at_responses.responses[i].idlen) {
 			const at_response_t* const resp = &at_responses.responses[i];
-			const size_t idlen1 = resp->idlen - 1;
-			const char lc = buf[len-1];
+			const size_t idlen1             = resp->idlen - 1;
+			const char lc                   = buf[len - 1];
 			if (resp->id[idlen1] == '\r' && lc != '\r') {
-				if (idlen1 != len || memcmp(buf, resp->id, idlen1)) continue;
+				if (idlen1 != len || memcmp(buf, resp->id, idlen1)) { continue; }
 				at_res = resp->res;
 				break;
 			}
 		}
 
 		if (len < at_responses.responses[i].idlen ||
-			memcmp(buf, at_responses.responses[i].id, at_responses.responses[i].idlen)) continue;
+			memcmp(buf, at_responses.responses[i].id, at_responses.responses[i].idlen)) {
+			continue;
+		}
 
 		at_res = at_responses.responses[i].res;
 		break;

@@ -2,29 +2,29 @@
    Copyright (C) 2010 bg <bg_one@mail.ru>
    Copyright (C) 2020 Max von Buelow <max@m9x.de>
 */
+#include <errno.h> /* EINVAL ENOMEM E2BIG */
+
 #include "ast_config.h"
 
-#include <errno.h>			/* EINVAL ENOMEM E2BIG */
-
 #include "pdu.h"
-#include "helpers.h"			/* dial_digit_code() */
-#include "char_conv.h"			/* utf8_to_hexstr_ucs2() */
-#include "gsm7_luts.h"
+
+#include "char_conv.h" /* utf8_to_hexstr_ucs2() */
 #include "error.h"
+#include "gsm7_luts.h"
+#include "helpers.h" /* dial_digit_code() */
 
 /* SMS-SUBMIT format
 	SCA		1..12 octet(s)		Service Center Address information element
 	  octets
-	        1		Length of Address (minimal 0)
-	        2		Type of Address
-	    3  12		Address
+			1		Length of Address (minimal 0)
+			2		Type of Address
+		3  12		Address
 
 	PDU-type	1 octet			Protocol Data Unit Type
 	  bits
-	      1 0 MTI	Message Type Indicator Parameter describing the message type 00 means SMS-DELIVER 01 means SMS-SUBMIT
-				0 0	SMS-DELIVER (SMSC ==> MS)
-						or
-					SMS-DELIVER REPORT (MS ==> SMSC, is generated automatically by the MOBILE, after receiving a SMS-DELIVER)
+		  1 0 MTI	Message Type Indicator Parameter describing the message type 00 means SMS-DELIVER 01 means
+   SMS-SUBMIT 0 0	SMS-DELIVER (SMSC ==> MS) or SMS-DELIVER REPORT (MS ==> SMSC, is generated automatically by the
+   MOBILE, after receiving a SMS-DELIVER)
 
 				0 1	SMS-SUBMIT (MS ==> SMSC)
 						or
@@ -42,11 +42,11 @@
 					held in the SMSC which has the same MR and DA as a previosly
 					submitted short message from the same OA.
 
-	      4 3 VPF	Validity Period Format	Parameter indicating whether or not the VP field is present
-	      			0 0	VP field is not present
-	      			0 1	Reserved
-	      			1 0	VP field present an integer represented (relative)
-	      			1 1	VP field present an semi-octet represented (absolute)
+		  4 3 VPF	Validity Period Format	Parameter indicating whether or not the VP field is present
+					0 0	VP field is not present
+					0 1	Reserved
+					1 0	VP field present an integer represented (relative)
+					1 1	VP field present an semi-octet represented (absolute)
 
 		5 SRR	Status Report Request Parameter indicating if the MS has requested a status report
 				0	A status report is not requested
@@ -60,19 +60,13 @@
 				1	Reply Path parameter is set in this PDU
 
 	MR		1 octet		Message Reference
-						The MR field gives an integer (0..255) representation of a reference number of the SMSSUBMIT submitted to the SMSC by the MS.
-						! notice: at the MOBILE the MR is generated automatically, -anyway you have to generate it a possible entry is for example ”00H” !
-	DA		2-12 octets	Destination Address
-	  octets
-		1	Length of Address (of BCD digits!)
-		2	Type of Address
-	     3 12	Address
-	PID		1 octet		Protocol Identifier
-						The PID is the information element by which the Transport Layer either refers to the higher
-						layer protocol being used, or indicates interworking with a certain type of telematic device.
-						here are some examples of PID codings:
-		00H: The PDU has to be treat as a short message
-		41H: Replace Short Message Type1
+						The MR field gives an integer (0..255) representation of a reference number of the SMSSUBMIT
+   submitted to the SMSC by the MS. ! notice: at the MOBILE the MR is generated automatically, -anyway you have to
+   generate it a possible entry is for example ”00H” ! DA		2-12 octets	Destination Address octets 1	Length of
+   Address (of BCD digits!) 2	Type of Address 3 12	Address PID		1 octet		Protocol Identifier The PID is the
+   information element by which the Transport Layer either refers to the higher layer protocol being used, or indicates
+   interworking with a certain type of telematic device. here are some examples of PID codings: 00H: The PDU has to be
+   treat as a short message 41H: Replace Short Message Type1
 		  ....
 		47H: Replace Short Message Type7
 					Another description:
@@ -102,16 +96,15 @@
 /* SMS-DELIVER format
 	SCA		1..12 octet(s)		Service Center Address information element
 	  octets
-	        1		Length of Address (minimal 0)
-	        2		Type of Address
-	    3  12		Address
+			1		Length of Address (minimal 0)
+			2		Type of Address
+		3  12		Address
 
 	PDU-type	1 octet			Protocol Data Unit Type
 	  bits
-	      1 0 MTI	Message Type Indicator Parameter describing the message type 00 means SMS-DELIVER 01 means SMS-SUBMIT
-				0 0	SMS-DELIVER (SMSC ==> MS)
-						or
-					SMS-DELIVER REPORT (MS ==> SMSC, is generated automatically by the MOBILE, after receiving a SMS-DELIVER)
+		  1 0 MTI	Message Type Indicator Parameter describing the message type 00 means SMS-DELIVER 01 means
+   SMS-SUBMIT 0 0	SMS-DELIVER (SMSC ==> MS) or SMS-DELIVER REPORT (MS ==> SMSC, is generated automatically by the
+   MOBILE, after receiving a SMS-DELIVER)
 
 				0 1	SMS-SUBMIT (MS ==> SMSC)
 						or
@@ -125,7 +118,7 @@
 		2 MMS	More Messages to Send	Parameter indicating whether or not there are more messages to send
 				0 More messages are waiting for the MS in the SMSC
 				1 No more messages are waiting for the MS in the SMSC
-	      4 3 Reserved
+		  4 3 Reserved
 
 		5 SRI	Status Report Indication	Parameter indicating if the SME has requested a status report
 				0 A status report will not be returned to the SME
@@ -142,7 +135,7 @@
 	  octets
 		1	Length of Address (of BCD digits!)
 		2	Type of Address
-	     3 12	Address
+		 3 12	Address
 	PID		1 octet		Protocol Identifier
 						The PID is the information element by which the Transport Layer either refers to the higher
 						layer protocol being used, or indicates interworking with a certain type of telematic device.
@@ -173,12 +166,12 @@
 	SCTS		7 octets		Service Center Time Stamp
 	UDL		1 octet			User Data Length
 	UD		0-140 octets		User Data, may be prepended by User Data Header see UDHI flag
-	    octets
-	    	1 opt UDHL	Total number of Octets in UDH
-	    	? IEIa
-	    	? IEIDLa
-	    	? IEIDa
-	    	? IEIb
+		octets
+			1 opt UDHL	Total number of Octets in UDH
+			? IEIa
+			? IEIDLa
+			? IEIDa
+			? IEIb
 		  ...
 */
 
@@ -188,179 +181,185 @@
  * TON: bit6..4: see below
  * NPI: bit3..0: see below
  * Source: https://en.wikipedia.org/wiki/GSM_03.40 */
-#define TP_A_EXT		(1 << 7)
-#define TP_A_EXT_NOEXT		(1 << 7)
-#define TP_A_TON		(7 << 4)
-#define TP_A_TON_UNKNOWN	(0 << 4)
-#define TP_A_TON_INTERNATIONAL	(1 << 4)
-#define TP_A_TON_NATIONAL	(2 << 4)
-#define TP_A_TON_NETSPECIFIC	(3 << 4)
-#define TP_A_TON_SUBSCRIBERNUM	(4 << 4)
-#define TP_A_TON_ALPHANUMERIC	(5 << 4)
-#define TP_A_TON_ABBREVIATEDNUM	(6 << 4)
-#define TP_A_TON_RESERVED	(7 << 4)
-#define TP_A_NPI		(15 << 0)
-#define TP_A_NPI_UNKNOWN	(0 << 0)
-#define TP_A_NPI_TEL_E164_E163	(1 << 0)
-#define TP_A_NPI_TELEX		(3 << 0)
-#define TP_A_NPI_SVCCENTR_SPEC1	(4 << 0)
-#define TP_A_NPI_SVCCENTR_SPEC2	(5 << 0)
-#define TP_A_NPI_NATIONALNUM	(8 << 0)
-#define TP_A_NPI_PRIVATENUM	(9 << 0)
-#define TP_A_NPI_ERMESNUM	(10 << 0)
-#define TP_A_NPI_RESERVED	(15 << 0)
-#define NUMBER_TYPE_INTERNATIONAL	(TP_A_EXT_NOEXT | TP_A_TON_INTERNATIONAL | TP_A_NPI_TEL_E164_E163) /* 0x91 */
-#define NUMBER_TYPE_NATIONAL		(TP_A_EXT_NOEXT | TP_A_TON_SUBSCRIBERNUM | TP_A_NPI_NATIONALNUM) /* 0xC8 */
-#define NUMBER_TYPE_ALPHANUMERIC	(TP_A_EXT_NOEXT | TP_A_TON_ALPHANUMERIC | TP_A_NPI_UNKNOWN) /* 0xD0 */
+#define TP_A_EXT (1 << 7)
+#define TP_A_EXT_NOEXT (1 << 7)
+#define TP_A_TON (7 << 4)
+#define TP_A_TON_UNKNOWN (0 << 4)
+#define TP_A_TON_INTERNATIONAL (1 << 4)
+#define TP_A_TON_NATIONAL (2 << 4)
+#define TP_A_TON_NETSPECIFIC (3 << 4)
+#define TP_A_TON_SUBSCRIBERNUM (4 << 4)
+#define TP_A_TON_ALPHANUMERIC (5 << 4)
+#define TP_A_TON_ABBREVIATEDNUM (6 << 4)
+#define TP_A_TON_RESERVED (7 << 4)
+#define TP_A_NPI (15 << 0)
+#define TP_A_NPI_UNKNOWN (0 << 0)
+#define TP_A_NPI_TEL_E164_E163 (1 << 0)
+#define TP_A_NPI_TELEX (3 << 0)
+#define TP_A_NPI_SVCCENTR_SPEC1 (4 << 0)
+#define TP_A_NPI_SVCCENTR_SPEC2 (5 << 0)
+#define TP_A_NPI_NATIONALNUM (8 << 0)
+#define TP_A_NPI_PRIVATENUM (9 << 0)
+#define TP_A_NPI_ERMESNUM (10 << 0)
+#define TP_A_NPI_RESERVED (15 << 0)
+#define NUMBER_TYPE_INTERNATIONAL (TP_A_EXT_NOEXT | TP_A_TON_INTERNATIONAL | TP_A_NPI_TEL_E164_E163) /* 0x91 */
+#define NUMBER_TYPE_NATIONAL (TP_A_EXT_NOEXT | TP_A_TON_SUBSCRIBERNUM | TP_A_NPI_NATIONALNUM)        /* 0xC8 */
+#define NUMBER_TYPE_ALPHANUMERIC (TP_A_EXT_NOEXT | TP_A_TON_ALPHANUMERIC | TP_A_NPI_UNKNOWN)         /* 0xD0 */
 /* maybe NUMBER_TYPE_NETWORKSHORT should be 0xB1 ??? */
-#define NUMBER_TYPE_NETWORKSHORT	(TP_A_EXT_NOEXT | TP_A_TON_NETSPECIFIC | TP_A_NPI_PRIVATENUM) /* 0xB9 */
-#define NUMBER_TYPE_UNKNOWN		(TP_A_EXT_NOEXT | TP_A_TON_UNKNOWN | TP_A_NPI_TEL_E164_E163) /* 0x81 */
+#define NUMBER_TYPE_NETWORKSHORT (TP_A_EXT_NOEXT | TP_A_TON_NETSPECIFIC | TP_A_NPI_PRIVATENUM) /* 0xB9 */
+#define NUMBER_TYPE_UNKNOWN (TP_A_EXT_NOEXT | TP_A_TON_UNKNOWN | TP_A_NPI_TEL_E164_E163)       /* 0x81 */
 
 /* Reject Duplicate */
-#define PDUTYPE_RD_SHIFT			2
-#define PDUTYPE_RD_ACCEPT			(0x00 << PDUTYPE_RD_SHIFT)
-#define PDUTYPE_RD_REJECT			(0x01 << PDUTYPE_RD_SHIFT)
+#define PDUTYPE_RD_SHIFT 2
+#define PDUTYPE_RD_ACCEPT (0x00 << PDUTYPE_RD_SHIFT)
+#define PDUTYPE_RD_REJECT (0x01 << PDUTYPE_RD_SHIFT)
 
 /* Validity Period Format */
-#define PDUTYPE_VPF_SHIFT			3
-#define PDUTYPE_VPF_NOT_PRESENT			(0x00 << PDUTYPE_VPF_SHIFT)
-#define PDUTYPE_VPF_RESERVED			(0x01 << PDUTYPE_VPF_SHIFT)
-#define PDUTYPE_VPF_RELATIVE			(0x02 << PDUTYPE_VPF_SHIFT)
-#define PDUTYPE_VPF_ABSOLUTE			(0x03 << PDUTYPE_VPF_SHIFT)
+#define PDUTYPE_VPF_SHIFT 3
+#define PDUTYPE_VPF_NOT_PRESENT (0x00 << PDUTYPE_VPF_SHIFT)
+#define PDUTYPE_VPF_RESERVED (0x01 << PDUTYPE_VPF_SHIFT)
+#define PDUTYPE_VPF_RELATIVE (0x02 << PDUTYPE_VPF_SHIFT)
+#define PDUTYPE_VPF_ABSOLUTE (0x03 << PDUTYPE_VPF_SHIFT)
 
 /* Status Report Request */
-#define PDUTYPE_SRR_SHIFT			5
-#define PDUTYPE_SRR_NOT_REQUESTED		(0x00 << PDUTYPE_SRR_SHIFT)
-#define PDUTYPE_SRR_REQUESTED			(0x01 << PDUTYPE_SRR_SHIFT)
+#define PDUTYPE_SRR_SHIFT 5
+#define PDUTYPE_SRR_NOT_REQUESTED (0x00 << PDUTYPE_SRR_SHIFT)
+#define PDUTYPE_SRR_REQUESTED (0x01 << PDUTYPE_SRR_SHIFT)
 
 /* User Data Header Indicator */
-#define PDUTYPE_UDHI_SHIFT			6
-#define PDUTYPE_UDHI_NO_HEADER			(0x00 << PDUTYPE_UDHI_SHIFT)
-#define PDUTYPE_UDHI_HAS_HEADER			(0x01 << PDUTYPE_UDHI_SHIFT)
-#define PDUTYPE_UDHI_MASK			(0x01 << PDUTYPE_UDHI_SHIFT)
-#define PDUTYPE_UDHI(pdutype)			((pdutype) & PDUTYPE_UDHI_MASK)
+#define PDUTYPE_UDHI_SHIFT 6
+#define PDUTYPE_UDHI_NO_HEADER (0x00 << PDUTYPE_UDHI_SHIFT)
+#define PDUTYPE_UDHI_HAS_HEADER (0x01 << PDUTYPE_UDHI_SHIFT)
+#define PDUTYPE_UDHI_MASK (0x01 << PDUTYPE_UDHI_SHIFT)
+#define PDUTYPE_UDHI(pdutype) ((pdutype)&PDUTYPE_UDHI_MASK)
 
 /* eply Path Parameter */
-#define PDUTYPE_RP_SHIFT			7
-#define PDUTYPE_RP_IS_NOT_SET			(0x00 << PDUTYPE_RP_SHIFT)
-#define PDUTYPE_RP_IS_SET			(0x01 << PDUTYPE_RP_SHIFT)
+#define PDUTYPE_RP_SHIFT 7
+#define PDUTYPE_RP_IS_NOT_SET (0x00 << PDUTYPE_RP_SHIFT)
+#define PDUTYPE_RP_IS_SET (0x01 << PDUTYPE_RP_SHIFT)
 
-#define PDU_MESSAGE_REFERENCE			0x00		/* assigned by MS */
+#define PDU_MESSAGE_REFERENCE 0x00 /* assigned by MS */
 
-#define PDU_PID_SMS				0x00		/* bit5 No interworking, but SME-to-SME protocol = SMS */
-#define PDU_PID_EMAIL				0x32		/* bit5 Telematic interworking, bits 4..0 0x 12  = email */
-#define PDU_PID_SMS_REPLACE_MASK		0x40		/* bit7 Replace Short Message function activated (TP-PID = 0x41 to 0x47) */
+#define PDU_PID_SMS 0x00              /* bit5 No interworking, but SME-to-SME protocol = SMS */
+#define PDU_PID_EMAIL 0x32            /* bit5 Telematic interworking, bits 4..0 0x 12  = email */
+#define PDU_PID_SMS_REPLACE_MASK 0x40 /* bit7 Replace Short Message function activated (TP-PID = 0x41 to 0x47) */
 
 /*   bits 3..2  */
-#define PDU_DCS_ALPHABET_SHIFT			2
-#define PDU_DCS_ALPHABET_7BIT			(0x00 << PDU_DCS_ALPHABET_SHIFT)
-#define PDU_DCS_ALPHABET_8BIT			(0x01 << PDU_DCS_ALPHABET_SHIFT)
-#define PDU_DCS_ALPHABET_UCS2			(0x02 << PDU_DCS_ALPHABET_SHIFT)
-#define PDU_DCS_ALPHABET_MASK			(0x03 << PDU_DCS_ALPHABET_SHIFT)
-#define PDU_DCS_ALPHABET(dcs)			((dcs) & PDU_DCS_ALPHABET_MASK)
+#define PDU_DCS_ALPHABET_SHIFT 2
+#define PDU_DCS_ALPHABET_7BIT (0x00 << PDU_DCS_ALPHABET_SHIFT)
+#define PDU_DCS_ALPHABET_8BIT (0x01 << PDU_DCS_ALPHABET_SHIFT)
+#define PDU_DCS_ALPHABET_UCS2 (0x02 << PDU_DCS_ALPHABET_SHIFT)
+#define PDU_DCS_ALPHABET_MASK (0x03 << PDU_DCS_ALPHABET_SHIFT)
+#define PDU_DCS_ALPHABET(dcs) ((dcs)&PDU_DCS_ALPHABET_MASK)
 
-#define ROUND_UP2(x)				(((x) + 1) & (0xFFFFFFFF << 1))
-#define DIV2UP(x)			(((x) + 1)/2)
+#define ROUND_UP2(x) (((x) + 1) & (0xFFFFFFFF << 1))
+#define DIV2UP(x) (((x) + 1) / 2)
 
 #define CSMS_GSM7_MAX_LEN 153
 #define SMS_GSM7_MAX_LEN 160
 #define CSMS_UCS2_MAX_LEN 67
 #define SMS_UCS2_MAX_LEN 70
 
-void pdu_udh_init(pdu_udh_t *udh)
+void pdu_udh_init(pdu_udh_t* udh)
 {
-	udh->ref = 0;
+	udh->ref   = 0;
 	udh->parts = 1;
 	udh->order = 0;
-	udh->ss = 0;
-	udh->ls = 0;
+	udh->ss    = 0;
+	udh->ls    = 0;
 }
 
 #/* get digit code, 0 if invalid  */
+
 static uint8_t pdu_digit2code(char digit)
 {
 	switch (digit) {
-	case '0':
-	case '1':
-	case '2':
-	case '3':
-	case '4':
-	case '5':
-	case '6':
-	case '7':
-	case '8':
-	case '9':
-		return digit - '0';
-	case '*':
-		return 0xa;
-	case '#':
-		return 0xb;
-	case 'a':
-	case 'A':
-		return 0xc;
-		break;
-	case 'b':
-	case 'B':
-		return 0xd;
-	case 'c':
-	case 'C':
-		return 0xe;
-	default:
-		return 255;
+		case '0':
+		case '1':
+		case '2':
+		case '3':
+		case '4':
+		case '5':
+		case '6':
+		case '7':
+		case '8':
+		case '9':
+			return digit - '0';
+		case '*':
+			return 0xa;
+		case '#':
+			return 0xb;
+		case 'a':
+		case 'A':
+			return 0xc;
+			break;
+		case 'b':
+		case 'B':
+			return 0xd;
+		case 'c':
+		case 'C':
+			return 0xe;
+		default:
+			return 255;
 	}
 }
 
 #/* */
+
 static char pdu_code2digit(uint8_t code)
 {
 	switch (code) {
-	case 0:
-	case 1:
-	case 2:
-	case 3:
-	case 4:
-	case 5:
-	case 6:
-	case 7:
-	case 8:
-	case 9:
-		return code + '0';
-	case 0xa:
-		return '*';
-	case 0xb:
-		return '#';
-	case 0xc:
-		return 'A';
-	case 0xd:
-		return 'B';
-	case 0xe:
-		return 'C';
-	default:
-		return 0;
+		case 0:
+		case 1:
+		case 2:
+		case 3:
+		case 4:
+		case 5:
+		case 6:
+		case 7:
+		case 8:
+		case 9:
+			return code + '0';
+		case 0xa:
+			return '*';
+		case 0xb:
+			return '#';
+		case 0xc:
+			return 'A';
+		case 0xd:
+			return 'B';
+		case 0xe:
+			return 'C';
+		default:
+			return 0;
 	}
 }
 
 #/* convert minutes to relative VP value */
+
 static int pdu_relative_validity(unsigned minutes)
 {
-#define DIV_UP(x,y)	(((x)+(y)-1)/(y))
-/*
-	0 ... 143  (vp + 1) * 5 minutes				   5  ...   720		m = (vp + 1) * 5		m / 5 - 1 = vp
-	144...167  12 hours + (vp - 143) * 30 minutes		 750  ...  1440		m = 720 + (vp - 143) * 30	(m - 720) / 30 + 143 = m / 30 + 119
-	168...196  (vp - 166) * 1 day				2880  ... 43200		m = (vp - 166) * 1440		(m / 1440) + 166
-	197...255  (vp - 192) * 1 week			       50400  ...635040		m = (vp - 192) * 10080		(m / 10080) + 192
-*/
+#define DIV_UP(x, y) (((x) + (y)-1) / (y))
+	/*
+		0 ... 143  (vp + 1) * 5 minutes				   5  ...   720		m = (vp + 1) * 5		m / 5 - 1 = vp
+		144...167  12 hours + (vp - 143) * 30 minutes		 750  ...  1440		m = 720 + (vp - 143) * 30	(m - 720) /
+	   30 + 143 = m / 30 + 119
+		168...196  (vp - 166) * 1 day				2880  ... 43200		m = (vp - 166) * 1440		(m / 1440) + 166
+		197...255  (vp - 192) * 1 week			       50400  ...635040		m = (vp - 192) * 10080		(m / 10080) +
+	   192
+	*/
 	int validity;
-	if(minutes <= 720)
+	if (minutes <= 720) {
 		validity = DIV_UP(minutes, 5) - 1;
-	else if(minutes <= 1440)
+	} else if (minutes <= 1440) {
 		validity = DIV_UP(minutes, 30) + 119;
-	else if(minutes <= 43200)
+	} else if (minutes <= 43200) {
 		validity = DIV_UP(minutes, 1440) + 166;
-	else if(minutes <= 635040)
+	} else if (minutes <= 635040) {
 		validity = DIV_UP(minutes, 10080) + 192;
-	else
+	} else {
 		validity = 0xFF;
+	}
 	return validity;
 #undef DIV_UP
 }
@@ -372,62 +371,53 @@ static int pdu_relative_validity(unsigned minutes)
  * \param length -- length of number
  * \return number of bytes written to buffer
  */
-static int pdu_store_number(uint8_t* buffer, int toa, const char *number, unsigned length)
+static int pdu_store_number(uint8_t* buffer, int toa, const char* number, unsigned length)
 {
-	int i = 0;
+	int i       = 0;
 	buffer[i++] = toa;
 
 	unsigned j;
 	for (j = 0; j + 1 < length; j += 2) {
 		const uint8_t a = pdu_digit2code(number[j]);
 		const uint8_t b = pdu_digit2code(number[j + 1]);
-		if (a == 255 || b == 255) {
-			return -1;
-		}
+		if (a == 255 || b == 255) { return -1; }
 		buffer[i++] = a | b << 4;
 	}
 
 	if (j != length) {
 		const uint8_t a = pdu_digit2code(number[j]);
-		if (a == 255) {
-			return -1;
-		}
+		if (a == 255) { return -1; }
 		buffer[i++] = a | 0xf0;
 	}
 	return i;
 }
 
 #/* reverse of pdu_store_number() */
-static int pdu_parse_number(uint8_t *pdu, size_t pdu_length, unsigned digits, char *number, size_t num_len)
+
+static int pdu_parse_number(uint8_t* pdu, size_t pdu_length, unsigned digits, char* number, size_t num_len)
 {
-	if (num_len < digits + 2) {
-		return -ENOMEM;
-	}
+	if (num_len < digits + 2) { return -ENOMEM; }
 	int toa;
 
-	int i = 0, res;
-	toa = pdu[i++];
+	int i         = 0, res;
+	toa           = pdu[i++];
 	unsigned syms = ROUND_UP2(digits);
-	if (syms > pdu_length - i) {
-		return -EINVAL;
-	}
+	if (syms > pdu_length - i) { return -EINVAL; }
 
 	if ((toa & TP_A_TON) == TP_A_TON_ALPHANUMERIC) {
 		uint16_t number16tmp[num_len];
 		res = gsm7_unpack_decode((const char*)(pdu + i), syms, number16tmp, num_len, 0, 0, 0);
-		if (res < 0) return -EINVAL;
+		if (res < 0) { return -EINVAL; }
 		res = ucs2_to_utf8(number16tmp, res, number, num_len);
 		i += syms / 2;
 		number += res;
 	} else {
-		if ((toa & TP_A_TON) == TP_A_TON_INTERNATIONAL) {
-			*number++ = '+';
-		}
+		if ((toa & TP_A_TON) == TP_A_TON_INTERNATIONAL) { *number++ = '+'; }
 		for (unsigned j = 0; j < syms / 2; ++j) {
-			int c = pdu[i];
+			int c     = pdu[i];
 			*number++ = pdu_code2digit(c & 0xf);
-			char o = c >> 4;
-			if (o != 0xf) *number++ = pdu_code2digit(o);
+			char o    = c >> 4;
+			if (o != 0xf) { *number++ = pdu_code2digit(o); }
 			++i;
 		}
 	}
@@ -437,27 +427,30 @@ static int pdu_parse_number(uint8_t *pdu, size_t pdu_length, unsigned digits, ch
 }
 
 #/* */
-static int pdu_parse_timestamp(uint8_t *pdu, size_t length, char *out)
+
+static int pdu_parse_timestamp(uint8_t* pdu, size_t length, char* out)
 {
 	int d, m, y, h, i, s, o, os;
 	if (length >= 7) {
-		y = (10 * (pdu[0] & 15) + (pdu[0] >> 4)) + 2000;
-		m = 10 * (pdu[1] & 15) + (pdu[1] >> 4);
-		d = 10 * (pdu[2] & 15) + (pdu[2] >> 4);
-		h = 10 * (pdu[3] & 15) + (pdu[3] >> 4);
-		i = 10 * (pdu[4] & 15) + (pdu[4] >> 4);
-		s = 10 * (pdu[5] & 15) + (pdu[5] >> 4);
-		o = (pdu[6] >> 4) + 10 * (pdu[6] & 7);
+		y  = (10 * (pdu[0] & 15) + (pdu[0] >> 4)) + 2000;
+		m  = 10 * (pdu[1] & 15) + (pdu[1] >> 4);
+		d  = 10 * (pdu[2] & 15) + (pdu[2] >> 4);
+		h  = 10 * (pdu[3] & 15) + (pdu[3] >> 4);
+		i  = 10 * (pdu[4] & 15) + (pdu[4] >> 4);
+		s  = 10 * (pdu[5] & 15) + (pdu[5] >> 4);
+		o  = (pdu[6] >> 4) + 10 * (pdu[6] & 7);
 		os = pdu[6] & 0x8;
 
-		sprintf(out, "%02d-%02d-%02d %02d:%02d:%02d %c%02d:%02d", y, m, d, h, i, s, os ? '-' : '+', o / 4, (o % 4) * 15);
+		sprintf(out, "%02d-%02d-%02d %02d:%02d:%02d %c%02d:%02d", y, m, d, h, i, s, os ? '-' : '+', o / 4,
+				(o % 4) * 15);
 
 		return 7;
 	}
 	return -1;
 }
 
-int pdu_build_mult(pdu_part_t *pdus, const char *sca, const char *dst, const uint16_t* msg, size_t msg_len, unsigned valid_minutes, int srr, uint8_t csmsref)
+int pdu_build_mult(pdu_part_t* pdus, const char* sca, const char* dst, const uint16_t* msg, size_t msg_len,
+				   unsigned valid_minutes, int srr, uint8_t csmsref)
 {
 	uint16_t msg_gsm7[msg_len];
 	int gsm7_len = gsm7_encode(msg, msg_len, msg_gsm7);
@@ -474,9 +467,7 @@ int pdu_build_mult(pdu_part_t *pdus, const char *sca, const char *dst, const uin
 			unsigned septets = 0, n;
 			for (n = 0; off + n < msg_len; ++n) {
 				unsigned req = msg_gsm7[off + n] > 255 ? 2 : 1;
-				if (septets + req >= split) {
-					break;
-				}
+				if (septets + req >= split) { break; }
 				septets += req;
 			}
 			++cnt;
@@ -491,16 +482,15 @@ int pdu_build_mult(pdu_part_t *pdus, const char *sca, const char *dst, const uin
 			unsigned septets = 0, n;
 			for (n = 0; off + n < msg_len; ++n) {
 				unsigned req = msg_gsm7[off + n] > 255 ? 2 : 1;
-				if (septets + req >= split) {
-					break;
-				}
+				if (septets + req >= split) { break; }
 				septets += req;
 			}
 			pdu_udh_t udh;
-			udh.ref = csmsref;
-			udh.order = i + 1;
-			udh.parts = cnt;
-			ssize_t curlen = pdu_build(pdus[i].buffer, PDU_LENGTH, &pdus[i].tpdu_length, sca, dst, PDU_DCS_ALPHABET_7BIT, msg_gsm7 + off, n, septets, valid_minutes, srr, &udh);
+			udh.ref        = csmsref;
+			udh.order      = i + 1;
+			udh.parts      = cnt;
+			ssize_t curlen = pdu_build(pdus[i].buffer, PDU_LENGTH, &pdus[i].tpdu_length, sca, dst,
+									   PDU_DCS_ALPHABET_7BIT, msg_gsm7 + off, n, septets, valid_minutes, srr, &udh);
 			if (curlen < 0) {
 				/* pdu_build sets chan_quectel_err */
 				return -1;
@@ -524,10 +514,11 @@ int pdu_build_mult(pdu_part_t *pdus, const char *sca, const char *dst, const uin
 			unsigned r = msg_len - off;
 			unsigned n = r < split ? r : split;
 			pdu_udh_t udh;
-			udh.ref = csmsref;
-			udh.order = i + 1;
-			udh.parts = cnt;
-			ssize_t curlen = pdu_build(pdus[i].buffer, PDU_LENGTH, &pdus[i].tpdu_length, sca, dst, PDU_DCS_ALPHABET_UCS2, msg + off, n, n * 2, valid_minutes, srr, &udh);
+			udh.ref        = csmsref;
+			udh.order      = i + 1;
+			udh.parts      = cnt;
+			ssize_t curlen = pdu_build(pdus[i].buffer, PDU_LENGTH, &pdus[i].tpdu_length, sca, dst,
+									   PDU_DCS_ALPHABET_UCS2, msg + off, n, n * 2, valid_minutes, srr, &udh);
 			if (curlen < 0) {
 				/* pdu_build sets chan_quectel_err */
 				return -1;
@@ -541,24 +532,24 @@ int pdu_build_mult(pdu_part_t *pdus, const char *sca, const char *dst, const uin
 	return i;
 }
 
-
-ssize_t pdu_build(uint8_t *buffer, size_t length, size_t *tpdulen, const char *sca, const char *dst, int dcs, const uint16_t *msg, unsigned msg_reallen, unsigned msg_len, unsigned valid_minutes, int srr, const pdu_udh_t *udh)
+ssize_t pdu_build(uint8_t* buffer, size_t length, size_t* tpdulen, const char* sca, const char* dst, int dcs,
+				  const uint16_t* msg, unsigned msg_reallen, unsigned msg_len, unsigned valid_minutes, int srr,
+				  const pdu_udh_t* udh)
 {
 	int len = 0;
 
 	int sca_toa = NUMBER_TYPE_INTERNATIONAL;
 	int dst_toa;
-	int pdutype = PDUTYPE_MTI_SMS_SUBMIT | PDUTYPE_RD_ACCEPT | PDUTYPE_VPF_RELATIVE | PDUTYPE_SRR_NOT_REQUESTED | PDUTYPE_UDHI_NO_HEADER | PDUTYPE_RP_IS_NOT_SET;
+	int pdutype = PDUTYPE_MTI_SMS_SUBMIT | PDUTYPE_RD_ACCEPT | PDUTYPE_VPF_RELATIVE | PDUTYPE_SRR_NOT_REQUESTED |
+				  PDUTYPE_UDHI_NO_HEADER | PDUTYPE_RP_IS_NOT_SET;
 	int use_udh = udh->parts > 1;
 	int res;
-	if (use_udh) pdutype |= PDUTYPE_UDHI_HAS_HEADER;
+	if (use_udh) { pdutype |= PDUTYPE_UDHI_HAS_HEADER; }
 
 	unsigned dst_len;
 	unsigned sca_len;
 
-	if (sca[0] == '+') {
-		++sca;
-	}
+	if (sca[0] == '+') { ++sca; }
 
 	if (dst[0] == '+') {
 		dst_toa = NUMBER_TYPE_INTERNATIONAL;
@@ -580,7 +571,7 @@ ssize_t pdu_build(uint8_t *buffer, size_t length, size_t *tpdulen, const char *s
 	/* Address of SMSC */
 	if (sca_len) {
 		buffer[len++] = 1 + DIV2UP(sca_len);
-		res = pdu_store_number(buffer + len, sca_toa, sca, sca_len);
+		res           = pdu_store_number(buffer + len, sca_toa, sca, sca_len);
 		if (res < 0) {
 			chan_quectel_err = E_BUILD_SCA;
 			return -1;
@@ -591,8 +582,7 @@ ssize_t pdu_build(uint8_t *buffer, size_t length, size_t *tpdulen, const char *s
 	}
 	sca_len = len;
 
-	if(srr)
-		pdutype |= PDUTYPE_SRR_REQUESTED;
+	if (srr) { pdutype |= PDUTYPE_SRR_REQUESTED; }
 
 	/* PDU-type */
 	/* TP-Message-Reference. Value will be ignored. The phone will set the number itself. */
@@ -628,7 +618,7 @@ ssize_t pdu_build(uint8_t *buffer, size_t length, size_t *tpdulen, const char *s
 		buffer[len++] = udh->ref;
 		buffer[len++] = udh->parts;
 		buffer[len++] = udh->order;
-		msg_padding = 1;
+		msg_padding   = 1;
 	}
 
 	/* TP-User-Data */
@@ -660,11 +650,11 @@ ssize_t pdu_build(uint8_t *buffer, size_t length, size_t *tpdulen, const char *s
  * \param timestamp -- 25 bytes for timestamp string
  * \return 0 on success
  */
-int pdu_parse_sca(uint8_t *pdu, size_t pdu_length, char *sca, size_t sca_len)
+int pdu_parse_sca(uint8_t* pdu, size_t pdu_length, char* sca, size_t sca_len)
 {
-	int i = 0;
+	int i          = 0;
 	int sca_digits = (pdu[i++] - 1) * 2;
-	int field_len = pdu_parse_number(pdu + i, pdu_length - i, sca_digits, sca, sca_len);
+	int field_len  = pdu_parse_number(pdu + i, pdu_length - i, sca_digits, sca, sca_len);
 	if (field_len <= 0) {
 		chan_quectel_err = E_INVALID_SCA;
 		return -1;
@@ -672,7 +662,8 @@ int pdu_parse_sca(uint8_t *pdu, size_t pdu_length, char *sca, size_t sca_len)
 	i += field_len;
 	return i;
 }
-int tpdu_parse_type(uint8_t *pdu, size_t pdu_length, int *type)
+
+int tpdu_parse_type(uint8_t* pdu, size_t pdu_length, int* type)
 {
 	if (pdu_length < 1) {
 		chan_quectel_err = E_INVALID_TPDU_TYPE;
@@ -681,7 +672,9 @@ int tpdu_parse_type(uint8_t *pdu, size_t pdu_length, int *type)
 	*type = *pdu;
 	return 1;
 }
-int tpdu_parse_status_report(uint8_t *pdu, size_t pdu_length, int *mr, char *ra, size_t ra_len, char *scts, char *dt, int *st)
+
+int tpdu_parse_status_report(uint8_t* pdu, size_t pdu_length, int* mr, char* ra, size_t ra_len, char* scts, char* dt,
+							 int* st)
 {
 	int i = 0;
 
@@ -690,7 +683,7 @@ int tpdu_parse_status_report(uint8_t *pdu, size_t pdu_length, int *mr, char *ra,
 		return -1;
 	}
 
-	*mr = pdu[i++];
+	*mr           = pdu[i++];
 	int ra_digits = pdu[i++];
 	int field_len = pdu_parse_number(pdu + i, pdu_length - i, ra_digits, ra, ra_len);
 	if (field_len < 0) {
@@ -708,7 +701,9 @@ int tpdu_parse_status_report(uint8_t *pdu, size_t pdu_length, int *mr, char *ra,
 	*st = pdu[i++];
 	return 0;
 }
-int tpdu_parse_deliver(uint8_t *pdu, size_t pdu_length, int tpdu_type, char *oa, size_t oa_len, char *scts, uint16_t *msg, pdu_udh_t *udh)
+
+int tpdu_parse_deliver(uint8_t* pdu, size_t pdu_length, int tpdu_type, char* oa, size_t oa_len, char* scts,
+					   uint16_t* msg, pdu_udh_t* udh)
 {
 	int i = 0, field_len, oa_digits, pid, dcs, alphabet, udl, udhl, msg_padding = 0;
 
@@ -751,8 +746,7 @@ int tpdu_parse_deliver(uint8_t *pdu, size_t pdu_length, int tpdu_type, char *oa,
 		/* 0x3F: gsm/umts station */
 		/* 0x40: silent sms; ME should ack but not tell the user */
 		/* 0x41..0x47: sms updates (replacing the previous sms #N) */
-		ast_log(LOG_NOTICE, "Treating TP-PID value 0x%hhx as regular SMS\n",
-			(unsigned char)pid);
+		ast_log(LOG_NOTICE, "Treating TP-PID value 0x%hhx as regular SMS\n", (unsigned char)pid);
 	}
 
 	/* http://www.etsi.org/deliver/etsi_gts/03/0338/05.00.00_60/gsmts_0338v050000p.pdf */
@@ -762,50 +756,48 @@ int tpdu_parse_deliver(uint8_t *pdu, size_t pdu_length, int tpdu_type, char *oa,
 	 * coding group which is indicated in bits 7..4. The octet is
 	 * then coded as follows: */
 	{
-		int dcs_hi = dcs >> 4;
-		int dcs_lo = dcs & 0xF;
+		int dcs_hi   = dcs >> 4;
+		int dcs_lo   = dcs & 0xF;
 		int reserved = 0;
-		alphabet = -1; /* 7bit, 8bit, ucs2 */
+		alphabet     = -1; /* 7bit, 8bit, ucs2 */
 
 		switch (dcs_hi) {
-		case 0x0: /* HIGH 0000: Regular message */
-		case 0x1: /* HIGH 0001: Regular message with class */
-		case 0x4: /* HIGH 0100: Marked for self-destruct */
-		case 0x5: /* HIGH 0101: Marked for self-destruct with class */
-		case 0xF: /* HIGH 1111: Data coding/message class */
-			/* Apparently bits 0..3 are not reserved anymore:
-			 * bits 3..2: {7bit, 8bit, ucs2, undef} */
-			alphabet = PDU_DCS_ALPHABET(dcs);
-			/* Bits 3..2 set to 11 is reserved, but
-			 * according to 3GPP TS 23.038 v14.0.0 (2017-03)
-			 * for HIGH 1111 bit 3 (regardless of bit 2) is
-			 * reserved. */
-			if (alphabet == PDU_DCS_ALPHABET_MASK) {
-				reserved = 1;
-			}
-			/* if 0x1 || 0xF then (dsc_lo & 3): {
-			 *     class0, class1-ME-specific,
-			 *     class2-SIM-specific,
-			 *     class3-TE-specific (3GPP TS 27.005)} */
-			break;
-		case 0x2: /* HIGH 0010: Compressed regular message */
-		case 0x3: /* HIGH 0011: Compressed regular with class */
-		case 0x6: /* HIGH 0110: Compressed, marked for self-destruct */
-		case 0x7: /* HIGH 0111: Compressed, marked for self-destruct with class */
-			chan_quectel_err = E_UNKNOWN;
-			return -1;
-		case 0xC: /* HIGH 1100: "Discard" MWI */
-		case 0xD: /* HIGH 1101: "Store" MWI */
-			/* if 0xC then the recipient may discard message
-			 * contents, and only show notification */
-			/*inactive_active = (dcs_lo & 8);*/
-			reserved = (dcs_lo & 4); /* bit 2 reserved */
-			/* (dsc_lo & 3): {VM, Fax, E-mail, Other} */
-			break;
-		default:
-			chan_quectel_err = E_UNKNOWN;
-			reserved = 1;
-			break;
+			case 0x0: /* HIGH 0000: Regular message */
+			case 0x1: /* HIGH 0001: Regular message with class */
+			case 0x4: /* HIGH 0100: Marked for self-destruct */
+			case 0x5: /* HIGH 0101: Marked for self-destruct with class */
+			case 0xF: /* HIGH 1111: Data coding/message class */
+				/* Apparently bits 0..3 are not reserved anymore:
+				 * bits 3..2: {7bit, 8bit, ucs2, undef} */
+				alphabet = PDU_DCS_ALPHABET(dcs);
+				/* Bits 3..2 set to 11 is reserved, but
+				 * according to 3GPP TS 23.038 v14.0.0 (2017-03)
+				 * for HIGH 1111 bit 3 (regardless of bit 2) is
+				 * reserved. */
+				if (alphabet == PDU_DCS_ALPHABET_MASK) { reserved = 1; }
+				/* if 0x1 || 0xF then (dsc_lo & 3): {
+				 *     class0, class1-ME-specific,
+				 *     class2-SIM-specific,
+				 *     class3-TE-specific (3GPP TS 27.005)} */
+				break;
+			case 0x2: /* HIGH 0010: Compressed regular message */
+			case 0x3: /* HIGH 0011: Compressed regular with class */
+			case 0x6: /* HIGH 0110: Compressed, marked for self-destruct */
+			case 0x7: /* HIGH 0111: Compressed, marked for self-destruct with class */
+				chan_quectel_err = E_UNKNOWN;
+				return -1;
+			case 0xC: /* HIGH 1100: "Discard" MWI */
+			case 0xD: /* HIGH 1101: "Store" MWI */
+				/* if 0xC then the recipient may discard message
+				 * contents, and only show notification */
+				/*inactive_active = (dcs_lo & 8);*/
+				reserved = (dcs_lo & 4); /* bit 2 reserved */
+				/* (dsc_lo & 3): {VM, Fax, E-mail, Other} */
+				break;
+			default:
+				chan_quectel_err = E_UNKNOWN;
+				reserved         = 1;
+				break;
 		}
 		if (reserved) {
 			chan_quectel_err = E_UNKNOWN;
@@ -825,10 +817,10 @@ int tpdu_parse_deliver(uint8_t *pdu, size_t pdu_length, int tpdu_type, char *oa,
 
 	/* calculate number of octets in UD */
 	int udl_nibbles = -1;
-	int udl_bytes = udl;
+	int udl_bytes   = udl;
 	if (alphabet == PDU_DCS_ALPHABET_7BIT) {
 		udl_nibbles = (udl * 7 + 3) / 4;
-		udl_bytes = (udl_nibbles + 1) / 2;
+		udl_bytes   = (udl_nibbles + 1) / 2;
 	}
 	if ((size_t)udl_bytes != pdu_length - i) {
 		chan_quectel_err = E_UNKNOWN;
@@ -868,45 +860,45 @@ int tpdu_parse_deliver(uint8_t *pdu, size_t pdu_length, int tpdu_type, char *oa,
 
 			if (iei_len >= 0 && iei_len <= udhl) {
 				switch (iei_type) {
-				case 0x00: /* Concatenated */
-					if (iei_len != 3) {
-						chan_quectel_err = E_UNKNOWN;
-						return -1;
-					}
-					udh->ref = pdu[i++];
-					udh->parts = pdu[i++];
-					udh->order = pdu[i++];
-					udhl -= 3;
-					break;
-				case 0x08: /* Concatenated, 16 bit ref */
-					if (iei_len != 4) {
-						chan_quectel_err = E_UNKNOWN;
-						return -1;
-					}
-					udh->ref = (pdu[i++] << 8);
-					udh->ref |= pdu[i++];
-					udh->parts = pdu[i++];
-					udh->order = pdu[i++];
-					udhl -= 4;
-					break;
-				case 0x24: /* National Language Single Shift */
-					if (iei_len != 1) {
-						chan_quectel_err = E_UNKNOWN;
-						return -1;
-					}
-					udh->ss = pdu[i++];
-					break;
-				case 0x25: /* National Language Single Shift */
-					if (iei_len != 1) {
-						chan_quectel_err = E_UNKNOWN;
-						return -1;
-					}
-					udh->ls = pdu[i++];
-					break;
-				default:
-					/* skip rest of IEI */
-					i += iei_len;
-					udhl -= iei_len;
+					case 0x00: /* Concatenated */
+						if (iei_len != 3) {
+							chan_quectel_err = E_UNKNOWN;
+							return -1;
+						}
+						udh->ref   = pdu[i++];
+						udh->parts = pdu[i++];
+						udh->order = pdu[i++];
+						udhl -= 3;
+						break;
+					case 0x08: /* Concatenated, 16 bit ref */
+						if (iei_len != 4) {
+							chan_quectel_err = E_UNKNOWN;
+							return -1;
+						}
+						udh->ref = (pdu[i++] << 8);
+						udh->ref |= pdu[i++];
+						udh->parts = pdu[i++];
+						udh->order = pdu[i++];
+						udhl -= 4;
+						break;
+					case 0x24: /* National Language Single Shift */
+						if (iei_len != 1) {
+							chan_quectel_err = E_UNKNOWN;
+							return -1;
+						}
+						udh->ss = pdu[i++];
+						break;
+					case 0x25: /* National Language Single Shift */
+						if (iei_len != 1) {
+							chan_quectel_err = E_UNKNOWN;
+							return -1;
+						}
+						udh->ls = pdu[i++];
+						break;
+					default:
+						/* skip rest of IEI */
+						i += iei_len;
+						udhl -= iei_len;
 				}
 			} else {
 				chan_quectel_err = E_UNKNOWN;
@@ -920,7 +912,9 @@ int tpdu_parse_deliver(uint8_t *pdu, size_t pdu_length, int tpdu_type, char *oa,
 
 	int msg_len = pdu_length - i, out_len;
 	if (alphabet == PDU_DCS_ALPHABET_7BIT) {
-		out_len = gsm7_unpack_decode((const char*)(pdu + i), udl_nibbles, msg, 1024 /* assume enough memory, as SMS messages are limited in size */, msg_padding, udh->ls, udh->ss);
+		out_len = gsm7_unpack_decode((const char*)(pdu + i), udl_nibbles, msg,
+									 1024 /* assume enough memory, as SMS messages are limited in size */, msg_padding,
+									 udh->ls, udh->ss);
 		if (out_len < 0) {
 			chan_quectel_err = E_DECODE_GSM7;
 			return -1;

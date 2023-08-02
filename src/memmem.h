@@ -13,9 +13,9 @@
 
 #else /* HAVE_MEMMEM */
 
-#include <sys/types.h>			/* size_t */
+#include <sys/types.h> /* size_t */
 
-void * memmem(const void *l, size_t l_len, const void *s, size_t s_len);
+void* memmem(const void* l, size_t l_len, const void* s, size_t s_len);
 
 #endif /* HAVE_MEMMEM */
 #endif /* CHAN_QUECTEL_MANAGER_H_INCLUDED */
