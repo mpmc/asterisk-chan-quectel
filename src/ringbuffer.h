@@ -15,27 +15,27 @@
 typedef void* (*rb_write_f)(void* s1, const void* s2, size_t n);
 
 struct ringbuffer {
-	void* buffer; /*!< pointer to data buffer */
-	size_t size;  /*!< size of buffer */
-	size_t used;  /*!< number of bytes used */
-	size_t read;  /*!< read position */
-	size_t write; /*!< write position */
+    void* buffer; /*!< pointer to data buffer */
+    size_t size;  /*!< size of buffer */
+    size_t used;  /*!< number of bytes used */
+    size_t read;  /*!< read position */
+    size_t write; /*!< write position */
 };
 
 static inline void rb_init(struct ringbuffer* rb, void* buf, size_t size)
 {
-	rb->buffer = buf;
-	rb->size   = size;
-	rb->used   = 0;
-	rb->read   = 0;
-	rb->write  = 0;
+    rb->buffer = buf;
+    rb->size   = size;
+    rb->used   = 0;
+    rb->read   = 0;
+    rb->write  = 0;
 }
 
 static inline void rb_reset(struct ringbuffer* const rb)
 {
-	rb->used  = 0;
-	rb->read  = 0;
-	rb->write = 0;
+    rb->used  = 0;
+    rb->read  = 0;
+    rb->write = 0;
 }
 
 static inline size_t rb_used(const struct ringbuffer* rb) { return rb->used; }
@@ -64,9 +64,6 @@ size_t rb_write_upd(struct ringbuffer*, size_t);
 
 size_t rb_write_core(struct ringbuffer* rb, const char* buf, size_t len, rb_write_f method);
 
-static inline size_t rb_write(struct ringbuffer* rb, const char* buf, size_t len)
-{
-	return rb_write_core(rb, buf, len, memmove);
-}
+static inline size_t rb_write(struct ringbuffer* rb, const char* buf, size_t len) { return rb_write_core(rb, buf, len, memmove); }
 
 #endif /* ____RINGBUFFER_H__ */

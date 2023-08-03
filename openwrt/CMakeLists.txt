@@ -34,6 +34,7 @@ IF(OPENWRT_PACKAGE_STANDALONE)
       PATTERN "*.c"
       PATTERN "*.h"
       PATTERN "*.in"
+      PATTERN "*.cmake"
       PATTERN "pkg-vars.cmake.in" EXCLUDE
       PATTERN "build" EXCLUDE
       PATTERN "openwrt" EXCLUDE

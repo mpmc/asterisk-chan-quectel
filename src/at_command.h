@@ -17,110 +17,110 @@
 #define AT_CMD_AS_STRING(cmd, str) str,
 
 #define AT_COMMANDS_TABLE(_)                        \
-	_(USER, "USER")                                 \
-	_(AT, "AT")                                     \
-	_(AT_FINAL, "AT")                               \
-	_(AT_A, "ATA")                                  \
-	_(AT_CCWA_STATUS, "AT+CCWA?")                   \
-	_(AT_CCWA_SET, "AT+CCWA=")                      \
-	_(AT_CFUN, "AT+CFUN")                           \
+    _(USER, "USER")                                 \
+    _(AT, "AT")                                     \
+    _(AT_FINAL, "AT")                               \
+    _(AT_A, "ATA")                                  \
+    _(AT_CCWA_STATUS, "AT+CCWA?")                   \
+    _(AT_CCWA_SET, "AT+CCWA=")                      \
+    _(AT_CFUN, "AT+CFUN")                           \
                                                     \
-	_(AT_CGMI, "AT+CGMI")                           \
-	_(AT_CGMM, "AT+CGMM")                           \
-	_(AT_CGMR, "AT+CGMR")                           \
-	_(AT_CGSN, "AT+CGSN")                           \
+    _(AT_CGMI, "AT+CGMI")                           \
+    _(AT_CGMM, "AT+CGMM")                           \
+    _(AT_CGMR, "AT+CGMR")                           \
+    _(AT_CGSN, "AT+CGSN")                           \
                                                     \
-	_(AT_CHUP, "AT+CHUP")                           \
-	_(AT_QHUP, "AT+QHUP")                           \
-	_(AT_CIMI, "AT+CIMI")                           \
-	_(AT_CPCMREG, "AT+CPCMREG?")                    \
-	_(AT_CLIR, "AT+CLIR")                           \
+    _(AT_CHUP, "AT+CHUP")                           \
+    _(AT_QHUP, "AT+QHUP")                           \
+    _(AT_CIMI, "AT+CIMI")                           \
+    _(AT_CPCMREG, "AT+CPCMREG?")                    \
+    _(AT_CLIR, "AT+CLIR")                           \
                                                     \
-	_(AT_CLVL, "AT+CLVL")                           \
-	_(AT_CMGD, "AT+CMGD")                           \
-	_(AT_CMGF, "AT+CMGF")                           \
-	_(AT_CMGR, "AT+CMGR")                           \
-	_(AT_CMGL, "AT+CMGL")                           \
+    _(AT_CLVL, "AT+CLVL")                           \
+    _(AT_CMGD, "AT+CMGD")                           \
+    _(AT_CMGF, "AT+CMGF")                           \
+    _(AT_CMGR, "AT+CMGR")                           \
+    _(AT_CMGL, "AT+CMGL")                           \
                                                     \
-	_(AT_CMGS, "AT+CMGS")                           \
-	_(AT_SMSTEXT, "SMSTEXT")                        \
-	_(AT_CNMI, "AT+CNMI")                           \
-	_(AT_CNUM, "AT+CNUM")                           \
+    _(AT_CMGS, "AT+CMGS")                           \
+    _(AT_SMSTEXT, "SMSTEXT")                        \
+    _(AT_CNMI, "AT+CNMI")                           \
+    _(AT_CNUM, "AT+CNUM")                           \
                                                     \
-	_(AT_COPS, "AT+COPS?")                          \
-	_(AT_QSPN, "AT+QSPN")                           \
-	_(AT_CSPN, "AT+CSPN")                           \
-	_(AT_COPS_INIT, "AT+COPS=")                     \
-	_(AT_CPIN, "AT+CPIN?")                          \
-	_(AT_CPMS, "AT+CPMS")                           \
+    _(AT_COPS, "AT+COPS?")                          \
+    _(AT_QSPN, "AT+QSPN")                           \
+    _(AT_CSPN, "AT+CSPN")                           \
+    _(AT_COPS_INIT, "AT+COPS=")                     \
+    _(AT_CPIN, "AT+CPIN?")                          \
+    _(AT_CPMS, "AT+CPMS")                           \
                                                     \
-	_(AT_CREG, "AT+CREG?")                          \
-	_(AT_CREG_INIT, "AT+CREG=")                     \
-	_(AT_CEREG, "AT+CEREG?")                        \
-	_(AT_CEREG_INIT, "AT+CREG=")                    \
-	_(AT_CSCS, "AT+CSCS")                           \
-	_(AT_CSQ, "AT+CSQ")                             \
-	_(AT_AUTOCSQ_INIT, "AT+AUTOCSQ=")               \
-	_(AT_EXUNSOL_INIT, "AT+EXUNSOL=")               \
-	_(AT_CLTS_INIT, "AT+CLTS=")                     \
+    _(AT_CREG, "AT+CREG?")                          \
+    _(AT_CREG_INIT, "AT+CREG=")                     \
+    _(AT_CEREG, "AT+CEREG?")                        \
+    _(AT_CEREG_INIT, "AT+CREG=")                    \
+    _(AT_CSCS, "AT+CSCS")                           \
+    _(AT_CSQ, "AT+CSQ")                             \
+    _(AT_AUTOCSQ_INIT, "AT+AUTOCSQ=")               \
+    _(AT_EXUNSOL_INIT, "AT+EXUNSOL=")               \
+    _(AT_CLTS_INIT, "AT+CLTS=")                     \
                                                     \
-	_(AT_CSSN, "AT+CSSN")                           \
-	_(AT_CUSD, "AT+CUSD")                           \
-	_(AT_CVOICE, "AT+QPCMV?")                       \
-	_(AT_D, "ATD")                                  \
+    _(AT_CSSN, "AT+CSSN")                           \
+    _(AT_CUSD, "AT+CUSD")                           \
+    _(AT_CVOICE, "AT+QPCMV?")                       \
+    _(AT_D, "ATD")                                  \
                                                     \
-	_(AT_CPCMREG1, "AT+CPCMREG=1")                  \
-	_(AT_CPCMREG0, "AT+CPCMREG=0")                  \
-	_(AT_DTMF, "AT+VTS")                            \
-	_(AT_E, "ATE")                                  \
+    _(AT_CPCMREG1, "AT+CPCMREG=1")                  \
+    _(AT_CPCMREG0, "AT+CPCMREG=0")                  \
+    _(AT_DTMF, "AT+VTS")                            \
+    _(AT_E, "ATE")                                  \
                                                     \
-	_(AT_Z, "ATZ")                                  \
-	_(AT_CMEE, "AT+CMEE")                           \
-	_(AT_CSCA, "AT+CSCA")                           \
+    _(AT_Z, "ATZ")                                  \
+    _(AT_CMEE, "AT+CMEE")                           \
+    _(AT_CSCA, "AT+CSCA")                           \
                                                     \
-	_(AT_CHLD_1x, "AT+CHLD=1x")                     \
-	_(AT_CHLD_2x, "AT+CHLD=2x")                     \
-	_(AT_CHLD_2, "AT+CHLD=2")                       \
-	_(AT_CHLD_3, "AT+CHLD=3")                       \
-	_(AT_CLCC, "AT+CLCC")                           \
-	_(AT_QINDCFG_CSQ, "AT+QINDCFG=\"csq\"")         \
-	_(AT_QINDCFG_ACT, "AT+QINDCFG=\"act\"")         \
-	_(AT_QINDCFG_RING, "AT+QINDCFG=\"ring\"")       \
-	_(AT_QINDCFG_CC, "AT+QINDCFG=\"ccinfo\",1")     \
-	_(AT_QINDCFG_CC_OFF, "AT+QINDCFG=\"ccinfo\",0") \
-	_(AT_DSCI, "AT^DSCI=1")                         \
-	_(AT_DSCI_OFF, "AT^DSCI=0")                     \
-	_(AT_CMUT_0, "AT+CMUT=0")                       \
-	_(AT_CMUT_1, "AT+CMUT=1")                       \
-	_(AT_QPCMV_0, "AT+QPCMV=0")                     \
-	_(AT_QPCMV_TTY, "AT+QPCMV=1,0")                 \
-	_(AT_QPCMV_UAC, "AT+QPCMV=1,2")                 \
-	_(AT_QTONEDET_0, "AT+QTONEDET=0")               \
-	_(AT_QTONEDET_1, "AT+QTONEDET=1")               \
-	_(AT_DDET_0, "AT+DDET=0")                       \
-	_(AT_DDET_1, "AT+DDET=1")                       \
-	_(AT_QLTS, "AT+QLTS")                           \
-	_(AT_QLTS_1, "AT+QLTS=1")                       \
-	_(AT_CCLK, "AT+CCLK")                           \
-	_(AT_QMIC, "AT+QMIC")                           \
-	_(AT_QRXGAIN, "AT+QRXGAIN")                     \
-	_(AT_CMICGAIN, "AT+CMICGAIN")                   \
-	_(AT_COUTGAIN, "AT+COUTGAIN")                   \
-	_(AT_CTXVOL, "AT+CTXVOL")                       \
-	_(AT_CRXVOL, "AT+CRXVOL")                       \
-	_(AT_CNMA, "AT+CNMA")                           \
-	_(AT_CSMS, "AT+CSMS")                           \
-	_(AT_QAUDLOOP, "AT+QAUDLOOP")                   \
-	_(AT_QAUDMOD, "AT+QAUDMOD")                     \
-	_(AT_CNSMOD_0, "AT+CNSMOD=0")                   \
-	_(AT_CNSMOD_1, "AT+CNSMOD=1")                   \
-	_(AT_CPCMFRM_8K, "AT+CPCMFRM=0")                \
-	_(AT_CPCMFRM_16K, "AT+CPCMFRM=1")               \
-	_(AT_VTD, "AT+VTD")                             \
-	_(AT_CCID, "AT+CCID")                           \
-	_(AT_CICCID, "AT+CICCID")                       \
-	_(AT_QCCID, "AT+QCCID")                         \
-	_(ESC, "ESC")
+    _(AT_CHLD_1x, "AT+CHLD=1x")                     \
+    _(AT_CHLD_2x, "AT+CHLD=2x")                     \
+    _(AT_CHLD_2, "AT+CHLD=2")                       \
+    _(AT_CHLD_3, "AT+CHLD=3")                       \
+    _(AT_CLCC, "AT+CLCC")                           \
+    _(AT_QINDCFG_CSQ, "AT+QINDCFG=\"csq\"")         \
+    _(AT_QINDCFG_ACT, "AT+QINDCFG=\"act\"")         \
+    _(AT_QINDCFG_RING, "AT+QINDCFG=\"ring\"")       \
+    _(AT_QINDCFG_CC, "AT+QINDCFG=\"ccinfo\",1")     \
+    _(AT_QINDCFG_CC_OFF, "AT+QINDCFG=\"ccinfo\",0") \
+    _(AT_DSCI, "AT^DSCI=1")                         \
+    _(AT_DSCI_OFF, "AT^DSCI=0")                     \
+    _(AT_CMUT_0, "AT+CMUT=0")                       \
+    _(AT_CMUT_1, "AT+CMUT=1")                       \
+    _(AT_QPCMV_0, "AT+QPCMV=0")                     \
+    _(AT_QPCMV_TTY, "AT+QPCMV=1,0")                 \
+    _(AT_QPCMV_UAC, "AT+QPCMV=1,2")                 \
+    _(AT_QTONEDET_0, "AT+QTONEDET=0")               \
+    _(AT_QTONEDET_1, "AT+QTONEDET=1")               \
+    _(AT_DDET_0, "AT+DDET=0")                       \
+    _(AT_DDET_1, "AT+DDET=1")                       \
+    _(AT_QLTS, "AT+QLTS")                           \
+    _(AT_QLTS_1, "AT+QLTS=1")                       \
+    _(AT_CCLK, "AT+CCLK")                           \
+    _(AT_QMIC, "AT+QMIC")                           \
+    _(AT_QRXGAIN, "AT+QRXGAIN")                     \
+    _(AT_CMICGAIN, "AT+CMICGAIN")                   \
+    _(AT_COUTGAIN, "AT+COUTGAIN")                   \
+    _(AT_CTXVOL, "AT+CTXVOL")                       \
+    _(AT_CRXVOL, "AT+CRXVOL")                       \
+    _(AT_CNMA, "AT+CNMA")                           \
+    _(AT_CSMS, "AT+CSMS")                           \
+    _(AT_QAUDLOOP, "AT+QAUDLOOP")                   \
+    _(AT_QAUDMOD, "AT+QAUDMOD")                     \
+    _(AT_CNSMOD_0, "AT+CNSMOD=0")                   \
+    _(AT_CNSMOD_1, "AT+CNSMOD=1")                   \
+    _(AT_CPCMFRM_8K, "AT+CPCMFRM=0")                \
+    _(AT_CPCMFRM_16K, "AT+CPCMFRM=1")               \
+    _(AT_VTD, "AT+VTD")                             \
+    _(AT_CCID, "AT+CCID")                           \
+    _(AT_CICCID, "AT+CICCID")                       \
+    _(AT_QCCID, "AT+QCCID")                         \
+    _(ESC, "ESC")
 
 /* AT_COMMANDS_TABLE */
 
@@ -140,8 +140,7 @@ int at_enqueue_initialization_other(struct cpvt*);
 int at_enqueue_ping(struct cpvt* cpvt);
 int at_enqueue_cspn_cops(struct cpvt* cpvt);
 int at_enqueue_qspn_qnwinfo(struct cpvt* cpvt);
-int at_enqueue_sms(struct cpvt* cpvt, const char* number, const char* msg, unsigned validity_min, int report_req,
-				   const char* payload, size_t payload_len);
+int at_enqueue_sms(struct cpvt* cpvt, const char* number, const char* msg, unsigned validity_min, int report_req, const char* payload, size_t payload_len);
 int at_enqueue_ussd(struct cpvt* cpvt, const char* code, int gsm7);
 int at_enqueue_dtmf(struct cpvt* cpvt, char digit);
 int at_enqueue_set_ccwa(struct cpvt* cpvt, unsigned call_waiting);

@@ -5,20 +5,20 @@
 #define CHAN_QUECTEL_PDISCOVERY_H_INCLUDED
 
 enum INTERFACE_TYPE {
-	INTERFACE_TYPE_DATA = 0,
-	INTERFACE_TYPE_VOICE,
-	//	INTERFACE_TYPE_COM,
-	INTERFACE_TYPE_NUMBERS,
+    INTERFACE_TYPE_DATA = 0,
+    INTERFACE_TYPE_VOICE,
+    //	INTERFACE_TYPE_COM,
+    INTERFACE_TYPE_NUMBERS,
 };
 
 struct pdiscovery_ports {
-	char* ports[INTERFACE_TYPE_NUMBERS];
+    char* ports[INTERFACE_TYPE_NUMBERS];
 };
 
 struct pdiscovery_result {
-	char* imei;
-	char* imsi;
-	struct pdiscovery_ports ports;
+    char* imei;
+    char* imsi;
+    struct pdiscovery_ports ports;
 };
 
 struct pdiscovery_cache_item;

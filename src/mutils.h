@@ -15,28 +15,27 @@
 
 static inline const char* enum2str_def(unsigned value, const char* const names[], unsigned items, const char* def)
 {
-	const char* name;
-	if (value < items) {
-		name = names[value];
-	} else {
-		name = def;
-	}
-	return name;
+    const char* name;
+    if (value < items) {
+        name = names[value];
+    } else {
+        name = def;
+    }
+    return name;
 }
 
-static inline const char* enum2str(unsigned value, const char* const names[], unsigned items)
-{
-	return enum2str_def(value, names, items, "unknown");
-}
+static inline const char* enum2str(unsigned value, const char* const names[], unsigned items) { return enum2str_def(value, names, items, "unknown"); }
 
 static inline int str2enum(const char* value, const char* const options[], unsigned items)
 {
-	unsigned index;
-	for (index = 0; index < items; index++) {
-		if (strcasecmp(value, options[index]) == 0) { return index; }
-	}
+    unsigned index;
+    for (index = 0; index < items; index++) {
+        if (strcasecmp(value, options[index]) == 0) {
+            return index;
+        }
+    }
 
-	return -1;
+    return -1;
 }
 
 #endif /* CHAN_QUECTEL_MUTILS_H_INCLUDED */

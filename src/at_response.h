@@ -12,120 +12,120 @@ struct iovec;
 #define AT_RES_AS_STRUCTLIST(res, desc, str) {RES_##res, desc, str, (sizeof(str) - 1)},
 
 #define AT_RESPONSES_TABLE(_)                          \
-	_(PARSE_ERROR, "PARSE ERROR", "")                  \
-	_(UNKNOWN, "UNK", "")                              \
+    _(PARSE_ERROR, "PARSE ERROR", "")                  \
+    _(UNKNOWN, "UNK", "")                              \
                                                        \
-	_(BOOT, "^BOOT", "^BOOT:")                         \
-	_(BUSY, "BUSY", "BUSY\r")                          \
-	_(COPS, "+COPS", "+COPS:")                         \
+    _(BOOT, "^BOOT", "^BOOT:")                         \
+    _(BUSY, "BUSY", "BUSY\r")                          \
+    _(COPS, "+COPS", "+COPS:")                         \
                                                        \
-	_(CMGR, "+CMGR", "+CMGR:")                         \
-	_(CMGL, "+CMGL", "+CMGL:")                         \
-	_(CMS_ERROR, "+CMS ERROR", "+CMS ERROR:")          \
-	_(CMTI, "+CMTI", "+CMTI:")                         \
-	_(CMT, "+CMT", "+CMT:")                            \
-	_(CDSI, "+CDSI", "+CDSI:")                         \
-	_(CDS, "+CDS", "+CDS:")                            \
-	_(CBM, "+CBM", "+CBM:")                            \
-	_(CLASS0, "+CLASS0", "+CLASS0:")                   \
+    _(CMGR, "+CMGR", "+CMGR:")                         \
+    _(CMGL, "+CMGL", "+CMGL:")                         \
+    _(CMS_ERROR, "+CMS ERROR", "+CMS ERROR:")          \
+    _(CMTI, "+CMTI", "+CMTI:")                         \
+    _(CMT, "+CMT", "+CMT:")                            \
+    _(CDSI, "+CDSI", "+CDSI:")                         \
+    _(CDS, "+CDS", "+CDS:")                            \
+    _(CBM, "+CBM", "+CBM:")                            \
+    _(CLASS0, "+CLASS0", "+CLASS0:")                   \
                                                        \
-	_(CNUM, "+CNUM", "+CNUM:")                         \
-	/* and "ERROR+CNUM:", hacked later on */           \
+    _(CNUM, "+CNUM", "+CNUM:")                         \
+    /* and "ERROR+CNUM:", hacked later on */           \
                                                        \
-	_(DSCI, "^DSCI", "^DSCI:")                         \
-	_(CEND, "^CEND", "VOICE CALL:")                    \
-	_(CPIN, "+CPIN", "+CPIN:")                         \
+    _(DSCI, "^DSCI", "^DSCI:")                         \
+    _(CEND, "^CEND", "VOICE CALL:")                    \
+    _(CPIN, "+CPIN", "+CPIN:")                         \
                                                        \
-	_(CREG, "+CREG", "+CREG:")                         \
-	_(CEREG, "+CEREG", "+CEREG:")                      \
-	_(CSQ, "+CSQ", "+CSQ:")                            \
-	_(CSQN, "+CSQN", "+CSQN:")                         \
-	_(CSSI, "+CSSI", "+CSSI:")                         \
-	_(CSSU, "+CSSU", "+CSSU:")                         \
+    _(CREG, "+CREG", "+CREG:")                         \
+    _(CEREG, "+CEREG", "+CEREG:")                      \
+    _(CSQ, "+CSQ", "+CSQ:")                            \
+    _(CSQN, "+CSQN", "+CSQN:")                         \
+    _(CSSI, "+CSSI", "+CSSI:")                         \
+    _(CSSU, "+CSSU", "+CSSU:")                         \
                                                        \
-	_(CUSD, "+CUSD", "+CUSD:")                         \
-	_(ERROR, "ERROR", "ERROR\r")                       \
-	/* and "COMMAND NOT SUPPORT\r", hacked later on */ \
+    _(CUSD, "+CUSD", "+CUSD:")                         \
+    _(ERROR, "ERROR", "ERROR\r")                       \
+    /* and "COMMAND NOT SUPPORT\r", hacked later on */ \
                                                        \
-	_(QIND, "+QIND", "+QIND:")                         \
-	_(NO_CARRIER, "NO CARRIER", "NO CARRIER\r")        \
+    _(QIND, "+QIND", "+QIND:")                         \
+    _(NO_CARRIER, "NO CARRIER", "NO CARRIER\r")        \
                                                        \
-	_(NO_DIALTONE, "NO DIALTONE", "NO DIALTONE\r")     \
-	_(NO_ANSWER, "NO ANSWER", "NO ANSWER\r")           \
-	_(OK, "OK", "OK\r")                                \
-	_(CONF, "^CONF", "MISSED_CALL:")                   \
-	_(RING, "RING", "RING\r")                          \
+    _(NO_DIALTONE, "NO DIALTONE", "NO DIALTONE\r")     \
+    _(NO_ANSWER, "NO ANSWER", "NO ANSWER\r")           \
+    _(OK, "OK", "OK\r")                                \
+    _(CONF, "^CONF", "MISSED_CALL:")                   \
+    _(RING, "RING", "RING\r")                          \
                                                        \
-	_(SMMEMFULL, "^SMMEMFULL", "^SMMEMFULL:")          \
-	_(SMS_PROMPT, "> ", "> ")                          \
-	_(SRVST, "^SRVST", "^SRVST:")                      \
+    _(SMMEMFULL, "^SMMEMFULL", "^SMMEMFULL:")          \
+    _(SMS_PROMPT, "> ", "> ")                          \
+    _(SRVST, "^SRVST", "^SRVST:")                      \
                                                        \
-	_(CVOICE, "^CVOICE", "^CVOICE:")                   \
-	_(CSMS, "+CSMS", "+CSMS:")                         \
-	_(CMGS, "+CMGS", "+CMGS:")                         \
-	_(CPMS, "+CPMS", "+CPMS:")                         \
-	_(CSCA, "+CSCA", "+CSCA:")                         \
+    _(CVOICE, "^CVOICE", "^CVOICE:")                   \
+    _(CSMS, "+CSMS", "+CSMS:")                         \
+    _(CMGS, "+CMGS", "+CMGS:")                         \
+    _(CPMS, "+CPMS", "+CPMS:")                         \
+    _(CSCA, "+CSCA", "+CSCA:")                         \
                                                        \
-	_(CLCC, "+CLCC", "+CLCC:")                         \
-	_(RCEND, "CALLEND", "REMOTE CALL END")             \
-	_(CCWA, "+CCWA", "+CCWA:")                         \
-	_(QSPN, "+QSPN", "+QSPN:")                         \
-	_(CSPN, "+CSPN", "+CSPN:")                         \
-	_(QNWINFO, "+QNWINFO", "+QNWINFO:")                \
-	_(QTONEDET, "+QTONEDET", "+QTONEDET:")             \
-	_(RXDTMF, "+RXDTMF", "+RXDTMF:")                   \
-	_(DTMF, "+DTMF", "+DTMF:")                         \
-	_(QAUDLOOP, "+QAUDLOOP", "+QAUDLOOP:")             \
-	_(QAUDMOD, "+QAUDMOD", "+QAUDMOD:")                \
-	_(QPCMV, "+QPCMV", "+QPCMV:")                      \
-	_(QLTS, "+QLTS", "+QLTS:")                         \
-	_(CCLK, "+CCLK", "+CCLK:")                         \
-	_(QMIC, "+QMIC", "+QMIC:")                         \
-	_(QRXGAIN, "+QRXGAIN", "+QRXGAIN:")                \
-	_(CMICGAIN, "+CMICGAIN", "+CMICGAIN:")             \
-	_(COUTGAIN, "+COUTGAIN", "+COUTGAIN:")             \
-	_(CTXVOL, "+CTXVOL", "+CTXVOL:")                   \
-	_(CRXVOL, "+CRXVOL", "+CRXVOL:")                   \
-	_(CGMR, "+CGMR", "+CGMR:")                         \
-	_(CPCMREG, "+CPCMREG", "+CPCMREG:")                \
-	_(CNSMOD, "+CNSMOD", "+CNSMOD:")                   \
-	_(CRING, "+CRING", "+CRING:")                      \
-	_(PSNWID, "*PSNWID", "*PSNWID:")                   \
-	_(PSUTTZ, "*PSUTTZ", "*PSUTTZ:")                   \
-	_(DST, "DST", "DST:")                              \
-	_(REVISION, "Revision", "Revision:")               \
-	_(ICCID, "+ICCID", "+ICCID:")                      \
-	_(QCCID, "+QCCID", "+QCCID:")
+    _(CLCC, "+CLCC", "+CLCC:")                         \
+    _(RCEND, "CALLEND", "REMOTE CALL END")             \
+    _(CCWA, "+CCWA", "+CCWA:")                         \
+    _(QSPN, "+QSPN", "+QSPN:")                         \
+    _(CSPN, "+CSPN", "+CSPN:")                         \
+    _(QNWINFO, "+QNWINFO", "+QNWINFO:")                \
+    _(QTONEDET, "+QTONEDET", "+QTONEDET:")             \
+    _(RXDTMF, "+RXDTMF", "+RXDTMF:")                   \
+    _(DTMF, "+DTMF", "+DTMF:")                         \
+    _(QAUDLOOP, "+QAUDLOOP", "+QAUDLOOP:")             \
+    _(QAUDMOD, "+QAUDMOD", "+QAUDMOD:")                \
+    _(QPCMV, "+QPCMV", "+QPCMV:")                      \
+    _(QLTS, "+QLTS", "+QLTS:")                         \
+    _(CCLK, "+CCLK", "+CCLK:")                         \
+    _(QMIC, "+QMIC", "+QMIC:")                         \
+    _(QRXGAIN, "+QRXGAIN", "+QRXGAIN:")                \
+    _(CMICGAIN, "+CMICGAIN", "+CMICGAIN:")             \
+    _(COUTGAIN, "+COUTGAIN", "+COUTGAIN:")             \
+    _(CTXVOL, "+CTXVOL", "+CTXVOL:")                   \
+    _(CRXVOL, "+CRXVOL", "+CRXVOL:")                   \
+    _(CGMR, "+CGMR", "+CGMR:")                         \
+    _(CPCMREG, "+CPCMREG", "+CPCMREG:")                \
+    _(CNSMOD, "+CNSMOD", "+CNSMOD:")                   \
+    _(CRING, "+CRING", "+CRING:")                      \
+    _(PSNWID, "*PSNWID", "*PSNWID:")                   \
+    _(PSUTTZ, "*PSUTTZ", "*PSUTTZ:")                   \
+    _(DST, "DST", "DST:")                              \
+    _(REVISION, "Revision", "Revision:")               \
+    _(ICCID, "+ICCID", "+ICCID:")                      \
+    _(QCCID, "+QCCID", "+QCCID:")
 
 /* AT_RESPONSES_TABLE */
 
 typedef enum {
 
-	/* Hackish way to force RES_PARSE_ERROR = -1 for compatibility */
-	COMPATIBILITY_RES_START_AT_MINUSONE = -2,
+    /* Hackish way to force RES_PARSE_ERROR = -1 for compatibility */
+    COMPATIBILITY_RES_START_AT_MINUSONE = -2,
 
-	AT_RESPONSES_TABLE(AT_RES_AS_ENUM)
+    AT_RESPONSES_TABLE(AT_RES_AS_ENUM)
 
-	/* Hackish way to maintain MAX and MIN responses for compatibility */
-	RES_MIN = RES_PARSE_ERROR,
-	RES_MAX = RES_QCCID,
+    /* Hackish way to maintain MAX and MIN responses for compatibility */
+    RES_MIN = RES_PARSE_ERROR,
+    RES_MAX = RES_QCCID,
 } at_res_t;
 
 /*! response description */
 typedef struct at_response_t {
-	at_res_t res;
-	const char* name;
-	const char* id;
-	unsigned idlen;
+    at_res_t res;
+    const char* name;
+    const char* id;
+    unsigned idlen;
 } at_response_t;
 
 /*! responses control */
 typedef struct at_responses_t {
-	const at_response_t* responses;
-	unsigned ids_first; /*!< index of first id */
-	unsigned ids;       /*!< number of ids */
-	int name_first;     /*!< value of enum for first name */
-	int name_last;      /*!< value of enum for last name */
+    const at_response_t* responses;
+    unsigned ids_first; /*!< index of first id */
+    unsigned ids;       /*!< number of ids */
+    int name_first;     /*!< value of enum for first name */
+    int name_last;      /*!< value of enum for last name */
 } at_responses_t;
 
 /*! responses description */

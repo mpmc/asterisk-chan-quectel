@@ -26,26 +26,17 @@ static inline int ast_channel_fdno(const struct ast_channel* chan) { return chan
 /* channel->tech */
 static inline const struct ast_channel_tech* ast_channel_tech(const struct ast_channel* chan) { return chan->tech; }
 
-static inline void ast_channel_tech_set(struct ast_channel* chan, const struct ast_channel_tech* value)
-{
-	chan->tech = value;
-}
+static inline void ast_channel_tech_set(struct ast_channel* chan, const struct ast_channel_tech* value) { chan->tech = value; }
 
 static inline void* ast_channel_tech_pvt(const struct ast_channel* chan) { return chan->tech_pvt; }
 
 static inline void ast_channel_tech_pvt_set(struct ast_channel* chan, void* value) { chan->tech_pvt = value; }
 
 /* ast_string_field_set(channel, language, ...) */
-static inline void ast_channel_language_set(struct ast_channel* chan, const char* value)
-{
-	ast_string_field_set(chan, language, value);
-}
+static inline void ast_channel_language_set(struct ast_channel* chan, const char* value) { ast_string_field_set(chan, language, value); }
 
 /* channel->connected */
-static inline struct ast_party_connected_line* ast_channel_connected(struct ast_channel* chan)
-{
-	return &chan->connected;
-}
+static inline struct ast_party_connected_line* ast_channel_connected(struct ast_channel* chan) { return &chan->connected; }
 
 /* channel->linkedid */
 static inline const char* ast_channel_linkedid(const struct ast_channel* chan) { return chan->linkedid; }
@@ -55,10 +46,7 @@ static inline void ast_channel_hangupcause_set(struct ast_channel* chan, int val
 
 #if ASTERISK_VERSION_NUM >= 100000 /* 10+ */
 /* channel->*format* */
-static inline struct ast_format_cap* ast_channel_nativeformats(const struct ast_channel* chan)
-{
-	return chan->nativeformats;
-}
+static inline struct ast_format_cap* ast_channel_nativeformats(const struct ast_channel* chan) { return chan->nativeformats; }
 
 static inline struct ast_format ast_channel_readformat(const struct ast_channel* chan) { return chan->readformat; }
 

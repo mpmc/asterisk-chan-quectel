@@ -20,20 +20,20 @@
 typedef enum { TRIBOOL_NONE = 0, TRIBOOL_FALSE = -1, TRIBOOL_TRUE = 1 } tristate_bool_t;
 
 typedef enum {
-	DEV_STATE_STOPPED = 0,
-	DEV_STATE_RESTARTED,
-	DEV_STATE_REMOVED,
-	DEV_STATE_STARTED,
+    DEV_STATE_STOPPED = 0,
+    DEV_STATE_RESTARTED,
+    DEV_STATE_REMOVED,
+    DEV_STATE_STARTED,
 } dev_state_t;
 
 typedef enum { CALL_WAITING_DISALLOWED = 0, CALL_WAITING_ALLOWED, CALL_WAITING_AUTO } call_waiting_t;
 
 typedef enum {
-	MESSAGE_STORAGE_AUTO = 0,
-	MESSAGE_STORAGE_SM,
-	MESSAGE_STORAGE_ME,
-	MESSAGE_STORAGE_MT,
-	MESSAGE_STORAGE_SR,
+    MESSAGE_STORAGE_AUTO = 0,
+    MESSAGE_STORAGE_SM,
+    MESSAGE_STORAGE_ME,
+    MESSAGE_STORAGE_MT,
+    MESSAGE_STORAGE_SR,
 } message_storage_t;
 
 const char* dc_cw_setting2str(call_waiting_t);
@@ -51,73 +51,73 @@ const char* dc_msgstor2str(message_storage_t);
 /*
  Config API
  Operations
-	convert from string to native
-	convent from native to string
-	get native value
-	get alternative presentation
+    convert from string to native
+    convent from native to string
+    get native value
+    get alternative presentation
 
-	set native value ?
+    set native value ?
 
-	types:
-		string of limited length
-		integer with limits
-		enum
-		boolean
+    types:
+        string of limited length
+        integer with limits
+        enum
+        boolean
 */
 
 /* Global inherited (shared) settings */
 typedef struct dc_sconfig {
-	char context[AST_MAX_CONTEXT]; /*!< the context for incoming calls; 'default '*/
-	char exten[AST_MAX_EXTENSION]; /*!< exten, not overwrite valid subscriber_number */
-	char language[MAX_LANGUAGE];   /*!< default language 'en' */
+    char context[AST_MAX_CONTEXT]; /*!< the context for incoming calls; 'default '*/
+    char exten[AST_MAX_EXTENSION]; /*!< exten, not overwrite valid subscriber_number */
+    char language[MAX_LANGUAGE];   /*!< default language 'en' */
 
-	int group;       /*!< group number for group dialling 0 */
-	int rxgain;      /*!< increase the incoming volume 0 */
-	int txgain;      /*!< increase the outgoint volume 0 */
-	int callingpres; /*!< calling presentation */
+    int group;       /*!< group number for group dialling 0 */
+    int rxgain;      /*!< increase the incoming volume 0 */
+    int txgain;      /*!< increase the outgoint volume 0 */
+    int callingpres; /*!< calling presentation */
 
-	unsigned int usecallingpres : 1; /*! -1 */
-	unsigned int autodeletesms  : 1; /*! 0 */
-	unsigned int resetquectel   : 1; /*! 1 */
-	unsigned int multiparty     : 1; /*! 0 */
-	unsigned int dtmf           : 1; /*! 0 */
-	unsigned int moh            : 1; /*! 0 */
-	unsigned int query_time     : 1; /*! 0 */
-	unsigned int dsci           : 1; /*!< use ^DSCI call state notifications */
-	unsigned int qhup           : 1; /*!< use QHUP command */
+    unsigned int usecallingpres:1; /*! -1 */
+    unsigned int autodeletesms :1; /*! 0 */
+    unsigned int resetquectel  :1; /*! 1 */
+    unsigned int multiparty    :1; /*! 0 */
+    unsigned int dtmf          :1; /*! 0 */
+    unsigned int moh           :1; /*! 0 */
+    unsigned int query_time    :1; /*! 0 */
+    unsigned int dsci          :1; /*!< use ^DSCI call state notifications */
+    unsigned int qhup          :1; /*!< use QHUP command */
 
-	long dtmf_duration;         /*! duration of DTMF in miliseconds */
-	dev_state_t initstate;      /*! DEV_STATE_STARTED */
-	call_waiting_t callwaiting; /*!< enable/disable/auto call waiting CALL_WAITING_AUTO */
+    long dtmf_duration;         /*! duration of DTMF in miliseconds */
+    dev_state_t initstate;      /*! DEV_STATE_STARTED */
+    call_waiting_t callwaiting; /*!< enable/disable/auto call waiting CALL_WAITING_AUTO */
 
-	int msg_service;
-	tristate_bool_t msg_direct;
-	message_storage_t msg_storage; /*! MESSAGE_STORAGE_AUTO */
+    int msg_service;
+    tristate_bool_t msg_direct;
+    message_storage_t msg_storage; /*! MESSAGE_STORAGE_AUTO */
 } dc_sconfig_t;
 
 /* Global settings */
 typedef struct dc_gconfig {
-	struct ast_jb_conf jbconf; /*!< jitter buffer settings, disabled by default */
-	int discovery_interval;    /*!< The device discovery interval */
+    struct ast_jb_conf jbconf; /*!< jitter buffer settings, disabled by default */
+    int discovery_interval;    /*!< The device discovery interval */
 #define DEFAULT_DISCOVERY_INT 60
-	char sms_db[PATHLEN];
+    char sms_db[PATHLEN];
 #define DEFAULT_SMS_DB ":memory:"
-	int csms_ttl;
+    int csms_ttl;
 #define DEFAULT_CSMS_TTL 600
 
 } dc_gconfig_t;
 
 /* Local required (unique) settings */
 typedef struct dc_uconfig {
-	/* unique settings */
-	char id[DEVNAMELEN];        /*!< id from quectel.conf */
-	char audio_tty[DEVPATHLEN]; /*!< tty for audio connection */
-	char data_tty[DEVPATHLEN];  /*!< tty for AT commands */
-	char imei[IMEI_SIZE + 1];   /*!< search device by imei */
-	char imsi[IMSI_SIZE + 1];   /*!< search device by imsi */
-	char alsadev[DEVNAMELEN];   /*!< ALSA audio device name */
-	tristate_bool_t uac;        /*!< handle audio by audio device (UAC) */
-	unsigned int slin16 : 1;    /*!< SLIN16 audio format */
+    /* unique settings */
+    char id[DEVNAMELEN];        /*!< id from quectel.conf */
+    char audio_tty[DEVPATHLEN]; /*!< tty for audio connection */
+    char data_tty[DEVPATHLEN];  /*!< tty for AT commands */
+    char imei[IMEI_SIZE + 1];   /*!< search device by imei */
+    char imsi[IMSI_SIZE + 1];   /*!< search device by imsi */
+    char alsadev[DEVNAMELEN];   /*!< ALSA audio device name */
+    tristate_bool_t uac;        /*!< handle audio by audio device (UAC) */
+    unsigned int slin16:1;      /*!< SLIN16 audio format */
 } dc_uconfig_t;
 
 #define DEFAULT_ALSADEV "hw:Android"
@@ -125,8 +125,8 @@ typedef struct dc_uconfig {
 
 /* all Config settings join in one place */
 typedef struct pvt_config {
-	dc_uconfig_t unique; /*!< unique settings */
-	dc_sconfig_t shared; /*!< possible inherited settings */
+    dc_uconfig_t unique; /*!< unique settings */
+    dc_sconfig_t shared; /*!< possible inherited settings */
 } pvt_config_t;
 
 #define SCONFIG(cfg, name) ((cfg)->shared.name)
