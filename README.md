@@ -43,8 +43,8 @@ Supported modules:
     | value | description |
     | :---: | ------- |
     | **none** | do not change |
-    | on | messages are received directly by `+CMT:` *URI*  |
-    | off | messages are received by `AT+CMGR` command in response to `+CMTI` *URI* |
+    | on | messages are received directly by `+CMT:` *URC*  |
+    | off | messages are received by `AT+CMGR` command in response to `+CMTI` *URC* |
 
 * New `msg_storage` option (**auto**/sm/me/mt/sr).
 
@@ -280,18 +280,38 @@ Supported modules:
     ```
 
     Additional variable `QUECTELICCID` is also defined.
+* Code (re)formatted by `clang-format` utility.
+
+    Links:
+
+    * [ClangFormat](https://clang.llvm.org/docs/ClangFormat.html),
+    * [Edit C++ in Visual Studio Code -- Code formatting](https://code.visualstudio.com/docs/cpp/cpp-ide#_code-formatting).
 
 * Using [`CMake` build system](//github.com/RoEdAl/asterisk-chan-quectel/wiki/Building).
 * Improved debug messages.
 
-    Non-printable characters are C escaped using `ast_escape_c` function. For example:
+    * Non-printable characters are C escaped using custom function based on `ast_escape_c`:
 
-    ```
-    DEBUG[11643]: at_read.c:93 at_read: [quectel0] [1][\r\n+QIND: \"csq\",27,99\r\n]
-    DEBUG[11654]: at_read.c:93 at_read: [quectel0] [1][\r\n+CPMS: 0,25,0,25,0,25\r\n\r\nOK\r\n]
-    DEBUG[11654]: at_read.c:93 at_read: [quectel0] [1][\r\n+QPCMV: 0,2\r\n\r\nOK\r\n]
-    DEBUG[13411]: at_queue.c:181 at_write: [quectel0] [AT+QSPN;+QNWINFO\r]
-    ```
+        ```
+        DEBUG[11643]: at_read.c:93 at_read: [quectel0] [1][\r\n+QIND: "csq",27,99\r\n]
+        DEBUG[11654]: at_read.c:93 at_read: [quectel0] [1][\r\n+CPMS: 0,25,0,25,0,25\r\n\r\nOK\r\n]
+        DEBUG[11654]: at_read.c:93 at_read: [quectel0] [1][\r\n+QPCMV: 0,2\r\n\r\nOK\r\n]
+        DEBUG[13411]: at_queue.c:181 at_write: [quectel0] [AT+QSPN;+QNWINFO\r]
+        ```
+
+    * Using *Unicode* characters in log messages.
+
+        Mostly arrows are used:
+
+        ```
+        DEBUG[20486]: src/at_queue.c:128 at_queue_add: [quectel0][AT+QLTS=1] ↵ [OK][AT+QLTS=1\r] after head
+        DEBUG[20486]: src/at_queue.c:336 at_queue_run: [quectel0][AT+QLTS=1] → [AT+QLTS=1\r]
+        DEBUG[20486]: src/at_response.c:2718 show_response: [quectel0][AT+QLTS=1] ← [+QLTS][+QLTS: "2000/01/01,00:00:00+00,1"]
+        DEBUG[20486]: src/at_response.c:2718 show_response: [quectel0][AT+QLTS=1] ← [OK][OK]
+        DEBUG[20486]: src/at_response.c:246 at_response_ok: [quectel0][AT+QLTS=1] ✓
+        DEBUG[20486]: src/at_queue.c:72 at_queue_remove: [quectel0][AT+QLTS=1] ↳ [OK] tasks:0 
+
+        ```
 
  * Using modern serial port locking methods:
 
@@ -299,5 +319,3 @@ Supported modules:
     * `flock(fd, LOCK_EX | LOCK_NB)`.
     
 * Many small optimizations.
-
-
