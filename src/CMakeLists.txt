@@ -44,3 +44,37 @@ INSTALL(
     DESTINATION ${CMAKE_INSTALL_FULL_SYSCONFDIR}/asterisk
     COMPONENT chan-quectel
 )
+
+# formatting targets
+IF(NOT CLANG_FORMAT OR "${CLANG_FORMAT}" STREQUAL CLANG_FORMAT-NOTFOUND)
+    MESSAGE(WARNING "Cannot create formatting targets - clang-format not found")
+ELSE()
+    ADD_CUSTOM_TARGET(asterisk-chan-quectel-code-formatter
+        COMMAND ${CLANG_FORMAT}
+            -i
+            --style=file
+            $<TARGET_PROPERTY:asterisk-chan-quectel,SOURCES>
+        WORKING_DIRECTORY
+            $<TARGET_PROPERTY:asterisk-chan-quectel,SOURCE_DIR>
+        COMMENT
+            "Formatting code"
+        COMMAND_EXPAND_LISTS
+    )
+
+    ADD_CUSTOM_TARGET(asterisk-chan-quectel-code-formatting-check
+        COMMAND ${CLANG_FORMAT}
+            --dry-run
+            --verbose
+            -i
+            --style=file
+            $<TARGET_PROPERTY:asterisk-chan-quectel,SOURCES>
+        WORKING_DIRECTORY
+            $<TARGET_PROPERTY:asterisk-chan-quectel,SOURCE_DIR>
+        COMMENT
+            "Checking code formatting"
+        COMMAND_EXPAND_LISTS
+    )
+
+    # ADD_DEPENDENCIES(asterisk-chan-quectel asterisk-chan-quectel-code-formatter)
+    # ADD_DEPENDENCIES(asterisk-chan-quectel asterisk-chan-quectel-code-formatting-check)
+ENDIF()
