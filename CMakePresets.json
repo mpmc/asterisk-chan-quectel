@@ -53,7 +53,7 @@
         },
         "CPACK_RESOURCE_FILE_LICENSE": {
           "type": "FILEPATH",
-          "value": "${sourceDir}/LICENSE.txt"
+          "value": "${sourceDir}/LICENSE.md"
         },
         "CPACK_PACKAGE_CONTACT": {
           "type": "STRING",

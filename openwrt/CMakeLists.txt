@@ -30,6 +30,7 @@ IF(OPENWRT_PACKAGE_STANDALONE)
     COMPONENT openwrt EXCLUDE_FROM_ALL
     FILES_MATCHING
       PATTERN "*.txt"
+      PATTERN "*.md"
       PATTERN "*.conf"
       PATTERN "*.c"
       PATTERN "*.h"
