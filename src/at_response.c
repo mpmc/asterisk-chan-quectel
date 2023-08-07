@@ -968,7 +968,8 @@ static int start_pbx(struct pvt* pvt, const char* number, int call_idx, call_sta
     return 0;
 }
 
-static void handle_clcc(struct pvt* pvt, unsigned call_idx, unsigned dir, unsigned state, unsigned mode, unsigned mpty, const char* number, unsigned type)
+static void handle_clcc(struct pvt* const pvt, const unsigned int call_idx, const unsigned int dir, const unsigned int state, const unsigned int mode,
+                        const tristate_bool_t mpty, const char* const number, const unsigned int type)
 {
     struct cpvt* cpvt = pvt_find_cpvt(pvt, (int)call_idx);
 
@@ -981,16 +982,15 @@ static void handle_clcc(struct pvt* pvt, unsigned call_idx, unsigned dir, unsign
             return;
         }
 
-        // mpty == 2u : ignore this flag
-        if (mpty != 2u) {
+        if (mpty) {
             if (CONF_SHARED(pvt, multiparty)) {
-                if (mpty) {
+                if (mpty > 0) {
                     CPVT_SET_FLAGS(cpvt, CALL_FLAG_MULTIPARTY);
                 } else {
                     CPVT_RESET_FLAGS(cpvt, CALL_FLAG_MULTIPARTY);
                 }
             } else {
-                if (!CPVT_TEST_FLAG(cpvt, CALL_FLAG_MULTIPARTY) && mpty) {
+                if (!CPVT_TEST_FLAG(cpvt, CALL_FLAG_MULTIPARTY) && mpty > 0) {
                     ast_log(LOG_ERROR, "[%s] Rejecting multiparty call - idx:%d\n", PVT_ID(pvt), call_idx);
                     at_enqueue_hangup(&pvt->sys_chan, call_idx, AST_CAUSE_CALL_REJECTED);
                 }
@@ -1007,10 +1007,9 @@ static void handle_clcc(struct pvt* pvt, unsigned call_idx, unsigned dir, unsign
             case CALL_STATE_DIALING:
             case CALL_STATE_ALERTING:
                 cpvt = last_initialized_cpvt(pvt);
-                // mpty == 2u : ignore this flag
-                if (mpty != 2u) {
+                if (mpty) {
                     if (!CONF_SHARED(pvt, multiparty)) {
-                        if (!CPVT_TEST_FLAG(cpvt, CALL_FLAG_MULTIPARTY) && mpty) {
+                        if (!CPVT_TEST_FLAG(cpvt, CALL_FLAG_MULTIPARTY) && mpty > 0) {
                             cpvt = NULL;
                         }
                     }
@@ -1029,10 +1028,11 @@ static void handle_clcc(struct pvt* pvt, unsigned call_idx, unsigned dir, unsign
     }
 
     if (cpvt || state == CALL_STATE_INCOMING) {
-        ast_debug(3, "[%s] CLCC idx:%u dir:%u state:%u mode:%u mpty:%u number:%s type:%u\n", PVT_ID(pvt), call_idx, dir, state, mode, mpty, number, type);
+        ast_debug(3, "[%s] CLCC idx:%u dir:%u state:%u mode:%u mpty:%s number:%s type:%u\n", PVT_ID(pvt), call_idx, dir, state, mode, dc_3stbool2str(mpty),
+                  number, type);
     } else {
-        ast_log(LOG_WARNING, "[%s] CLCC (not found) idx:%u dir:%u state:%u mode:%u mpty:%u number:%s type:%u\n", PVT_ID(pvt), call_idx, dir, state, mode, mpty,
-                number, type);
+        ast_log(LOG_WARNING, "[%s] CLCC (not found) idx:%u dir:%u state:%u mode:%u mpty:%s number:%s type:%u\n", PVT_ID(pvt), call_idx, dir, state, mode,
+                dc_3stbool2str(mpty), number, type);
     }
 
     switch (state) {
@@ -1163,7 +1163,7 @@ static int at_response_clcc(struct pvt* pvt, char* str)
             }
 
             if (process_clcc) {
-                handle_clcc(pvt, call_idx, dir, state, mode, mpty, number, type);
+                handle_clcc(pvt, call_idx, dir, state, mode, mpty ? TRIBOOL_TRUE : TRIBOOL_FALSE, number, type);
             }
         } else {
             ast_log(LOG_ERROR, "[%s] CLCC - can't parse line '%s'\n", PVT_ID(pvt), str);
@@ -1230,14 +1230,14 @@ static int at_response_dsci(struct pvt* pvt, char* str)
 
     switch (call_state) {
         case CALL_STATE_RELEASED:  // released call will not be listed by AT+CLCC command, handle directly
-            handle_clcc(pvt, call_index, call_dir, map_dsci(call_state), call_type, 2u, number, number_type);
+            handle_clcc(pvt, call_index, call_dir, map_dsci(call_state), call_type, TRIBOOL_NONE, number, number_type);
             break;
 
         default:  // request CLCC anyway
             if (CONF_SHARED(pvt, multiparty)) {
                 request_clcc(pvt);
             } else {
-                handle_clcc(pvt, call_index, call_dir, map_dsci(call_state), call_type, 2u, number, number_type);
+                handle_clcc(pvt, call_index, call_dir, map_dsci(call_state), call_type, TRIBOOL_NONE, number, number_type);
             }
             break;
     }
@@ -1316,7 +1316,7 @@ static int at_response_qind(struct pvt* pvt, char* str)
                 ast_log(LOG_ERROR, "[%s] Fail to parse CCINFO - %s\n", PVT_ID(pvt), params);
                 break;
             }
-            handle_clcc(pvt, call_idx, dir, state, mode, mpty, number, toa);
+            handle_clcc(pvt, call_idx, dir, state, mode, mpty ? TRIBOOL_TRUE : TRIBOOL_FALSE, number, toa);
             return 0;
         }
 
