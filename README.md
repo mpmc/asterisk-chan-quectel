@@ -30,7 +30,7 @@ Supported modules:
 
 * `dtmf` option is a on/**off** switch now.
 
-    DTMF detection is now performed by *Quectel* module itself (`AT+QTONEDET` or `AT+DDET` command).
+    DTMF detection is now performed by module itself (`AT+QTONEDET` or `AT+DDET` command).
 
 * New `dtmf_duration` option.
 
@@ -54,8 +54,8 @@ Supported modules:
     | :---: | ------- |
     | **auto** | do not change |
     | sm | (U)SIM message storage |
-    | *me* | mobile equipment message storage |
-    | mt | same as *me* storage |
+    | me | mobile equipment message storage |
+    | mt | same as me storage |
     | sr | SMS status report storage location |
 
 * New `msg_service` option (**-1**/0/1).
@@ -111,10 +111,11 @@ Supported modules:
    For *Quectel* modules `ccinfo` (`AT+QINDCFG="ccinfo"` command) notifications are used by default.
    You can switch back to (less efficient) `dsci` (`AT^DSCI` command) notifications if your module does not support `ccinfo` notifications.
 
+* Removed `disablesms` option.
 * `smsdb` option in `[general]` section defaulted to `:memory:`
 
-    Internal *SQLite3* database now is stored in memory by default.
-    You can specify full path to database file but it is **not recommended**.
+    Internal *SQLite3* database is stored in memory by default now.\
+    You can still put database into a file by specyfying its full path (not recommended).
 
     See also: [SQLIte3: In-Memory Databases](//www.sqlite.org/inmemorydb.html).
 
@@ -171,7 +172,6 @@ Supported modules:
     Subscriber Number       : Unknown
     SMS Service Center      : +99000111222
     Module Time             : 2000/01/01,00:00:00+08,1
-    Use UCS-2 encoding      : Yes
     Tasks in queue          : 0
     Commands in queue       : 0
     Call Waiting            : Disabled
@@ -191,14 +191,15 @@ Supported modules:
 
     Some of theese fields are constantly updated via `act` and `csq` notifications (see `AT+QINDCFG` command).
 
-    Additional channel vaiables are also defined:
+    Additional channel variables are also defined:
     
-    - `QUECTELNETWORKNAME`
-    - `QUECTELSHORTNETWORKNAME`
-    - `QUECTELPROVIDER`
-    - `QUECTELPLMN`
-    - `QUECTELMCC`
-    - `QUECTELMNC`
+    - `QUECTELNETWORKNAME`,
+    - `QUECTELSHORTNETWORKNAME`,
+    - `QUECTELPROVIDER`,
+    - `QUECTELPLMN`,
+    - `QUECTELMCC`,
+    - `QUECTELMNC`,
+    - `QUECTELICCID`.
 
     `PLMN` (*Public Land Mobile Network Code*) combines `MCC` (*Mobile Country Code*) and `MNC` (*Mobile Network Code*).
 
@@ -250,7 +251,7 @@ Supported modules:
 
 ## Internal
 
-* `UCS-2` encoding is mandatory now.
+* *UCS-2* encoding is mandatory now.
 * Call handling is based on automatic call status contifications.
 
     * For *Quectel* modules `ccinfo` (default) or `dsci` notifications are used.
