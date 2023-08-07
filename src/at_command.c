@@ -641,7 +641,7 @@ int at_enqueue_dtmf(struct cpvt* cpvt, char digit)
 }
 
 /*!
- * \brief Enqueue the AT+CCWA command (disable call waiting)
+ * \brief Enqueue the AT+CCWA command (configure call waiting)
  * \param cpvt -- cpvt structure
  * \return 0 on success
  */

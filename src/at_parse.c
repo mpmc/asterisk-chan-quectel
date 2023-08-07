@@ -308,7 +308,7 @@ int at_parse_qnwinfo(char* str, int* act, int* oper, char** band, int* channel)
  * \retval  0 success
  * \retval -1 parse error
  */
-int at_parse_creg(char* str, unsigned, int* gsm_reg, int* gsm_reg_status, char** lac, char** ci, int* act)
+int at_parse_creg(char* str, int* gsm_reg, int* gsm_reg_status, char** lac, char** ci, int* act)
 {
     char* gsm_reg_str = NULL;
 
@@ -854,7 +854,7 @@ int at_parse_cusd(char* str, int* type, char** cusd, int* dcs)
  * \return -1 on error (parse error) or card lock
  */
 
-int at_parse_cpin(char* str, size_t len)
+int at_parse_cpin(const char* str, const size_t len)
 {
     static const struct {
         const char* value;
@@ -865,10 +865,9 @@ int at_parse_cpin(char* str, size_t len)
         {"SIM PUK", 7},
     };
 
-    unsigned idx;
-    for (idx = 0; idx < ITEMS_OF(resp); idx++) {
-        if (memmem(str, len, resp[idx].value, resp[idx].length) != NULL) {
-            return idx;
+    for (unsigned int idx = 0; idx < ITEMS_OF(resp); ++idx) {
+        if (memmem(str, len, resp[idx].value, resp[idx].length)) {
+            return (int)idx;
         }
     }
     return -1;
@@ -1115,7 +1114,7 @@ int at_parse_clcc(char* str, unsigned* call_idx, unsigned* dir, unsigned* state,
 
 #/* */
 
-int at_parse_ccwa(char* str, unsigned* class)
+int at_parse_ccwa(char* str, ccwa_variant_t* variant, unsigned int* status /* or type */, unsigned int* class)
 {
     /*
      * CCWA may be in form:
@@ -1133,13 +1132,34 @@ int at_parse_ccwa(char* str, unsigned* class)
     char* marks[STRLEN(delimiters)];
 
     /* parse URC only here */
-    if (mark_line(str, delimiters, marks) == ITEMS_OF(marks)) {
-        if (sscanf(marks[2] + 1, "%u", class) == 1) {
-            return 0;
-        }
+    const int res = mark_line(str, delimiters, marks);
+    switch (res) {
+        case ITEMS_OF(marks):
+            trim_line(marks, res);
+            if (!sscanf(marks[1] + 1, "%u", status) || !sscanf(marks[2] + 1, "%u", class)) {
+                return -1;
+            }
+            *variant = CCWA_VARIANT_URC;
+            break;
+
+        case ITEMS_OF(marks) - 1u:
+            trim_line(marks, res);
+            if (!sscanf(marks[0] + 1, "%u", status) || !sscanf(marks[1] + 1, "%u", class)) {
+                return -1;
+            }
+            *variant = CCWA_VARIANT_STATUS_AND_CLASS;
+            break;
+
+        case ITEMS_OF(marks) - 2u:
+            trim_line(marks, res);
+            if (!sscanf(marks[0] + 1, "%u", status)) {
+                return -1;
+            }
+            *variant = CCWA_VARIANT_PRESENTATION_FLAG;
+            break;
     }
 
-    return -1;
+    return 0;
 }
 
 int at_parse_qtonedet(const char* str, int* dtmf)

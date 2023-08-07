@@ -132,6 +132,6 @@ typedef struct at_responses_t {
 extern const at_responses_t at_responses;
 const char* at_res2str(at_res_t res);
 
-int at_response(struct pvt* pvt, const struct ast_str* const result, at_res_t at_res);
+int at_response(struct pvt* const pvt, const struct ast_str* const result, const at_res_t at_res);
 
 #endif /* CHAN_QUECTEL_AT_RESPONSE_H_INCLUDED */
