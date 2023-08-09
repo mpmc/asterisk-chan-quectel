@@ -2014,6 +2014,7 @@ static int at_response_csq(struct pvt* const pvt, const struct ast_str* const re
 static int at_response_csqn(struct pvt* const pvt, const struct ast_str* const response)
 {
     int rssi, ber;
+
     if (at_parse_csqn(ast_str_buffer(response), &rssi, &ber)) {
         ast_log(LOG_ERROR, "[%s] Error parsing '%s'\n", PVT_ID(pvt), ast_str_buffer(response));
         return -1;
@@ -2041,6 +2042,7 @@ static int at_response_cnum(struct pvt* const pvt, const struct ast_str* const r
     if (ast_strlen_zero(number)) {
         ast_string_field_set(pvt, subscriber_number, NULL);
         pvt->has_subscriber_number = 0;
+        ast_debug(1, "[%s] Empty subsciber number\n", PVT_ID(pvt));
         return -1;
     }
 
@@ -2060,15 +2062,15 @@ static int at_response_cnum(struct pvt* const pvt, const struct ast_str* const r
 
 static int at_response_cops(struct pvt* const pvt, const struct ast_str* const response)
 {
-    const char* const operator= at_parse_cops(ast_str_buffer(response));
+    const char* const network_name = at_parse_cops(ast_str_buffer(response));
 
-    if (!operator) {
-        ast_string_field_set(pvt, provider_name, "NONE");
-        ast_verb(1, "[%s] Operator: %s\n", PVT_ID(pvt), pvt->network_name);
+    if (ast_strlen_zero(network_name)) {
+        ast_string_field_set(pvt, network_name, "NONE");
+        ast_verb(2, "[%s] Operator: %s\n", PVT_ID(pvt), pvt->network_name);
         return -1;
     }
 
-    ast_string_field_set(pvt, network_name, operator);
+    ast_string_field_set(pvt, network_name, network_name);
     ast_verb(1, "[%s] Operator: %s\n", PVT_ID(pvt), pvt->network_name);
     return 0;
 }
@@ -2568,6 +2570,7 @@ static int at_response_csms(struct pvt*, const struct ast_str* const)
 static int at_response_qaudloop(struct pvt* const pvt, const struct ast_str* const response)
 {
     int aloop;
+
     if (at_parse_qaudloop(ast_str_buffer(response), &aloop)) {
         ast_log(LOG_ERROR, "[%s] Error parsing '%s'\n", PVT_ID(pvt), ast_str_buffer(response));
         return -1;
@@ -2626,6 +2629,7 @@ static int at_response_cpcmreg(struct pvt* const pvt, const struct ast_str* cons
 static int at_response_cnsmod(struct pvt* const pvt, const struct ast_str* const response)
 {
     int act;
+
     if (at_parse_cnsmod(ast_str_buffer(response), &act)) {
         ast_log(LOG_ERROR, "[%s] Error parsing '%s'\n", PVT_ID(pvt), ast_str_buffer(response));
         return -1;
