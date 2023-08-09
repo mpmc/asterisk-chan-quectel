@@ -1452,6 +1452,56 @@ int at_parse_psnwid(char* str, int* mcc, int* mnc, char** fnn, char** snn)
     return 0;
 }
 
+int at_parse_ciev_10(char* str, int* plmn, char** fnn, char** snn)
+{
+    /*
+        SimCOM800 specific - not documented.
+
+        Examples:
+
+        +CIEV: 10,"26003","Orange","Orange", 0, 0
+    */
+
+    static char delimiters[] = ":,,,,,";
+    char* marks[STRLEN(delimiters)];
+
+    if (mark_line(str, delimiters, marks) != ITEMS_OF(marks)) {
+        return -1;
+    }
+
+    trim_line(marks, ITEMS_OF(marks));
+
+    char* ind_str = ast_skip_blanks(marks[0] + 1);
+    ind_str       = strip_quoted(ind_str);
+
+    char* plmn_str = ast_skip_blanks(marks[1] + 1);
+    plmn_str       = strip_quoted(plmn_str);
+
+    char* fnn_str = ast_skip_blanks(marks[2] + 1);
+    fnn_str       = strip_quoted(fnn_str);
+
+    char* snn_str = ast_skip_blanks(marks[3] + 1);
+    snn_str       = strip_quoted(snn_str);
+
+    const long ind = strtoul(ind_str, NULL, 10);
+    if (errno == ERANGE) {
+        return -1;
+    }
+
+    if (ind != 10) {  // the only known indicator
+        return -1;
+    }
+
+    *plmn = (int)strtoul(plmn_str, NULL, 10);
+    if (errno == ERANGE) {
+        return -1;
+    }
+
+    *fnn = fnn_str;
+    *snn = snn_str;
+    return 0;
+}
+
 int at_parse_psuttz(char* str, int* year, int* month, int* day, int* hour, int* min, int* sec, int* tz, int* dst)
 {
     /*

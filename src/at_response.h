@@ -95,7 +95,8 @@ struct iovec;
     _(DST, "DST", "DST:")                              \
     _(REVISION, "Revision", "Revision:")               \
     _(ICCID, "+ICCID", "+ICCID:")                      \
-    _(QCCID, "+QCCID", "+QCCID:")
+    _(QCCID, "+QCCID", "+QCCID:")                      \
+    _(CIEV, "+CIEV", "+CIEV:")
 
 /* AT_RESPONSES_TABLE */
 
@@ -108,7 +109,7 @@ typedef enum {
 
     /* Hackish way to maintain MAX and MIN responses for compatibility */
     RES_MIN = RES_PARSE_ERROR,
-    RES_MAX = RES_QCCID,
+    RES_MAX = RES_CIEV,
 } at_res_t;
 
 /*! response description */

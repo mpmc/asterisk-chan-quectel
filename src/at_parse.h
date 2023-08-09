@@ -66,6 +66,7 @@ int at_parse_cpcmreg(const char*, int*);
 int at_parse_cnsmod(char*, int*);
 int at_parse_cring(char*, char**);
 int at_parse_psnwid(char*, int*, int*, char**, char**);
+int at_parse_ciev_10(char*, int*, char**, char**);
 int at_parse_psuttz(char*, int*, int*, int*, int*, int*, int*, int*, int*);
 int at_parse_revision(char*, char**);
 int at_parse_xccid(char*, char**);

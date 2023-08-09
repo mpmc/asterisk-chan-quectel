@@ -2687,6 +2687,26 @@ static int at_response_psnwid(struct pvt* const pvt, const struct ast_str* const
     return 0;
 }
 
+static int at_response_ciev(struct pvt* const pvt, const struct ast_str* const response)
+{
+    int plmn;
+    char *fnn, *snn;
+
+    if (at_parse_ciev_10(ast_str_buffer(response), &plmn, &fnn, &snn)) {
+        ast_log(LOG_ERROR, "[%s] Error parsing '%s', ignoring\n", PVT_ID(pvt), ast_str_buffer(response));
+        return 0;
+    }
+
+    ast_string_field_set(pvt, network_name, fnn);
+    ast_string_field_set(pvt, short_network_name, snn);
+    pvt->operator= plmn;
+
+    ast_verb(1, "[%s] Operator: %s/%s\n", PVT_ID(pvt), pvt->network_name, pvt->short_network_name);
+    ast_verb(1, "[%s] Registered PLMN: %d\n", PVT_ID(pvt), pvt->operator);
+
+    return 0;
+}
+
 static int at_response_psuttz(struct pvt* const pvt, const struct ast_str* const response)
 {
     int year, month, day, hour, min, sec, dst, time_zone;
@@ -2987,6 +3007,9 @@ int at_response(struct pvt* const pvt, const struct ast_str* const response, con
 
         case RES_PSNWID:
             return at_response_psnwid(pvt, response);
+
+        case RES_CIEV:
+            return at_response_ciev(pvt, response);
 
         case RES_PSUTTZ:
             return at_response_psuttz(pvt, response);
