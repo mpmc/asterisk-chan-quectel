@@ -53,18 +53,21 @@ const char* at_cmd2str(at_cmd_t cmd)
  * \return 0 on success
  */
 
-static int at_fill_generic_cmd_va(at_queue_cmd_t* cmd, const char* format, va_list ap)
+static int __attribute__((format(printf, 2, 0))) at_fill_generic_cmd_va(at_queue_cmd_t* cmd, const char* format, va_list ap)
 {
-    char buf[4096];
+    static const ssize_t AT_CMD_LEN     = 32;
+    static const ssize_t MAX_AT_CMD_LEN = 4096;
 
-    cmd->length = vsnprintf(buf, sizeof(buf) - 1, format, ap);
+    struct ast_str* cmdstr = ast_str_alloca(AT_CMD_LEN);
+    ast_str_set_va(&cmdstr, MAX_AT_CMD_LEN, format, ap);
+    const size_t cmdlen = ast_str_strlen(cmdstr);
 
-    buf[cmd->length] = 0;
-    cmd->data        = ast_strdup(buf);
-    if (!cmd->data) {
+    if (!cmdlen) {
         return -1;
     }
 
+    cmd->data   = ast_strndup(ast_str_buffer(cmdstr), cmdlen);
+    cmd->length = (unsigned int)cmdlen;
     cmd->flags &= ~ATQ_CMD_FLAG_STATIC;
     return 0;
 }
@@ -79,10 +82,9 @@ static int at_fill_generic_cmd_va(at_queue_cmd_t* cmd, const char* format, va_li
 static int __attribute__((format(printf, 2, 3))) at_fill_generic_cmd(at_queue_cmd_t* cmd, const char* format, ...)
 {
     va_list ap;
-    int rv;
 
     va_start(ap, format);
-    rv = at_fill_generic_cmd_va(cmd, format, ap);
+    const int rv = at_fill_generic_cmd_va(cmd, format, ap);
     va_end(ap);
 
     return rv;
@@ -100,17 +102,18 @@ static int __attribute__((format(printf, 2, 3))) at_fill_generic_cmd(at_queue_cm
 static int __attribute__((format(printf, 4, 5))) at_enqueue_generic(struct cpvt* cpvt, at_cmd_t cmd, int prio, const char* format, ...)
 {
     va_list ap;
-    int rv;
+
     at_queue_cmd_t at_cmd = ATQ_CMD_DECLARE_DYN(cmd);
 
     va_start(ap, format);
-    rv = at_fill_generic_cmd_va(&at_cmd, format, ap);
+    const int rv = at_fill_generic_cmd_va(&at_cmd, format, ap);
     va_end(ap);
 
-    if (!rv) {
-        rv = at_queue_insert(cpvt, &at_cmd, 1, prio);
+    if (rv) {
+        return rv;
     }
-    return rv;
+
+    return at_queue_insert(cpvt, &at_cmd, 1, prio);
 }
 
 int at_enqueue_at(struct cpvt* cpvt)
