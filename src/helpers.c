@@ -524,7 +524,7 @@ static char* escape_c(char* dest, const char* s, size_t size)
     return dest;
 }
 
-static size_t get_esc_str_buffer_size(size_t len) { return (len * 2u) + 1u; }
+size_t attribute_pure get_esc_str_buffer_size(size_t len) { return (len * 2u) + 1u; }
 
 struct ast_str* escape_nstr(const char* buf, size_t cnt)
 {
@@ -550,6 +550,26 @@ struct ast_str* escape_nstr(const char* buf, size_t cnt)
     return ebuf;
 }
 
+const char* escape_nstr_ex(struct ast_str* ebuf, const char* buf, size_t cnt)
+{
+    if (!cnt) {
+        ast_str_reset(ebuf);
+        return ast_str_buffer(ebuf);
+    }
+
+    // build null-terminated string
+    struct ast_str* nbuf = ast_str_create(cnt + 1u);
+    memcpy(ast_str_buffer(nbuf), buf, cnt);
+    *(ast_str_buffer(nbuf) + cnt) = '\000';
+    nbuf->used                    = cnt;
+    // ast_str_update(nbuf);
+
+    // unescape string
+    const char* const res = escape_str_ex(ebuf, nbuf);
+    ast_free(nbuf);
+    return res;
+}
+
 struct ast_str* escape_str(const struct ast_str* const str)
 {
     if (!str || !ast_str_strlen(str)) {
@@ -564,4 +584,15 @@ struct ast_str* escape_str(const struct ast_str* const str)
     ast_str_update(ebuf);
 
     return ebuf;
+}
+
+const char* escape_str_ex(struct ast_str* ebuf, const struct ast_str* const str)
+{
+    const size_t len = ast_str_strlen(str);
+    if (ast_str_make_space(&ebuf, get_esc_str_buffer_size(len))) {
+        return ast_str_buffer(str);
+    }
+    escape_c(ast_str_buffer(ebuf), ast_str_buffer(str), ast_str_size(ebuf));
+    ast_str_update(ebuf);
+    return ast_str_buffer(ebuf);
 }

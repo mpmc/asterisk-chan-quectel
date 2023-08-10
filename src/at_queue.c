@@ -124,10 +124,8 @@ at_queue_task_t* at_queue_add(struct cpvt* cpvt, const at_queue_cmd_t* cmds, uns
             PVT_STAT(pvt, at_cmds) += cmdsno;
 
             if (e->cmdsno == 1u) {
-                struct ast_str* const ecmd = escape_nstr(e->cmds[0].data, e->cmds[0].length);
-                ast_debug(4, "[%s][%s] \xE2\x86\xB5 [%s][%s] %s\n", PVT_ID(pvt), at_cmd2str(e->cmds[0].cmd), at_res2str(e->cmds[0].res), ast_str_buffer(ecmd),
-                          prio ? "after head" : "at tail");
-                ast_free(ecmd);
+                ast_debug(4, "[%s][%s] \xE2\x86\xB5 [%s][%s] %s\n", PVT_ID(pvt), at_cmd2str(e->cmds[0].cmd), at_res2str(e->cmds[0].res),
+                          tmp_esc_nstr(e->cmds[0].data, e->cmds[0].length), prio ? "after head" : "at tail");
             } else {
                 ast_debug(4, "[%s][%s] \xE2\x86\xB5 [%s] cmds:%u %s\n", PVT_ID(pvt), at_cmd2str(e->cmds[0].cmd), at_res2str(e->cmds[0].res), e->cmdsno,
                           prio ? "after head" : "at tail");
@@ -193,11 +191,7 @@ size_t write_all(int fd, const char* buf, size_t count)
 
 int at_write(struct pvt* pvt, const char* buf, size_t count)
 {
-    if (DEBUG_ATLEAST(5)) {
-        struct ast_str* const ebuf = escape_nstr(buf, count);
-        ast_debug(5, "[%s] [%s]\n", PVT_ID(pvt), ast_str_buffer(ebuf));
-        ast_free(ebuf);
-    }
+    ast_debug(5, "[%s] [%s]\n", PVT_ID(pvt), tmp_esc_nstr(buf, count));
 
     const size_t wrote = write_all(pvt->data_fd, buf, count);
     PVT_STAT(pvt, d_write_bytes) += wrote;
@@ -302,20 +296,14 @@ int at_queue_run(struct pvt* pvt)
             ast_str_append_substr(&buf, buflen, (i < (t->cmdsno - 1u)) ? ";" : "\r", 1);
         }
 
-        if (DEBUG_ATLEAST(2)) {
-            // U+2192 : Rightwards arrow : 0xE2 0x86 0x92
-            struct ast_str* const ebuf = escape_str(buf);
-            ast_debug(2, "[%s][%s] \xE2\x86\x92 [%s]\n", PVT_ID(pvt), at_cmd2str(t->cmds[0].cmd), ast_str_buffer(ebuf));
-            ast_free(ebuf);
-        }
+        // U+2192 : Rightwards arrow : 0xE2 0x86 0x92
+        ast_debug(2, "[%s][%s] \xE2\x86\x92 [%s]\n", PVT_ID(pvt), at_cmd2str(t->cmds[0].cmd), tmp_esc_str(buf));
+
 
         fail = at_write(pvt, ast_str_buffer(buf), ast_str_strlen(buf));
         if (fail) {
             // U+2947 : Rightwards Arrow Through X : 0xE2 0xA5 0x87
-            struct ast_str* const ebuf = escape_str(buf);
-            ast_log(LOG_WARNING, "[%s][%s] \xE2\xA5\x87 [%s]\n", PVT_ID(pvt), at_cmd2str(t->cmds[0].cmd), ast_str_buffer(ebuf));
-            ast_free(ebuf);
-
+            ast_log(LOG_WARNING, "[%s][%s] \xE2\xA5\x87 [%s]\n", PVT_ID(pvt), at_cmd2str(t->cmds[0].cmd), tmp_esc_str(buf));
             at_queue_remove_task_at_once(pvt);
         } else {
             for (unsigned i = 0; i < t->cmdsno; ++i) {
@@ -331,18 +319,11 @@ int at_queue_run(struct pvt* pvt)
             return fail;
         }
 
-        if (DEBUG_ATLEAST(2)) {
-            struct ast_str* const ebuf = escape_nstr(cmd->data, cmd->length);
-            ast_debug(2, "[%s][%s] \xE2\x86\x92 [%s]\n", PVT_ID(pvt), at_cmd2str(cmd->cmd), ast_str_buffer(ebuf));
-            ast_free(ebuf);
-        }
+        ast_debug(2, "[%s][%s] \xE2\x86\x92 [%s]\n", PVT_ID(pvt), at_cmd2str(cmd->cmd), tmp_esc_nstr(cmd->data, cmd->length));
 
         fail = at_write(pvt, cmd->data, cmd->length);
         if (fail) {
-            struct ast_str* const ebuf = escape_nstr(cmd->data, cmd->length);
-            ast_log(LOG_ERROR, "[%s][%s] \xE2\xA5\x87 [%s]\n", PVT_ID(pvt), at_cmd2str(cmd->cmd), ast_str_buffer(ebuf));
-            ast_free(ebuf);
-
+            ast_log(LOG_ERROR, "[%s][%s] \xE2\xA5\x87 [%s]\n", PVT_ID(pvt), at_cmd2str(cmd->cmd), tmp_esc_nstr(cmd->data, cmd->length));
             at_queue_remove_cmd(pvt, cmd->res + 1);
         } else {
             /* set expire time */
@@ -394,19 +375,13 @@ int at_queue_run_immediately(struct pvt* pvt)
         }
     }
 
-    if (DEBUG_ATLEAST(2)) {
-        // U+21D2 : Rightwards Double Arrow : 0xE2 0x87 0x92
-        struct ast_str* const ebuf = escape_str(buf);
-        ast_debug(2, "[%s] \xE2\x87\x92 [%s]\n", PVT_ID(pvt), ast_str_buffer(ebuf));
-        ast_free(ebuf);
-    }
+    // U+21D2 : Rightwards Double Arrow : 0xE2 0x87 0x92
+    ast_debug(2, "[%s] \xE2\x87\x92 [%s]\n", PVT_ID(pvt), tmp_esc_str(buf));
 
     fail = at_write(pvt, ast_str_buffer(buf), ast_str_strlen(buf));
     if (fail) {
         // U+21CF : Rightwards Double Arrow with Stroke : 0xE2 0x87 0x8F
-        struct ast_str* const ebuf = escape_str(buf);
-        ast_log(LOG_WARNING, "[%s] \xE2\x87\x8F [%s]\n", PVT_ID(pvt), ast_str_buffer(ebuf));
-        ast_free(ebuf);
+        ast_log(LOG_WARNING, "[%s] \xE2\x87\x8F [%s]\n", PVT_ID(pvt), tmp_esc_str(buf));
     }
 
     ast_free(buf);

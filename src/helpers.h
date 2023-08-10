@@ -38,7 +38,25 @@ struct ast_str* const gain2str(int);
 int str2gain_simcom(const char*, int*);
 struct ast_str* const gain2str_simcom(int);
 
+size_t attribute_pure get_esc_str_buffer_size(size_t);
 struct ast_str* escape_nstr(const char*, size_t);
 struct ast_str* escape_str(const struct ast_str* const);
+
+const char* escape_nstr_ex(struct ast_str*, const char*, size_t);
+const char* escape_str_ex(struct ast_str*, const struct ast_str* const);
+
+#define tmp_esc_str(str)                                                         \
+    ({                                                                           \
+        const size_t STR_TMP_LEN = get_esc_str_buffer_size(ast_str_strlen(str)); \
+        struct ast_str* STR_TMP  = ast_str_alloca(STR_TMP_LEN);                  \
+        escape_str_ex(STR_TMP, str);                                             \
+    })
+
+#define tmp_esc_nstr(str, len)                                   \
+    ({                                                           \
+        const size_t STR_TMP_LEN = get_esc_str_buffer_size(len); \
+        struct ast_str* STR_TMP  = ast_str_alloca(STR_TMP_LEN);  \
+        escape_nstr_ex(STR_TMP, str, len);                       \
+    })
 
 #endif /* CHAN_QUECTEL_HELPERS_H_INCLUDED */

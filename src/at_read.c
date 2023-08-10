@@ -37,12 +37,12 @@
 
 int at_wait(int fd, int* ms)
 {
-    int exception, outfd;
+    int exception;
 
-    outfd = ast_waitfor_n_fd(&fd, 1, ms, &exception);
+    const int outfd = ast_waitfor_n_fd(&fd, 1, ms, &exception);
 
     if (outfd < 0) {
-        outfd = 0;
+        return 0;
     }
 
     return outfd;
@@ -53,11 +53,10 @@ int at_wait(int fd, int* ms)
 ssize_t at_read(int fd, const char* dev, struct ringbuffer* rb)
 {
     struct iovec iov[2];
-    int iovcnt;
     ssize_t n = -1;
 
     /* TODO: read until major error */
-    iovcnt = rb_write_iov(rb, iov);
+    int iovcnt = rb_write_iov(rb, iov);
 
     if (iovcnt > 0) {
         n = readv(fd, iov, iovcnt);
@@ -76,16 +75,13 @@ ssize_t at_read(int fd, const char* dev, struct ringbuffer* rb)
 
             iovcnt = rb_read_all_iov(rb, iov);
 
-            if (iovcnt > 0 && DEBUG_ATLEAST(5)) {
-                struct ast_str* const e0 = escape_nstr((const char*)iov[0].iov_base, iov[0].iov_len);
+            if (iovcnt > 0) {
                 if (iovcnt == 2) {
-                    struct ast_str* const e1 = escape_nstr((const char*)iov[1].iov_base, iov[1].iov_len);
-                    ast_debug(5, "[%s] [%u+%u][%s%s]\n", dev, (unsigned)iov[0].iov_len, (unsigned)iov[1].iov_len, ast_str_buffer(e0), ast_str_buffer(e1));
-                    ast_free(e1);
+                    ast_debug(5, "[%s] [%u+%u][%s%s]\n", dev, (unsigned)iov[0].iov_len, (unsigned)iov[1].iov_len, tmp_esc_nstr(iov[0].iov_base, iov[0].iov_len),
+                              tmp_esc_nstr(iov[1].iov_base, iov[1].iov_len));
                 } else {
-                    ast_debug(5, "[%s] [%u][%s]\n", dev, (unsigned)iov[0].iov_len, ast_str_buffer(e0));
+                    ast_debug(5, "[%s] [%u][%s]\n", dev, (unsigned)iov[0].iov_len, tmp_esc_nstr(iov[0].iov_base, iov[0].iov_len));
                 }
-                ast_free(e0);
             }
         }
     } else {
@@ -94,9 +90,9 @@ ssize_t at_read(int fd, const char* dev, struct ringbuffer* rb)
     return n;
 }
 
-size_t at_get_iov_size(const struct iovec* iov) { return iov[0].iov_len + iov[1].iov_len; }
+size_t attribute_pure at_get_iov_size(const struct iovec* iov) { return iov[0].iov_len + iov[1].iov_len; }
 
-size_t at_get_iov_size_n(const struct iovec* iov, int iovcnt)
+size_t attribute_pure at_get_iov_size_n(const struct iovec* iov, int iovcnt)
 {
     size_t res = 0u;
     for (int i = 0; i < iovcnt; ++i) {
