@@ -728,7 +728,6 @@ static void disconnect_quectel(struct pvt* pvt)
         }
     }
 
-
     if (pvt->initialized) {
         if (!pvt->is_simcom && CONF_UNIQ(pvt, uac) == TRIBOOL_TRUE) {
             at_disable_uac_immediately(pvt);
@@ -739,8 +738,9 @@ static void disconnect_quectel(struct pvt* pvt)
         }
 
         at_queue_run_immediately(pvt);
-        at_queue_flush(pvt);
     }
+
+    at_queue_flush(pvt);
 
     if (CONF_UNIQ(pvt, uac) > TRIBOOL_FALSE) {
         if (pvt->icard) {
