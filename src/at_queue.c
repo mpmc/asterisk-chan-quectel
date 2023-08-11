@@ -124,11 +124,11 @@ at_queue_task_t* at_queue_add(struct cpvt* cpvt, const at_queue_cmd_t* cmds, uns
             PVT_STAT(pvt, at_cmds) += cmdsno;
 
             if (e->cmdsno == 1u) {
-                ast_debug(4, "[%s][%s] \xE2\x86\xB5 [%s][%s] %s\n", PVT_ID(pvt), at_cmd2str(e->cmds[0].cmd), at_res2str(e->cmds[0].res),
-                          tmp_esc_nstr(e->cmds[0].data, e->cmds[0].length), prio ? "after head" : "at tail");
+                ast_debug(4, "[%s][%s] \xE2\x86\xB5 [%s][%s] %s%s\n", PVT_ID(pvt), at_cmd2str(e->cmds[0].cmd), at_res2str(e->cmds[0].res),
+                          tmp_esc_nstr(e->cmds[0].data, e->cmds[0].length), prio ? "after head" : "at tail", at_once ? " at once" : "");
             } else {
-                ast_debug(4, "[%s][%s] \xE2\x86\xB5 [%s] cmds:%u %s\n", PVT_ID(pvt), at_cmd2str(e->cmds[0].cmd), at_res2str(e->cmds[0].res), e->cmdsno,
-                          prio ? "after head" : "at tail");
+                ast_debug(4, "[%s][%s] \xE2\x86\xB5 [%s] cmds:%u %s%s\n", PVT_ID(pvt), at_cmd2str(e->cmds[0].cmd), at_res2str(e->cmds[0].res), e->cmdsno,
+                          prio ? "after head" : "at tail", at_once ? " at once" : "");
             }
         }
     }

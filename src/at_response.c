@@ -2633,16 +2633,14 @@ static int at_response_cnsmod(struct pvt* const pvt, const struct ast_str* const
 
 static int at_response_cring(struct pvt* const pvt, const struct ast_str* const response)
 {
-    if (DEBUG_ATLEAST(2)) {
-        char* ring_type;
+    char* ring_type;
 
-        if (at_parse_cring(ast_str_buffer(response), &ring_type)) {
-            ast_log(LOG_ERROR, "[%s] Error parsing '%s'\n", PVT_ID(pvt), ast_str_buffer(response));
-            return -1;
-        }
-
-        ast_debug(2, "[%s] Receive RING: %s\n", PVT_ID(pvt), ring_type);
+    if (at_parse_cring(ast_str_buffer(response), &ring_type)) {
+        ast_log(LOG_ERROR, "[%s] Error parsing '%s'\n", PVT_ID(pvt), ast_str_buffer(response));
+        return -1;
     }
+
+    ast_debug(2, "[%s] Receive RING: %s\n", PVT_ID(pvt), ring_type);
     return 0;
 }
 
