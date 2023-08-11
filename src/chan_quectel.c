@@ -106,11 +106,24 @@ const char* dev_state2str_msg(dev_state_t state)
     return enum2str(state, states, ITEMS_OF(states));
 }
 
-static snd_pcm_uframes_t adjust_uframes(snd_pcm_uframes_t v, unsigned int rate)
+static attribute_pure snd_pcm_uframes_t adjust_uframes(snd_pcm_uframes_t v, unsigned int rate)
 {
     snd_pcm_uframes_t res = v / sizeof(short);
     res *= rate / 8000;
     return res;
+}
+
+static unsigned int hw_params_get_rate(const snd_pcm_hw_params_t* const params)
+{
+    static const unsigned int UNKNOWN_RATE = 0xffff;
+
+    unsigned int rate;
+    const int res = snd_pcm_hw_params_get_rate(params, &rate, NULL);
+    if (res >= 0) {
+        return rate;
+    } else {
+        return UNKNOWN_RATE;
+    }
 }
 
 static int pcm_init(struct pvt* pvt, const char* dev, snd_pcm_stream_t stream, unsigned int rate, snd_pcm_t** pcm, unsigned int* pcm_channels)
@@ -203,12 +216,7 @@ static int pcm_init(struct pvt* pvt, const char* dev, snd_pcm_stream_t stream, u
         goto alsa_fail;
     }
 
-    if (DEBUG_ATLEAST(1)) {
-        res = snd_pcm_hw_params_get_rate(hwparams, &hwrate, NULL);
-        if (res >= 0) {
-            ast_debug(1, "[%s][ALSA][%s] Rate: %u\n", PVT_ID(pvt), stream_str, hwrate);
-        }
-    }
+    ast_debug(1, "[%s][ALSA][%s] Rate: %u\n", PVT_ID(pvt), stream_str, hw_params_get_rate(hwparams));
 
     res = snd_pcm_hw_params_get_period_size(hwparams, &period_size, NULL);
     if (res >= 0) {

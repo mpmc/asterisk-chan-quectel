@@ -234,8 +234,7 @@ static int channel_call(struct ast_channel* channel, const char* dest, attribute
 static int channel_call(struct ast_channel* channel, char* dest, attribute_unused int timeout)
 #endif /* ^11- */
 {
-    struct cpvt* cpvt = ast_channel_tech_pvt(channel);
-    struct pvt* pvt;
+    struct cpvt* const cpvt = ast_channel_tech_pvt(channel);
     char* dest_dev;
     const char* dest_num;
     int clir = 0;
@@ -245,7 +244,7 @@ static int channel_call(struct ast_channel* channel, char* dest, attribute_unuse
         ast_log(LOG_WARNING, "call on unreferenced %s\n", ast_channel_name(channel));
         return -1;
     }
-    pvt = cpvt->pvt;
+    struct pvt* const pvt = cpvt->pvt;
 
     dest_dev = ast_strdupa(dest);
 
@@ -372,16 +371,17 @@ static void activate_call(struct cpvt* cpvt)
 
 static int channel_hangup(struct ast_channel* channel)
 {
-    struct cpvt* cpvt = ast_channel_tech_pvt(channel);
+    struct cpvt* const cpvt = ast_channel_tech_pvt(channel);
 
     /* its possible call with channel w/o tech_pvt */
     if (cpvt && cpvt->channel == channel && cpvt->pvt) {
-        struct pvt* pvt = cpvt->pvt;
+        struct pvt* const pvt = cpvt->pvt;
 
         ast_mutex_lock(&pvt->lock);
 
         const int need_hangup  = CPVT_TEST_FLAG(cpvt, CALL_FLAG_NEED_HANGUP) ? 1 : 0;
         const int hangup_cause = ast_channel_hangupcause(channel);
+
         ast_debug(1, "[%s] Hanging up call - idx:%d cause:%d needed:%d\n", PVT_ID(pvt), cpvt->call_idx, hangup_cause, need_hangup);
 
         if (need_hangup) {
@@ -412,14 +412,13 @@ static int channel_hangup(struct ast_channel* channel)
 
 static int channel_answer(struct ast_channel* channel)
 {
-    struct cpvt* cpvt = ast_channel_tech_pvt(channel);
-    struct pvt* pvt;
+    struct cpvt* const cpvt = ast_channel_tech_pvt(channel);
 
     if (!cpvt || cpvt->channel != channel || !cpvt->pvt) {
         ast_log(LOG_WARNING, "call on unreferenced %s\n", ast_channel_name(channel));
         return 0;
     }
-    pvt = cpvt->pvt;
+    struct pvt* const pvt = cpvt->pvt;
 
     ast_mutex_lock(&pvt->lock);
 
@@ -438,14 +437,13 @@ static int channel_answer(struct ast_channel* channel)
 
 static int channel_digit_begin(struct ast_channel* channel, char digit)
 {
-    struct cpvt* cpvt = ast_channel_tech_pvt(channel);
-    struct pvt* pvt;
+    struct cpvt* const cpvt = ast_channel_tech_pvt(channel);
 
     if (!cpvt || cpvt->channel != channel || !cpvt->pvt) {
         ast_log(LOG_WARNING, "call on unreferenced %s\n", ast_channel_name(channel));
         return -1;
     }
-    pvt = cpvt->pvt;
+    struct pvt* const pvt = cpvt->pvt;
 
     ast_mutex_lock(&pvt->lock);
 
@@ -654,65 +652,71 @@ static struct ast_frame* channel_read_tty(struct cpvt* cpvt, struct pvt* pvt, si
     return f;
 }
 
-static void show_alsa_state(struct pvt* pvt, snd_pcm_t* const pcm, const char* pcm_desc, int dlvl)
+static void _show_alsa_state(int, const char* file, int line, const char* function, const char* const pcm_desc, struct pvt* const pvt, snd_pcm_t* const pcm)
 {
-    if (!DEBUG_ATLEAST(dlvl)) {
+    const size_t ss                    = snd_pcm_status_sizeof();
+    snd_pcm_status_t* const pcm_status = (snd_pcm_status_t*)ast_alloca(ss);
+
+    int res = snd_pcm_status(pcm, pcm_status);
+    if (res < 0) {
+        ast_log(__LOG_ERROR, file, line, function, "[%s][ALSA][%s] Unable to get device status: %s", PVT_ID(pvt), pcm_desc, snd_strerror(res));
         return;
     }
 
-    const size_t ss                    = snd_pcm_status_sizeof();
-    snd_pcm_status_t* const pcm_status = (snd_pcm_status_t*)ast_alloca(ss);
-    const int res                      = snd_pcm_status(pcm, pcm_status);
+    const snd_pcm_state_t pcm_state = snd_pcm_status_get_state(pcm_status);
+    snd_pcm_sframes_t delay         = snd_pcm_status_get_delay(pcm_status);
+    snd_pcm_uframes_t avail         = snd_pcm_status_get_avail(pcm_status);
+    snd_pcm_uframes_t avail_max     = snd_pcm_status_get_avail_max(pcm_status);
+
+    snd_pcm_uframes_t buffer_size;
+    snd_pcm_uframes_t period_size;
+
+    res = snd_pcm_get_params(pcm, &buffer_size, &period_size);
     if (res < 0) {
-        ast_log(LOG_ERROR, "[%s][ALSA][%s] Unable to get device status: %s", PVT_ID(pvt), pcm_desc, snd_strerror(res));
-    } else {
-        const snd_pcm_state_t pcm_state = snd_pcm_status_get_state(pcm_status);
-        snd_pcm_sframes_t delay         = snd_pcm_status_get_delay(pcm_status);
-        snd_pcm_uframes_t avail         = snd_pcm_status_get_avail(pcm_status);
-        snd_pcm_uframes_t avail_max     = snd_pcm_status_get_avail_max(pcm_status);
-
-        snd_pcm_uframes_t buffer_size;
-        snd_pcm_uframes_t period_size;
-
-        const int res = snd_pcm_get_params(pcm, &buffer_size, &period_size);
-        if (res < 0) {
-            ast_log(LOG_ERROR, "[%s][ALSA][%s] Unable to get buffer sizes: %s", PVT_ID(pvt), pcm_desc, snd_strerror(res));
-        }
-
-        int sdelay = 0;
-        if (res >= 0) {
-            avail %= buffer_size;
-            avail_max %= buffer_size;
-            delay %= buffer_size;
-
-            if (delay < 0l) {
-                sdelay = -1l;
-            } else if (delay > buffer_size) {
-                sdelay = 1l;
-            }
-        }
-
-        ast_debug(dlvl, "[%s][ALSA][%s] Status - state:%s delay:%ld avail:%lu avail_max:%lu sdelay:%d buf:%lu|%lu\n", PVT_ID(pvt), pcm_desc,
-                  snd_pcm_state_name(pcm_state), delay, avail, avail_max, sdelay, period_size, buffer_size);
+        ast_log(__LOG_ERROR, file, line, function, "[%s][ALSA][%s] Unable to get buffer sizes: %s", PVT_ID(pvt), pcm_desc, snd_strerror(res));
     }
+
+    int sdelay = 0;
+    if (res >= 0) {
+        avail %= buffer_size;
+        avail_max %= buffer_size;
+        delay %= buffer_size;
+
+        if (delay < 0l) {
+            sdelay = -1l;
+        } else if (delay > buffer_size) {
+            sdelay = 1l;
+        }
+    }
+
+    ast_log(__LOG_DEBUG, file, line, function, "[%s][ALSA][%s] Status - state:%s delay:%ld avail:%lu avail_max:%lu sdelay:%d buf:%lu|%lu\n", PVT_ID(pvt),
+            pcm_desc, snd_pcm_state_name(pcm_state), delay, avail, avail_max, sdelay, period_size, buffer_size);
 }
+
+#define show_alsa_state(level, ...)                       \
+    do {                                                  \
+        if (DEBUG_ATLEAST(level)) {                       \
+            _show_alsa_state(AST_LOG_DEBUG, __VA_ARGS__); \
+        }                                                 \
+    } while (0)
 
 static struct ast_frame* channel_read_uac(struct cpvt* cpvt, struct pvt* pvt, size_t frames, const struct ast_format* const fmt)
 {
-    int res;
-    show_alsa_state(pvt, pvt->icard, "CAPTURE", 7);
+    show_alsa_state(7, "CAPTURE", pvt, pvt->icard);
+
     const snd_pcm_state_t state = snd_pcm_state(pvt->icard);
     switch (state) {
         case SND_PCM_STATE_XRUN:
             ast_log(LOG_WARNING, "[%s][ALSA][CAPTURE] Device state: %s", PVT_ID(pvt), snd_pcm_state_name(state));
 
-        case SND_PCM_STATE_SETUP:
-            res = snd_pcm_prepare(pvt->icard);
+        case SND_PCM_STATE_SETUP: {
+            const int res = snd_pcm_prepare(pvt->icard);
             if (res) {
                 ast_log(LOG_ERROR, "[%s][ALSA][CAPTURE] Prepare failed - state:%s err:'%s'\n", PVT_ID(pvt), snd_pcm_state_name(state), snd_strerror(res));
                 return NULL;
             }
             break;
+        }
 
         case SND_PCM_STATE_PREPARED:
         case SND_PCM_STATE_RUNNING:
@@ -724,7 +728,7 @@ static struct ast_frame* channel_read_uac(struct cpvt* cpvt, struct pvt* pvt, si
     }
 
     char* const buf = cpvt->a_read_buf + AST_FRIENDLY_OFFSET;
-    res             = snd_pcm_mmap_readi(pvt->icard, buf, frames);
+    const int res   = snd_pcm_mmap_readi(pvt->icard, buf, frames);
 
     switch (res) {
         case -EAGAIN:
@@ -777,8 +781,8 @@ static struct ast_frame* channel_read_uac(struct cpvt* cpvt, struct pvt* pvt, si
 
 static struct ast_frame* channel_read(struct ast_channel* channel)
 {
-    struct cpvt* cpvt   = ast_channel_tech_pvt(channel);
-    struct ast_frame* f = NULL;
+    struct cpvt* const cpvt = ast_channel_tech_pvt(channel);
+    struct ast_frame* f     = NULL;
 
     if (!cpvt || cpvt->channel != channel || !cpvt->pvt || cpvt->local_channel) {
         return &ast_null_frame;
@@ -967,7 +971,7 @@ static int channel_write_uac(struct ast_channel*, struct ast_frame* f, struct cp
             } else {
                 PVT_STAT(pvt, write_frames)++;
             }
-            show_alsa_state(pvt, pvt->ocard, "PLAYBACK", 6);
+            show_alsa_state(6, "PLAYBACK", pvt, pvt->ocard);
             break;
     }
 
@@ -980,8 +984,8 @@ w_finish:
 
 static int channel_write(struct ast_channel* channel, struct ast_frame* f)
 {
-    struct cpvt* cpvt = ast_channel_tech_pvt(channel);
-    int res           = -1;
+    struct cpvt* const cpvt = ast_channel_tech_pvt(channel);
+    int res                 = -1;
 
     if (!cpvt || cpvt->channel != channel || !cpvt->pvt || cpvt->local_channel) {
         return 0;
@@ -1042,14 +1046,13 @@ static int channel_write(struct ast_channel* channel, struct ast_frame* f)
 
 static int channel_fixup(struct ast_channel* oldchannel, struct ast_channel* newchannel)
 {
-    struct cpvt* cpvt = ast_channel_tech_pvt(newchannel);
-    struct pvt* pvt;
+    struct cpvt* const cpvt = ast_channel_tech_pvt(newchannel);
 
     if (!cpvt || !cpvt->pvt) {
         ast_log(LOG_WARNING, "Call on unreferenced %s\n", ast_channel_name(newchannel));
         return -1;
     }
-    pvt = cpvt->pvt;
+    struct pvt* const pvt = cpvt->pvt;
 
     ast_mutex_lock(&pvt->lock);
     if (cpvt->channel == oldchannel) {
@@ -1060,33 +1063,33 @@ static int channel_fixup(struct ast_channel* oldchannel, struct ast_channel* new
     return 0;
 }
 
-#                                  /* FIXME: must modify in conjuction with state on call not whole device? */
+/* FIXME: must modify in conjuction with state on call not whole device? */
 #if ASTERISK_VERSION_NUM >= 110000 /* 11+ */
 static int channel_devicestate(const char* data)
 #else  /* 11- */
 static int channel_devicestate(void* data)
 #endif /* ^11- */
 {
-    char* device;
-    struct pvt* pvt;
     int res = AST_DEVICE_INVALID;
 
-    device = ast_strdupa(data ? data : "");
-
+    const char* const device = ast_strdupa(data ? data : "");
     ast_debug(1, "[%s] Checking device state\n", device);
 
-    pvt = find_device_ext(device);
-    if (pvt) {
-        if (pvt->connected) {
-            if (is_dial_possible(pvt, CALL_FLAG_NONE)) {
-                res = AST_DEVICE_NOT_INUSE;
-            } else {
-                res = AST_DEVICE_INUSE;
-            }
-        }
-        ast_mutex_unlock(&pvt->lock);
+    struct pvt* const pvt = find_device_ext(device);
+    if (!pvt) {
+        return res;
     }
 
+    if (pvt->connected) {
+        if (is_dial_possible(pvt, CALL_FLAG_NONE)) {
+            res = AST_DEVICE_NOT_INUSE;
+        } else {
+            res = AST_DEVICE_INUSE;
+        }
+    } else {
+        res = AST_DEVICE_UNAVAILABLE;
+    }
+    ast_mutex_unlock(&pvt->lock);
     return res;
 }
 
@@ -1096,9 +1099,9 @@ static int channel_indicate(struct ast_channel* channel, int condition, const vo
 {
     ast_debug(1, "[%s] Requested indication %d\n", ast_channel_name(channel), condition);
 
-    struct cpvt* cpvt = ast_channel_tech_pvt(channel);
-    struct pvt* pvt   = NULL;
-    int res           = 0;
+    struct cpvt* const cpvt = ast_channel_tech_pvt(channel);
+    struct pvt* pvt         = NULL;
+    int res                 = 0;
 
     if (!cpvt || cpvt->channel != channel || !cpvt->pvt) {
         ast_log(LOG_WARNING, "Call on unreferenced %s\n", ast_channel_name(channel));
@@ -1530,15 +1533,14 @@ void start_local_channel(struct pvt* pvt, const char* exten, const char* number,
 
 static int channel_func_read(struct ast_channel* channel, attribute_unused const char* function, char* data, char* buf, size_t len)
 {
-    struct cpvt* cpvt = ast_channel_tech_pvt(channel);
-    struct pvt* pvt;
-    int ret = 0;
+    struct cpvt* const cpvt = ast_channel_tech_pvt(channel);
+    int ret                 = 0;
 
     if (!cpvt || !cpvt->pvt) {
         ast_log(LOG_WARNING, "call on unreferenced %s\n", ast_channel_name(channel));
         return -1;
     }
-    pvt = cpvt->pvt;
+    struct pvt* const pvt = cpvt->pvt;
 
     if (!strcasecmp(data, "callstate")) {
         while (ast_mutex_trylock(&pvt->lock)) {
@@ -1559,7 +1561,7 @@ static int channel_func_read(struct ast_channel* channel, attribute_unused const
 
 static int channel_func_write(struct ast_channel* channel, const char* function, char* data, const char* value)
 {
-    struct cpvt* cpvt = ast_channel_tech_pvt(channel);
+    struct cpvt* const cpvt = ast_channel_tech_pvt(channel);
     call_state_t newstate, oldstate;
     int ret = 0;
 
