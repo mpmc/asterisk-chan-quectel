@@ -19,15 +19,11 @@
 // TODO: move to activation time, save resources
 static int init_pipe(int filedes[2])
 {
-    int x;
-    int rv;
-    int flags;
-
-    rv = pipe(filedes);
-    if (rv == 0) {
-        for (x = 0; x < 2; ++x) {
-            rv    = fcntl(filedes[x], F_GETFL);
-            flags = fcntl(filedes[x], F_GETFD);
+    int rv = pipe(filedes);
+    if (!rv) {
+        for (int x = 0; x < 2; ++x) {
+            rv              = fcntl(filedes[x], F_GETFL);
+            const int flags = fcntl(filedes[x], F_GETFD);
             if (rv == -1 || flags == -1 || (rv = fcntl(filedes[x], F_SETFL, O_NONBLOCK | rv)) == -1 ||
                 (rv = fcntl(filedes[x], F_SETFD, flags | FD_CLOEXEC)) == -1) {
                 goto bad;

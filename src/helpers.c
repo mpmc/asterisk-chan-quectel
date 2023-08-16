@@ -86,22 +86,23 @@ int get_at_clir_value(struct pvt* pvt, int clir)
     return res;
 }
 
-typedef int (*at_cmd_f)(struct cpvt*, const char*, const char*, unsigned, int, const char*, size_t);
-
 static void free_pvt(struct pvt* pvt) { ast_mutex_unlock(&pvt->lock); }
 
 struct pvt* get_pvt(const char* dev_name, int online)
 {
-    struct pvt* pvt;
-    pvt = find_device_ext(dev_name);
-    if (pvt) {
-        if (pvt->connected && (!online || (pvt->initialized && pvt->gsm_registered))) {
-            return pvt;
-        }
-        free_pvt(pvt);
+    struct pvt* const pvt = find_device_ext(dev_name);
+
+    if (!pvt) {
+        chan_quectel_err = E_DEVICE_DISCONNECTED;
+        return NULL;
     }
-    chan_quectel_err = E_DEVICE_DISCONNECTED;
-    return NULL;
+
+    if (!pvt->connected || (online && !(pvt->initialized && pvt->gsm_registered))) {
+        free_pvt(pvt);
+        return NULL;
+    }
+
+    return pvt;
 }
 
 #/* */
@@ -113,11 +114,12 @@ int send_ussd(const char* dev_name, const char* ussd)
         return -1;
     }
 
-    struct pvt* pvt = get_pvt(dev_name, 1);
+    struct pvt* const pvt = get_pvt(dev_name, 1);
     if (!pvt) {
         return -1;
     }
-    int res = at_enqueue_ussd(&pvt->sys_chan, ussd, 0);
+
+    const int res = at_enqueue_ussd(&pvt->sys_chan, ussd, 0);
     free_pvt(pvt);
     return res;
 }
@@ -136,6 +138,7 @@ int send_sms(const char* const dev_name, const char* const number, const char* c
     if (!pvt) {
         return -1;
     }
+
     const int res = at_enqueue_sms(&pvt->sys_chan, number, message, validity, report, payload, payload_len);
     free_pvt(pvt);
     return res;
@@ -147,6 +150,7 @@ int list_sms(const char* const dev_name, enum msg_status_t stat)
     if (!pvt) {
         return -1;
     }
+
     const int res = at_enqueue_list_messages(&pvt->sys_chan, stat);
     free_pvt(pvt);
     return res;
@@ -158,6 +162,7 @@ int delete_sms(const char* const dev_name, unsigned int idx, int delflag)
     if (!pvt) {
         return -1;
     }
+
     const int res = at_enqueue_cmgd(&pvt->sys_chan, idx, delflag);
     free_pvt(pvt);
     return res;
@@ -190,11 +195,12 @@ int sms_direct(const char* const dev_name, int directflag)
 
 int send_reset(const char* dev_name)
 {
-    struct pvt* pvt = get_pvt(dev_name, 0);
+    struct pvt* const pvt = get_pvt(dev_name, 0);
     if (!pvt) {
         return -1;
     }
-    int res = at_enqueue_reset(&pvt->sys_chan);
+
+    const int res = at_enqueue_reset(&pvt->sys_chan);
     free_pvt(pvt);
     return res;
 }
@@ -203,11 +209,12 @@ int send_reset(const char* dev_name)
 
 int send_ccwa_set(const char* dev_name, call_waiting_t enable)
 {
-    struct pvt* pvt = get_pvt(dev_name, 1);
+    struct pvt* const pvt = get_pvt(dev_name, 1);
     if (!pvt) {
         return -1;
     }
-    int res = at_enqueue_set_ccwa(&pvt->sys_chan, enable);
+
+    const int res = at_enqueue_set_ccwa(&pvt->sys_chan, enable);
     free_pvt(pvt);
     return res;
 }
@@ -216,11 +223,12 @@ int send_ccwa_set(const char* dev_name, call_waiting_t enable)
 
 int query_qaudloop(const char* dev_name)
 {
-    struct pvt* pvt = get_pvt(dev_name, 1);
+    struct pvt* const pvt = get_pvt(dev_name, 1);
     if (!pvt) {
         return -1;
     }
-    int res = at_enqueue_query_qaudloop(&pvt->sys_chan);
+
+    const int res = at_enqueue_query_qaudloop(&pvt->sys_chan);
     free_pvt(pvt);
     return res;
 }
@@ -229,11 +237,12 @@ int query_qaudloop(const char* dev_name)
 
 int send_qaudloop(const char* dev_name, int aloop)
 {
-    struct pvt* pvt = get_pvt(dev_name, 1);
+    struct pvt* const pvt = get_pvt(dev_name, 1);
     if (!pvt) {
         return -1;
     }
-    int res = at_enqueue_qaudloop(&pvt->sys_chan, aloop);
+
+    const int res = at_enqueue_qaudloop(&pvt->sys_chan, aloop);
     free_pvt(pvt);
     return res;
 }
@@ -242,11 +251,12 @@ int send_qaudloop(const char* dev_name, int aloop)
 
 int query_qaudmod(const char* dev_name)
 {
-    struct pvt* pvt = get_pvt(dev_name, 1);
+    struct pvt* const pvt = get_pvt(dev_name, 1);
     if (!pvt) {
         return -1;
     }
-    int res = at_enqueue_query_qaudmod(&pvt->sys_chan);
+
+    const int res = at_enqueue_query_qaudmod(&pvt->sys_chan);
     free_pvt(pvt);
     return res;
 }
@@ -255,13 +265,13 @@ int query_qaudmod(const char* dev_name)
 
 int send_qaudmod(const char* dev_name, int amod)
 {
-    struct pvt* pvt = get_pvt(dev_name, 1);
+    struct pvt* const pvt = get_pvt(dev_name, 1);
     if (!pvt) {
         return -1;
     }
-    int res = at_enqueue_qaudmod(&pvt->sys_chan, amod);
-    free_pvt(pvt);
 
+    const int res = at_enqueue_qaudmod(&pvt->sys_chan, amod);
+    free_pvt(pvt);
 
     return res;
 }
@@ -278,10 +288,11 @@ static int to_simcom_gain(int gain) { return gain * MAX_GAIN_SIMCOM / MAX_GAIN; 
 
 int query_micgain(const char* dev_name)
 {
-    struct pvt* pvt = get_pvt(dev_name, 1);
+    struct pvt* const pvt = get_pvt(dev_name, 1);
     if (!pvt) {
         return -1;
     }
+
     int res;
     if (pvt->is_simcom) {
         res = at_enqueue_query_cmicgain(&pvt->sys_chan);
@@ -296,10 +307,11 @@ int query_micgain(const char* dev_name)
 
 int send_micgain(const char* dev_name, int gain)
 {
-    struct pvt* pvt = get_pvt(dev_name, 1);
+    struct pvt* const pvt = get_pvt(dev_name, 1);
     if (!pvt) {
         return -1;
     }
+
     int res;
     if (pvt->is_simcom) {
         res = at_enqueue_cmicgain(&pvt->sys_chan, to_simcom_gain(gain));
@@ -314,7 +326,7 @@ int send_micgain(const char* dev_name, int gain)
 
 int query_rxgain(const char* dev_name)
 {
-    struct pvt* pvt = get_pvt(dev_name, 1);
+    struct pvt* const pvt = get_pvt(dev_name, 1);
     if (!pvt) {
         return -1;
     }
@@ -333,7 +345,7 @@ int query_rxgain(const char* dev_name)
 
 int send_rxgain(const char* dev_name, int gain)
 {
-    struct pvt* pvt = get_pvt(dev_name, 1);
+    struct pvt* const pvt = get_pvt(dev_name, 1);
     if (!pvt) {
         return -1;
     }
@@ -352,30 +364,30 @@ int send_rxgain(const char* dev_name, int gain)
 
 int send_at_command(const char* dev_name, const char* command)
 {
-    struct pvt* pvt = get_pvt(dev_name, 0);
+    struct pvt* const pvt = get_pvt(dev_name, 0);
     if (!pvt) {
         return -1;
     }
-    int res = at_enqueue_user_cmd(&pvt->sys_chan, command);
+
+    const int res = at_enqueue_user_cmd(&pvt->sys_chan, command);
     free_pvt(pvt);
     return res;
 }
 
 int schedule_restart_event(dev_state_t event, restate_time_t when, const char* dev_name)
 {
-    struct pvt* pvt = find_device(dev_name);
+    struct pvt* const pvt = find_device(dev_name);
 
-    if (pvt) {
-        pvt->desired_state = event;
-        pvt->restart_time  = when;
-
-        pvt_try_restate(pvt);
-        ast_mutex_unlock(&pvt->lock);
-    } else {
+    if (!pvt) {
         chan_quectel_err = E_DEVICE_NOT_FOUND;
         return -1;
     }
 
+    pvt->desired_state = event;
+    pvt->restart_time  = when;
+
+    pvt_try_restate(pvt);
+    free_pvt(pvt);
     return 0;
 }
 
@@ -462,7 +474,6 @@ int str2gain_simcom(const char* s, int* gain)
         *gain = (int)(MAX_GAIN_SIMCOM_F * p / 100.0f);
         return 0;
     }
-
 
     const int g = (int)strtol(s, NULL, 10);
     if (errno == ERANGE || g < 0 || g > MAX_GAIN_SIMCOM) {

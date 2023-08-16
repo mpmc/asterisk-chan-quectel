@@ -6,6 +6,10 @@
 
 #include <string.h>
 
+#include "ast_config.h"
+
+#include <asterisk/strings.h>
+
 #define ITEMS_OF(x) (sizeof(x) / sizeof((x)[0]))
 #define STRLEN(string) (sizeof(string) - 1u)
 
@@ -13,25 +17,21 @@
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif
 
-static inline const char* enum2str_def(unsigned value, const char* const names[], unsigned items, const char* def)
+static inline const char* enum2str_def(const unsigned value, const char* const names[], const unsigned items, const char* const def)
 {
-    const char* name;
-    if (value < items) {
-        name = names[value];
-    } else {
-        name = def;
-    }
-    return name;
+    return S_COR(value < items, names[value], def);
 }
 
-static inline const char* enum2str(unsigned value, const char* const names[], unsigned items) { return enum2str_def(value, names, items, "unknown"); }
-
-static inline int str2enum(const char* value, const char* const options[], unsigned items)
+static inline const char* enum2str(const unsigned value, const char* const names[], const unsigned items)
 {
-    unsigned index;
-    for (index = 0; index < items; index++) {
-        if (strcasecmp(value, options[index]) == 0) {
-            return index;
+    return enum2str_def(value, names, items, "unknown");
+}
+
+static inline int str2enum(const char* const value, const char* const options[], const unsigned items)
+{
+    for (unsigned i = 0; i < items; ++i) {
+        if (!strcasecmp(value, options[i])) {
+            return (int)i;
         }
     }
 

@@ -252,7 +252,7 @@ void dc_sconfig_fill(struct ast_config* cfg, const char* cat, struct dc_sconfig*
             if (config->callingpres == -1) {
                 errno               = 0;
                 config->callingpres = (int)strtol(v->value, (char**)NULL, 10); /* callingpres is set to -1 if invalid */
-                if (config->callingpres == 0 && errno == EINVAL) {
+                if (!config->callingpres && errno == EINVAL) {
                     config->callingpres = -1;
                 }
             }
@@ -317,7 +317,7 @@ void dc_gconfig_fill(struct ast_config* cfg, const char* cat, struct dc_gconfig*
     if (stmp) {
         errno         = 0;
         const int tmp = (int)strtol(stmp, (char**)NULL, 10);
-        if (tmp == 0 && errno == EINVAL) {
+        if (!tmp && errno == EINVAL) {
             ast_log(LOG_NOTICE, "Error parsing 'interval' in general section, using default value %d\n", config->discovery_interval);
         } else {
             config->discovery_interval = tmp;
@@ -333,7 +333,7 @@ void dc_gconfig_fill(struct ast_config* cfg, const char* cat, struct dc_gconfig*
     if (csmsttl) {
         errno          = 0;
         const long tmp = strtol(csmsttl, (char**)NULL, 10);
-        if (tmp == 0 && errno == EINVAL) {
+        if (!tmp && errno == EINVAL) {
             ast_log(LOG_NOTICE, "Error parsing 'csmsttl' in general section, using default value %d\n", config->csms_ttl);
         } else {
             config->csms_ttl = tmp;

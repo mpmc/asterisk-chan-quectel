@@ -76,41 +76,43 @@ static struct discovery_cache cache;
 
 static int ports_match(const struct pdiscovery_ports* p1, const struct pdiscovery_ports* p2)
 {
-    unsigned i;
-    for (i = 0; i < ITEMS_OF(p1->ports); i++) {
-        if (!p1->ports[i] || !p2->ports[i] || strcmp(p1->ports[i], p2->ports[i]) != 0) {
+    for (unsigned i = 0; i < ITEMS_OF(p1->ports); ++i) {
+        if (!p1->ports[i] || !p2->ports[i] || strcmp(p1->ports[i], p2->ports[i])) {
             return 0;
         }
     }
-    return i;
+
+    return 1;
 }
 
 #/* */
 
 static int ports_copy(struct pdiscovery_ports* dst, const struct pdiscovery_ports* src)
 {
-    unsigned i;
-    for (i = 0; i < ITEMS_OF(dst->ports); i++) {
-        if (src->ports[i] != NULL) {
-            dst->ports[i] = ast_strdup(src->ports[i]);
-            if (dst->ports[i] == NULL) {
-                return 0;
-            }
+    for (unsigned i = 0; i < ITEMS_OF(dst->ports); ++i) {
+        if (!src->ports[i]) {
+            continue;
+        }
+
+        dst->ports[i] = ast_strdup(src->ports[i]);
+        if (!dst->ports[i]) {
+            return 0;
         }
     }
-    return i;
+
+    return 1;
 }
 
 #/* */
 
 static void ports_free(struct pdiscovery_ports* ports)
 {
-    unsigned i;
-    for (i = 0; i < ITEMS_OF(ports->ports); i++) {
-        if (ports->ports[i] != NULL) {
-            ast_free(ports->ports[i]);
-            ports->ports[i] = NULL;
+    for (unsigned i = 0; i < ITEMS_OF(ports->ports); ++i) {
+        if (!ports->ports[i]) {
+            continue;
         }
+        ast_free(ports->ports[i]);
+        ports->ports[i] = NULL;
     }
 }
 
@@ -313,7 +315,7 @@ static int pdiscovery_is_port(const char* name, int len)
     struct stat statb;
 
     BUILD_NAME(name, "port_number", len, len2, name2);
-    return stat(name2, &statb) == 0 && S_ISREG(statb.st_mode);
+    return !stat(name2, &statb) && S_ISREG(statb.st_mode);
 }
 
 #/* */
@@ -327,7 +329,7 @@ static char* pdiscovery_port(const char* name, int len, const char* subdir)
 
     BUILD_NAME(name, subdir, len, len2, name2);
 
-    if (stat(name2, &statb) == 0 && S_ISDIR(statb.st_mode) && pdiscovery_is_port(name2, len2)) {
+    if (!stat(name2, &statb) && S_ISDIR(statb.st_mode) && pdiscovery_is_port(name2, len2)) {
         //		ast_debug(4, "[%s discovery] found port %s\n", devname, dentry->d_name);
         BUILD_NAME("/dev", subdir, 4, len3, name3);
         port = ast_strdup(name3);
@@ -344,7 +346,7 @@ static char* pdiscovery_port_name(const char* name, int len)
     DIR* dir = opendir(name);
     if (dir) {
         while ((dentry = readdir(dir)) != NULL) {
-            if (strcmp(dentry->d_name, ".") != 0 && strcmp(dentry->d_name, "..") != 0) {
+            if (strcmp(dentry->d_name, ".") && strcmp(dentry->d_name, "..")) {
                 port = pdiscovery_port(name, len, dentry->d_name);
                 if (port) {
                     break;
@@ -379,7 +381,7 @@ static char* pdiscovery_find_port(const char* name, int len, const char* subdir,
 
     BUILD_NAME(name, subdir, len, len2, name2);
 
-    if (stat(name2, &statb) == 0 && S_ISDIR(statb.st_mode)) {
+    if (!stat(name2, &statb) && S_ISDIR(statb.st_mode)) {
         port = pdiscovery_interface(name2, len2, interface);
     }
     return port;
@@ -530,7 +532,7 @@ static int pdiscovery_do_cmd(const struct pdiscovery_request* req, int fd, const
     const size_t wrote = write_all(fd, cmd, length);
     if (wrote == length) {
         int timeout = PDISCOVERY_TIMEOUT;
-        while (timeout > 0 && at_wait(fd, &timeout) != 0) {
+        while (timeout > 0 && at_wait(fd, &timeout)) {
             int iovcnt = at_read(fd, name, &rb);
             if (iovcnt > 0) {
                 struct iovec iov[2];
@@ -624,7 +626,7 @@ static int pdiscovery_read_info(const struct pdiscovery_request* req, struct pdi
 #ifdef USE_SYSV_UUCP_LOCKS
     char* dlock;
     int pid = lock_try(dport, &dlock);
-    if (pid == 0) {
+    if (!pid) {
         fail = pdiscovery_get_info_cached(dport, req, res);
         closetty(dport, -1, &dlock);
     } else {
@@ -641,9 +643,8 @@ static int pdiscovery_read_info(const struct pdiscovery_request* req, struct pdi
 static int pdiscovery_check_req(const struct pdiscovery_request* req, struct pdiscovery_result* res)
 {
     int match = 0;
-    if (pdiscovery_read_info(req, res) == 0) {
-        match =
-            ((req->imei == 0) || (res->imei && strcmp(req->imei, res->imei) == 0)) && ((req->imsi == 0) || (res->imsi && strcmp(req->imsi, res->imsi) == 0));
+    if (!pdiscovery_read_info(req, res)) {
+        match = ((req->imei == 0) || (res->imei && !strcmp(req->imei, res->imei))) && ((req->imsi == 0) || (res->imsi && !strcmp(req->imsi, res->imsi)));
 
         ast_debug(4, "[%s discovery] %smatched IMEI=%s/%s IMSI=%s/%s\n", req->name, match ? "" : "un", S_OR(req->imei, ""), S_OR(res->imei, ""),
                   S_OR(req->imsi, ""), S_OR(res->imsi, ""));
@@ -693,7 +694,7 @@ static int pdiscovery_request_do(const char* name, int len, const struct pdiscov
     DIR* dir = opendir(name);
     if (dir) {
         while ((dentry = readdir(dir)) != NULL) {
-            if (strcmp(dentry->d_name, ".") != 0 && strcmp(dentry->d_name, "..") != 0 && strstr(dentry->d_name, "usb") != dentry->d_name) {
+            if (strcmp(dentry->d_name, ".") && strcmp(dentry->d_name, "..") && strstr(dentry->d_name, "usb") != dentry->d_name) {
                 ast_debug(4, "[%s discovery] checking %s/%s\n", req->name, name, dentry->d_name);
                 found = pdiscovery_check_device(name, len, dentry->d_name, req, res);
                 if (found) {

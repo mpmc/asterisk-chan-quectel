@@ -273,6 +273,6 @@ static inline struct pvt* find_device_by_resource(const char* resource, int opts
 
 struct ast_module* self_module();
 
-#define PVT_NO_CHANS(pvt) (PVT_STATE(pvt, chansno) == 0)
+#define PVT_NO_CHANS(pvt) (!PVT_STATE(pvt, chansno))
 
 #endif /* CHAN_QUECTEL_H_INCLUDED */

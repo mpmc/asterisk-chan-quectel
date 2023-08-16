@@ -1077,13 +1077,13 @@ static void handle_clcc(struct pvt* const pvt, const unsigned int call_idx, cons
 
             if (pvt_enabled(pvt)) {
                 /* TODO: give dialplan level user tool for checking device is voice enabled or not  */
-                if (start_pbx(pvt, number, call_idx, state) == 0) {
+                if (start_pbx(pvt, number, call_idx, state)) {
+                    PVT_STAT(pvt, in_pbx_fails)++;
+                } else {
                     PVT_STAT(pvt, in_calls_handled)++;
                     if (!pvt->has_voice) {
                         ast_log(LOG_WARNING, "[%s] pbx started for device not voice capable\n", PVT_ID(pvt));
                     }
-                } else {
-                    PVT_STAT(pvt, in_pbx_fails)++;
                 }
             }
             break;

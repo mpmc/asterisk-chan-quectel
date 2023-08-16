@@ -1467,7 +1467,7 @@ int queue_hangup(struct ast_channel* channel, int hangupcause)
 {
     int rv = 0;
     if (channel) {
-        if (hangupcause != 0) {
+        if (hangupcause) {
             ast_channel_hangupcause_set(channel, hangupcause);
         }
 

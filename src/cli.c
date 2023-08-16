@@ -691,9 +691,9 @@ static char* cli_ccwa_set(struct ast_cli_entry* e, int cmd, struct ast_cli_args*
     if (a->argc < 4) {
         return CLI_SHOWUSAGE;
     }
-    if (strcasecmp("disable", a->argv[2]) == 0) {
+    if (!strcasecmp("disable", a->argv[2])) {
         enable = CALL_WAITING_DISALLOWED;
-    } else if (strcasecmp("enable", a->argv[2]) == 0) {
+    } else if (!strcasecmp("enable", a->argv[2])) {
         enable = CALL_WAITING_ALLOWED;
     } else {
         return CLI_SHOWUSAGE;
@@ -752,13 +752,13 @@ static char* cli_restart_event(struct ast_cli_entry* e, int cmd, struct ast_cli_
                 case 2:
                     return ast_cli_complete(a->word, (ast_cli_complete2_t)a_choices, a->n);
                 case 3:
-                    if (strcasecmp(a->argv[2], "when") == 0) {
+                    if (!strcasecmp(a->argv[2], "when")) {
                         return ast_cli_complete(a->word, (ast_cli_complete2_t)a_choices2, a->n);
                     }
                     return complete_device(a->word, a->n);
                     break;
                 case 4:
-                    if (strcasecmp(a->argv[2], "when") == 0 && strcasecmp(a->argv[3], "convenient") == 0) {
+                    if (!strcasecmp(a->argv[2], "when") && !strcasecmp(a->argv[3], "convenient")) {
                         return complete_device(a->word, a->n);
                     }
             }
@@ -770,9 +770,9 @@ static char* cli_restart_event(struct ast_cli_entry* e, int cmd, struct ast_cli_
     }
 
     for (i = 0; a_choices[i]; i++) {
-        if (strcasecmp(a->argv[2], a_choices[i]) == 0) {
+        if (!strcasecmp(a->argv[2], a_choices[i])) {
             if (i == RESTATE_TIME_CONVENIENT) {
-                if (a->argc == 5 && strcasecmp(a->argv[3], a_choices2[0]) == 0) {
+                if (a->argc == 5 && !strcasecmp(a->argv[3], a_choices2[0])) {
                     device = a->argv[4];
                 }
             } else if (a->argc == 4) {
@@ -855,9 +855,9 @@ static char* cli_reload(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a
     }
 
     for (i = 0; a_choices[i]; i++) {
-        if (strcasecmp(a->argv[2], a_choices[i]) == 0) {
+        if (!strcasecmp(a->argv[2], a_choices[i])) {
             if (i == RESTATE_TIME_CONVENIENT) {
-                if (a->argc == 4 && strcasecmp(a->argv[3], a_choices2[0]) == 0) {
+                if (a->argc == 4 && !strcasecmp(a->argv[3], a_choices2[0])) {
                     ok = 1;
                 }
             } else if (a->argc == 3) {
@@ -900,7 +900,7 @@ static char* cli_discovery(struct ast_cli_entry* e, int cmd, struct ast_cli_args
     AST_RWLIST_RDLOCK(&gpublic->devices);
     for (res = pdiscovery_list_begin(&item); res; res = pdiscovery_list_next(&item)) {
         AST_RWLIST_TRAVERSE(&gpublic->devices, pvt, entry) {
-            if (strcmp(PVT_STATE(pvt, data_tty), res->ports.ports[INTERFACE_TYPE_DATA]) == 0) {
+            if (!strcmp(PVT_STATE(pvt, data_tty), res->ports.ports[INTERFACE_TYPE_DATA])) {
                 break;
             }
         }
@@ -979,9 +979,9 @@ static char* cli_audio_loop(struct ast_cli_entry* e, int cmd, struct ast_cli_arg
     }
 
     // write
-    if (strcasecmp(choices[1], a->argv[4]) == 0) {
+    if (!strcasecmp(choices[1], a->argv[4])) {
         aloop = 0;
-    } else if (strcasecmp(choices[0], a->argv[4]) == 0) {
+    } else if (!strcasecmp(choices[0], a->argv[4])) {
         aloop = 1;
     } else {
         return CLI_SHOWUSAGE;
@@ -1022,17 +1022,17 @@ static char* cli_audio_mode(struct ast_cli_entry* e, int cmd, struct ast_cli_arg
     }
 
     // write
-    if (strcasecmp(choices[0], a->argv[4]) == 0) {
+    if (!strcasecmp(choices[0], a->argv[4])) {
         amode = 0;
-    } else if (strcasecmp(choices[1], a->argv[4]) == 0) {
+    } else if (!strcasecmp(choices[1], a->argv[4])) {
         amode = 1;
-    } else if (strcasecmp(choices[2], a->argv[4]) == 0) {
+    } else if (!strcasecmp(choices[2], a->argv[4])) {
         amode = 2;
-    } else if (strcasecmp(choices[3], a->argv[4]) == 0) {
+    } else if (!strcasecmp(choices[3], a->argv[4])) {
         amode = 3;
-    } else if (strcasecmp(choices[4], a->argv[4]) == 0) {
+    } else if (!strcasecmp(choices[4], a->argv[4])) {
         amode = 4;
-    } else if (strcasecmp(choices[5], a->argv[4]) == 0) {
+    } else if (!strcasecmp(choices[5], a->argv[4])) {
         amode = 5;
     } else {
         return CLI_SHOWUSAGE;

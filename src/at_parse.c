@@ -269,7 +269,7 @@ int at_parse_qnwinfo(char* str, int* act, int* oper, char** band, int* channel)
         marks[3]++;
 
         const long ch = strtol(marks[3], (char**)NULL, 10);
-        if (ch == 0) {
+        if (!ch) {
             return -1;
         }
         *channel = (int)ch;
@@ -277,7 +277,7 @@ int at_parse_qnwinfo(char* str, int* act, int* oper, char** band, int* channel)
         *band = strip_quoted(marks[2]);
 
         const long o = strtol(strip_quoted(marks[1]), (char**)NULL, 10);
-        if (o == 0) {
+        if (!o) {
             return -1;
         }
         *oper = (int)o;

@@ -185,7 +185,7 @@ ssize_t gsm7_unpack_decode(const char* in, size_t in_nibbles, uint16_t* out, siz
     unsigned value = 0;
     unsigned c;
 
-    if (out_size == 0) {
+    if (!out_size) {
         return -1;
     }
 

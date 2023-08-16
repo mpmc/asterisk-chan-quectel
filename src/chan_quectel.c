@@ -460,9 +460,9 @@ int lock_try(const char* devname, char** lockname)
         if (len > 0) {
             buffer[len] = 0;
             assigned    = sscanf(buffer, "%d %d", &len, &fd2);
-            if (assigned > 0 && kill(len, 0) == 0) {
+            if (assigned > 0 && !kill(len, 0)) {
                 if (len == getpid() && assigned > 1) {
-                    if (port_status(fd2, NULL) == 0) {
+                    if (!port_status(fd2, NULL)) {
                         pid = len;
                     }
                 } else {
@@ -485,7 +485,7 @@ int lock_try(const char* devname, char** lockname)
 
 void closetty(const char* dev, int fd, char** lockfname)
 {
-    if (ioctl(fd, TIOCNXCL) != 0) {
+    if (ioctl(fd, TIOCNXCL)) {
         ast_log(LOG_WARNING, "ioctl(TIOCNXCL) failed for %s: %s\n", dev, strerror(errno));
     }
 
@@ -506,7 +506,7 @@ int opentty(const char* dev, char** lockfile, int typ)
     char buf[40];
 
     pid = lock_try(dev, lockfile);
-    if (pid != 0) {
+    if (pid) {
         ast_log(LOG_WARNING, "%s already used by process %d\n", dev, pid);
         return -1;
     }
@@ -522,7 +522,7 @@ int opentty(const char* dev, char** lockfile, int typ)
 
     /* Put the terminal into exclusive mode. All other open(2)s by
      * non-root will fail with EBUSY. */
-    if (ioctl(fd, TIOCEXCL) != 0) {
+    if (ioctl(fd, TIOCEXCL)) {
         ast_log(LOG_WARNING, "ioctl(TIOCEXCL) failed for %s: %s\n", dev, strerror(errno));
     }
 
@@ -534,7 +534,7 @@ int opentty(const char* dev, char** lockfile, int typ)
         return -1;
     }
 
-    if (tcgetattr(fd, &term_attr) != 0) {
+    if (tcgetattr(fd, &term_attr)) {
         flags = errno;
         closetty(dev, fd, lockfile);
         ast_log(LOG_WARNING, "tcgetattr() failed for %s: %s\n", dev, strerror(flags));
@@ -561,7 +561,7 @@ int opentty(const char* dev, char** lockfile, int typ)
     term_attr.c_cc[VMIN]  = 1;
     term_attr.c_cc[VTIME] = 0;
 
-    if (tcsetattr(fd, TCSAFLUSH, &term_attr) != 0) {
+    if (tcsetattr(fd, TCSAFLUSH, &term_attr)) {
         ast_log(LOG_WARNING, "tcsetattr(TCSAFLUSH) failed for %s: %s\n", dev, strerror(errno));
     }
 
@@ -646,7 +646,7 @@ int opentty(const char* dev, int typ)
         return -1;
     }
 
-    if (tcgetattr(fd, &term_attr) != 0) {
+    if (tcgetattr(fd, &term_attr)) {
         const int errno_save = errno;
         internal_closetty(dev, fd, 1, 1);
         ast_log(LOG_WARNING, "tcgetattr() failed for %s: %s\n", dev, strerror(errno_save));
@@ -673,7 +673,7 @@ int opentty(const char* dev, int typ)
     term_attr.c_cc[VMIN]  = 1;
     term_attr.c_cc[VTIME] = 0;
 
-    if (tcsetattr(fd, TCSAFLUSH, &term_attr) != 0) {
+    if (tcsetattr(fd, TCSAFLUSH, &term_attr)) {
         ast_log(LOG_WARNING, "tcsetattr(TCSAFLUSH) failed for %s: %s\n", dev, strerror(errno));
     }
 
@@ -1239,7 +1239,7 @@ static void* do_discovery(void* arg)
     struct public_state* state = (struct public_state*)arg;
     struct pvt* pvt;
 
-    while (state->unloading_flag == 0) {
+    while (!state->unloading_flag) {
         /* read lock for avoid deadlock when IMEI/IMSI discovery */
         AST_RWLIST_RDLOCK(&state->devices);
         AST_RWLIST_TRAVERSE(&state->devices, pvt, entry) {
@@ -1283,7 +1283,7 @@ static void* do_discovery(void* arg)
         AST_RWLIST_UNLOCK(&state->devices);
 
         /* Go to sleep (only if we are not unloading) */
-        if (state->unloading_flag == 0) {
+        if (!state->unloading_flag) {
             sleep(SCONF_GLOBAL(state, discovery_interval));
         }
     }
@@ -1811,7 +1811,7 @@ struct ast_str* pvt_str_state_ex(const struct pvt* pvt)
             ast_str_append(&buf, 0, "Outgoing SMS");
         }
 
-        if (ast_str_strlen(buf) == 0) {
+        if (!ast_str_strlen(buf)) {
             ast_str_append(&buf, 0, "%s", "Free");
         }
     }
@@ -2159,9 +2159,9 @@ static int public_state_init(struct public_state* state)
 
     state->discovery_thread = AST_PTHREADT_NULL;
 
-    if (reload_config(state, 0, RESTATE_TIME_NOW, NULL) == 0) {
+    if (!reload_config(state, 0, RESTATE_TIME_NOW, NULL)) {
         rv = AST_MODULE_LOAD_FAILURE;
-        if (discovery_restart(state) == 0) {
+        if (!discovery_restart(state)) {
             /* set preferred capabilities */
 #if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
             if (!(channel_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {

@@ -18,16 +18,10 @@
 #include "chan_quectel.h" /* struct pvt */
 #include "helpers.h"
 
-/*!
- * \brief Free an item data
- * \param cmd - struct at_queue_cmd
- */
-#/* */
-
 static void at_queue_free_data(at_queue_cmd_t* const cmd)
 {
     if (cmd->data) {
-        if ((cmd->flags & ATQ_CMD_FLAG_STATIC) == 0) {
+        if (!(cmd->flags & ATQ_CMD_FLAG_STATIC)) {
             ast_free(cmd->data);
             cmd->data = NULL;
         }
@@ -36,12 +30,6 @@ static void at_queue_free_data(at_queue_cmd_t* const cmd)
     cmd->length = 0;
 }
 
-/*!
- * \brief Free an item
- * \param e -- struct at_queue_task structure
- */
-#/* */
-
 static void at_queue_free(at_queue_task_t* const task)
 {
     for (unsigned i = 0; i < task->cmdsno; ++i) {
@@ -49,12 +37,6 @@ static void at_queue_free(at_queue_task_t* const task)
     }
     ast_free(task);
 }
-
-/*!
- * \brief Remove an job item from the front of the queue, and free it
- * \param pvt -- pvt structure
- */
-#/* */
 
 static void at_queue_remove(struct pvt* const pvt)
 {
@@ -81,17 +63,6 @@ static void at_queue_remove(struct pvt* const pvt)
 
     at_queue_free(task);
 }
-
-/*!
- * \brief Add an list of commands (task) to the back of the queue
- * \param cpvt -- cpvt structure
- * \param cmds -- the commands that was sent to generate the response
- * \param cmdsno -- number of commands
- * \param prio -- priority 0 mean put at tail
- * \param at_once -- execute commands at once
- * \return task on success, NULL on error
- */
-#/* */
 
 at_queue_task_t* at_queue_add(struct cpvt* cpvt, const at_queue_cmd_t* cmds, unsigned cmdsno, int prio, unsigned at_once)
 {
@@ -135,20 +106,6 @@ at_queue_task_t* at_queue_add(struct cpvt* cpvt, const at_queue_cmd_t* cmds, uns
     return e;
 }
 
-/*!
- * \brief Write to fd
- * \param fd -- file descriptor
- * \param buf -- buffer to write
- * \param count -- number of bytes to write
- *
- * This function will write count characters from buf. It will always write
- * count chars unless it encounters an error.
- *
- * \retval number of bytes wrote
- */
-
-#/* */
-
 size_t write_all(int fd, const char* buf, size_t count)
 {
     ssize_t out_count;
@@ -160,7 +117,7 @@ size_t write_all(int fd, const char* buf, size_t count)
         if (out_count <= 0) {
             if (errno == EINTR || errno == EAGAIN) {
                 errs--;
-                if (errs != 0) {
+                if (errs) {
                     continue;
                 }
             }
@@ -173,21 +130,6 @@ size_t write_all(int fd, const char* buf, size_t count)
     }
     return total;
 }
-
-/*!
- * \brief Write to fd
- * \param pvt -- pvt structure
- * \param buf -- buffer to write
- * \param count -- number of bytes to write
- *
- * This function will write count characters from buf. It will always write
- * count chars unless it encounters an error.
- *
- * \retval !0 on error
- * \retval  0 success
- */
-
-#/* */
 
 int at_write(struct pvt* pvt, const char* buf, size_t count)
 {
@@ -202,12 +144,6 @@ int at_write(struct pvt* pvt, const char* buf, size_t count)
     return wrote != count;
 }
 
-/*!
- * \brief Remove an cmd item from the front of the queue
- * \param pvt -- pvt structure
- */
-#/* */
-
 static void at_queue_remove_cmd(struct pvt* pvt, at_res_t res)
 {
     at_queue_task_t* const task = AST_LIST_FIRST(&pvt->at_queue);
@@ -218,7 +154,7 @@ static void at_queue_remove_cmd(struct pvt* pvt, at_res_t res)
     if (task->at_once) {
         task->cindex = task->cmdsno;
         PVT_STATE(pvt, at_cmds) -= task->cmdsno;
-        if (task->cmds[0].res == res || (task->cmds[0].flags & ATQ_CMD_FLAG_IGNORE) != 0) {
+        if (task->cmds[0].res == res || (task->cmds[0].flags & ATQ_CMD_FLAG_IGNORE)) {
             at_queue_remove(pvt);
         }
     } else {
@@ -235,7 +171,7 @@ static void at_queue_remove_cmd(struct pvt* pvt, at_res_t res)
                       at_res2str(task->cmds[index].res), at_res2str(res), task->cindex, task->cmdsno, task->cmds[index].flags);
         }
 
-        if ((task->cindex >= task->cmdsno) || (task->cmds[index].res != res && (task->cmds[index].flags & ATQ_CMD_FLAG_IGNORE) == 0)) {
+        if ((task->cindex >= task->cmdsno) || (task->cmds[index].res != res && !(task->cmds[index].flags & ATQ_CMD_FLAG_IGNORE))) {
             at_queue_remove(pvt);
         }
     }
@@ -248,7 +184,7 @@ static void at_queue_remove_task_at_once(struct pvt* const pvt)
     if (task && task->at_once) {
         task->cindex = task->cmdsno;
         PVT_STATE(pvt, at_cmds) -= task->cmdsno;
-        if ((task->cmds[0].flags & ATQ_CMD_FLAG_IGNORE) == 0) {
+        if (!(task->cmds[0].flags & ATQ_CMD_FLAG_IGNORE)) {
             at_queue_remove(pvt);
         }
     }
@@ -265,13 +201,6 @@ static size_t at_queue_get_total_cmd_len(const at_queue_task_t* const task)
     return res;
 }
 
-/*!
- * \brief Try real write first command on queue
- * \param pvt -- pvt structure
- * \return 0 on success, non-0 on error
- */
-#/* */
-
 int at_queue_run(struct pvt* pvt)
 {
     int fail                 = 0;
@@ -282,7 +211,7 @@ int at_queue_run(struct pvt* pvt)
 
     if (t->at_once) {
         size_t buflen = at_queue_get_total_cmd_len(t);
-        if (buflen == 0u) {
+        if (!buflen) {
             return fail;  // do not send again
         }
 
@@ -299,7 +228,6 @@ int at_queue_run(struct pvt* pvt)
         // U+2192 : Rightwards arrow : 0xE2 0x86 0x92
         ast_debug(2, "[%s][%s] \xE2\x86\x92 [%s]\n", PVT_ID(pvt), at_cmd2str(t->cmds[0].cmd), tmp_esc_str(buf));
 
-
         fail = at_write(pvt, ast_str_buffer(buf), ast_str_strlen(buf));
         if (fail) {
             // U+2947 : Rightwards Arrow Through X : 0xE2 0xA5 0x87
@@ -315,7 +243,7 @@ int at_queue_run(struct pvt* pvt)
         ast_free(buf);
     } else {
         at_queue_cmd_t* const cmd = &(t->cmds[t->cindex]);
-        if (cmd->length == 0u) {
+        if (!cmd->length) {
             return fail;
         }
 
@@ -388,13 +316,6 @@ int at_queue_run_immediately(struct pvt* pvt)
     return fail;
 }
 
-/*!
- * \brief Write commands with queue
- * \param pvt -- pvt structure
- * \return 0 on success non-0 on error
- */
-#/* */
-
 int at_queue_insert_const(struct cpvt* cpvt, const at_queue_cmd_t* cmds, unsigned cmdsno, int athead)
 {
     return at_queue_add(cpvt, cmds, cmdsno, athead, 0u) == NULL || at_queue_run(cpvt->pvt);
@@ -405,74 +326,39 @@ int at_queue_insert_const_at_once(struct cpvt* cpvt, const at_queue_cmd_t* cmds,
     return at_queue_add(cpvt, cmds, cmdsno, athead, 1u) == NULL || at_queue_run(cpvt->pvt);
 }
 
-#/* */
-
 int at_queue_insert_uid(struct cpvt* cpvt, at_queue_cmd_t* cmds, unsigned cmdsno, int athead, int uid)
 {
-    unsigned idx;
-    at_queue_task_t* task = at_queue_add(cpvt, cmds, cmdsno, athead, 0u);
-    task->uid             = uid;
+    at_queue_task_t* const task = at_queue_add(cpvt, cmds, cmdsno, athead, 0u);
 
-    if (!task) {
-        for (idx = 0; idx < cmdsno; idx++) {
-            at_queue_free_data(&cmds[idx]);
+    if (task) {
+        task->uid = uid;
+    } else {
+        for (unsigned i = 0; i < cmdsno; ++i) {
+            at_queue_free_data(&cmds[i]);
         }
     }
 
     if (at_queue_run(cpvt->pvt)) {
-        task = NULL;
+        return -1;
     }
 
     return task == NULL;
 }
 
-#/* */
-
 int at_queue_insert(struct cpvt* cpvt, at_queue_cmd_t* cmds, unsigned cmdsno, int athead) { return at_queue_insert_uid(cpvt, cmds, cmdsno, athead, 0); }
 
-#/* */
-
-void at_queue_handle_result(struct pvt* pvt, at_res_t res)
-{
-    /* move queue */
-    at_queue_remove_cmd(pvt, res);
-}
-
-/*!
- * \brief Remove all itmes from the queue and free them
- * \param pvt -- pvt structure
- */
-
-#/* */
+void at_queue_handle_result(struct pvt* pvt, at_res_t res) { at_queue_remove_cmd(pvt, res); }
 
 void at_queue_flush(struct pvt* pvt)
 {
-    struct at_queue_task* task;
-
-    while ((task = AST_LIST_FIRST(&pvt->at_queue))) {
+    while (AST_LIST_FIRST(&pvt->at_queue)) {
         at_queue_remove(pvt);
     }
 }
 
-/*!
- * \brief Get the first task on queue
- * \param pvt -- pvt structure
- * \return a pointer to the first command of the given queue
- */
-#/* */
-
 const struct at_queue_task* at_queue_head_task(const struct pvt* pvt) { return AST_LIST_FIRST(&pvt->at_queue); }
 
-/*!
- * \brief Get the first command of a queue
- * \param pvt -- pvt structure
- * \return a pointer to the first command of the given queue
- */
-#/* */
-
 const at_queue_cmd_t* at_queue_head_cmd(const struct pvt* pvt) { return at_queue_task_cmd(at_queue_head_task(pvt)); }
-
-#/* */
 
 int at_queue_timeout(const struct pvt* pvt)
 {

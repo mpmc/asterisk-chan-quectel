@@ -16,21 +16,19 @@
 
 int rb_memcmp(const struct ringbuffer* rb, const char* mem, size_t len)
 {
-    size_t tmp;
-
     if (rb->used > 0 && len > 0 && rb->used >= len) {
         if ((rb->read + len) > rb->size) {
-            tmp = rb->size - rb->read;
-            if (memcmp(rb->buffer + rb->read, mem, tmp) == 0) {
+            const size_t tmp = rb->size - rb->read;
+            if (!memcmp(rb->buffer + rb->read, mem, tmp)) {
                 len -= tmp;
                 mem += tmp;
 
-                if (memcmp(rb->buffer, mem, len) == 0) {
+                if (!memcmp(rb->buffer, mem, len)) {
                     return 0;
                 }
             }
         } else {
-            if (memcmp(rb->buffer + rb->read, mem, len) == 0) {
+            if (!memcmp(rb->buffer + rb->read, mem, len)) {
                 return 0;
             }
         }
@@ -148,7 +146,7 @@ int rb_read_until_mem_iov(const struct ringbuffer* rb, struct iovec* iov, const 
             }
 
             while (i < len) {
-                if (memcmp(iov[1].iov_base, mem, len - i) == 0 && memcmp(rb->buffer, mem + i, i) == 0) {
+                if (!memcmp(iov[1].iov_base, mem, len - i) && !memcmp(rb->buffer, mem + i, i)) {
                     iov[0].iov_len = iov[1].iov_base - iov[0].iov_base;
                     iov[1].iov_len = 0;
                     return 1;
@@ -200,7 +198,7 @@ size_t rb_read_upd(struct ringbuffer* rb, size_t len)
     if (len > 0) {
         rb->used -= len;
 
-        if (rb->used == 0) {
+        if (!rb->used) {
             rb->read  = 0;
             rb->write = 0;
         } else {
