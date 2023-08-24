@@ -108,8 +108,9 @@ const char* dev_state2str_msg(dev_state_t state)
 
 static attribute_pure snd_pcm_uframes_t adjust_uframes(snd_pcm_uframes_t v, unsigned int rate)
 {
-    snd_pcm_uframes_t res = v / sizeof(short);
-    res *= rate / 8000;
+    snd_pcm_uframes_t res  = v / sizeof(short);
+    res                   *= rate / 8000;
+
     return res;
 }
 
@@ -2039,8 +2040,8 @@ static int reload_config(public_state_t* state, int recofigure, restate_time_t w
                     if (!recofigure) {
                         ast_log(LOG_ERROR, "device %s already exists, duplicate in config file\n", cat);
                     } else {
-                        pvt->must_remove = 0;
-                        reload_now += pvt_reconfigure(pvt, &settings, when);
+                        pvt->must_remove  = 0;
+                        reload_now       += pvt_reconfigure(pvt, &settings, when);
                     }
                     ast_mutex_unlock(&pvt->lock);
                 } else {
@@ -2126,9 +2127,10 @@ const struct ast_format* pvt_get_audio_format(const struct pvt* const pvt)
 
 size_t pvt_get_audio_frame_size(const struct pvt* const pvt, int capture, const struct ast_format* const fmt)
 {
-    size_t res            = capture ? FRAME_SIZE_CAPTURE : FRAME_SIZE_PLAYBACK;
-    const unsigned int sr = ast_format_get_sample_rate(fmt);
-    res *= sr / 8000;
+    size_t res             = capture ? FRAME_SIZE_CAPTURE : FRAME_SIZE_PLAYBACK;
+    const unsigned int sr  = ast_format_get_sample_rate(fmt);
+    res                   *= sr / 8000;
+
     return res;
 }
 

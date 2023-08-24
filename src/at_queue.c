@@ -108,12 +108,11 @@ at_queue_task_t* at_queue_add(struct cpvt* cpvt, const at_queue_cmd_t* cmds, uns
 
 size_t write_all(int fd, const char* buf, size_t count)
 {
-    ssize_t out_count;
     size_t total  = 0;
     unsigned errs = 10;
 
     while (count > 0) {
-        out_count = write(fd, buf, count);
+        const ssize_t out_count = write(fd, buf, count);
         if (out_count <= 0) {
             if (errno == EINTR || errno == EAGAIN) {
                 errs--;
@@ -123,11 +122,13 @@ size_t write_all(int fd, const char* buf, size_t count)
             }
             break;
         }
-        errs = 10;
+
+        errs   = 10;
         count -= out_count;
-        buf += out_count;
+        buf   += out_count;
         total += out_count;
     }
+
     return total;
 }
 
@@ -135,7 +136,7 @@ int at_write(struct pvt* pvt, const char* buf, size_t count)
 {
     ast_debug(5, "[%s] [%s]\n", PVT_ID(pvt), tmp_esc_nstr(buf, count));
 
-    const size_t wrote = write_all(pvt->data_fd, buf, count);
+    const size_t wrote            = write_all(pvt->data_fd, buf, count);
     PVT_STAT(pvt, d_write_bytes) += wrote;
     if (wrote != count) {
         ast_debug(1, "[%s][DATA] Write: %s\n", PVT_ID(pvt), strerror(errno));
@@ -152,8 +153,9 @@ static void at_queue_remove_cmd(struct pvt* pvt, at_res_t res)
     }
 
     if (task->at_once) {
-        task->cindex = task->cmdsno;
+        task->cindex             = task->cmdsno;
         PVT_STATE(pvt, at_cmds) -= task->cmdsno;
+
         if (task->cmds[0].res == res || (task->cmds[0].flags & ATQ_CMD_FLAG_IGNORE)) {
             at_queue_remove(pvt);
         }
@@ -182,8 +184,9 @@ static void at_queue_remove_task_at_once(struct pvt* const pvt)
     at_queue_task_t* const task = AST_LIST_FIRST(&pvt->at_queue);
 
     if (task && task->at_once) {
-        task->cindex = task->cmdsno;
+        task->cindex             = task->cmdsno;
         PVT_STATE(pvt, at_cmds) -= task->cmdsno;
+
         if (!(task->cmds[0].flags & ATQ_CMD_FLAG_IGNORE)) {
             at_queue_remove(pvt);
         }
@@ -285,9 +288,10 @@ int at_queue_run_immediately(struct pvt* pvt)
         return fail;
     }
 
-    buflen += 2u;
-    buflen += cmdsno;
-    struct ast_str* buf = ast_str_create(buflen);
+    buflen              += 2u;
+    buflen              += cmdsno;
+    struct ast_str* buf  = ast_str_create(buflen);
+
     ast_str_set_substr(&buf, buflen, "AT", 2);
 
     AST_LIST_TRAVERSE(&pvt->at_queue, task, entry) {

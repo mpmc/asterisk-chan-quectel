@@ -232,15 +232,15 @@ int at_read_result_iov(const char* dev, int* read_result, size_t* skip, struct r
                          rb_memcmp(rb, M_CLASS0, STRLEN(M_CLASS0)))) {
                 s = get_2ndeol_pos(rb, iov, buf);
                 if (s) {
-                    *read_result = 0;
-                    *skip += 1;
+                    *read_result  = 0;
+                    *skip        += 1;
                     return rb_read_n_iov(rb, iov, s);
                 }
             } else {
                 const int iovcnt = rb_read_until_mem_iov(rb, iov, M_EOL, STRLEN(M_EOL));
                 if (iovcnt) {
-                    *read_result = 0;
-                    *skip += 1;
+                    *read_result  = 0;
+                    *skip        += 1;
                     return iovcnt;
                 }
             }

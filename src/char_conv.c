@@ -81,8 +81,10 @@ int unhex(const char* in, uint8_t* out)
     int len = 0, nibbles = 0;
     while (in[0]) {
         nibbles += 1 + !!in[1];
-        char p0 = hexchar2val(*in++);
-        char p1 = *in ? hexchar2val(*in++) : 0;
+
+        const char p0 = hexchar2val(*in++);
+        const char p1 = *in ? hexchar2val(*in++) : 0;
+
         if (p0 == -1 || p1 == -1) {
             return -1;
         }
@@ -126,8 +128,8 @@ ssize_t gsm7_encode(const uint16_t* in, size_t in_length, uint16_t* out)
             return -1;
         }
         if (c > 127) {
-            bytes += 2;
-            out[i] = (escenc[0] << 8) | (c - 128);
+            bytes  += 2;
+            out[i]  = (escenc[0] << 8) | (c - 128);
         } else {
             ++bytes;
             out[i] = c;
@@ -149,19 +151,20 @@ ssize_t gsm7_pack(const uint16_t* in, size_t in_length, char* out, size_t out_si
         return -1;
     }
 
-    for (x = i = 0; i != in_length; i++) {
+    for (x = i = 0; i != in_length; ++i) {
         char c[] = {in[i] >> 8, in[i] & 255};
 
         for (int j = c[0] == 0; j < 2; ++j) {
-            value |= (c[j] & 0x7F) << out_padding;
+            value       |= (c[j] & 0x7F) << out_padding;
             out_padding += 7;
+
             if (out_padding < 8) {
                 continue;
             }
             /* output one byte */
-            out[x++] = value & 0xff;
-            value >>= 8;
-            out_padding -= 8;
+            out[x++]      = value & 0xff;
+            value       >>= 8;
+            out_padding  -= 8;
         }
     }
     if (out_padding != 0) {
@@ -208,15 +211,15 @@ ssize_t gsm7_unpack_decode(const char* in, size_t in_nibbles, uint16_t* out, siz
         if (i & 1) {
             c >>= 4;
         }
-        uint8_t n = c & 0xf;
-        value |= n << in_padding;
-        in_padding += 4;
+        const uint8_t n  = c & 0xf;
+        value           |= n << in_padding;
+        in_padding      += 4;
 
         while (in_padding >= 7 * 2) {
-            in_padding -= 7;
-            value >>= 7;
+            in_padding  -= 7;
+            value      >>= 7;
             {
-                uint16_t val = (esc ? LUT_GSM7_SS16 : LUT_GSM7_LS16)[esc ? ss : ls][value & 0x7f];
+                const uint16_t val = (esc ? LUT_GSM7_SS16 : LUT_GSM7_LS16)[esc ? ss : ls][value & 0x7f];
                 if (val == 0x1b) {
                     esc = 1;
                 } else {

@@ -403,32 +403,34 @@ static int pdu_parse_number(uint8_t* pdu, size_t pdu_length, unsigned digits, ch
     if (num_len < digits + 2) {
         return -ENOMEM;
     }
-    int toa;
 
-    int i         = 0, res;
-    toa           = pdu[i++];
-    unsigned syms = ROUND_UP2(digits);
+    int i               = 0;
+    const int toa       = pdu[i++];
+    const unsigned syms = ROUND_UP2(digits);
+
     if (syms > pdu_length - i) {
         return -EINVAL;
     }
 
     if ((toa & TP_A_TON) == TP_A_TON_ALPHANUMERIC) {
         uint16_t number16tmp[num_len];
-        res = gsm7_unpack_decode((const char*)(pdu + i), syms, number16tmp, num_len, 0, 0, 0);
+        int res = gsm7_unpack_decode((const char*)(pdu + i), syms, number16tmp, num_len, 0, 0, 0);
         if (res < 0) {
             return -EINVAL;
         }
-        res = ucs2_to_utf8(number16tmp, res, number, num_len);
-        i += syms / 2;
+
+        res     = ucs2_to_utf8(number16tmp, res, number, num_len);
+        i      += syms / 2;
         number += res;
     } else {
         if ((toa & TP_A_TON) == TP_A_TON_INTERNATIONAL) {
             *number++ = '+';
         }
         for (unsigned j = 0; j < syms / 2; ++j) {
-            int c     = pdu[i];
-            *number++ = pdu_code2digit(c & 0xf);
-            char o    = c >> 4;
+            const int c  = pdu[i];
+            const char o = c >> 4;
+            *number++    = pdu_code2digit(c & 0xf);
+
             if (o != 0xf) {
                 *number++ = pdu_code2digit(o);
             }
@@ -511,8 +513,8 @@ int pdu_build_mult(pdu_part_t* pdus, const char* sca, const char* dst, const uin
                 /* pdu_build sets chan_quectel_err */
                 return -1;
             }
-            pdus[i].length = curlen;
-            off += n;
+            pdus[i].length  = curlen;
+            off            += n;
             ++i;
         }
     } else {
@@ -539,8 +541,8 @@ int pdu_build_mult(pdu_part_t* pdus, const char* sca, const char* dst, const uin
                 /* pdu_build sets chan_quectel_err */
                 return -1;
             }
-            pdus[i].length = curlen;
-            off += n;
+            pdus[i].length  = curlen;
+            off            += n;
             ++i;
         }
     }
@@ -716,9 +718,9 @@ int tpdu_parse_status_report(uint8_t* pdu, size_t pdu_length, int* mr, char* ra,
         chan_quectel_err = E_INVALID_TIMESTAMP;
         return -1;
     }
-    i += pdu_parse_timestamp(pdu + i, pdu_length - i, scts);
-    i += pdu_parse_timestamp(pdu + i, pdu_length - i, dt);
-    *st = pdu[i++];
+    i   += pdu_parse_timestamp(pdu + i, pdu_length - i, scts);
+    i   += pdu_parse_timestamp(pdu + i, pdu_length - i, dt);
+    *st  = pdu[i++];
     return 0;
 }
 
@@ -744,10 +746,10 @@ int tpdu_parse_deliver(uint8_t* pdu, size_t pdu_length, int tpdu_type, char* oa,
         return -1;
     }
 
-    pid = pdu[i++];
-    dcs = pdu[i++];
-    i += pdu_parse_timestamp(pdu + i, pdu_length - i, scts);
-    udl = pdu[i++];
+    pid  = pdu[i++];
+    dcs  = pdu[i++];
+    i   += pdu_parse_timestamp(pdu + i, pdu_length - i, scts);
+    udl  = pdu[i++];
 
     if (pid != PDU_PID_SMS && !(0x41 <= pid && pid <= 0x47) /* PDU_PID_SMS_REPLACE_MASK */) {
         /* 3GPP TSS 23.040 v14.0.0 (2017-013) */
@@ -857,7 +859,7 @@ int tpdu_parse_deliver(uint8_t* pdu, size_t pdu_length, int tpdu_type, char* oa,
 
         /* adjust 7-bit padding */
         if (alphabet == PDU_DCS_ALPHABET_7BIT) {
-            msg_padding = 6 - (udhl % 7);
+            msg_padding  = 6 - (udhl % 7);
             udl_nibbles -= (udhl + 1) * 2;
         }
 
@@ -886,21 +888,21 @@ int tpdu_parse_deliver(uint8_t* pdu, size_t pdu_length, int tpdu_type, char* oa,
                             chan_quectel_err = E_UNKNOWN;
                             return -1;
                         }
-                        udh->ref   = pdu[i++];
-                        udh->parts = pdu[i++];
-                        udh->order = pdu[i++];
-                        udhl -= 3;
+                        udh->ref    = pdu[i++];
+                        udh->parts  = pdu[i++];
+                        udh->order  = pdu[i++];
+                        udhl       -= 3;
                         break;
                     case 0x08: /* Concatenated, 16 bit ref */
                         if (iei_len != 4) {
                             chan_quectel_err = E_UNKNOWN;
                             return -1;
                         }
-                        udh->ref = (pdu[i++] << 8);
-                        udh->ref |= pdu[i++];
-                        udh->parts = pdu[i++];
-                        udh->order = pdu[i++];
-                        udhl -= 4;
+                        udh->ref    = (pdu[i++] << 8);
+                        udh->ref   |= pdu[i++];
+                        udh->parts  = pdu[i++];
+                        udh->order  = pdu[i++];
+                        udhl       -= 4;
                         break;
                     case 0x24: /* National Language Single Shift */
                         if (iei_len != 1) {
@@ -918,7 +920,7 @@ int tpdu_parse_deliver(uint8_t* pdu, size_t pdu_length, int tpdu_type, char* oa,
                         break;
                     default:
                         /* skip rest of IEI */
-                        i += iei_len;
+                        i    += iei_len;
                         udhl -= iei_len;
                 }
             } else {

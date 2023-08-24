@@ -190,8 +190,8 @@ static struct ast_channel* channel_request(attribute_unused const char* type, in
         return NULL;
     }
 #else                                /* 10- */
-    oldformat = format;
-    format &= AST_FORMAT_SLINEAR;
+    oldformat  = format;
+    format    &= AST_FORMAT_SLINEAR;
 
     if (!format) {
 #if ASTERISK_VERSION_NUM >= 10800    /* 1.8+ */
@@ -678,9 +678,9 @@ static void _show_alsa_state(int, const char* file, int line, const char* functi
 
     int sdelay = 0;
     if (res >= 0) {
-        avail %= buffer_size;
+        avail     %= buffer_size;
         avail_max %= buffer_size;
-        delay %= buffer_size;
+        delay     %= buffer_size;
 
         if (delay < 0l) {
             sdelay = -1l;

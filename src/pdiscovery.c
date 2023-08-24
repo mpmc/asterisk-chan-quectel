@@ -55,8 +55,8 @@ struct discovery_cache {
     memcpy(out, d1, d1len);                   \
     out[d1len] = '/';                         \
     memcpy(out + d1len + 1, d2, d2len);       \
-    d2len += d1len + 1;                       \
-    out[d2len] = 0;
+    d2len      += d1len + 1;                  \
+    out[d2len]  = 0;
 
 
 static const struct pdiscovery_device device_ids[] = {
@@ -170,7 +170,7 @@ static void cache_item_update(struct pdiscovery_cache_item* item, const struct p
 
     item->status = status;
 
-    item->validtill = ast_tvnow();
+    item->validtill         = ast_tvnow();
     item->validtill.tv_sec += CONF_GLOBAL(discovery_interval);
 }
 

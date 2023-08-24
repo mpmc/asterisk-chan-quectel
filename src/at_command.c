@@ -68,9 +68,10 @@ static int __attribute__((format(printf, 2, 0))) at_fill_generic_cmd_va(at_queue
         return -1;
     }
 
-    cmd->data   = ast_strndup(ast_str_buffer(cmdstr), cmdlen);
-    cmd->length = (unsigned int)cmdlen;
-    cmd->flags &= ~ATQ_CMD_FLAG_STATIC;
+    cmd->data    = ast_strndup(ast_str_buffer(cmdstr), cmdlen);
+    cmd->length  = (unsigned int)cmdlen;
+    cmd->flags  &= ~ATQ_CMD_FLAG_STATIC;
+
     ast_free(cmdstr);
     return 0;
 }
@@ -619,8 +620,8 @@ int at_enqueue_dtmf(struct cpvt* cpvt, char digit)
         case 'b':
         case 'c':
         case 'd': {
-            char d = 'A';
-            d += digit - 'a';
+            char d  = 'A';
+            d      += digit - 'a';
             return at_enqueue_generic(cpvt, CMD_AT_DTMF, 1, "AT+VTS=\"%c\"\r", d);
         }
 
