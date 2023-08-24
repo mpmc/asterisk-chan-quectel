@@ -42,6 +42,7 @@ static const char cmd_chld2[] = "AT+CHLD=2\r";
 const char* at_cmd2str(at_cmd_t cmd)
 {
     static const char* const cmds[] = {AT_COMMANDS_TABLE(AT_CMD_AS_STRING)};
+
     return enum2str_def(cmd, cmds, ITEMS_OF(cmds), "UNDEFINED");
 }
 
@@ -58,17 +59,19 @@ static int __attribute__((format(printf, 2, 0))) at_fill_generic_cmd_va(at_queue
     static const ssize_t AT_CMD_LEN     = 32;
     static const ssize_t MAX_AT_CMD_LEN = 4096;
 
-    struct ast_str* cmdstr = ast_str_alloca(AT_CMD_LEN);
+    struct ast_str* cmdstr = ast_str_create(AT_CMD_LEN);
     ast_str_set_va(&cmdstr, MAX_AT_CMD_LEN, format, ap);
     const size_t cmdlen = ast_str_strlen(cmdstr);
 
     if (!cmdlen) {
+        ast_free(cmdstr);
         return -1;
     }
 
     cmd->data   = ast_strndup(ast_str_buffer(cmdstr), cmdlen);
     cmd->length = (unsigned int)cmdlen;
     cmd->flags &= ~ATQ_CMD_FLAG_STATIC;
+    ast_free(cmdstr);
     return 0;
 }
 
@@ -212,8 +215,7 @@ int at_enqueue_initialization(struct cpvt* cpvt)
                 }
 
                 const char* const stor = dc_msgstor2str(CONF_SHARED(pvt, msg_storage));
-                const int err          = at_fill_generic_cmd(&dyn_cmd, "AT+CPMS=\"%s\",\"%s\",\"%s\"\r", stor, stor, stor);
-                if (err) {
+                if (at_fill_generic_cmd(&dyn_cmd, "AT+CPMS=\"%s\",\"%s\",\"%s\"\r", stor, stor, stor)) {
                     ast_log(LOG_ERROR, "[%s] Device initialization - unable to create AT+CPMS command\n", PVT_ID(pvt));
                     continue;
                 }
@@ -245,8 +247,7 @@ int at_enqueue_initialization(struct cpvt* cpvt)
                     continue;
                 }
 
-                const int err = at_fill_generic_cmd(&dyn_cmd, "AT+CSMS=%d\r", CONF_SHARED(pvt, msg_service));
-                if (err) {
+                if (at_fill_generic_cmd(&dyn_cmd, "AT+CSMS=%d\r", CONF_SHARED(pvt, msg_service))) {
                     ast_log(LOG_ERROR, "[%s] Device initialization - unable to create AT+CSMS command\n", PVT_ID(pvt));
                     continue;
                 }
@@ -260,8 +261,7 @@ int at_enqueue_initialization(struct cpvt* cpvt)
                 }
 
                 const int vtd = (int)(CONF_SHARED(pvt, dtmf_duration) / 100l);
-                const int err = at_fill_generic_cmd(&dyn_cmd, "AT+VTD=%d\r", vtd);
-                if (err) {
+                if (at_fill_generic_cmd(&dyn_cmd, "AT+VTD=%d\r", vtd)) {
                     ast_log(LOG_ERROR, "[%s] Device initialization - unable to create AT+VTD command\n", PVT_ID(pvt));
                     continue;
                 }
@@ -449,11 +449,10 @@ static int at_enqueue_pdu(const char* pdu, size_t length, size_t tpdulen, at_que
     cdata[length + 1] = 0x0;
 
     // AT
-    cmds[0]       = at_cmds[0];
-    const int err = at_fill_generic_cmd(&cmds[0], "AT+CMGS=%d\r", (int)tpdulen);
-    if (err) {
-        ast_free(cmds[1].data);
-        return E_UNKNOWN;
+    cmds[0] = at_cmds[0];
+    if (at_fill_generic_cmd(&cmds[0], "AT+CMGS=%d\r", (int)tpdulen)) {
+        at_queue_free_data(&cmds[1]);
+        return E_CMD_FORMAT;
     }
 
     return 0;
@@ -464,6 +463,7 @@ static void clear_pdus(at_queue_cmd_t* cmds, ssize_t idx)
     if (idx <= 0) {
         return;
     }
+
     const ssize_t u = idx * 2;
     for (ssize_t i = 0; i < u; ++i) {
         ast_free(cmds[i].data);
@@ -548,7 +548,8 @@ int at_enqueue_ussd(struct cpvt* cpvt, const char* code, int gsm7)
 {
     static const char cmd[]     = "AT+CUSD=1,\"";
     static const char cmd_end[] = "\",15\r";
-    at_queue_cmd_t at_cmd       = ATQ_CMD_DECLARE_DYN(CMD_AT_CUSD);
+
+    at_queue_cmd_t at_cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_CUSD);
     ssize_t res;
     int length;
     char buf[4096];
@@ -656,7 +657,7 @@ int at_enqueue_set_ccwa(struct cpvt* cpvt, unsigned call_waiting)
 {
     static const char cmd_ccwa_get[] = "AT+CCWA=1,2,1\r";
     static const char cmd_ccwa_set[] = "AT+CCWA=%d,%d,%d\r";
-    int err;
+
     call_waiting_t value;
     at_queue_cmd_t cmds[] = {
         /* Set Call-Waiting On/Off */
@@ -668,11 +669,11 @@ int at_enqueue_set_ccwa(struct cpvt* cpvt, unsigned call_waiting)
     unsigned count       = ITEMS_OF(cmds);
 
     if (call_waiting == CALL_WAITING_DISALLOWED || call_waiting == CALL_WAITING_ALLOWED) {
-        value = call_waiting;
-        err   = call_waiting == CALL_WAITING_ALLOWED ? 1 : 0;
-        err   = at_fill_generic_cmd(&cmds[0], cmd_ccwa_set, err, err, CCWA_CLASS_VOICE);
-        if (err) {
-            chan_quectel_err = E_UNKNOWN;
+        value         = call_waiting;
+        const int err = call_waiting == CALL_WAITING_ALLOWED ? 1 : 0;
+
+        if (at_fill_generic_cmd(&cmds[0], cmd_ccwa_set, err, err, CCWA_CLASS_VOICE)) {
+            chan_quectel_err = E_CMD_FORMAT;
             return -1;
         }
     } else {
@@ -718,9 +719,10 @@ int at_enqueue_reset(struct cpvt* cpvt)
  */
 int at_enqueue_dial(struct cpvt* cpvt, const char* number, int clir)
 {
-    struct pvt* pvt = cpvt->pvt;
-    int cmdsno      = 0;
-    char* tmp       = NULL;
+    struct pvt* const pvt = cpvt->pvt;
+    int cmdsno            = 0;
+    char* tmp             = NULL;
+
     at_queue_cmd_t cmds[6];
 
     if (PVT_STATE(pvt, chan_count[CALL_STATE_ACTIVE]) > 0 && CPVT_TEST_FLAG(cpvt, CALL_FLAG_HOLD_OTHER)) {
@@ -732,9 +734,8 @@ int at_enqueue_dial(struct cpvt* cpvt, const char* number, int clir)
     }
 
     if (clir != -1) {
-        const int err = at_fill_generic_cmd(&cmds[cmdsno], "AT+CLIR=%d\r", clir);
-        if (err) {
-            chan_quectel_err = E_UNKNOWN;
+        if (at_fill_generic_cmd(&cmds[cmdsno], "AT+CLIR=%d\r", clir)) {
+            chan_quectel_err = E_CMD_FORMAT;
             return -1;
         }
         tmp = cmds[cmdsno].data;
@@ -742,11 +743,9 @@ int at_enqueue_dial(struct cpvt* cpvt, const char* number, int clir)
         cmdsno++;
     }
 
-    const int err = at_fill_generic_cmd(&cmds[cmdsno], "ATD%s;\r", number);
-
-    if (err) {
+    if (at_fill_generic_cmd(&cmds[cmdsno], "ATD%s;\r", number)) {
         ast_free(tmp);
-        chan_quectel_err = E_UNKNOWN;
+        chan_quectel_err = E_CMD_FORMAT;
         return -1;
     }
 
@@ -795,7 +794,7 @@ int at_enqueue_answer(struct cpvt* cpvt)
     }
 
     if (at_fill_generic_cmd(&cmds[0], cmd1, cpvt->call_idx)) {
-        chan_quectel_err = E_UNKNOWN;
+        chan_quectel_err = E_CMD_FORMAT;
         return -1;
     }
 
@@ -826,7 +825,7 @@ int at_enqueue_activate(struct cpvt* cpvt)
     }
 
     if (at_fill_generic_cmd(&cmd, "AT+CHLD=2%d\r", cpvt->call_idx)) {
-        chan_quectel_err = E_UNKNOWN;
+        chan_quectel_err = E_CMD_FORMAT;
         return -1;
     }
 
@@ -863,7 +862,7 @@ enum at_ping_method_t { PING_AT, PING_QUECTEL, PING_SIMCOM };
  */
 int at_enqueue_ping(struct cpvt* cpvt)
 {
-    struct pvt* pvt                = cpvt->pvt;
+    struct pvt* const pvt          = cpvt->pvt;
     enum at_ping_method_t ping_cmd = PING_AT;
 
     if (CONF_SHARED(pvt, query_time)) {
@@ -906,7 +905,7 @@ int at_enqueue_user_cmd(struct cpvt* cpvt, const char* input)
  */
 void at_sms_retrieved(struct cpvt* cpvt, int confirm)
 {
-    pvt_t* const pvt = cpvt->pvt;
+    struct pvt* const pvt = cpvt->pvt;
 
     if (pvt->incoming_sms_index >= 0) {
         if (CONF_SHARED(pvt, autodeletesms)) {
@@ -924,10 +923,9 @@ int at_enqueue_list_messages(struct cpvt* cpvt, enum msg_status_t stat)
 {
     at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_CMGL);
 
-    const int err = at_fill_generic_cmd(&cmd, "AT+CMGL=%d\r", (int)stat);
-    if (err) {
-        chan_quectel_err = E_UNKNOWN;
-        return err;
+    if (at_fill_generic_cmd(&cmd, "AT+CMGL=%d\r", (int)stat)) {
+        chan_quectel_err = E_CMD_FORMAT;
+        return -1;
     }
 
     if (at_queue_insert(cpvt, &cmd, 1, 0)) {
@@ -944,10 +942,10 @@ int at_enqueue_list_messages(struct cpvt* cpvt, enum msg_status_t stat)
  * \param index -- index of message in store
  * \return 0 on success
  */
-int at_enqueue_retrieve_sms(struct cpvt* cpvt, int index)
+int at_enqueue_retrieve_sms(struct cpvt* cpvt, int idx)
 {
-    struct pvt* pvt    = cpvt->pvt;
-    at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_CMGR);
+    struct pvt* const pvt = cpvt->pvt;
+    at_queue_cmd_t cmd    = ATQ_CMD_DECLARE_DYN(CMD_AT_CMGR);
 
     /* check if message is already being received */
     if (pvt->incoming_sms_index >= 0) {
@@ -955,40 +953,39 @@ int at_enqueue_retrieve_sms(struct cpvt* cpvt, int index)
         return 0;
     }
 
-    pvt->incoming_sms_index = index;
+    pvt->incoming_sms_index = idx;
 
-    int err = at_fill_generic_cmd(&cmd, "AT+CMGR=%d\r", index);
-    if (err) {
+    if (at_fill_generic_cmd(&cmd, "AT+CMGR=%d\r", idx)) {
+        chan_quectel_err = E_CMD_FORMAT;
         goto error;
     }
 
-    err = at_queue_insert(cpvt, &cmd, 1, 0);
-    if (err) {
+    if (at_queue_insert(cpvt, &cmd, 1, 0)) {
+        chan_quectel_err = E_QUEUE;
         goto error;
     }
 
     return 0;
 
 error:
-    ast_log(LOG_WARNING, "[%s] SMS command error %d\n", PVT_ID(pvt), err);
+    ast_log(LOG_WARNING, "[%s] Unable to read message %d\n", PVT_ID(pvt), idx);
+
     pvt->incoming_sms_index = -1;
-    chan_quectel_err        = E_UNKNOWN;
     return -1;
 }
 
 int at_enqueue_cmgd(struct cpvt* cpvt, unsigned int idx, int delflag)
 {
     at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYNI(CMD_AT_CMGD);
-    int err            = at_fill_generic_cmd(&cmd, "AT+CMGD=%u,%d\r", idx, delflag);
-    if (err) {
-        chan_quectel_err = E_UNKNOWN;
-        return err;
+
+    if (at_fill_generic_cmd(&cmd, "AT+CMGD=%u,%d\r", idx, delflag)) {
+        chan_quectel_err = E_CMD_FORMAT;
+        return -1;
     }
 
-    err = at_queue_insert(cpvt, &cmd, 1, 0);
-    if (err) {
+    if (at_queue_insert(cpvt, &cmd, 1, 0)) {
         chan_quectel_err = E_QUEUE;
-        return err;
+        return -1;
     }
 
     return 0;
@@ -1002,58 +999,54 @@ static const char cmd_cnma[] = "AT+CNMA\r";
  * \param index -- index of message in store
  * \return 0 on success
  */
-int at_enqueue_delete_sms(struct cpvt* cpvt, int index, tristate_bool_t ack)
+int at_enqueue_delete_sms(struct cpvt* cpvt, int idx, tristate_bool_t ack)
 {
     at_queue_cmd_t cmds[] = {ATQ_CMD_DECLARE_STI(CMD_AT_CNMA, cmd_cnma), ATQ_CMD_DECLARE_DYNI(CMD_AT_CMGD)};
 
-    if (index < 0) {
+    if (idx < 0) {
         return 0;
     }
 
-    int err = at_fill_generic_cmd(&cmds[1], "AT+CMGD=%d\r", index);
-    if (err) {
-        chan_quectel_err = E_UNKNOWN;
-        return err;
+    if (at_fill_generic_cmd(&cmds[1], "AT+CMGD=%d\r", idx)) {
+        chan_quectel_err = E_CMD_FORMAT;
+        return -1;
     }
 
-    err = at_queue_insert(cpvt, &cmds[ack ? 0 : 1], ack ? 2 : 1, 1);
-    if (err) {
+    if (at_queue_insert(cpvt, &cmds[ack ? 0 : 1], ack ? 2 : 1, 1)) {
         chan_quectel_err = E_QUEUE;
-        return err;
+        return -1;
     }
 
     return 0;
 }
 
-int at_enqueue_delete_sms_n(struct cpvt* cpvt, int index, tristate_bool_t ack)
+int at_enqueue_delete_sms_n(struct cpvt* cpvt, int idx, tristate_bool_t ack)
 {
     at_queue_cmd_t cmds[] = {
         ATQ_CMD_DECLARE_DYNI(CMD_AT_CNMA),
         ATQ_CMD_DECLARE_DYNI(CMD_AT_CMGD),
     };
 
-    if (index < 0) {
+    if (idx < 0) {
         return 0;
     }
 
     if (ack) {
-        const int err = at_fill_generic_cmd(&cmds[0], "AT+CNMA=%d\r", (ack < 0) ? 2 : 1);
-        if (err) {
-            chan_quectel_err = E_UNKNOWN;
-            return err;
+        if (at_fill_generic_cmd(&cmds[0], "AT+CNMA=%d\r", (ack < 0) ? 2 : 1)) {
+            chan_quectel_err = E_CMD_FORMAT;
+            return -1;
         }
     }
 
-    int err = at_fill_generic_cmd(&cmds[1], "AT+CMGD=%d\r", index);
-    if (err) {
-        chan_quectel_err = E_UNKNOWN;
-        return err;
+    if (at_fill_generic_cmd(&cmds[1], "AT+CMGD=%d\r", idx)) {
+        at_queue_free_data(cmds);
+        chan_quectel_err = E_CMD_FORMAT;
+        return -1;
     }
 
-    err = at_queue_insert(cpvt, &cmds[ack ? 0 : 1], ack ? 2 : 1, 1);
-    if (err) {
+    if (at_queue_insert(cpvt, &cmds[ack ? 0 : 1], ack ? 2 : 1, 1)) {
         chan_quectel_err = E_QUEUE;
-        return err;
+        return -1;
     }
 
     return 0;
@@ -1090,11 +1083,10 @@ int at_enqueue_msg_ack(struct cpvt* cpvt)
 int at_enqueue_msg_ack_n(struct cpvt* cpvt, int n, int uid)
 {
     at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYNI(CMD_AT_CNMA);
-    const int err      = at_fill_generic_cmd(&cmd, "AT+CNMA=%d\r", n);
 
-    if (err) {
-        chan_quectel_err = E_UNKNOWN;
-        return err;
+    if (at_fill_generic_cmd(&cmd, "AT+CNMA=%d\r", n)) {
+        chan_quectel_err = E_CMD_FORMAT;
+        return -1;
     }
 
     if (at_queue_insert_uid(cpvt, &cmd, 1, 1, uid)) {
@@ -1115,9 +1107,8 @@ static int at_enqueue_msg_ack_n(struct cpvt *cpvt, int n, int uid)
 		{ CMD_AT_SMSTEXT, RES_OK,         ATQ_CMD_FLAG_STATIC, { ATQ_CMD_TIMEOUT_LONG, 0},   NULL, 0 }
 	};
 
-	const int err = at_fill_generic_cmd(&at_cmds[0], "AT+CNMA=%d,0\r", n);
-	if (err) {
-		chan_quectel_err = E_UNKNOWN;
+	if (at_fill_generic_cmd(&at_cmds[0], "AT+CNMA=%d,0\r", n)) {
+		chan_quectel_err = E_CMD_FORMAT;
 		return err;
 	}
 
@@ -1173,10 +1164,9 @@ static int at_enqueue_qhup(struct cpvt* const cpvt, int call_idx, int release_ca
     // AT+QHUP=<cause>,<idx>
     at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYNFT(CMD_AT_QHUP, RES_OK, ATQ_CMD_FLAG_DEFAULT, ATQ_CMD_TIMEOUT_LONG, 0);
 
-    const int err = at_fill_generic_cmd(&cmd, "AT+QHUP=%d,%d\r", map_hangup_cause(release_cause), call_idx);
-    if (err) {
-        chan_quectel_err = E_UNKNOWN;
-        return err;
+    if (at_fill_generic_cmd(&cmd, "AT+QHUP=%d,%d\r", map_hangup_cause(release_cause), call_idx)) {
+        chan_quectel_err = E_CMD_FORMAT;
+        return -1;
     }
 
     if (at_queue_insert(cpvt, &cmd, 1, 1)) {
@@ -1228,8 +1218,9 @@ int at_enqueue_hangup(struct cpvt* cpvt, int call_idx, int release_cause)
 
 int at_enqueue_volsync(struct cpvt* cpvt)
 {
-    static const char cmd1[]           = "AT+CLVL=1\r";
-    static const char cmd2[]           = "AT+CLVL=5\r";
+    static const char cmd1[] = "AT+CLVL=1\r";
+    static const char cmd2[] = "AT+CLVL=5\r";
+
     static const at_queue_cmd_t cmds[] = {
         ATQ_CMD_DECLARE_ST(CMD_AT_CLVL, cmd1),
         ATQ_CMD_DECLARE_ST(CMD_AT_CLVL, cmd2),
@@ -1297,10 +1288,10 @@ int at_hangup_immediately(struct cpvt* cpvt, int release_cause)
         }
     } else {  // AT+QHUP=<cause>,<idx>
         at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_QHUP);
-        const int err      = at_fill_generic_cmd(&cmd, "+QHUP=%d,%d", map_hangup_cause(release_cause), cpvt->call_idx);
-        if (err) {
-            chan_quectel_err = E_UNKNOWN;
-            return err;
+
+        if (at_fill_generic_cmd(&cmd, "+QHUP=%d,%d", map_hangup_cause(release_cause), cpvt->call_idx)) {
+            chan_quectel_err = E_CMD_FORMAT;
+            return -1;
         }
 
         if (at_queue_add(cpvt, &cmd, 1, 0, 1u) == NULL) {
@@ -1308,6 +1299,7 @@ int at_hangup_immediately(struct cpvt* cpvt, int release_cause)
             return -1;
         }
     }
+
     return 0;
 }
 
@@ -1372,10 +1364,9 @@ int at_enqueue_qlts(struct cpvt* cpvt, int mode)
 {
     at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_QLTS);
 
-    const int err = at_fill_generic_cmd(&cmd, "AT+QLTS=%d\r", mode);
-    if (err) {
-        chan_quectel_err = E_UNKNOWN;
-        return err;
+    if (at_fill_generic_cmd(&cmd, "AT+QLTS=%d\r", mode)) {
+        chan_quectel_err = E_CMD_FORMAT;
+        return -1;
     }
 
     if (at_queue_insert(cpvt, &cmd, 1, 1)) {
@@ -1440,10 +1431,9 @@ int at_enqueue_qgains(struct cpvt* cpvt, int txgain, int rxgain)
     };
 
     if (txgain >= 0) {
-        const int err = at_fill_generic_cmd(&cmds[0], "+QMIC=%d", txgain);
-        if (err) {
-            chan_quectel_err = E_UNKNOWN;
-            return err;
+        if (at_fill_generic_cmd(&cmds[0], "+QMIC=%d", txgain)) {
+            chan_quectel_err = E_CMD_FORMAT;
+            return -1;
         }
 
         cnt += 1;
@@ -1452,10 +1442,9 @@ int at_enqueue_qgains(struct cpvt* cpvt, int txgain, int rxgain)
     }
 
     if (rxgain >= 0) {
-        const int err = at_fill_generic_cmd(&cmds[1], "+QRXGAIN=%d", rxgain);
-        if (err) {
-            chan_quectel_err = E_UNKNOWN;
-            return err;
+        if (at_fill_generic_cmd(&cmds[1], "+QRXGAIN=%d", rxgain)) {
+            chan_quectel_err = E_CMD_FORMAT;
+            return -1;
         }
 
         cnt += 1;
@@ -1497,10 +1486,9 @@ int at_enqueue_cgains(struct cpvt* cpvt, int txgain, int rxgain)
     };
 
     if (txgain >= 0) {
-        const int err = at_fill_generic_cmd(&cmds[0], "+COUTGAIN=%d", txgain);
-        if (err) {
-            chan_quectel_err = E_UNKNOWN;
-            return err;
+        if (at_fill_generic_cmd(&cmds[0], "+COUTGAIN=%d", txgain)) {
+            chan_quectel_err = E_CMD_FORMAT;
+            return -1;
         }
 
         cnt += 1;
@@ -1509,10 +1497,9 @@ int at_enqueue_cgains(struct cpvt* cpvt, int txgain, int rxgain)
     }
 
     if (rxgain >= 0) {
-        const int err = at_fill_generic_cmd(&cmds[1], "+CMICGAIN=%d", rxgain);
-        if (err) {
-            chan_quectel_err = E_UNKNOWN;
-            return err;
+        if (at_fill_generic_cmd(&cmds[1], "+CMICGAIN=%d", rxgain)) {
+            chan_quectel_err = E_CMD_FORMAT;
+            return -1;
         }
 
         cnt += 1;
@@ -1543,10 +1530,9 @@ int at_enqueue_qaudloop(struct cpvt* cpvt, int aloop)
 {
     at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_QAUDLOOP);
 
-    const int err = at_fill_generic_cmd(&cmd, "AT+QAUDLOOP=%d\r", aloop);
-    if (err) {
-        chan_quectel_err = E_UNKNOWN;
-        return err;
+    if (at_fill_generic_cmd(&cmd, "AT+QAUDLOOP=%d\r", aloop)) {
+        chan_quectel_err = E_CMD_FORMAT;
+        return -1;
     }
 
     if (at_queue_insert(cpvt, &cmd, 1, 0)) {
@@ -1574,10 +1560,9 @@ int at_enqueue_qaudmod(struct cpvt* cpvt, int amode)
 {
     at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_QAUDMOD);
 
-    const int err = at_fill_generic_cmd(&cmd, "AT+QAUDMOD=%d\r", amode);
-    if (err) {
-        chan_quectel_err = E_UNKNOWN;
-        return err;
+    if (at_fill_generic_cmd(&cmd, "AT+QAUDMOD=%d\r", amode)) {
+        chan_quectel_err = E_CMD_FORMAT;
+        return -1;
     }
 
     if (at_queue_insert(cpvt, &cmd, 1, 0)) {
@@ -1605,10 +1590,9 @@ int at_enqueue_qmic(struct cpvt* cpvt, int gain)
 {
     at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_QMIC);
 
-    const int err = at_fill_generic_cmd(&cmd, "AT+QMIC=%d\r", gain);
-    if (err) {
-        chan_quectel_err = E_UNKNOWN;
-        return err;
+    if (at_fill_generic_cmd(&cmd, "AT+QMIC=%d\r", gain)) {
+        chan_quectel_err = E_CMD_FORMAT;
+        return -1;
     }
 
     if (at_queue_insert(cpvt, &cmd, 1, 0)) {
@@ -1636,10 +1620,9 @@ int at_enqueue_cmicgain(struct cpvt* cpvt, int gain)
 {
     at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_CMICGAIN);
 
-    const int err = at_fill_generic_cmd(&cmd, "AT+CMICGAIN=%d\r", gain);
-    if (err) {
-        chan_quectel_err = E_UNKNOWN;
-        return err;
+    if (at_fill_generic_cmd(&cmd, "AT+CMICGAIN=%d\r", gain)) {
+        chan_quectel_err = E_CMD_FORMAT;
+        return -1;
     }
 
     if (at_queue_insert(cpvt, &cmd, 1, 0)) {
@@ -1667,10 +1650,9 @@ int at_enqueue_qrxgain(struct cpvt* cpvt, int gain)
 {
     at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_QRXGAIN);
 
-    const int err = at_fill_generic_cmd(&cmd, "AT+QRXGAIN=%d\r", gain);
-    if (err) {
-        chan_quectel_err = E_UNKNOWN;
-        return err;
+    if (at_fill_generic_cmd(&cmd, "AT+QRXGAIN=%d\r", gain)) {
+        chan_quectel_err = E_CMD_FORMAT;
+        return -1;
     }
 
     if (at_queue_insert(cpvt, &cmd, 1, 0)) {
@@ -1698,10 +1680,9 @@ int at_enqueue_coutgain(struct cpvt* cpvt, int gain)
 {
     at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_COUTGAIN);
 
-    const int err = at_fill_generic_cmd(&cmd, "AT+COUTGAIN=%d\r", gain);
-    if (err) {
-        chan_quectel_err = E_UNKNOWN;
-        return err;
+    if (at_fill_generic_cmd(&cmd, "AT+COUTGAIN=%d\r", gain)) {
+        chan_quectel_err = E_CMD_FORMAT;
+        return -1;
     }
 
     if (at_queue_insert(cpvt, &cmd, 1, 0)) {

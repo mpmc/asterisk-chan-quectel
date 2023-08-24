@@ -90,6 +90,7 @@ typedef struct at_queue_task {
     at_queue_cmd_t cmds[0]; /* this field must be last */
 } at_queue_task_t;
 
+void at_queue_free_data(at_queue_cmd_t* const cmd);
 at_queue_task_t* at_queue_add(struct cpvt* cpvt, const at_queue_cmd_t* cmds, unsigned cmdsno, int prio, unsigned at_once);
 int at_queue_insert_const(struct cpvt* cpvt, const at_queue_cmd_t* cmds, unsigned cmdsno, int athead);
 int at_queue_insert_const_at_once(struct cpvt* cpvt, const at_queue_cmd_t* cmds, unsigned cmdsno, int athead);

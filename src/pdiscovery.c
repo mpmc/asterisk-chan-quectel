@@ -201,17 +201,15 @@ static struct pdiscovery_cache_item* cache_search(struct discovery_cache* cache,
 
     AST_RWLIST_WRLOCK(&cache->items);
     AST_LIST_TRAVERSE_SAFE_BEGIN(&cache->items, item, entry)
-        {
-            if (ast_tvcmp(now, item->validtill) < 0) {
-                if (ports_match(&item->res.ports, &res->ports)) {
-                    found = item;
-                    break;
-                }
-            } else {
-                // remove expired item
-                AST_LIST_REMOVE_CURRENT(entry);
-                cache_item_free(item);
+        if (ast_tvcmp(now, item->validtill) < 0) {
+            if (ports_match(&item->res.ports, &res->ports)) {
+                found = item;
+                break;
             }
+        } else {
+            // remove expired item
+            AST_LIST_REMOVE_CURRENT(entry);
+            cache_item_free(item);
         }
     AST_LIST_TRAVERSE_SAFE_END;
     AST_RWLIST_UNLOCK(&cache->items);
@@ -266,10 +264,8 @@ static void cache_fini(struct discovery_cache* cache)
 
     AST_RWLIST_WRLOCK(&cache->items);
     AST_LIST_TRAVERSE_SAFE_BEGIN(&cache->items, item, entry)
-        {
-            AST_LIST_REMOVE_CURRENT(entry);
-            cache_item_free(item);
-        }
+        AST_LIST_REMOVE_CURRENT(entry);
+        cache_item_free(item);
     AST_LIST_TRAVERSE_SAFE_END;
     AST_RWLIST_UNLOCK(&cache->items);
 

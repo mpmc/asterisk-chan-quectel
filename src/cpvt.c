@@ -108,14 +108,13 @@ void cpvt_free(struct cpvt* cpvt)
 
     ast_debug(3, "[%s] Destroy cpvt - idx:%d dir:%d state:%s flags:%d channel:%s\n", PVT_ID(pvt), cpvt->call_idx, cpvt->dir, call_state2str(cpvt->state),
               cpvt->flags, cpvt->channel ? "attached" : "detached");
+
     AST_LIST_TRAVERSE_SAFE_BEGIN(&pvt->chans, found, entry)
-        {
-            if (found == cpvt) {
-                AST_LIST_REMOVE_CURRENT(entry);
-                PVT_STATE(pvt, chan_count[cpvt->state])--;
-                PVT_STATE(pvt, chansno)--;
-                break;
-            }
+        if (found == cpvt) {
+            AST_LIST_REMOVE_CURRENT(entry);
+            PVT_STATE(pvt, chan_count[cpvt->state])--;
+            PVT_STATE(pvt, chansno)--;
+            break;
         }
     AST_LIST_TRAVERSE_SAFE_END;
 

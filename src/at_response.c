@@ -185,7 +185,7 @@ static void __attribute__((format(printf, 7, 8))) at_ok_response_log(int level, 
     static const ssize_t MSG_MAX_LEN = 1024;
     // U+2713 : Check mark : 0xE2 0x9C 0x93
 
-    struct ast_str* msg = ast_str_alloca(MSG_LEN);
+    struct ast_str* msg = ast_str_create(MSG_LEN);
 
     if (ecmd) {
         ast_str_set(&msg, MSG_MAX_LEN, "[%s][%s] \xE2\x9C\x93", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
@@ -202,6 +202,7 @@ static void __attribute__((format(printf, 7, 8))) at_ok_response_log(int level, 
     }
 
     ast_log(level, file, line, function, "%s\n", ast_str_buffer(msg));
+    ast_free(msg);
 }
 
 #define at_ok_response_dbg(level, pvt, ecmd, ...)                      \
@@ -558,7 +559,7 @@ static void __attribute__((format(printf, 7, 8))) at_err_response_log(int level,
     static const ssize_t MSG_MAX_LEN = 1024;
     // U+237B: Not check mark
 
-    struct ast_str* msg = ast_str_alloca(MSG_LEN);
+    struct ast_str* msg = ast_str_create(MSG_LEN);
 
     if (ecmd) {
         ast_str_set(&msg, MSG_MAX_LEN, "[%s][%s] \xE2\x8D\xBB", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
@@ -575,6 +576,7 @@ static void __attribute__((format(printf, 7, 8))) at_err_response_log(int level,
     }
 
     ast_log(level, file, line, function, "%s\n", ast_str_buffer(msg));
+    ast_free(msg);
 }
 
 #define at_err_response_dbg(level, pvt, ecmd, ...)                      \
@@ -1178,7 +1180,7 @@ static int at_response_clcc(struct pvt* const pvt, const struct ast_str* const r
         CPVT_RESET_FLAGS(cpvt, CALL_FLAG_ALIVE);
     }
 
-    struct ast_str* line = ast_str_alloca(DEF_LINE_LEN);
+    struct ast_str* line = ast_str_create(DEF_LINE_LEN);
     for (const char* str = ast_str_buffer(response); str; str = next_line(str)) {
         current_line(str, &line);
 
@@ -1203,6 +1205,7 @@ static int at_response_clcc(struct pvt* const pvt, const struct ast_str* const r
         handle_clcc(pvt, call_idx, dir, state, mode, mpty ? TRIBOOL_TRUE : TRIBOOL_FALSE, number, type);
     }
 
+    ast_free(line);
     return 0;
 }
 
@@ -1473,12 +1476,12 @@ static int at_response_cmgs(struct pvt* const pvt, const struct ast_str* const r
     }
 
     struct ast_str* payload = (partno == partcnt) ? ast_str_create(PAYLOAD_DEF_LEN) : NULL;
-    struct ast_str* dst     = (partno == partcnt) ? ast_str_alloca(DST_DEF_LEN) : NULL;
+    struct ast_str* dst     = (partno == partcnt) ? ast_str_create(DST_DEF_LEN) : NULL;
 
     const ssize_t payload_len = smsdb_outgoing_part_put(task->uid, refid, dst, payload);
     if (payload_len >= 0) {
         ast_verb(3, "[%s][SMS:%d] SMS payload: [%s]\n", PVT_ID(pvt), task->uid, ast_str_buffer(payload));
-        struct ast_str* report = ast_str_alloca(REPORT_DEF_LEN);
+        struct ast_str* report = ast_str_create(REPORT_DEF_LEN);
         if (partcnt <= 1) {
             ast_str_set(&report, REPORT_MAX_LEN, "[SMS:%d REF:%d] Successfully sent message", task->uid, refid);
         } else {
@@ -1486,27 +1489,31 @@ static int at_response_cmgs(struct pvt* const pvt, const struct ast_str* const r
         }
 
         start_local_report_channel(pvt, ast_str_buffer(dst), payload, NULL, NULL, 1, 'i', report);
+        ast_free(report);
     }
     ast_free(payload);
+    ast_free(dst);
     return 0;
 }
 
 static int at_response_cmgs_error(struct pvt* const pvt, const at_queue_task_t* const task)
 {
     struct ast_str* payload = ast_str_create(PAYLOAD_DEF_LEN);
-    struct ast_str* dst     = ast_str_alloca(DST_DEF_LEN);
+    struct ast_str* dst     = ast_str_create(DST_DEF_LEN);
 
     const ssize_t payload_len = smsdb_outgoing_clear(task->uid, dst, payload);
     if (payload_len >= 0) {
         ast_verb(1, "[%s][SMS:%d] Error sending message: [%s]\n", PVT_ID(pvt), task->uid, ast_str_buffer(payload));
-        struct ast_str* report = ast_str_alloca(REPORT_DEF_LEN);
+        struct ast_str* report = ast_str_create(REPORT_DEF_LEN);
         ast_str_set(&report, REPORT_MAX_LEN, "[SMS:%d] Error sending message: [%s]", task->uid, ast_str_buffer(payload));
         start_local_report_channel(pvt, ast_str_buffer(dst), payload, NULL, NULL, 0, 'i', report);
+        ast_free(report);
     } else {
         ast_verb(1, "[%s][SMS:%d] Error sending message\n", PVT_ID(pvt), task->uid);
     }
     pvt->outgoing_sms = 0;
     ast_free(payload);
+    ast_free(dst);
     return 0;
 }
 
@@ -2696,6 +2703,9 @@ static int at_response_ciev(struct pvt* const pvt, const struct ast_str* const r
 
 static int at_response_psuttz(struct pvt* const pvt, const struct ast_str* const response)
 {
+    static const ssize_t MODULE_TIME_DEF_SIZE = 50;
+    static const ssize_t MODULE_TIME_MAX_SIZE = 100;
+
     int year, month, day, hour, min, sec, dst, time_zone;
 
     if (at_parse_psuttz(ast_str_buffer(response), &year, &month, &day, &hour, &min, &sec, &time_zone, &dst)) {
@@ -2703,10 +2713,11 @@ static int at_response_psuttz(struct pvt* const pvt, const struct ast_str* const
         return -1;
     }
 
-    struct ast_str* module_time = ast_str_alloca(50);
-    ast_str_set(&module_time, 100, "%02d/%02d/%02d,%02d:%02d:%02d%+d", year % 100, month, day, hour, min, sec, time_zone);
-
+    struct ast_str* module_time = ast_str_create(MODULE_TIME_DEF_SIZE);
+    ast_str_set(&module_time, MODULE_TIME_MAX_SIZE, "%02d/%02d/%02d,%02d:%02d:%02d%+d", year % 100, month, day, hour, min, sec, time_zone);
     ast_string_field_set(pvt, module_time, ast_str_buffer(module_time));
+    ast_free(module_time);
+
     ast_verb(3, "[%s] Module time: %s\n", PVT_ID(pvt), pvt->module_time);
     return 0;
 }

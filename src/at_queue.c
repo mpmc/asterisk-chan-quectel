@@ -18,7 +18,7 @@
 #include "chan_quectel.h" /* struct pvt */
 #include "helpers.h"
 
-static void at_queue_free_data(at_queue_cmd_t* const cmd)
+void at_queue_free_data(at_queue_cmd_t* const cmd)
 {
     if (cmd->data) {
         if (!(cmd->flags & ATQ_CMD_FLAG_STATIC)) {

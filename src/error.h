@@ -33,7 +33,8 @@ enum error {
     E_INVALID_CHARSET,
     E_BUILD_SCA,
     E_BUILD_PHONE_NUMBER,
-    E_2BIG
+    E_2BIG,
+    E_CMD_FORMAT
 };
 
 static inline const char* error2str(int err)
@@ -66,6 +67,7 @@ static inline const char* error2str(int err)
         "Cannot build SCA",
         "Cannot build phone number",
         "Input too large",
+        "Fail to format AT command",
     };
     return enum2str(err, errors, ITEMS_OF(errors));
 }
