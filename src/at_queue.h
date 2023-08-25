@@ -10,6 +10,11 @@
 
 #include <asterisk/linkedlists.h> /* AST_LIST_ENTRY */
 
+#define AT_CMD(name) at_##name
+#define DECLARE_AT_CMD(name, cmd) static const char at_##name[] = "AT" cmd "\r";
+#define DECLARE_NAKED_AT_CMD(name, cmd) static const char at_##name[] = cmd;
+#define DECLARE_AT_CMD_NODELIM(name, cmd) static const char at_##name[] = "AT" cmd;
+
 #include "at_command.h"  /* at_cmd_t */
 #include "at_response.h" /* at_res_t */
 
@@ -64,9 +69,9 @@ typedef struct at_queue_cmd {
 #define ATQ_CMD_DECLARE_STF(cmd, res, data, flags) ATQ_CMD_DECLARE_STFT(cmd, res, data, flags, ATQ_CMD_TIMEOUT_MEDIUM, 0)
 // #define ATQ_CMD_DECLARE_STF(cmd,res,data,flags)	{ (cmd), (res), ATQ_CMD_FLAG_STATIC|flags, {ATQ_CMD_TIMEOUT_MEDIUM,
 // 0}, (char*)(data), STRLEN(data) }
-#define ATQ_CMD_DECLARE_ST(cmd, data) ATQ_CMD_DECLARE_STF(cmd, RES_OK, data, ATQ_CMD_FLAG_DEFAULT)
-#define ATQ_CMD_DECLARE_STI(cmd, data) ATQ_CMD_DECLARE_STF(cmd, RES_OK, data, ATQ_CMD_FLAG_IGNORE)
-#define ATQ_CMD_DECLARE_STIT(cmd, data, s, u) ATQ_CMD_DECLARE_STFT(cmd, RES_OK, data, ATQ_CMD_FLAG_IGNORE, s, u)
+#define ATQ_CMD_DECLARE_ST(cmd, atcmd) ATQ_CMD_DECLARE_STF(cmd, RES_OK, AT_CMD(atcmd), ATQ_CMD_FLAG_DEFAULT)
+#define ATQ_CMD_DECLARE_STI(cmd, atcmd) ATQ_CMD_DECLARE_STF(cmd, RES_OK, AT_CMD(atcmd), ATQ_CMD_FLAG_IGNORE)
+#define ATQ_CMD_DECLARE_STIT(cmd, atcmd, s, u) ATQ_CMD_DECLARE_STFT(cmd, RES_OK, AT_CMD(atcmd), ATQ_CMD_FLAG_IGNORE, s, u)
 
 #define ATQ_CMD_DECLARE_DYNFT(cmd, res, flags, s, u)                 \
     {                                                                \

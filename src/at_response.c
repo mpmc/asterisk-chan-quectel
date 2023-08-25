@@ -181,11 +181,11 @@ static int at_response_cend(struct pvt* const pvt, const char* str)
 static void __attribute__((format(printf, 7, 8))) at_ok_response_log(int level, const char* file, int line, const char* function, const struct pvt* const pvt,
                                                                      const at_queue_cmd_t* const ecmd, const char* const fmt, ...)
 {
-    static const ssize_t MSG_LEN     = 128;
+    static const ssize_t MSG_DEF_LEN = 128;
     static const ssize_t MSG_MAX_LEN = 1024;
     // U+2713 : Check mark : 0xE2 0x9C 0x93
 
-    struct ast_str* msg = ast_str_create(MSG_LEN);
+    struct ast_str* msg = ast_str_create(MSG_DEF_LEN);
 
     if (ecmd) {
         ast_str_set(&msg, MSG_MAX_LEN, "[%s][%s] \xE2\x9C\x93", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
@@ -555,11 +555,11 @@ static int at_response_ok(struct pvt* const pvt, const at_res_t at_res, const at
 static void __attribute__((format(printf, 7, 8))) at_err_response_log(int level, const char* file, int line, const char* function, const struct pvt* const pvt,
                                                                       const at_queue_cmd_t* const ecmd, const char* const fmt, ...)
 {
-    static const ssize_t MSG_LEN     = 128;
+    static const ssize_t MSG_DEF_LEN = 128;
     static const ssize_t MSG_MAX_LEN = 1024;
     // U+237B: Not check mark
 
-    struct ast_str* msg = ast_str_create(MSG_LEN);
+    struct ast_str* msg = ast_str_create(MSG_DEF_LEN);
 
     if (ecmd) {
         ast_str_set(&msg, MSG_MAX_LEN, "[%s][%s] \xE2\x8D\xBB", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
@@ -1134,13 +1134,13 @@ static void handle_clcc(struct pvt* const pvt, const unsigned int call_idx, cons
 
 static void current_line(const char* const str, struct ast_str** line)
 {
-    static const size_t MAX_LINE_LEN = 1024;
+    static const ssize_t LINE_MAX_LEN = 1024;
 
     const char* const p = strchr(str, '\r');
     if (p) {
-        ast_str_set_substr(line, MAX_LINE_LEN, str, p - str);
+        ast_str_set_substr(line, LINE_MAX_LEN, str, p - str);
     } else {
-        ast_str_set(line, MAX_LINE_LEN, "%s", str);
+        ast_str_set(line, LINE_MAX_LEN, "%s", str);
     }
 }
 
@@ -1169,7 +1169,7 @@ static const char* next_line(const char* const str)
 
 static int at_response_clcc(struct pvt* const pvt, const struct ast_str* const response)
 {
-    static const size_t DEF_LINE_LEN = 128;
+    static const ssize_t LINE_DEF_LEN = 128;
 
     if (!pvt->initialized) {
         return 0;
@@ -1180,7 +1180,7 @@ static int at_response_clcc(struct pvt* const pvt, const struct ast_str* const r
         CPVT_RESET_FLAGS(cpvt, CALL_FLAG_ALIVE);
     }
 
-    struct ast_str* line = ast_str_create(DEF_LINE_LEN);
+    struct ast_str* line = ast_str_create(LINE_DEF_LEN);
     for (const char* str = ast_str_buffer(response); str; str = next_line(str)) {
         current_line(str, &line);
 
@@ -1595,7 +1595,7 @@ static int at_response_cdsi(struct pvt* const pvt, const struct ast_str* const r
 
 static int at_response_msg(struct pvt* const pvt, const struct ast_str* const response, at_res_t cmd)
 {
-    static const size_t MAX_MSG_LEN = 4096;
+    static const ssize_t MSG_MAX_LEN = 4096;
 
     char scts[64], dt[64];
     int mr, st;
@@ -1609,7 +1609,7 @@ static int at_response_msg(struct pvt* const pvt, const struct ast_str* const re
     pdu_udh_init(&udh);
 
     scts[0]             = '\000';
-    struct ast_str* msg = ast_str_create(MAX_MSG_LEN);
+    struct ast_str* msg = ast_str_create(MSG_MAX_LEN);
     struct ast_str* oa  = ast_str_create(512);
     struct ast_str* sca = ast_str_create(512);
     size_t msg_len      = ast_str_size(msg);
@@ -1661,7 +1661,8 @@ static int at_response_msg(struct pvt* const pvt, const struct ast_str* const re
     ast_str_update(msg);
     switch (PDUTYPE_MTI(tpdu_type)) {
         case PDUTYPE_MTI_SMS_STATUS_REPORT: {
-            static const size_t STATUS_REPORT_MAX_STR_LEN = 255 * 4 + 1;
+            static const ssize_t STATUS_REPORT_MAX_STR_LEN = 255 * 4 + 1;
+
             ast_verb(1, "[%s][SMS:%d] Got status report from %s and status code %d\n", PVT_ID(pvt), mr, ast_str_buffer(oa), st);
 
             int* const status_report          = (int*)ast_malloc(sizeof(int) * 256);
@@ -1692,7 +1693,7 @@ static int at_response_msg(struct pvt* const pvt, const struct ast_str* const re
         }
 
         case PDUTYPE_MTI_SMS_DELIVER: {
-            struct ast_str* fullmsg = ast_str_create(MAX_MSG_LEN);
+            struct ast_str* fullmsg = ast_str_create(MSG_MAX_LEN);
             if (udh.parts > 1) {
                 ast_verb(2, "[%s][SMS:%d PART:%d/%d TS:%s] Got message part from %s: [%s]\n", PVT_ID(pvt), (int)udh.ref, (int)udh.order, (int)udh.parts, scts,
                          ast_str_buffer(oa), tmp_esc_str(msg));
