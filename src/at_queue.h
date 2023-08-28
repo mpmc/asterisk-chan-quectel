@@ -11,9 +11,16 @@
 #include <asterisk/linkedlists.h> /* AST_LIST_ENTRY */
 
 #define AT_CMD(name) at_##name
-#define DECLARE_AT_CMD(name, cmd) static const char at_##name[] = "AT" cmd "\r";
-#define DECLARE_NAKED_AT_CMD(name, cmd) static const char at_##name[] = cmd;
-#define DECLARE_AT_CMD_NODELIM(name, cmd) static const char at_##name[] = "AT" cmd;
+
+// non-null terminated string, CR terminated string
+#define DECLARE_AT_CMD(name, cmd) static const char at_##name[sizeof(cmd) + 2] = "AT" cmd "\r";
+// null (and CR) terminated string
+#define DECLARE_AT_CMDNT(name, cmd) static const char at_##name[] = "AT" cmd "\r";
+
+// non-null terminated string
+#define DECLARE_NAKED_AT_CMD(name, cmd) static const char at_##name[sizeof(cmd) - 1] = cmd;
+// null terminated string
+#define DECLARE_NAKED_AT_CMDNT(name, cmd) static const char at_##name[] = cmd;
 
 #include "at_command.h"  /* at_cmd_t */
 #include "at_response.h" /* at_res_t */
@@ -45,8 +52,8 @@ typedef struct at_queue_cmd {
         (e).flags           = iflags | ATQ_CMD_FLAG_STATIC; \
         (e).timeout.tv_sec  = ATQ_CMD_TIMEOUT_MEDIUM;       \
         (e).timeout.tv_usec = 0;                            \
-        (e).data            = (char*)(idata);               \
-        (e).length          = STRLEN(idata);                \
+        (e).data            = (void*)(idata);               \
+        (e).length          = sizeof(idata);                \
     } while (0)
 #define ATQ_CMD_INIT_ST(e, icmd, idata) ATQ_CMD_INIT_STF(e, icmd, ATQ_CMD_FLAG_DEFAULT, idata)
 
@@ -64,7 +71,7 @@ typedef struct at_queue_cmd {
 /* static initializers */
 #define ATQ_CMD_DECLARE_STFT(cmd, res, data, flags, s, u)                                  \
     {                                                                                      \
-        (cmd), (res), ATQ_CMD_FLAG_STATIC | flags, {(s), (u)}, (char*)(data), STRLEN(data) \
+        (cmd), (res), ATQ_CMD_FLAG_STATIC | flags, {(s), (u)}, (void*)(data), sizeof(data) \
     }
 #define ATQ_CMD_DECLARE_STF(cmd, res, data, flags) ATQ_CMD_DECLARE_STFT(cmd, res, data, flags, ATQ_CMD_TIMEOUT_MEDIUM, 0)
 // #define ATQ_CMD_DECLARE_STF(cmd,res,data,flags)	{ (cmd), (res), ATQ_CMD_FLAG_STATIC|flags, {ATQ_CMD_TIMEOUT_MEDIUM,

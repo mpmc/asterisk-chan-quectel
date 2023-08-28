@@ -244,7 +244,7 @@ int at_enqueue_initialization(struct cpvt* cpvt)
             }
 
             if (st_cmds[in].cmd == CMD_AT_CSMS) {
-                DECLARE_AT_CMD(csms, "+CSMS=%d");
+                DECLARE_AT_CMDNT(csms, "+CSMS=%d");
                 if (CONF_SHARED(pvt, msg_service) < 0) {
                     continue;
                 }
@@ -258,7 +258,7 @@ int at_enqueue_initialization(struct cpvt* cpvt)
             }
 
             if (st_cmds[in].cmd == CMD_AT_VTD) {
-                DECLARE_AT_CMD(vtd, "+VTD=%d");
+                DECLARE_AT_CMDNT(vtd, "+VTD=%d");
                 if (CONF_SHARED(pvt, dtmf_duration) < 0) {
                     continue;
                 }
@@ -435,7 +435,7 @@ int at_enqueue_qspn_qnwinfo(struct cpvt* cpvt)
 /* SMS sending */
 static int at_enqueue_pdu(const char* pdu, size_t length, size_t tpdulen, at_queue_cmd_t* cmds)
 {
-    DECLARE_AT_CMD(cmgs, "+CMGS=%d");
+    DECLARE_AT_CMDNT(cmgs, "+CMGS=%d");
 
     static const at_queue_cmd_t st_cmds[] = {
         {CMD_AT_CMGS,    RES_SMS_PROMPT, ATQ_CMD_FLAG_DEFAULT, {ATQ_CMD_TIMEOUT_MEDIUM, 0}, NULL, 0},
@@ -628,7 +628,7 @@ static attribute_pure char cup(char digit)
 
 int at_enqueue_dtmf(struct cpvt* cpvt, char digit)
 {
-    DECLARE_AT_CMD(vts, "+VTS=\"%c\"");
+    DECLARE_AT_CMDNT(vts, "+VTS=\"%c\"");
 
     switch (digit) {
         case 'a':
@@ -669,7 +669,7 @@ int at_enqueue_dtmf(struct cpvt* cpvt, char digit)
 int at_enqueue_set_ccwa(struct cpvt* cpvt, unsigned call_waiting)
 {
     DECLARE_AT_CMD(ccwa_get, "+CCWA=1,2,1");
-    DECLARE_AT_CMD(ccwa_set, "+CCWA=%d,%d,%d");
+    DECLARE_AT_CMDNT(ccwa_set, "+CCWA=%d,%d,%d");
 
     call_waiting_t cw;
     at_queue_cmd_t cmds[] = {
@@ -732,8 +732,8 @@ int at_enqueue_reset(struct cpvt* cpvt)
  */
 int at_enqueue_dial(struct cpvt* cpvt, const char* number, int clir)
 {
-    DECLARE_AT_CMD(clir, "+CLIR=%d");
-    DECLARE_AT_CMD(atd, "D%s;");
+    DECLARE_AT_CMDNT(clir, "+CLIR=%d");
+    DECLARE_AT_CMDNT(atd, "D%s;");
 
     struct pvt* const pvt = cpvt->pvt;
     unsigned int cnt      = 0;
@@ -832,7 +832,7 @@ int at_enqueue_answer(struct cpvt* cpvt)
  */
 int at_enqueue_activate(struct cpvt* cpvt)
 {
-    DECLARE_AT_CMD(chld, "+CHLD=2%d");
+    DECLARE_AT_CMDNT(chld, "+CHLD=2%d");
 
     if (cpvt->state == CALL_STATE_ACTIVE) {
         return 0;
@@ -942,7 +942,7 @@ void at_sms_retrieved(struct cpvt* cpvt, int confirm)
 
 int at_enqueue_list_messages(struct cpvt* cpvt, enum msg_status_t stat)
 {
-    DECLARE_AT_CMD(cmgl, "+CMGL=%d");
+    DECLARE_AT_CMDNT(cmgl, "+CMGL=%d");
 
     at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_CMGL);
 
@@ -967,7 +967,7 @@ int at_enqueue_list_messages(struct cpvt* cpvt, enum msg_status_t stat)
  */
 int at_enqueue_retrieve_sms(struct cpvt* cpvt, int idx)
 {
-    DECLARE_AT_CMD(cmgr, "+CMGR=%d");
+    DECLARE_AT_CMDNT(cmgr, "+CMGR=%d");
 
     struct pvt* const pvt = cpvt->pvt;
     at_queue_cmd_t cmd    = ATQ_CMD_DECLARE_DYN(CMD_AT_CMGR);
@@ -1001,7 +1001,7 @@ error:
 
 int at_enqueue_cmgd(struct cpvt* cpvt, unsigned int idx, int delflag)
 {
-    DECLARE_AT_CMD(cmgd, "+CMGD=%u,%d");
+    DECLARE_AT_CMDNT(cmgd, "+CMGD=%u,%d");
 
     at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYNI(CMD_AT_CMGD);
 
@@ -1028,7 +1028,7 @@ DECLARE_AT_CMD(cnma, "+CNMA");
  */
 int at_enqueue_delete_sms(struct cpvt* cpvt, int idx, tristate_bool_t ack)
 {
-    DECLARE_AT_CMD(cmgd, "+CMGD=%d");
+    DECLARE_AT_CMDNT(cmgd, "+CMGD=%d");
 
     at_queue_cmd_t cmds[] = {ATQ_CMD_DECLARE_STI(CMD_AT_CNMA, cnma), ATQ_CMD_DECLARE_DYNI(CMD_AT_CMGD)};
 
@@ -1051,8 +1051,8 @@ int at_enqueue_delete_sms(struct cpvt* cpvt, int idx, tristate_bool_t ack)
 
 int at_enqueue_delete_sms_n(struct cpvt* cpvt, int idx, tristate_bool_t ack)
 {
-    DECLARE_AT_CMD(cnma, "+CNMA=%d");
-    DECLARE_AT_CMD(cmgd, "+CMGD=%d");
+    DECLARE_AT_CMDNT(cnma, "+CNMA=%d");
+    DECLARE_AT_CMDNT(cmgd, "+CMGD=%d");
 
     at_queue_cmd_t cmds[] = {
         ATQ_CMD_DECLARE_DYNI(CMD_AT_CNMA),
@@ -1114,7 +1114,7 @@ int at_enqueue_msg_ack(struct cpvt* cpvt)
 
 int at_enqueue_msg_ack_n(struct cpvt* cpvt, int n, int uid)
 {
-    DECLARE_AT_CMD(cnma, "+CNMA=%d");
+    DECLARE_AT_CMDNT(cnma, "+CNMA=%d");
 
     at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYNI(CMD_AT_CNMA);
 
@@ -1196,7 +1196,7 @@ static int at_enqueue_chup(struct cpvt* const cpvt)
 static int at_enqueue_qhup(struct cpvt* const cpvt, int call_idx, int release_cause)
 {
     // AT+QHUP=<cause>,<idx>
-    DECLARE_AT_CMD(qhup, "+QHUP=%d,%d");
+    DECLARE_AT_CMDNT(qhup, "+QHUP=%d,%d");
 
     at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYNFT(CMD_AT_QHUP, RES_OK, ATQ_CMD_FLAG_DEFAULT, ATQ_CMD_TIMEOUT_LONG, 0);
 
@@ -1313,7 +1313,7 @@ int at_enqueue_conference(struct cpvt* cpvt)
 int at_hangup_immediately(struct cpvt* cpvt, int release_cause)
 {
     DECLARE_NAKED_AT_CMD(chup, "+CHUP");
-    DECLARE_NAKED_AT_CMD(qhup, "+QHUP=%d,%d");
+    DECLARE_NAKED_AT_CMDNT(qhup, "+QHUP=%d,%d");
 
     struct pvt* const pvt = cpvt->pvt;
 
@@ -1400,7 +1400,7 @@ int at_enqueue_enable_uac(struct cpvt* cpvt)
 
 int at_enqueue_qlts(struct cpvt* cpvt, int mode)
 {
-    DECLARE_AT_CMD(qlts, "+QLTS=%d");
+    DECLARE_AT_CMDNT(qlts, "+QLTS=%d");
 
     at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_QLTS);
 
@@ -1463,8 +1463,8 @@ int at_enqueue_query_qgains(struct cpvt* cpvt)
 
 int at_enqueue_qgains(struct cpvt* cpvt, int txgain, int rxgain)
 {
-    DECLARE_NAKED_AT_CMD(qmic, "+QMIC=%d");
-    DECLARE_NAKED_AT_CMD(qrxgain, "+QRXGAIN=%d");
+    DECLARE_NAKED_AT_CMDNT(qmic, "+QMIC=%d");
+    DECLARE_NAKED_AT_CMDNT(qrxgain, "+QRXGAIN=%d");
 
     int pos               = 0;
     unsigned int cnt      = 0;
@@ -1521,8 +1521,8 @@ int at_enqueue_query_cgains(struct cpvt* cpvt)
 
 int at_enqueue_cgains(struct cpvt* cpvt, int txgain, int rxgain)
 {
-    DECLARE_NAKED_AT_CMD(coutgain, "+COUTGAIN=%d");
-    DECLARE_NAKED_AT_CMD(cmicgain, "+CMICGAIN=%d");
+    DECLARE_NAKED_AT_CMDNT(coutgain, "+COUTGAIN=%d");
+    DECLARE_NAKED_AT_CMDNT(cmicgain, "+CMICGAIN=%d");
 
     int pos               = 0;
     unsigned int cnt      = 0;
@@ -1574,7 +1574,7 @@ int at_enqueue_query_qaudloop(struct cpvt* cpvt)
 
 int at_enqueue_qaudloop(struct cpvt* cpvt, int aloop)
 {
-    DECLARE_AT_CMD(qaudloop, "+QAUDLOOP=%d");
+    DECLARE_AT_CMDNT(qaudloop, "+QAUDLOOP=%d");
 
     at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_QAUDLOOP);
 
@@ -1606,7 +1606,7 @@ int at_enqueue_query_qaudmod(struct cpvt* cpvt)
 
 int at_enqueue_qaudmod(struct cpvt* cpvt, int amode)
 {
-    DECLARE_AT_CMD(qaudmod, "+QAUDMOD=%d");
+    DECLARE_AT_CMDNT(qaudmod, "+QAUDMOD=%d");
 
     at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_QAUDMOD);
 
@@ -1638,7 +1638,7 @@ int at_enqueue_query_qmic(struct cpvt* cpvt)
 
 int at_enqueue_qmic(struct cpvt* cpvt, int gain)
 {
-    DECLARE_AT_CMD(qmic, "+QMIC=%d");
+    DECLARE_AT_CMDNT(qmic, "+QMIC=%d");
 
     at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_QMIC);
 
@@ -1670,7 +1670,7 @@ int at_enqueue_query_cmicgain(struct cpvt* cpvt)
 
 int at_enqueue_cmicgain(struct cpvt* cpvt, int gain)
 {
-    DECLARE_AT_CMD(cmicgain, "+CMICGAIN=%d");
+    DECLARE_AT_CMDNT(cmicgain, "+CMICGAIN=%d");
 
     at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_CMICGAIN);
 
@@ -1702,7 +1702,7 @@ int at_enqueue_query_qrxgain(struct cpvt* cpvt)
 
 int at_enqueue_qrxgain(struct cpvt* cpvt, int gain)
 {
-    DECLARE_AT_CMD(qrxgain, "+QRXGAIN=%d");
+    DECLARE_AT_CMDNT(qrxgain, "+QRXGAIN=%d");
 
     at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_QRXGAIN);
 
@@ -1734,7 +1734,7 @@ int at_enqueue_query_coutgain(struct cpvt* cpvt)
 
 int at_enqueue_coutgain(struct cpvt* cpvt, int gain)
 {
-    DECLARE_AT_CMD(coutgain, "+COUTGAIN=%d");
+    DECLARE_AT_CMDNT(coutgain, "+COUTGAIN=%d");
 
     at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_COUTGAIN);
 
@@ -1814,8 +1814,8 @@ int at_enqueue_csq(struct cpvt* cpvt)
 
 int at_enqueue_escape(struct cpvt* cpvt, int uid)
 {
-    static const char AT_CMD(esc)[2] = {0x1B, 0x00};
-    static const at_queue_cmd_t cmd  = ATQ_CMD_DECLARE_ST(CMD_ESC, esc);
+    DECLARE_NAKED_AT_CMD(esc, "\x1B");
+    static const at_queue_cmd_t cmd = ATQ_CMD_DECLARE_ST(CMD_ESC, esc);
 
     if (at_queue_insert_uid(cpvt, (at_queue_cmd_t*)&cmd, 1u, 1, uid)) {
         chan_quectel_err = E_QUEUE;
