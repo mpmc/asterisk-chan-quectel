@@ -146,7 +146,7 @@ int at_enqueue_initialization(struct cpvt* cpvt)
 
     DECLARE_AT_CMD(cgmi, "+CGMI");
     DECLARE_AT_CMD(csca, "+CSCA?");
-    DECLARE_AT_CMD(cgmm, "CGMM");
+    DECLARE_AT_CMD(cgmm, "+CGMM");
     DECLARE_AT_CMD(cgmr, "+CGMR");
 
     DECLARE_AT_CMD(cmee, "+CMEE=0");
