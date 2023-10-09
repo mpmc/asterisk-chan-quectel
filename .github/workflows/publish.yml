@@ -214,6 +214,11 @@ jobs:
           - target: sunxi-cortexa53
             arch: aarch64
             cpu-type: cortex-a53
+          - target: kirkwood-generic
+            arch: arm
+            cpu-type: xscale
+            eabi: true
+            kirkwood: true
     steps:
     - name: Checkout actions
       uses: actions/checkout@v3
@@ -228,6 +233,7 @@ jobs:
         target: ${{ matrix.target }}
         arch: ${{ matrix.arch }}
         eabi: ${{ matrix.eabi }}
+        kirkwood: ${{ matrix.kirkwood }}
     - uses: actions/checkout@v3
       with:
         fetch-depth: 0
