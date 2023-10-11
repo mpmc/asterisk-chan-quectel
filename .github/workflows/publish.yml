@@ -206,6 +206,11 @@ jobs:
             cpu-type: cortex-a7
             cpu-subtype: neon-vfpv4
             eabi: true
+          - target: ipq40xx-generic
+            arch: arm
+            cpu-type: cortex-a7
+            cpu-subtype: neon-vfpv4
+            eabi: true
           - target: sunxi-cortexa8
             arch: arm
             cpu-type: cortex-a8
