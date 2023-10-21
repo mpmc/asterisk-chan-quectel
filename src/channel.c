@@ -876,7 +876,7 @@ static int channel_write_uac(struct ast_channel*, struct ast_frame* f, struct cp
 
     show_alsa_state(6, "PLAYBACK", PVT_ID(pvt), pvt->ocard);
 
-    snd_pcm_state_t state = snd_pcm_state(pvt->ocard);
+    const snd_pcm_state_t state = snd_pcm_state(pvt->ocard);
     switch (state) {
         case SND_PCM_STATE_XRUN:
             res = snd_pcm_resume(pvt->ocard);
@@ -922,26 +922,25 @@ static int channel_write_uac(struct ast_channel*, struct ast_frame* f, struct cp
 
         case -EPIPE:
         case -ESTRPIPE:
+            res = 0;
             break;
 
         default:
-            if (res != samples) {
-                PVT_STAT(pvt, write_frames)++;
-                PVT_STAT(pvt, write_sframes)++;
-                ast_log(LOG_WARNING, "[%s][ALSA][PLAYBACK] %d/%d samples\n", PVT_ID(pvt), res, samples);
-                res = 0;
-            } else if (res < 0) {
-                state = snd_pcm_state(pvt->ocard);
-                ast_log(LOG_WARNING, "[%s][ALSA][PLAYBACK] state:%d err:'%s'\n", PVT_ID(pvt), (int)state, snd_strerror(res));
-            } else {
-                PVT_STAT(pvt, write_frames)++;
+            if (res >= 0) {
+                if (res != samples) {
+                    PVT_STAT(pvt, write_frames)++;
+                    PVT_STAT(pvt, write_sframes)++;
+                    ast_log(LOG_WARNING, "[%s][ALSA][PLAYBACK] Write: %d/%d\n", PVT_ID(pvt), res, samples);
+                } else {
+                    PVT_STAT(pvt, write_frames)++;
+                }
             }
             break;
     }
 
 w_finish:
 
-    return res >= 0 ? 0 : res;
+    return res >= 0 ? 0 : -1;
 }
 
 #/* */
