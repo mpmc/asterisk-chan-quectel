@@ -1372,11 +1372,11 @@ void pvt_on_remove_last_channel(struct pvt* pvt)
     }
 }
 
-#define SET_BIT(dw_array, bitno)                       \
-    do {                                               \
-        (dw_array)[(bitno) >> 5] |= 1 << ((bitno)&31); \
+#define SET_BIT(dw_array, bitno)                         \
+    do {                                                 \
+        (dw_array)[(bitno) >> 5] |= 1 << ((bitno) & 31); \
     } while (0)
-#define TEST_BIT(dw_array, bitno) ((dw_array)[(bitno) >> 5] & 1 << ((bitno)&31))
+#define TEST_BIT(dw_array, bitno) ((dw_array)[(bitno) >> 5] & 1 << ((bitno) & 31))
 #/* */
 
 int pvt_get_pseudo_call_idx(const struct pvt* pvt)

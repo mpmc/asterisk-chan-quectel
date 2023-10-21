@@ -19,7 +19,7 @@
 #define PDUTYPE_MTI_RESERVED (0x03 << PDUTYPE_MTI_SHIFT)
 
 #define PDUTYPE_MTI_MASK (0x03 << PDUTYPE_MTI_SHIFT)
-#define PDUTYPE_MTI(pdutype) ((pdutype)&PDUTYPE_MTI_MASK)
+#define PDUTYPE_MTI(pdutype) ((pdutype) & PDUTYPE_MTI_MASK)
 
 #define TPDU_LENGTH 176
 #define PDU_LENGTH 256

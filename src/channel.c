@@ -146,7 +146,7 @@ static struct ast_channel* channel_request(attribute_unused const char* type, in
 #if ASTERISK_VERSION_NUM >= 10800
     pvt = find_device_by_resource(dest_dev, opts, requestor, &exists);
 #else  /* 1.8- */
-    pvt                                 = find_device_by_resource(dest_dev, opts, NULL, &exists);
+    pvt = find_device_by_resource(dest_dev, opts, NULL, &exists);
 #endif /* ^1.8- */
 
     unsigned local_channel = 0;
