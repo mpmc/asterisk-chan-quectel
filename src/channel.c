@@ -791,7 +791,7 @@ static struct ast_frame* channel_read(struct ast_channel* channel)
     struct pvt* const pvt = cpvt->pvt;
 
     while (ast_mutex_trylock(&pvt->lock)) {
-        CHANNEL_DEADLOCK_AVOIDANCE(channel);
+        DEADLOCK_AVOIDANCE(&pvt->lock);
     }
 
     ast_debug(8, "[%s] Read - idx:%d state:%d audio_fd:%d\n", PVT_ID(pvt), cpvt->call_idx, cpvt->state, pvt->audio_fd);
@@ -1001,7 +1001,7 @@ static int channel_write(struct ast_channel* channel, struct ast_frame* f)
     struct pvt* const pvt = cpvt->pvt;
 
     while (ast_mutex_trylock(&pvt->lock)) {
-        CHANNEL_DEADLOCK_AVOIDANCE(channel);
+        DEADLOCK_AVOIDANCE(&pvt->lock);
     }
 
     const struct ast_format* const fmt = pvt_get_audio_format(pvt);
@@ -1544,7 +1544,7 @@ static int channel_func_read(struct ast_channel* channel, attribute_unused const
 
     if (!strcasecmp(data, "callstate")) {
         while (ast_mutex_trylock(&pvt->lock)) {
-            CHANNEL_DEADLOCK_AVOIDANCE(channel);
+            DEADLOCK_AVOIDANCE(&pvt->lock);
         }
         call_state_t state = cpvt->state;
         ast_mutex_unlock(&pvt->lock);
@@ -1579,7 +1579,7 @@ static int channel_func_write(struct ast_channel* channel, const char* function,
         }
 
         while (ast_mutex_trylock(&cpvt->pvt->lock)) {
-            CHANNEL_DEADLOCK_AVOIDANCE(channel);
+            DEADLOCK_AVOIDANCE(&cpvt->pvt->lock);
         }
         oldstate = cpvt->state;
 
