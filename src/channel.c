@@ -652,57 +652,9 @@ static struct ast_frame* channel_read_tty(struct cpvt* cpvt, struct pvt* pvt, si
     return f;
 }
 
-static void _show_alsa_state(int, const char* file, int line, const char* function, const char* const pcm_desc, struct pvt* const pvt, snd_pcm_t* const pcm)
-{
-    const size_t ss                    = snd_pcm_status_sizeof();
-    snd_pcm_status_t* const pcm_status = (snd_pcm_status_t*)ast_alloca(ss);
-
-    int res = snd_pcm_status(pcm, pcm_status);
-    if (res < 0) {
-        ast_log(__LOG_ERROR, file, line, function, "[%s][ALSA][%s] Unable to get device status: %s", PVT_ID(pvt), pcm_desc, snd_strerror(res));
-        return;
-    }
-
-    const snd_pcm_state_t pcm_state = snd_pcm_status_get_state(pcm_status);
-    snd_pcm_sframes_t delay         = snd_pcm_status_get_delay(pcm_status);
-    snd_pcm_uframes_t avail         = snd_pcm_status_get_avail(pcm_status);
-    snd_pcm_uframes_t avail_max     = snd_pcm_status_get_avail_max(pcm_status);
-
-    snd_pcm_uframes_t buffer_size;
-    snd_pcm_uframes_t period_size;
-
-    res = snd_pcm_get_params(pcm, &buffer_size, &period_size);
-    if (res < 0) {
-        ast_log(__LOG_ERROR, file, line, function, "[%s][ALSA][%s] Unable to get buffer sizes: %s", PVT_ID(pvt), pcm_desc, snd_strerror(res));
-    }
-
-    int sdelay = 0;
-    if (res >= 0) {
-        avail     %= buffer_size;
-        avail_max %= buffer_size;
-        delay     %= buffer_size;
-
-        if (delay < 0l) {
-            sdelay = -1l;
-        } else if (delay > buffer_size) {
-            sdelay = 1l;
-        }
-    }
-
-    ast_log(__LOG_DEBUG, file, line, function, "[%s][ALSA][%s] Status - state:%s delay:%ld avail:%lu avail_max:%lu sdelay:%d buf:%lu|%lu\n", PVT_ID(pvt),
-            pcm_desc, snd_pcm_state_name(pcm_state), delay, avail, avail_max, sdelay, period_size, buffer_size);
-}
-
-#define show_alsa_state(level, ...)                       \
-    do {                                                  \
-        if (DEBUG_ATLEAST(level)) {                       \
-            _show_alsa_state(AST_LOG_DEBUG, __VA_ARGS__); \
-        }                                                 \
-    } while (0)
-
 static struct ast_frame* channel_read_uac(struct cpvt* cpvt, struct pvt* pvt, size_t frames, const struct ast_format* const fmt)
 {
-    show_alsa_state(7, "CAPTURE", pvt, pvt->icard);
+    show_alsa_state(6, "CAPTURE", PVT_ID(pvt), pvt->icard);
 
     const snd_pcm_state_t state = snd_pcm_state(pvt->icard);
     switch (state) {
@@ -916,6 +868,8 @@ static int channel_write_uac(struct ast_channel*, struct ast_frame* f, struct cp
     const int samples = f->samples;
     int res           = 0;
 
+    show_alsa_state(6, "PLAYBACK", PVT_ID(pvt), pvt->ocard);
+
     snd_pcm_state_t state = snd_pcm_state(pvt->ocard);
     switch (state) {
         case SND_PCM_STATE_XRUN:
@@ -971,7 +925,6 @@ static int channel_write_uac(struct ast_channel*, struct ast_frame* f, struct cp
             } else {
                 PVT_STAT(pvt, write_frames)++;
             }
-            show_alsa_state(6, "PLAYBACK", pvt, pvt->ocard);
             break;
     }
 

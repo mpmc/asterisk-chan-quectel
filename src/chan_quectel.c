@@ -106,6 +106,47 @@ const char* dev_state2str_msg(dev_state_t state)
     return enum2str(state, states, ITEMS_OF(states));
 }
 
+void _show_alsa_state(int, const char* file, int line, const char* function, const char* const pcm_desc, const char* const pvt_id, snd_pcm_t* const pcm)
+{
+    const size_t ss                    = snd_pcm_status_sizeof();
+    snd_pcm_status_t* const pcm_status = (snd_pcm_status_t*)ast_alloca(ss);
+
+    int res = snd_pcm_status(pcm, pcm_status);
+    if (res < 0) {
+        ast_log(__LOG_ERROR, file, line, function, "[%s][ALSA][%s] Unable to get device status: %s", pvt_id, pcm_desc, snd_strerror(res));
+        return;
+    }
+
+    const snd_pcm_state_t pcm_state = snd_pcm_status_get_state(pcm_status);
+    snd_pcm_sframes_t delay         = snd_pcm_status_get_delay(pcm_status);
+    snd_pcm_uframes_t avail         = snd_pcm_status_get_avail(pcm_status);
+    snd_pcm_uframes_t avail_max     = snd_pcm_status_get_avail_max(pcm_status);
+
+    snd_pcm_uframes_t buffer_size;
+    snd_pcm_uframes_t period_size;
+
+    res = snd_pcm_get_params(pcm, &buffer_size, &period_size);
+    if (res < 0) {
+        ast_log(__LOG_ERROR, file, line, function, "[%s][ALSA][%s] Unable to get buffer sizes: %s", pvt_id, pcm_desc, snd_strerror(res));
+    }
+
+    int sdelay = 0;
+    if (res >= 0) {
+        avail     %= buffer_size;
+        avail_max %= buffer_size;
+        delay     %= buffer_size;
+
+        if (delay < 0l) {
+            sdelay = -1l;
+        } else if (delay > buffer_size) {
+            sdelay = 1l;
+        }
+    }
+
+    ast_log(__LOG_DEBUG, file, line, function, "[%s][ALSA][%s] Status - state:%s delay:%ld avail:%lu avail_max:%lu sdelay:%d buf:%lu|%lu\n", pvt_id, pcm_desc,
+            snd_pcm_state_name(pcm_state), delay, avail, avail_max, sdelay, period_size, buffer_size);
+}
+
 static attribute_pure snd_pcm_uframes_t adjust_uframes(snd_pcm_uframes_t v, unsigned int rate)
 {
     snd_pcm_uframes_t res  = v / sizeof(short);
@@ -377,14 +418,18 @@ static int port_status(int fd, int* err)
     return res;
 }
 
-static int alsa_status(snd_pcm_t* const pcm1, snd_pcm_t* const pcm2)
+static int is_snd_pcm_disconnected(snd_pcm_t* const pcm)
 {
-    snd_pcm_state_t state = snd_pcm_state(pcm1);
-    if (state == SND_PCM_STATE_DISCONNECTED) {
-        return -1;
-    }
-    state = snd_pcm_state(pcm2);
-    if (state == SND_PCM_STATE_DISCONNECTED) {
+    const snd_pcm_state_t state = snd_pcm_state(pcm);
+    return (state == SND_PCM_STATE_DISCONNECTED);
+}
+
+static int alsa_status(const char* const pvt_id, snd_pcm_t* const pcm_playback, snd_pcm_t* const pcm_capture)
+{
+    show_alsa_state(2, "PLAYBACK", pvt_id, pcm_playback);
+    show_alsa_state(2, "CAPTURE", pvt_id, pcm_capture);
+
+    if (is_snd_pcm_disconnected(pcm_playback) || is_snd_pcm_disconnected(pcm_capture)) {
         return -1;
     }
 
@@ -943,7 +988,7 @@ static void* do_monitor_phone(void* data)
                 break;
 
             case TRIBOOL_NONE:
-                if (alsa_status(pvt->ocard, pvt->icard)) {
+                if (alsa_status(dev, pvt->ocard, pvt->icard)) {
                     ast_log(LOG_ERROR, "[%s][AUDIO][ALSA] Lost connection\n", dev);
                     goto e_cleanup;
                 }

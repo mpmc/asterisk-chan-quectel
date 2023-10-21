@@ -275,4 +275,14 @@ struct ast_module* self_module();
 
 #define PVT_NO_CHANS(pvt) (!PVT_STATE(pvt, chansno))
 
+void _show_alsa_state(int, const char* file, int line, const char* function, const char* const pcm_desc, const char* const pvt_id, snd_pcm_t* const pcm);
+
+#define show_alsa_state(level, ...)                       \
+    do {                                                  \
+        if (DEBUG_ATLEAST(level)) {                       \
+            _show_alsa_state(AST_LOG_DEBUG, __VA_ARGS__); \
+        }                                                 \
+    } while (0)
+
+
 #endif /* CHAN_QUECTEL_H_INCLUDED */
