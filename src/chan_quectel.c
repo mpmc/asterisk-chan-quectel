@@ -287,6 +287,7 @@ static int pcm_init(struct pvt* pvt, const char* dev, snd_pcm_stream_t stream, u
     ast_debug(3, "[%s][ALSA][%s] Boundary: %lu\n", PVT_ID(pvt), stream_str, boundary);
 
     if (stream == SND_PCM_STREAM_PLAYBACK) {
+        ast_debug(2, "[%s][ALSA][%s] Start threshold: %lu\n", PVT_ID(pvt), stream_str, start_threshold);
         res = snd_pcm_sw_params_set_start_threshold(handle, swparams, start_threshold);
 
         if (res < 0) {
@@ -294,6 +295,7 @@ static int pcm_init(struct pvt* pvt, const char* dev, snd_pcm_stream_t stream, u
             goto alsa_fail;
         }
 
+        ast_debug(2, "[%s][ALSA][%s] Stop threshold: %lu\n", PVT_ID(pvt), stream_str, stop_threshold);
         res = snd_pcm_sw_params_set_stop_threshold(handle, swparams, stop_threshold);
         if (res < 0) {
             ast_log(LOG_ERROR, "[%s][ALSA][%s] SW Couldn't set stop threshold: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
