@@ -423,9 +423,6 @@ static int is_snd_pcm_disconnected(snd_pcm_t* const pcm)
 
 static int alsa_status(const char* const pvt_id, snd_pcm_t* const pcm_playback, snd_pcm_t* const pcm_capture)
 {
-    show_alsa_state(2, "PLAYBACK", pvt_id, pcm_playback);
-    show_alsa_state(2, "CAPTURE", pvt_id, pcm_capture);
-
     if (is_snd_pcm_disconnected(pcm_playback) || is_snd_pcm_disconnected(pcm_capture)) {
         return -1;
     }
@@ -982,9 +979,13 @@ static void* do_monitor_phone(void* data)
                 break;
 
             case TRIBOOL_TRUE:
+                show_alsa_state(2, "PLAYBACK", dev, pvt->ocard);
+                show_alsa_state(2, "CAPTURE", dev, pvt->icard);
                 break;
 
             case TRIBOOL_NONE:
+                show_alsa_state(2, "PLAYBACK", dev, pvt->ocard);
+                show_alsa_state(2, "CAPTURE", dev, pvt->icard);
                 if (alsa_status(dev, pvt->ocard, pvt->icard)) {
                     ast_log(LOG_ERROR, "[%s][AUDIO][ALSA] Lost connection\n", dev);
                     goto e_cleanup;
