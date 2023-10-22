@@ -658,12 +658,19 @@ static struct ast_frame* channel_read_uac(struct cpvt* cpvt, struct pvt* pvt, si
 
     const snd_pcm_state_t state = snd_pcm_state(pvt->icard);
     switch (state) {
-        case SND_PCM_STATE_XRUN:
+        case SND_PCM_STATE_XRUN: {
+            const int res = snd_pcm_prepare(pvt->ocard);
+            if (res) {
+                ast_log(LOG_ERROR, "[%s][ALSA][PLAYBACK] Prepare failed - err:'%s'\n", PVT_ID(pvt), snd_strerror(res));
+            }
+        }
+
         case SND_PCM_STATE_SETUP: {
             const int res = snd_pcm_prepare(pvt->icard);
             if (res) {
                 ast_log(LOG_ERROR, "[%s][ALSA][CAPTURE] Prepare failed - state:%s err:'%s'\n", PVT_ID(pvt), snd_pcm_state_name(state), snd_strerror(res));
             }
+
             return NULL;
         }
 
@@ -874,7 +881,13 @@ static int channel_write_uac(struct ast_channel*, struct ast_frame* f, struct cp
 
     const snd_pcm_state_t state = snd_pcm_state(pvt->ocard);
     switch (state) {
-        case SND_PCM_STATE_XRUN:
+        case SND_PCM_STATE_XRUN: {
+            res = snd_pcm_prepare(pvt->icard);
+            if (res) {
+                ast_log(LOG_ERROR, "[%s][ALSA][CAPTURE] Prepare failed - err:'%s'\n", PVT_ID(pvt), snd_strerror(res));
+                goto w_finish;
+            }
+        }
         case SND_PCM_STATE_SETUP:
             res = snd_pcm_prepare(pvt->ocard);
             if (res) {

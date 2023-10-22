@@ -120,7 +120,6 @@ void _show_alsa_state(int, const char* file, int line, const char* function, con
     const snd_pcm_state_t pcm_state = snd_pcm_status_get_state(pcm_status);
     snd_pcm_sframes_t delay         = snd_pcm_status_get_delay(pcm_status);
     snd_pcm_uframes_t avail         = snd_pcm_status_get_avail(pcm_status);
-    snd_pcm_uframes_t avail_max     = snd_pcm_status_get_avail_max(pcm_status);
 
     snd_pcm_uframes_t buffer_size;
     snd_pcm_uframes_t period_size;
@@ -130,21 +129,17 @@ void _show_alsa_state(int, const char* file, int line, const char* function, con
         ast_log(__LOG_ERROR, file, line, function, "[%s][ALSA][%s] Unable to get buffer sizes: %s", pvt_id, pcm_desc, snd_strerror(res));
     }
 
-    int sdelay = 0;
+    snd_pcm_uframes_t avail_period_buffers = 0;
+    snd_pcm_uframes_t delay_period_buffers = 0;
     if (res >= 0) {
-        avail     %= buffer_size;
-        avail_max %= buffer_size;
-        delay     %= buffer_size;
-
-        if (delay < 0l) {
-            sdelay = -1l;
-        } else if (delay > buffer_size) {
-            sdelay = 1l;
-        }
+        avail_period_buffers  = avail / period_size;
+        avail                %= period_size;
+        delay_period_buffers  = delay / period_size;
+        delay                %= period_size;
     }
 
-    ast_log(__LOG_DEBUG, file, line, function, "[%s][ALSA][%s] Status - state:%s delay:%ld avail:%lu avail_max:%lu sdelay:%d buf:%lu|%lu\n", pvt_id, pcm_desc,
-            snd_pcm_state_name(pcm_state), delay, avail, avail_max, sdelay, period_size, buffer_size);
+    ast_log(__LOG_DEBUG, file, line, function, "[%s][ALSA][%s] Status - state:%s delay:%ld:%ld avail:%lu:%lu\n", pvt_id, pcm_desc,
+            snd_pcm_state_name(pcm_state), delay_period_buffers, delay, avail_period_buffers, avail);
 }
 
 static attribute_pure snd_pcm_uframes_t adjust_uframes(snd_pcm_uframes_t v, unsigned int rate)
@@ -295,7 +290,7 @@ static int pcm_init(struct pvt* pvt, const char* dev, snd_pcm_stream_t stream, u
             goto alsa_fail;
         }
 
-        ast_debug(2, "[%s][ALSA][%s] Stop threshold: %lu\n", PVT_ID(pvt), stream_str, stop_threshold);
+        ast_debug(2, "[%s][ALSA][%s] Stop threshold: %lu, free: %lu\n", PVT_ID(pvt), stream_str, stop_threshold, buffer_size - stop_threshold);
         res = snd_pcm_sw_params_set_stop_threshold(handle, swparams, stop_threshold);
         if (res < 0) {
             ast_log(LOG_ERROR, "[%s][ALSA][%s] SW Couldn't set stop threshold: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
