@@ -752,7 +752,7 @@ static struct ast_frame* channel_read(struct ast_channel* channel)
         DEADLOCK_AVOIDANCE(&pvt->lock);
     }
 
-    ast_debug(8, "[%s] Read - idx:%d state:%d audio_fd:%d\n", PVT_ID(pvt), cpvt->call_idx, cpvt->state, pvt->audio_fd);
+    ast_debug(8, "[%s] Read - idx:%d state:%s audio_fd:%d\n", PVT_ID(pvt), cpvt->call_idx, call_state2str(cpvt->state), pvt->audio_fd);
 
     /* FIXME: move down for enable timing_write() to device ? */
     if (CONF_UNIQ(pvt, uac) == TRIBOOL_FALSE && (!CPVT_IS_SOUND_SOURCE(cpvt) || pvt->audio_fd < 0)) {
@@ -786,7 +786,12 @@ static struct ast_frame* channel_read(struct ast_channel* channel)
 m_unlock:
     ast_mutex_unlock(&pvt->lock);
 
-    return (f == NULL || f->frametype == AST_FRAME_NULL) ? &ast_null_frame : f;
+    if (f == NULL || f->frametype == AST_FRAME_NULL) {
+        ast_debug(5, "[%s] Read - idx:%d state:%s - returning NULL frame\n", PVT_ID(pvt), cpvt->call_idx, call_state2str(cpvt->state));
+        return &ast_null_frame;
+    } else {
+        return f;
+    }
 }
 
 static int channel_write_tty(struct ast_channel* channel, struct ast_frame* f, struct cpvt* cpvt, struct pvt* pvt, size_t frame_size)
@@ -940,7 +945,7 @@ static int channel_write_uac(struct ast_channel*, struct ast_frame* f, struct cp
 
 w_finish:
 
-    return res >= 0 ? 0 : -1;
+    return res;
 }
 
 #/* */
@@ -983,7 +988,7 @@ static int channel_write(struct ast_channel* channel, struct ast_frame* f)
         return 0;
     }
 
-    ast_debug(8, "[%s] Write - idx:%d state:%d\n", PVT_ID(pvt), cpvt->call_idx, cpvt->state);
+    ast_debug(8, "[%s] Write - idx:%d state:%s\n", PVT_ID(pvt), cpvt->call_idx, call_state2str(cpvt->state));
 
     if (f->datalen < frame_size) {
         ast_debug(8, "[%s] Short voice frame: %d/%d\n", PVT_ID(pvt), f->datalen, (int)frame_size);
@@ -999,7 +1004,7 @@ static int channel_write(struct ast_channel* channel, struct ast_frame* f)
     }
 
     ast_mutex_unlock(&pvt->lock);
-    return res;
+    return res >= 0 ? 0 : -1;
 }
 
 #undef subclass_integer
