@@ -788,7 +788,7 @@ m_unlock:
     }
 }
 
-static int channel_write_tty(struct ast_channel* channel, struct ast_frame* f, struct cpvt* cpvt, struct pvt* pvt, size_t frame_size)
+static int channel_write_tty(struct ast_channel* channel, struct ast_frame* f, struct cpvt* cpvt, struct pvt* pvt)
 {
     if (CPVT_TEST_FLAG(cpvt, CALL_FLAG_MULTIPARTY) && !CPVT_TEST_FLAG(cpvt, CALL_FLAG_BRIDGE_CHECK)) {
 #if ASTERISK_VERSION_NUM >= 120000 /* 12+ */
@@ -868,7 +868,7 @@ static int channel_write_tty(struct ast_channel* channel, struct ast_frame* f, s
     return 0;
 }
 
-static int channel_write_uac(struct ast_channel*, struct ast_frame* f, struct cpvt*, struct pvt* pvt, size_t frame_size)
+static int channel_write_uac(struct ast_channel*, struct ast_frame* f, struct cpvt*, struct pvt* pvt)
 {
     const int samples = f->samples;
     int res           = 0;
@@ -980,16 +980,16 @@ static int channel_write(struct ast_channel* channel, struct ast_frame* f)
     ast_debug(8, "[%s] Write - idx:%d state:%s\n", PVT_ID(pvt), cpvt->call_idx, call_state2str(cpvt->state));
 
     if (f->datalen < frame_size) {
-        ast_debug(8, "[%s] Short voice frame: %d/%d\n", PVT_ID(pvt), f->datalen, (int)frame_size);
+        ast_debug(8, "[%s] Short voice frame: %d/%d, samples:%d\n", PVT_ID(pvt), f->datalen, (int)frame_size, f->samples);
         PVT_STAT(pvt, write_tframes)++;
     } else if (f->datalen > frame_size) {
-        ast_debug(8, "[%s] Large voice frame: %d/%d\n", PVT_ID(pvt), f->datalen, (int)frame_size);
+        ast_debug(8, "[%s] Large voice frame: %d/%d, samples: %d\n", PVT_ID(pvt), f->datalen, (int)frame_size, f->samples);
     }
 
     if (CONF_UNIQ(pvt, uac) > TRIBOOL_FALSE && CPVT_IS_MASTER(cpvt)) {
-        res = channel_write_uac(channel, f, cpvt, pvt, frame_size);
+        res = channel_write_uac(channel, f, cpvt, pvt);
     } else {
-        res = channel_write_tty(channel, f, cpvt, pvt, frame_size);
+        res = channel_write_tty(channel, f, cpvt, pvt);
     }
 
     ast_mutex_unlock(&pvt->lock);
