@@ -14,7 +14,7 @@
 
 #define FRAME_SIZE_CAPTURE 640
 #define FRAME_SIZE_PLAYBACK 1600
-#define BUFFER_SIZE 3200
+#define BUFFER_SIZE 4800
 
 typedef enum {
     CALL_STATE_MIN = 0,
