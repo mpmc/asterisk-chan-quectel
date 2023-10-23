@@ -759,7 +759,7 @@ static struct ast_frame* channel_read(struct ast_channel* channel)
 
     const int fdno                     = ast_channel_fdno(channel);
     const struct ast_format* const fmt = pvt_get_audio_format(pvt);
-    const size_t frame_size            = pvt_get_audio_frame_size(pvt, 1, fmt);
+    const size_t frame_size            = pvt_get_audio_frame_size(1, fmt);
 
     if (fdno == 1) {
         ast_timer_ack(pvt->a_timer, 1);
@@ -971,7 +971,7 @@ static int channel_write(struct ast_channel* channel, struct ast_frame* f)
     }
 
     const struct ast_format* const fmt = pvt_get_audio_format(pvt);
-    const size_t frame_size            = pvt_get_audio_frame_size(pvt, 0, fmt);
+    const size_t frame_size            = pvt_get_audio_frame_size(0, fmt);
 
 #if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
     if (f->frametype != AST_FRAME_VOICE || ast_format_cmp(f->subclass.format, fmt) != AST_FORMAT_CMP_EQUAL)

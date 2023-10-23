@@ -247,7 +247,7 @@ void pvt_try_restate(struct pvt* pvt);
 int pvt_set_act(struct pvt* pvt, int act);
 
 const struct ast_format* pvt_get_audio_format(const struct pvt* const);
-size_t pvt_get_audio_frame_size(const struct pvt* const, int, const struct ast_format* const);
+size_t pvt_get_audio_frame_size(int, const struct ast_format* const);
 void* pvt_get_silence_buffer(struct pvt* const);
 
 #ifdef USE_SYSV_UUCP_LOCKS

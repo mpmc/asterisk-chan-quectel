@@ -70,7 +70,7 @@ struct cpvt* cpvt_alloc(struct pvt* pvt, int call_idx, unsigned dir, call_state_
     cpvt->rd_pipe[1]    = filedes[1];
 
     const struct ast_format* const fmt  = pvt_get_audio_format(pvt);
-    size_t buffer_size                  = pvt_get_audio_frame_size(pvt, 1, fmt);
+    size_t buffer_size                  = pvt_get_audio_frame_size(1, fmt);
     buffer_size                        += AST_FRIENDLY_OFFSET;
     cpvt->a_read_buf                    = ast_malloc(buffer_size);
     cpvt->a_read_buf_size               = buffer_size;

@@ -2169,7 +2169,7 @@ const struct ast_format* pvt_get_audio_format(const struct pvt* const pvt)
     }
 }
 
-size_t pvt_get_audio_frame_size(const struct pvt* const pvt, int capture, const struct ast_format* const fmt)
+size_t pvt_get_audio_frame_size(int capture, const struct ast_format* const fmt)
 {
     size_t res             = capture ? FRAME_SIZE_CAPTURE : FRAME_SIZE_PLAYBACK;
     const unsigned int sr  = ast_format_get_sample_rate(fmt);
