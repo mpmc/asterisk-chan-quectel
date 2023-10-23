@@ -788,6 +788,7 @@ m_unlock:
         ast_debug(5, "[%s] Read - idx:%d state:%s - returning NULL frame\n", PVT_ID(pvt), cpvt->call_idx, call_state2str(cpvt->state));
         return &ast_null_frame;
     } else {
+        ast_debug(8, "[%s] Read - idx:%d state:%s samples:%d\n", PVT_ID(pvt), cpvt->call_idx, call_state2str(cpvt->state), f->samples);
         return f;
     }
 }
