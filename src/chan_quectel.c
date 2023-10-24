@@ -173,10 +173,11 @@ static int pcm_init(struct pvt* pvt, const char* dev, snd_pcm_stream_t stream, u
     snd_pcm_uframes_t period_size     = adjust_uframes(((stream == SND_PCM_STREAM_CAPTURE) ? FRAME_SIZE_CAPTURE : FRAME_SIZE_PLAYBACK), rate);
     snd_pcm_uframes_t buffer_size     = adjust_uframes(BUFFER_SIZE, rate);
     snd_pcm_uframes_t start_threshold = period_size * 2;
-    snd_pcm_uframes_t stop_threshold  = adjust_uframes(BUFFER_SIZE / 2, rate);
-    snd_pcm_uframes_t boundary        = 0u;
-    unsigned int hwrate               = rate;
-    unsigned int channels             = 1;
+    // snd_pcm_uframes_t stop_threshold  = adjust_uframes(BUFFER_SIZE / 2, rate);
+    snd_pcm_uframes_t stop_threshold = buffer_size - period_size;
+    snd_pcm_uframes_t boundary       = 0u;
+    unsigned int hwrate              = rate;
+    unsigned int channels            = 1;
 
     const char* const stream_str = (stream == SND_PCM_STREAM_CAPTURE) ? "CAPTURE" : "PLAYBACK";
 
