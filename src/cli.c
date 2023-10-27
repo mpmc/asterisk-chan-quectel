@@ -8,7 +8,6 @@
 
    bg <bg_one@mail.ru>
 */
-#include "ast_compat.h" /* asterisk compatibility fixes */
 #include "ast_config.h"
 
 #include <asterisk.h>
@@ -658,11 +657,7 @@ static char* cli_sms_direct_auto(struct ast_cli_entry* e, int cmd, struct ast_cl
 
 CLI_ALIASES(cli_sms_direct_auto, "sms direct auto", "sms direct auto <device>", "Receive messages from <device> in a way specified in configuration")
 
-#if ASTERISK_VERSION_NUM >= 10800 /* 1.8+ */
 typedef const char* const* ast_cli_complete2_t;
-#else  /* 1.8- */
-typedef char* const* ast_cli_complete2_t;
-#endif /* ^1.8- */
 
 static char* cli_ccwa_set(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {

@@ -43,24 +43,16 @@
 #include <signal.h>  /* SIGURG */
 #include <termios.h> /* struct termios tcgetattr() tcsetattr()  */
 
-#include "ast_compat.h" /* asterisk compatibility fixes */
 #include "ast_config.h"
-
-#if ASTERISK_VERSION_NUM < 140000 /* 14- */
-ASTERISK_FILE_VERSION(__FILE__, "$Rev: " PACKAGE_REVISION " $")
-#endif /* 14- */
 
 #include <asterisk/callerid.h>
 #include <asterisk/causes.h>
+#include <asterisk/format_cache.h>
 #include <asterisk/manager.h>
-#include <asterisk/module.h>       /* AST_MODULE_LOAD_DECLINE ... */
+#include <asterisk/module.h> /* AST_MODULE_LOAD_DECLINE ... */
+#include <asterisk/stasis_channels.h>
 #include <asterisk/stringfields.h> /* AST_DECLARE_STRING_FIELDS for asterisk/manager.h */
 #include <asterisk/timing.h>       /* ast_timer_open() ast_timer_fd() */
-
-#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
-#include <asterisk/format_cache.h>
-#include <asterisk/stasis_channels.h>
-#endif /* ^13+ */
 
 #include "at_command.h" /* at_cmd2str() */
 #include "at_queue.h"   /* struct at_queue_task_cmd at_queue_head_cmd() */
@@ -79,10 +71,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Rev: " PACKAGE_REVISION " $")
 static const char* const dev_state_strs[4] = {"stop", "restart", "remove", "start"};
 
 public_state_t* gpublic;
-#if ASTERISK_VERSION_NUM >= 100000 && ASTERISK_VERSION_NUM < 130000 /* 10-13 */
-struct ast_format chan_quectel_format;
-struct ast_format_cap* chan_quectel_format_cap;
-#endif /* ^10-13 */
 
 const char* dev_state2str(dev_state_t state) { return enum2str(state, dev_state_strs, ITEMS_OF(dev_state_strs)); }
 
@@ -2283,7 +2271,6 @@ static int public_state_init(struct public_state* state)
         rv = AST_MODULE_LOAD_FAILURE;
         if (!discovery_restart(state)) {
             /* set preferred capabilities */
-#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
             if (!(channel_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
                 return AST_MODULE_LOAD_FAILURE;
             }
@@ -2292,21 +2279,6 @@ static int public_state_init(struct public_state* state)
             append_fmt(channel_tech.capabilities, ast_format_slin48);
             ast_format_cap_set_framing(channel_tech.capabilities, get_default_framing());
 
-#elif ASTERISK_VERSION_NUM >= 100000 /* 10-13 */
-            ast_format_set(&chan_quectel_format, AST_FORMAT_SLINEAR, 0);
-#if ASTERISK_VERSION_NUM >= 120000   /* 12+ */
-            if (!(channel_tech.capabilities = ast_format_cap_alloc(0))) {
-                return AST_MODULE_LOAD_FAILURE;
-            }
-#else
-            if (!(channel_tech.capabilities = ast_format_cap_alloc())) {
-                return AST_MODULE_LOAD_FAILURE;
-            }
-#endif
-            ast_format_cap_add(channel_tech.capabilities, &chan_quectel_format);
-            chan_quectel_format_cap = channel_tech.capabilities;
-#endif /* ^10-13 */
-
             /* register our channel type */
             if (ast_channel_register(&channel_tech) == 0) {
                 smsdb_init();
@@ -2314,12 +2286,8 @@ static int public_state_init(struct public_state* state)
 
                 return AST_MODULE_LOAD_SUCCESS;
             } else {
-#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
                 ao2_cleanup(channel_tech.capabilities);
                 channel_tech.capabilities = NULL;
-#elif ASTERISK_VERSION_NUM >= 100000 /* 10-13 */
-                channel_tech.capabilities = ast_format_cap_destroy(channel_tech.capabilities);
-#endif                               /* ^10-13 */
                 ast_log(LOG_ERROR, "Unable to register channel class %s\n", channel_tech.type);
             }
             discovery_stop(state);
@@ -2341,12 +2309,8 @@ static void public_state_fini(struct public_state* state)
 {
     /* First, take us out of the channel loop */
     ast_channel_unregister(&channel_tech);
-#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
     ao2_cleanup(channel_tech.capabilities);
     channel_tech.capabilities = NULL;
-#elif ASTERISK_VERSION_NUM >= 100000 /* 10-13 */
-    channel_tech.capabilities = ast_format_cap_destroy(channel_tech.capabilities);
-#endif                               /* ^10-13 */
 
     /* Unregister the CLI */
     cli_unregister();
@@ -2388,15 +2352,8 @@ static int reload_module()
     return 0;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, MODULE_DESCRIPTION,
-#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
-                .support_level = AST_MODULE_SUPPORT_EXTENDED,
-#endif /* ^13+ */
-                .load = load_module, .unload = unload_module, .reload = reload_module,
-#if ASTERISK_VERSION_NUM >= 130000 /* 13+ */
-                .load_pri = AST_MODPRI_CHANNEL_DRIVER,
-#endif /* ^13+ */
-);
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, MODULE_DESCRIPTION, .support_level = AST_MODULE_SUPPORT_EXTENDED, .load = load_module,
+                .unload = unload_module, .reload = reload_module, .load_pri = AST_MODPRI_CHANNEL_DRIVER, );
 
 // AST_MODULE_INFO_STANDARD (ASTERISK_GPL_KEY, MODULE_DESCRIPTION);
 

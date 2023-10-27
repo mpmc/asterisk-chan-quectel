@@ -46,6 +46,5 @@ SET(HEADERS
     smsdb.h
     mutils.h
     gsm7_luts.h
-    ast_compat.h
     ast_config.h
 )

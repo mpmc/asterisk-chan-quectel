@@ -12,7 +12,6 @@
 */
 #include <sys/sysinfo.h>
 
-#include "ast_compat.h" /* asterisk compatibility fixes */
 #include "ast_config.h"
 
 #include <asterisk/causes.h> /* AST_CAUSE_... definitions */
@@ -936,13 +935,8 @@ e_return:
 static int start_pbx(struct pvt* const pvt, const char* const number, const int call_idx, const call_state_t state)
 {
     /* TODO: pass also Subscriber number or other DID info for exten  */
-#if ASTERISK_VERSION_NUM >= 120000 /* 12+ */
     struct ast_channel* channel = new_channel(pvt, AST_STATE_RING, number, call_idx, CALL_DIR_INCOMING, state,
                                               pvt->has_subscriber_number ? pvt->subscriber_number : CONF_SHARED(pvt, exten), NULL, NULL, 0);
-#else  /* 12- */
-    struct ast_channel* channel = new_channel(pvt, AST_STATE_RING, number, call_idx, CALL_DIR_INCOMING, state,
-                                              pvt->has_subscriber_number ? pvt->subscriber_number : CONF_SHARED(pvt, exten), NULL, 0);
-#endif /* ^12- */
 
     if (!channel) {
         ast_log(LOG_ERROR, "[%s] Unable to allocate channel for incoming call\n", PVT_ID(pvt));
@@ -1653,7 +1647,7 @@ static int at_response_msg(struct pvt* const pvt, const struct ast_str* const re
 
             ast_verb(1, "[%s][SMS:%d] Got status report from %s and status code %d\n", PVT_ID(pvt), mr, ast_str_buffer(oa), st);
 
-            RAII_VAR(int*, status_report, (int*)ast_cmalloc(sizeof(int), 256), ast_free);
+            RAII_VAR(int*, status_report, (int*)ast_calloc(sizeof(int), 256), ast_free);
             RAII_VAR(struct ast_str*, status_report_str, ast_str_create(REPORT_DEF_LEN), ast_free);
             RAII_VAR(struct ast_str*, payload, ast_str_create(PAYLOAD_DEF_LEN), ast_free);
             const ssize_t payload_len = smsdb_outgoing_part_status(pvt->imsi, ast_str_buffer(oa), mr, st, status_report, payload);

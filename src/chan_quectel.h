@@ -17,7 +17,6 @@
 #include <sys/ioctl.h>
 #include <sys/time.h>
 
-#include "ast_compat.h" /* asterisk compatibility fixes */
 #include "ast_config.h"
 
 #include <asterisk/linkedlists.h>
@@ -44,12 +43,6 @@ static const snd_pcm_format_t format = SND_PCM_FORMAT_S16_BE;
 const char* dev_state2str(dev_state_t state);
 dev_state_t str2dev_state(const char*);
 const char* dev_state2str_msg(dev_state_t state);
-
-#if ASTERISK_VERSION_NUM >= 100000 && ASTERISK_VERSION_NUM < 130000 /* 10-13 */
-/* Only linear is allowed */
-struct ast_format chan_quectel_format;
-struct ast_format_cap* chan_quectel_format_cap;
-#endif /* ^10-13 */
 
 typedef enum {
     RESTATE_TIME_NOW = 0,
