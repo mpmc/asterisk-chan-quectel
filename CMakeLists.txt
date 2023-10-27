@@ -145,6 +145,7 @@ ENDIF()
 SET(ASTERISK_VERSION_NUM 180000 CACHE STRING "Asterisk version")
 OPTION(ICONV_CONST "iconv() const declaration of input buffer" OFF)
 OPTION(USE_SYSV_UUCP_LOCKS "Use SYSV-style UUCP device locks" OFF)
+OPTION(PTIME_USE_DEFAULT "Use default framing" ON)
 SET(ICONV_T iconv_t CACHE STRING "iconv type")
 SET(AST_MODULE chan_quectel)
 
@@ -214,6 +215,7 @@ ELSE()
 ENDIF()
 
 CONFIGURE_FILE(config.h.in include/config.h)
+CONFIGURE_FILE(src/ptime-config.h.in include/ptime-config.h)
 
 INCLUDE(GNUInstallDirs)
 

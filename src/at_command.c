@@ -59,12 +59,12 @@ static int __attribute__((format(printf, 2, 0))) at_fill_generic_cmd_va(at_queue
     static const ssize_t AT_CMD_DEF_LEN = 32;
     static const ssize_t AT_CMD_MAX_LEN = 4096;
 
-    struct ast_str* cmdstr = ast_str_create(AT_CMD_DEF_LEN);
+    RAII_VAR(struct ast_str*, cmdstr, ast_str_create(AT_CMD_DEF_LEN), ast_free);
+
     ast_str_set_va(&cmdstr, AT_CMD_MAX_LEN, format, ap);
     const size_t cmdlen = ast_str_strlen(cmdstr);
 
     if (!cmdlen) {
-        ast_free(cmdstr);
         return -1;
     }
 
@@ -72,7 +72,6 @@ static int __attribute__((format(printf, 2, 0))) at_fill_generic_cmd_va(at_queue
     cmd->length  = (unsigned int)cmdlen;
     cmd->flags  &= ~ATQ_CMD_FLAG_STATIC;
 
-    ast_free(cmdstr);
     return 0;
 }
 

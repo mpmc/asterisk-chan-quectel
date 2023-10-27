@@ -86,9 +86,7 @@ int get_at_clir_value(struct pvt* pvt, int clir)
     return res;
 }
 
-static void free_pvt(struct pvt* pvt) { ast_mutex_unlock(&pvt->lock); }
-
-struct pvt* get_pvt(const char* dev_name, int online)
+static struct pvt* get_pvt(const char* dev_name, int online)
 {
     struct pvt* const pvt = find_device_ext(dev_name);
 
@@ -98,7 +96,7 @@ struct pvt* get_pvt(const char* dev_name, int online)
     }
 
     if (!pvt->connected || (online && !(pvt->initialized && pvt->gsm_registered))) {
-        free_pvt(pvt);
+        ast_mutex_unlock(&pvt->lock);
         return NULL;
     }
 
@@ -114,13 +112,13 @@ int send_ussd(const char* dev_name, const char* ussd)
         return -1;
     }
 
-    struct pvt* const pvt = get_pvt(dev_name, 1);
+    RAII_VAR(struct pvt*, pvt, get_pvt(dev_name, 1), unlock_pvt);
+
     if (!pvt) {
         return -1;
     }
 
     const int res = at_enqueue_ussd(&pvt->sys_chan, ussd, 0);
-    free_pvt(pvt);
     return res;
 }
 
@@ -134,50 +132,50 @@ int send_sms(const char* const dev_name, const char* const number, const char* c
         return -1;
     }
 
-    struct pvt* const pvt = get_pvt(dev_name, 1);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), unlock_pvt);
+
     if (!pvt) {
         return -1;
     }
 
     const int res = at_enqueue_sms(&pvt->sys_chan, number, message, validity, report, payload, payload_len);
-    free_pvt(pvt);
     return res;
 }
 
 int list_sms(const char* const dev_name, enum msg_status_t stat)
 {
-    struct pvt* const pvt = get_pvt(dev_name, 1);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), unlock_pvt);
+
     if (!pvt) {
         return -1;
     }
 
     const int res = at_enqueue_list_messages(&pvt->sys_chan, stat);
-    free_pvt(pvt);
     return res;
 }
 
 int delete_sms(const char* const dev_name, unsigned int idx, int delflag)
 {
-    struct pvt* const pvt = get_pvt(dev_name, 1);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), unlock_pvt);
+
     if (!pvt) {
         return -1;
     }
 
     const int res = at_enqueue_cmgd(&pvt->sys_chan, idx, delflag);
-    free_pvt(pvt);
     return res;
 }
 
 int sms_direct(const char* const dev_name, int directflag)
 {
-    struct pvt* const pvt = get_pvt(dev_name, 1);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), unlock_pvt);
+
     if (!pvt) {
         return -1;
     }
 
     if (directflag) {
         const int res = at_enqueue_msg_direct(&pvt->sys_chan, directflag > 0);
-        free_pvt(pvt);
         return res;
     }
 
@@ -187,7 +185,6 @@ int sms_direct(const char* const dev_name, int directflag)
     }
 
     const int res = at_enqueue_msg_direct(&pvt->sys_chan, CONF_SHARED(pvt, msg_direct) > 0);
-    free_pvt(pvt);
     return res;
 }
 
@@ -195,13 +192,13 @@ int sms_direct(const char* const dev_name, int directflag)
 
 int send_reset(const char* dev_name)
 {
-    struct pvt* const pvt = get_pvt(dev_name, 0);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 0), unlock_pvt);
+
     if (!pvt) {
         return -1;
     }
 
     const int res = at_enqueue_reset(&pvt->sys_chan);
-    free_pvt(pvt);
     return res;
 }
 
@@ -209,13 +206,13 @@ int send_reset(const char* dev_name)
 
 int send_ccwa_set(const char* dev_name, call_waiting_t enable)
 {
-    struct pvt* const pvt = get_pvt(dev_name, 1);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), unlock_pvt);
+
     if (!pvt) {
         return -1;
     }
 
     const int res = at_enqueue_set_ccwa(&pvt->sys_chan, enable);
-    free_pvt(pvt);
     return res;
 }
 
@@ -223,13 +220,13 @@ int send_ccwa_set(const char* dev_name, call_waiting_t enable)
 
 int query_qaudloop(const char* dev_name)
 {
-    struct pvt* const pvt = get_pvt(dev_name, 1);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), unlock_pvt);
+
     if (!pvt) {
         return -1;
     }
 
     const int res = at_enqueue_query_qaudloop(&pvt->sys_chan);
-    free_pvt(pvt);
     return res;
 }
 
@@ -237,13 +234,13 @@ int query_qaudloop(const char* dev_name)
 
 int send_qaudloop(const char* dev_name, int aloop)
 {
-    struct pvt* const pvt = get_pvt(dev_name, 1);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), unlock_pvt);
+
     if (!pvt) {
         return -1;
     }
 
     const int res = at_enqueue_qaudloop(&pvt->sys_chan, aloop);
-    free_pvt(pvt);
     return res;
 }
 
@@ -251,13 +248,13 @@ int send_qaudloop(const char* dev_name, int aloop)
 
 int query_qaudmod(const char* dev_name)
 {
-    struct pvt* const pvt = get_pvt(dev_name, 1);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), unlock_pvt);
+
     if (!pvt) {
         return -1;
     }
 
     const int res = at_enqueue_query_qaudmod(&pvt->sys_chan);
-    free_pvt(pvt);
     return res;
 }
 
@@ -265,14 +262,13 @@ int query_qaudmod(const char* dev_name)
 
 int send_qaudmod(const char* dev_name, int amod)
 {
-    struct pvt* const pvt = get_pvt(dev_name, 1);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), unlock_pvt);
+
     if (!pvt) {
         return -1;
     }
 
     const int res = at_enqueue_qaudmod(&pvt->sys_chan, amod);
-    free_pvt(pvt);
-
     return res;
 }
 
@@ -288,7 +284,8 @@ static int to_simcom_gain(int gain) { return gain * MAX_GAIN_SIMCOM / MAX_GAIN; 
 
 int query_micgain(const char* dev_name)
 {
-    struct pvt* const pvt = get_pvt(dev_name, 1);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), unlock_pvt);
+
     if (!pvt) {
         return -1;
     }
@@ -299,7 +296,6 @@ int query_micgain(const char* dev_name)
     } else {
         res = at_enqueue_query_qmic(&pvt->sys_chan);
     }
-    free_pvt(pvt);
     return res;
 }
 
@@ -307,7 +303,8 @@ int query_micgain(const char* dev_name)
 
 int send_micgain(const char* dev_name, int gain)
 {
-    struct pvt* const pvt = get_pvt(dev_name, 1);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), unlock_pvt);
+
     if (!pvt) {
         return -1;
     }
@@ -318,7 +315,6 @@ int send_micgain(const char* dev_name, int gain)
     } else {
         res = at_enqueue_qmic(&pvt->sys_chan, gain);
     }
-    free_pvt(pvt);
     return res;
 }
 
@@ -326,7 +322,8 @@ int send_micgain(const char* dev_name, int gain)
 
 int query_rxgain(const char* dev_name)
 {
-    struct pvt* const pvt = get_pvt(dev_name, 1);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), unlock_pvt);
+
     if (!pvt) {
         return -1;
     }
@@ -337,7 +334,6 @@ int query_rxgain(const char* dev_name)
     } else {
         res = at_enqueue_query_qrxgain(&pvt->sys_chan);
     }
-    free_pvt(pvt);
     return res;
 }
 
@@ -345,7 +341,8 @@ int query_rxgain(const char* dev_name)
 
 int send_rxgain(const char* dev_name, int gain)
 {
-    struct pvt* const pvt = get_pvt(dev_name, 1);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), unlock_pvt);
+
     if (!pvt) {
         return -1;
     }
@@ -356,7 +353,6 @@ int send_rxgain(const char* dev_name, int gain)
     } else {
         res = at_enqueue_qrxgain(&pvt->sys_chan, gain);
     }
-    free_pvt(pvt);
     return res;
 }
 
@@ -364,19 +360,19 @@ int send_rxgain(const char* dev_name, int gain)
 
 int send_at_command(const char* dev_name, const char* command)
 {
-    struct pvt* const pvt = get_pvt(dev_name, 0);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 0), unlock_pvt);
+
     if (!pvt) {
         return -1;
     }
 
     const int res = at_enqueue_user_cmd(&pvt->sys_chan, command);
-    free_pvt(pvt);
     return res;
 }
 
 int schedule_restart_event(dev_state_t event, restate_time_t when, const char* dev_name)
 {
-    struct pvt* const pvt = find_device(dev_name);
+    RAII_VAR(struct pvt* const, pvt, find_device(dev_name), unlock_pvt);
 
     if (!pvt) {
         chan_quectel_err = E_DEVICE_NOT_FOUND;
@@ -387,7 +383,6 @@ int schedule_restart_event(dev_state_t event, restate_time_t when, const char* d
     pvt->restart_time  = when;
 
     pvt_try_restate(pvt);
-    free_pvt(pvt);
     return 0;
 }
 

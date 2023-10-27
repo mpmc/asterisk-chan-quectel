@@ -142,12 +142,27 @@ void _show_alsa_state(int, const char* file, int line, const char* function, con
             snd_pcm_state_name(pcm_state), delay_period_buffers, delay, avail_period_buffers, avail);
 }
 
-static attribute_pure snd_pcm_uframes_t adjust_uframes(snd_pcm_uframes_t v, unsigned int rate)
+static attribute_pure snd_pcm_uframes_t adjust_uframes(snd_pcm_uframes_t ptime, unsigned int rate)
 {
-    snd_pcm_uframes_t res  = v / sizeof(short);
-    res                   *= rate / 8000;
+    snd_pcm_uframes_t res  = ptime;
+    res                   *= rate / 1000;
 
     return res;
+}
+
+static attribute_pure snd_pcm_uframes_t adjust_start_threshold(snd_pcm_uframes_t ptime)
+{
+    static const size_t PTIME_MIN_START_THRESHOLD = 100u;
+    static const size_t PTIME_MAX_START_THRESHOLD = 250u;
+
+    if (ptime < PTIME_MIN_START_THRESHOLD) {
+        return PTIME_MAX_START_THRESHOLD;
+    }
+    if (ptime > PTIME_MIN_START_THRESHOLD) {
+        return PTIME_MAX_START_THRESHOLD;
+    }
+
+    return ptime;
 }
 
 static unsigned int hw_params_get_rate(const snd_pcm_hw_params_t* const params)
@@ -163,21 +178,26 @@ static unsigned int hw_params_get_rate(const snd_pcm_hw_params_t* const params)
     }
 }
 
-static int pcm_init(struct pvt* pvt, const char* dev, snd_pcm_stream_t stream, unsigned int rate, snd_pcm_t** pcm, unsigned int* pcm_channels)
+static int pcm_init(struct pvt* pvt, const char* dev, snd_pcm_stream_t stream, const struct ast_format* const fmt, snd_pcm_t** pcm, unsigned int* pcm_channels)
 {
     int res;
     snd_pcm_t* handle             = NULL;
     snd_pcm_hw_params_t* hwparams = NULL;
     snd_pcm_sw_params_t* swparams = NULL;
+    unsigned int rate             = ast_format_get_sample_rate(fmt);
 
-    snd_pcm_uframes_t period_size     = adjust_uframes(((stream == SND_PCM_STREAM_CAPTURE) ? FRAME_SIZE_CAPTURE : FRAME_SIZE_PLAYBACK), rate);
-    snd_pcm_uframes_t buffer_size     = adjust_uframes(BUFFER_SIZE, rate);
-    snd_pcm_uframes_t start_threshold = period_size * 2;
-    // snd_pcm_uframes_t stop_threshold  = adjust_uframes(BUFFER_SIZE / 2, rate);
-    snd_pcm_uframes_t stop_threshold = buffer_size - period_size;
-    snd_pcm_uframes_t boundary       = 0u;
-    unsigned int hwrate              = rate;
-    unsigned int channels            = 1;
+#if PTIME_USE_DEFAULT
+    const size_t ptime = ast_format_get_default_ms(fmt);
+#else
+    const size_t ptime = (stream == SND_PCM_STREAM_CAPTURE) ? PTIME_CAPTURE : PTIME_PLAYBACK;
+#endif
+    snd_pcm_uframes_t period_size     = adjust_uframes(ptime, rate);
+    snd_pcm_uframes_t buffer_size     = adjust_uframes(PTIME_BUFFER, rate);
+    snd_pcm_uframes_t start_threshold = adjust_uframes(adjust_start_threshold(ptime * 2), rate);
+    snd_pcm_uframes_t stop_threshold  = buffer_size - period_size;
+    snd_pcm_uframes_t boundary        = 0u;
+    unsigned int hwrate               = rate;
+    unsigned int channels             = 1;
 
     const char* const stream_str = (stream == SND_PCM_STREAM_CAPTURE) ? "CAPTURE" : "PLAYBACK";
 
@@ -343,31 +363,17 @@ alsa_fail:
     return res;
 }
 
-static unsigned int get_sample_rate(const struct pvt* const pvt)
-{
-    switch (CONF_UNIQ(pvt, uac)) {
-        case TRIBOOL_NONE:
-            return 48000u;
-
-        case TRIBOOL_TRUE:
-            return DESIRED_RATE;
-
-        default:
-            return 0u;
-    }
-}
-
 static int soundcard_init(struct pvt* pvt)
 {
-    const unsigned int rate = get_sample_rate(pvt);
+    const struct ast_format* const fmt = pvt_get_audio_format(pvt);
     unsigned int channels;
 
-    if (pcm_init(pvt, CONF_UNIQ(pvt, alsadev), SND_PCM_STREAM_CAPTURE, rate, &pvt->icard, &channels)) {
+    if (pcm_init(pvt, CONF_UNIQ(pvt, alsadev), SND_PCM_STREAM_CAPTURE, fmt, &pvt->icard, &channels)) {
         ast_log(LOG_ERROR, "[%s][ALSA] Problem opening capture device '%s'\n", PVT_ID(pvt), CONF_UNIQ(pvt, alsadev));
         return -1;
     }
 
-    if (pcm_init(pvt, CONF_UNIQ(pvt, alsadev), SND_PCM_STREAM_PLAYBACK, rate, &pvt->ocard, &pvt->ocard_channels)) {
+    if (pcm_init(pvt, CONF_UNIQ(pvt, alsadev), SND_PCM_STREAM_PLAYBACK, fmt, &pvt->ocard, &pvt->ocard_channels)) {
         ast_log(LOG_ERROR, "[%s][ALSA] Problem opening playback device '%s'\n", PVT_ID(pvt), CONF_UNIQ(pvt, alsadev));
         return -1;
     }
@@ -903,21 +909,17 @@ void clean_read_data(const char* devname, int fd, struct ringbuffer* const rb)
 
 static void handle_expired_reports(struct pvt* pvt)
 {
-    struct ast_str* dst     = ast_str_create(SMSDB_DST_MAX_LEN);
-    struct ast_str* payload = ast_str_create(SMSDB_PAYLOAD_MAX_LEN);
+    RAII_VAR(struct ast_str*, dst, ast_str_create(SMSDB_DST_MAX_LEN), ast_free);
+    RAII_VAR(struct ast_str*, payload, ast_str_create(SMSDB_PAYLOAD_MAX_LEN), ast_free);
 
     int uid;
     const ssize_t payload_len = smsdb_outgoing_purge_one(&uid, dst, payload);
     if (payload_len >= 0) {
         ast_verb(3, "[%s][SMS:%d %s] Expired: [%s]\n", PVT_ID(pvt), uid, ast_str_buffer(dst), ast_str_buffer(payload));
-
-        struct ast_str* report = ast_str_create(SMSDB_DST_MAX_LEN);
+        RAII_VAR(struct ast_str*, report, ast_str_create(SMSDB_DST_MAX_LEN), ast_free);
         ast_str_set(&report, SMSDB_DST_MAX_LEN, "[SMS:%d] Expired", uid);
         start_local_report_channel(pvt, ast_str_buffer(dst), payload, NULL, NULL, 0, 't', report);
-        ast_free(report);
     }
-    ast_free(dst);
-    ast_free(payload);
 }
 
 /*!
@@ -931,20 +933,19 @@ static void* do_monitor_phone(void* data)
     static const size_t RINGBUFFER_SIZE = 2 * 1024;
 
     struct pvt* const pvt = (struct pvt*)data;
-    char dev[sizeof(PVT_ID(pvt))];
-
     struct ringbuffer rb;
 
-    void* const buf              = ast_malloc(RINGBUFFER_SIZE);
-    struct ast_str* const result = ast_str_create(RINGBUFFER_SIZE);
-    rb_init(&rb, buf, RINGBUFFER_SIZE);
+    RAII_VAR(void* const, buf, ast_calloc(1, RINGBUFFER_SIZE), ast_free);
+    RAII_VAR(struct ast_str* const, result, ast_str_create(RINGBUFFER_SIZE), ast_free);
 
+    rb_init(&rb, buf, RINGBUFFER_SIZE);
     pvt->timeout = DATA_READ_TIMEOUT;
     ast_mutex_lock(&pvt->lock);
 
+    RAII_VAR(char* const, dev, ast_strdup(PVT_ID(pvt)), ast_free);
+
     /* 4 reduce locking time make copy of this readonly fields */
     const int fd = pvt->data_fd;
-    ast_copy_string(dev, PVT_ID(pvt), sizeof(dev));
 
     clean_read_data(dev, fd, &rb);
 
@@ -1090,9 +1091,6 @@ e_restart:
     //	pvt->monitor_running = 0;
     ast_mutex_unlock(&pvt->lock);
 
-    ast_free(buf);
-    ast_free(result);
-
     /* TODO: wakeup discovery thread after some delay */
     return NULL;
 }
@@ -1111,21 +1109,21 @@ static int start_monitor(struct pvt* pvt)
 
 static void pvt_stop(struct pvt* pvt)
 {
-    pthread_t id;
-
-    if (pvt->monitor_thread != AST_PTHREADT_NULL) {
-        pvt->terminate_monitor = 1;
-        pthread_kill(pvt->monitor_thread, SIGURG);
-        id = pvt->monitor_thread;
-
-        ast_mutex_unlock(&pvt->lock);
-        pthread_join(id, NULL);
-        ast_mutex_lock(&pvt->lock);
-
-        pvt->terminate_monitor = 0;
-        pvt->monitor_thread    = AST_PTHREADT_NULL;
+    if (pvt->monitor_thread == AST_PTHREADT_NULL) {
+        return;
     }
-    //	pvt->current_state = DEV_STATE_STOPPED;
+
+    pvt->terminate_monitor = 1;
+    pthread_kill(pvt->monitor_thread, SIGURG);
+
+    {
+        const pthread_t id = pvt->monitor_thread;
+        SCOPED_LOCK(pvt_lock, &pvt->lock, ast_mutex_unlock, ast_mutex_lock);  // scoped UNlock
+        pthread_join(id, NULL);
+    }
+
+    pvt->terminate_monitor = 0;
+    pvt->monitor_thread    = AST_PTHREADT_NULL;
 }
 
 #/* called with pvt lock hold */
@@ -1268,10 +1266,9 @@ cleanup_datafd:
 static void pvt_free(struct pvt* pvt)
 {
     at_queue_flush(pvt);
-
     ast_string_field_free_memory(pvt);
-
     ast_mutex_unlock(&pvt->lock);
+    ast_mutex_destroy(&pvt->lock);
     ast_free(pvt);
 }
 
@@ -1287,33 +1284,42 @@ static void pvt_destroy(struct pvt* pvt)
 static void* do_discovery(void* arg)
 {
     struct public_state* state = (struct public_state*)arg;
-    struct pvt* pvt;
 
     while (!state->unloading_flag) {
+        struct pvt* pvt;
         /* read lock for avoid deadlock when IMEI/IMSI discovery */
         AST_RWLIST_RDLOCK(&state->devices);
         AST_RWLIST_TRAVERSE(&state->devices, pvt, entry) {
-            ast_mutex_lock(&pvt->lock);
+            SCOPED_MUTEX(pvt_lock, &pvt->lock);
+
             pvt->must_remove = 0;
 
-            if (pvt->restart_time == RESTATE_TIME_NOW && pvt->desired_state != pvt->current_state) {
-                switch (pvt->desired_state) {
-                    case DEV_STATE_RESTARTED:
-                        pvt_stop(pvt);
-                        pvt->desired_state = DEV_STATE_STARTED;
-                        /* fall through */
-                    case DEV_STATE_STARTED:
-                        pvt_start(pvt);
-                        break;
-                    case DEV_STATE_REMOVED:
-                        pvt_stop(pvt);
-                        pvt->must_remove = 1;
-                        break;
-                    case DEV_STATE_STOPPED:
-                        pvt_stop(pvt);
-                }
+            if (pvt->restart_time != RESTATE_TIME_NOW) {
+                continue;
             }
-            ast_mutex_unlock(&pvt->lock);
+            if (pvt->desired_state == pvt->current_state) {
+                continue;
+            }
+
+            switch (pvt->desired_state) {
+                case DEV_STATE_RESTARTED:
+                    pvt_stop(pvt);
+                    pvt->desired_state = DEV_STATE_STARTED;
+                    /* fall through */
+
+                case DEV_STATE_STARTED:
+                    pvt_start(pvt);
+                    break;
+
+                case DEV_STATE_REMOVED:
+                    pvt_stop(pvt);
+                    pvt->must_remove = 1;
+                    break;
+
+                case DEV_STATE_STOPPED:
+                    pvt_stop(pvt);
+                    break;
+            }
         }
         AST_RWLIST_UNLOCK(&state->devices);
 
@@ -1345,28 +1351,27 @@ static void* do_discovery(void* arg)
 
 static int discovery_restart(public_state_t* state)
 {
+    SCOPED_MUTEX(state_discovery_lock, &state->discovery_lock);
+
     if (state->discovery_thread == AST_PTHREADT_STOP) {
         return 0;
     }
 
-    ast_mutex_lock(&state->discovery_lock);
     if (state->discovery_thread == pthread_self()) {
-        ast_mutex_unlock(&state->discovery_lock);
         ast_log(LOG_WARNING, "Cannot kill myself\n");
         return -1;
     }
+
     if (state->discovery_thread != AST_PTHREADT_NULL) {
         /* Wake up the thread */
         pthread_kill(state->discovery_thread, SIGURG);
     } else {
         /* Start a new monitor */
         if (ast_pthread_create_background(&state->discovery_thread, NULL, do_discovery, state) < 0) {
-            ast_mutex_unlock(&state->discovery_lock);
             ast_log(LOG_ERROR, "Unable to start discovery thread\n");
             return -1;
         }
     }
-    ast_mutex_unlock(&state->discovery_lock);
     return 0;
 }
 
@@ -1377,7 +1382,7 @@ static void discovery_stop(public_state_t* state)
     /* signal for discovery unloading */
     state->unloading_flag = 1;
 
-    ast_mutex_lock(&state->discovery_lock);
+    SCOPED_MUTEX(state_discovery_lock, &state->discovery_lock);
     if (state->discovery_thread && (state->discovery_thread != AST_PTHREADT_STOP) && (state->discovery_thread != AST_PTHREADT_NULL)) {
         //		pthread_cancel(state->discovery_thread);
         pthread_kill(state->discovery_thread, SIGURG);
@@ -1385,24 +1390,25 @@ static void discovery_stop(public_state_t* state)
     }
 
     state->discovery_thread = AST_PTHREADT_STOP;
-    ast_mutex_unlock(&state->discovery_lock);
 }
 
 #/* */
 
 void pvt_on_create_1st_channel(struct pvt* pvt)
 {
-    memset(pvt->a_silence_buf, 0, sizeof(pvt->a_silence_buf));
+    const struct ast_format* const fmt = pvt_get_audio_format(pvt);
+    const size_t silence_buf_size      = 2u * pvt_get_audio_frame_size(PTIME_PLAYBACK, fmt);
+    pvt->silence_buf                   = ast_calloc(1, silence_buf_size);
 
     if (CONF_SHARED(pvt, multiparty)) {
         if (CONF_UNIQ(pvt, uac) > TRIBOOL_FALSE) {
             ast_log(LOG_ERROR, "[%s] Multiparty mode not supported in UAC mode\n", PVT_ID(pvt));
         } else {
-            mixb_init(&pvt->a_write_mixb, pvt->a_write_buf, sizeof(pvt->a_write_buf));
-            // rb_init (&pvt->a_write_rb, pvt->a_write_buf, sizeof (pvt->a_write_buf));
-            if (!pvt->a_timer) {
-                pvt->a_timer = ast_timer_open();
-            }
+            const size_t write_buf_size = 5u * pvt_get_audio_frame_size(PTIME_PLAYBACK, fmt);
+            pvt->write_buf              = ast_calloc(1, write_buf_size);
+            mixb_init(&pvt->write_mixb, pvt->write_buf, write_buf_size);
+
+            pvt->a_timer = ast_timer_open();
         }
     }
 }
@@ -1415,6 +1421,11 @@ void pvt_on_remove_last_channel(struct pvt* pvt)
         ast_timer_close(pvt->a_timer);
         pvt->a_timer = NULL;
     }
+
+    ast_free(pvt->silence_buf);
+    ast_free(pvt->write_buf);
+    pvt->silence_buf = NULL;
+    pvt->write_buf   = NULL;
 }
 
 #define SET_BIT(dw_array, bitno)                         \
@@ -1533,6 +1544,15 @@ static int can_dial(struct pvt* pvt, int opts, const struct ast_channel* request
     return ready4voice_call(pvt, NULL, opts);
 }
 
+void unlock_pvt(struct pvt* const pvt)
+{
+    if (!pvt) {
+        return;
+    }
+
+    ast_mutex_unlock(&pvt->lock);
+}
+
 #/* return locked pvt or NULL */
 
 struct pvt* find_device_ex(struct public_state* state, const char* name)
@@ -1613,7 +1633,7 @@ struct pvt* find_device_by_resource_ex(struct public_state* state, const char* r
             c         = 0;
             last_used = 0;
             AST_RWLIST_TRAVERSE(&state->devices, pvt, entry) {
-                ast_mutex_lock(&pvt->lock);
+                SCOPED_MUTEX(pvt_lock, &pvt->lock);
                 if (CONF_SHARED(pvt, group) == group) {
                     round_robin[c] = pvt;
                     if (pvt->group_last_used == 1) {
@@ -1624,11 +1644,9 @@ struct pvt* find_device_by_resource_ex(struct public_state* state, const char* r
                     ++c;
 
                     if (c == j) {
-                        ast_mutex_unlock(&pvt->lock);
                         break;
                     }
                 }
-                ast_mutex_unlock(&pvt->lock);
             }
 
             /* Search for a available device starting at the last used device */
@@ -1655,7 +1673,7 @@ struct pvt* find_device_by_resource_ex(struct public_state* state, const char* r
         c         = 0;
         last_used = 0;
         AST_RWLIST_TRAVERSE(&state->devices, pvt, entry) {
-            ast_mutex_lock(&pvt->lock);
+            SCOPED_MUTEX(pvt_lock, &pvt->lock);
             if (!strcmp(pvt->provider_name, &resource[2])) {
                 round_robin[c] = pvt;
                 if (pvt->prov_last_used == 1) {
@@ -1666,11 +1684,9 @@ struct pvt* find_device_by_resource_ex(struct public_state* state, const char* r
                 ++c;
 
                 if (c == j) {
-                    ast_mutex_unlock(&pvt->lock);
                     break;
                 }
             }
-            ast_mutex_unlock(&pvt->lock);
         }
 
         /* Search for a available device starting at the last used device */
@@ -1698,7 +1714,7 @@ struct pvt* find_device_by_resource_ex(struct public_state* state, const char* r
         i         = strlen(&resource[2]);
 
         AST_RWLIST_TRAVERSE(&state->devices, pvt, entry) {
-            ast_mutex_lock(&pvt->lock);
+            SCOPED_MUTEX(pvt_lock, &pvt->lock);
             if (!strncmp(pvt->imsi, &resource[2], i)) {
                 round_robin[c] = pvt;
                 if (pvt->sim_last_used == 1) {
@@ -1709,11 +1725,9 @@ struct pvt* find_device_by_resource_ex(struct public_state* state, const char* r
                 ++c;
 
                 if (c == j) {
-                    ast_mutex_unlock(&pvt->lock);
                     break;
                 }
             }
-            ast_mutex_unlock(&pvt->lock);
         }
 
         /* Search for a available device starting at the last used device */
@@ -1938,39 +1952,40 @@ const char* rssi2dBm(int rssi, char* buf, size_t len)
 
 static struct pvt* pvt_create(const pvt_config_t* settings)
 {
-    struct pvt* pvt = ast_calloc(1, sizeof(*pvt));
-    if (pvt) {
-        ast_mutex_init(&pvt->lock);
+    struct pvt* const pvt = ast_calloc(1, sizeof(*pvt));
 
-        AST_LIST_HEAD_INIT_NOLOCK(&pvt->at_queue);
-        AST_LIST_HEAD_INIT_NOLOCK(&pvt->chans);
-        pvt->sys_chan.pvt   = pvt;
-        pvt->sys_chan.state = CALL_STATE_RELEASED;
-
-        pvt->monitor_thread     = AST_PTHREADT_NULL;
-        pvt->audio_fd           = -1;
-        pvt->icard              = NULL;
-        pvt->ocard              = NULL;
-        pvt->data_fd            = -1;
-        pvt->timeout            = DATA_READ_TIMEOUT;
-        pvt->gsm_reg_status     = -1;
-        pvt->incoming_sms_index = -1;
-
-        ast_string_field_init(pvt, 15);
-
-        ast_string_field_set(pvt, provider_name, "NONE");
-        ast_string_field_set(pvt, subscriber_number, NULL);
-
-        pvt->has_subscriber_number = 0;
-        pvt->desired_state         = SCONFIG(settings, initstate);
-
-        /* and copy settings */
-        memcpy(&pvt->settings, settings, sizeof(pvt->settings));
-        return pvt;
-    } else {
+    if (!pvt) {
         ast_log(LOG_ERROR, "[%s] Skipping device: Error allocating memory\n", UCONFIG(settings, id));
+        return NULL;
     }
-    return NULL;
+
+    ast_mutex_init(&pvt->lock);
+
+    AST_LIST_HEAD_INIT_NOLOCK(&pvt->at_queue);
+    AST_LIST_HEAD_INIT_NOLOCK(&pvt->chans);
+    pvt->sys_chan.pvt   = pvt;
+    pvt->sys_chan.state = CALL_STATE_RELEASED;
+
+    pvt->monitor_thread     = AST_PTHREADT_NULL;
+    pvt->audio_fd           = -1;
+    pvt->icard              = NULL;
+    pvt->ocard              = NULL;
+    pvt->data_fd            = -1;
+    pvt->timeout            = DATA_READ_TIMEOUT;
+    pvt->gsm_reg_status     = -1;
+    pvt->incoming_sms_index = -1;
+
+    ast_string_field_init(pvt, 15);
+
+    ast_string_field_set(pvt, provider_name, "NONE");
+    ast_string_field_set(pvt, subscriber_number, NULL);
+
+    pvt->has_subscriber_number = 0;
+    pvt->desired_state         = SCONFIG(settings, initstate);
+
+    /* and copy settings */
+    memcpy(&pvt->settings, settings, sizeof(pvt->settings));
+    return pvt;
 }
 
 #/* */
@@ -2044,18 +2059,53 @@ int pvt_set_act(struct pvt* pvt, int act)
 
 #/* */
 
+static void mark_must_remove(public_state_t* const state)
+{
+    struct pvt* pvt;
+
+    /* FIXME: deadlock avoid ? */
+    AST_RWLIST_RDLOCK(&state->devices);
+    AST_RWLIST_TRAVERSE(&state->devices, pvt, entry) {
+        SCOPED_MUTEX(pvt_lock, &pvt->lock);
+        pvt->must_remove = 1;
+    }
+    AST_RWLIST_UNLOCK(&state->devices);
+}
+
+static void mark_remove(public_state_t* const state, const restate_time_t when, unsigned int* reload_cnt)
+{
+    struct pvt* pvt;
+
+    /* FIXME: deadlock avoid ? */
+    /* schedule removal of devices not listed in config file or disabled */
+    AST_RWLIST_RDLOCK(&state->devices);
+    AST_RWLIST_TRAVERSE(&state->devices, pvt, entry) {
+        SCOPED_MUTEX(pvt_lock, &pvt->lock);
+        if (!pvt->must_remove) {
+            continue;
+        }
+
+        pvt->desired_state = DEV_STATE_REMOVED;
+        if (pvt_time4restate(pvt)) {
+            pvt->restart_time = RESTATE_TIME_NOW;
+            (*reload_cnt)++;
+        } else {
+            pvt->restart_time = when;
+        }
+    }
+    AST_RWLIST_UNLOCK(&state->devices);
+}
+
 static int reload_config(public_state_t* state, int recofigure, restate_time_t when, unsigned* reload_immediality)
 {
-    struct ast_config* cfg;
     const char* cat;
     struct ast_flags config_flags = {0};
     struct dc_sconfig config_defaults;
-    pvt_config_t settings;
-    int err;
-    struct pvt* pvt;
     unsigned reload_now = 0;
 
-    if ((cfg = ast_config_load(CONFIG_FILE, config_flags)) == NULL) {
+    RAII_VAR(struct ast_config*, cfg, ast_config_load(CONFIG_FILE, config_flags), ast_config_destroy);
+
+    if (!cfg) {
         return -1;
     }
 
@@ -2066,72 +2116,54 @@ static int reload_config(public_state_t* state, int recofigure, restate_time_t w
     dc_sconfig_fill_defaults(&config_defaults);
     dc_sconfig_fill(cfg, "defaults", &config_defaults);
 
-    /* FIXME: deadlock avoid ? */
-    AST_RWLIST_RDLOCK(&state->devices);
-    AST_RWLIST_TRAVERSE(&state->devices, pvt, entry) {
-        ast_mutex_lock(&pvt->lock);
-        pvt->must_remove = 1;
-        ast_mutex_unlock(&pvt->lock);
-    }
-    AST_RWLIST_UNLOCK(&state->devices);
+    mark_must_remove(state);
 
     /* now load devices */
     for (cat = ast_category_browse(cfg, NULL); cat; cat = ast_category_browse(cfg, cat)) {
         if (strcasecmp(cat, "general") && strcasecmp(cat, "defaults")) {
-            err = dc_config_fill(cfg, cat, &config_defaults, &settings);
-            if (!err) {
-                pvt = find_device(UCONFIG(&settings, id));
-                if (pvt) {
-                    if (!recofigure) {
-                        ast_log(LOG_ERROR, "device %s already exists, duplicate in config file\n", cat);
-                    } else {
-                        pvt->must_remove  = 0;
-                        reload_now       += pvt_reconfigure(pvt, &settings, when);
-                    }
-                    ast_mutex_unlock(&pvt->lock);
+            pvt_config_t settings;
+            const int err = dc_config_fill(cfg, cat, &config_defaults, &settings);
+            if (err) {
+                continue;
+            }
+            RAII_VAR(struct pvt* const, pvt, find_device(UCONFIG(&settings, id)), unlock_pvt);
+
+            if (pvt) {
+                if (!recofigure) {
+                    ast_log(LOG_ERROR, "device %s already exists, duplicate in config file\n", cat);
                 } else {
-                    /* new device */
-                    if (SCONFIG(&settings, initstate) == DEV_STATE_REMOVED) {
-                        ast_log(LOG_NOTICE, "Skipping device %s as disabled\n", cat);
-                    } else {
-                        pvt = pvt_create(&settings);
-                        if (pvt) {
-                            /* FIXME: deadlock avoid ? */
-                            AST_RWLIST_WRLOCK(&state->devices);
-                            AST_RWLIST_INSERT_TAIL(&state->devices, pvt, entry);
-                            AST_RWLIST_UNLOCK(&state->devices);
-                            reload_now++;
-
-                            ast_log(LOG_NOTICE, "[%s] Loaded device\n", PVT_ID(pvt));
-                        }
-                    }
+                    pvt->must_remove  = 0;
+                    reload_now       += pvt_reconfigure(pvt, &settings, when);
                 }
+                continue;
             }
-        }
-    }
-    ast_config_destroy(cfg);
 
-    /* FIXME: deadlock avoid ? */
-    /* schedule removal of devices not listed in config file or disabled */
-    AST_RWLIST_RDLOCK(&state->devices);
-    AST_RWLIST_TRAVERSE(&state->devices, pvt, entry) {
-        ast_mutex_lock(&pvt->lock);
-        if (pvt->must_remove) {
-            pvt->desired_state = DEV_STATE_REMOVED;
-            if (pvt_time4restate(pvt)) {
-                pvt->restart_time = RESTATE_TIME_NOW;
-                reload_now++;
-            } else {
-                pvt->restart_time = when;
+            /* new device */
+            if (SCONFIG(&settings, initstate) == DEV_STATE_REMOVED) {
+                ast_log(LOG_NOTICE, "Skipping device %s as disabled\n", cat);
+                continue;
             }
+
+            struct pvt* const new_pvt = pvt_create(&settings);
+            if (!new_pvt) {
+                continue;
+            }
+            /* FIXME: deadlock avoid ? */
+            AST_RWLIST_WRLOCK(&state->devices);
+            AST_RWLIST_INSERT_TAIL(&state->devices, new_pvt, entry);
+            AST_RWLIST_UNLOCK(&state->devices);
+            reload_now++;
+
+            ast_log(LOG_NOTICE, "[%s] Loaded device\n", PVT_ID(new_pvt));
         }
-        ast_mutex_unlock(&pvt->lock);
     }
-    AST_RWLIST_UNLOCK(&state->devices);
+
+    mark_remove(state, when, &reload_now);
 
     if (reload_immediality) {
         *reload_immediality = reload_now;
     }
+
     return 0;
 }
 
@@ -2170,43 +2202,80 @@ const struct ast_format* pvt_get_audio_format(const struct pvt* const pvt)
     }
 }
 
-size_t pvt_get_audio_frame_size(int capture, const struct ast_format* const fmt)
+static size_t pvt_get_audio_frame_size_r(unsigned int ptime, const unsigned int sr)
 {
-    size_t res             = capture ? FRAME_SIZE_CAPTURE : FRAME_SIZE_PLAYBACK;
-    const unsigned int sr  = ast_format_get_sample_rate(fmt);
-    res                   *= sr / 8000;
+    size_t res  = ptime;
+    res        *= sr / 1000;
+    res        *= sizeof(short);
 
     return res;
 }
 
-void* pvt_get_silence_buffer(struct pvt* const pvt) { return pvt->a_silence_buf; }
+#if PTIME_USE_DEFAULT
+
+size_t pvt_get_audio_frame_size(unsigned int, const struct ast_format* const fmt)
+{
+    const unsigned int sr      = ast_format_get_sample_rate(fmt);
+    const unsigned int framing = ast_format_get_default_ms(fmt);
+    return pvt_get_audio_frame_size_r(framing, sr);
+}
+
+#else
+
+size_t pvt_get_audio_frame_size(unsigned int ptime, const struct ast_format* const fmt)
+{
+    const unsigned int sr = ast_format_get_sample_rate(fmt);
+    return pvt_get_audio_frame_size_r(ptime, sr);
+}
+
+#endif
+
+void* pvt_get_silence_buffer(struct pvt* const pvt) { return pvt->silence_buf; }
 
 static int load_module()
 {
-    int rv;
-
     gpublic = ast_calloc(1, sizeof(*gpublic));
-    if (gpublic) {
-        pdiscovery_init();
-        rv = public_state_init(gpublic);
-        if (rv != AST_MODULE_LOAD_SUCCESS) {
-            ast_free(gpublic);
-        }
-    } else {
+
+    if (!gpublic) {
         ast_log(LOG_ERROR, "Unable to allocate global state structure\n");
-        rv = AST_MODULE_LOAD_DECLINE;
+        return AST_MODULE_LOAD_DECLINE;
+    }
+
+    pdiscovery_init();
+    const int rv = public_state_init(gpublic);
+    if (rv != AST_MODULE_LOAD_SUCCESS) {
+        ast_free(gpublic);
     }
     return rv;
 }
 
 #/* */
 
+#if PTIME_USE_DEFAULT
+
+static void append_fmt(struct ast_format_cap* cap, struct ast_format* fmt)
+{
+    const unsigned int ms = ast_format_get_default_ms(fmt);
+    ast_format_cap_append(cap, fmt, ms);
+}
+
+static unsigned int get_default_framing() { return ast_format_get_default_ms(ast_format_slin); }
+
+#else
+
+static void append_fmt(struct ast_format_cap* cap, struct ast_format* fmt) { ast_format_cap_append(cap, fmt, PTIME_CAPTURE); }
+
+static unsigned int get_default_framing() { return PTIME_CAPTURE }
+
+#endif
+
+
 static int public_state_init(struct public_state* state)
 {
     int rv = AST_MODULE_LOAD_DECLINE;
 
     AST_RWLIST_HEAD_INIT(&state->devices);
-    ast_mutex_init(&state->discovery_lock);
+    SCOPED_LOCK(state_discovery_lock, &state->discovery_lock, ast_mutex_init, ast_mutex_destroy);
 
     state->discovery_thread = AST_PTHREADT_NULL;
 
@@ -2218,10 +2287,10 @@ static int public_state_init(struct public_state* state)
             if (!(channel_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
                 return AST_MODULE_LOAD_FAILURE;
             }
-            ast_format_cap_append(channel_tech.capabilities, ast_format_slin, 40);
-            ast_format_cap_append(channel_tech.capabilities, ast_format_slin16, 40);
-            ast_format_cap_append(channel_tech.capabilities, ast_format_slin48, 40);
-            ast_format_cap_set_framing(channel_tech.capabilities, 40);
+            append_fmt(channel_tech.capabilities, ast_format_slin);
+            append_fmt(channel_tech.capabilities, ast_format_slin16);
+            append_fmt(channel_tech.capabilities, ast_format_slin48);
+            ast_format_cap_set_framing(channel_tech.capabilities, get_default_framing());
 
 #elif ASTERISK_VERSION_NUM >= 100000 /* 10-13 */
             ast_format_set(&chan_quectel_format, AST_FORMAT_SLINEAR, 0);
@@ -2262,9 +2331,7 @@ static int public_state_init(struct public_state* state)
         ast_log(LOG_ERROR, "Errors reading config file " CONFIG_FILE ", Not loading module\n");
     }
 
-    ast_mutex_destroy(&state->discovery_lock);
     AST_RWLIST_HEAD_DESTROY(&state->devices);
-
     return rv;
 }
 
@@ -2306,6 +2373,7 @@ static int unload_module()
 void pvt_reload(restate_time_t when)
 {
     unsigned dev_reload = 0;
+
     reload_config(gpublic, 1, when, &dev_reload);
     if (dev_reload > 0) {
         discovery_restart(gpublic);

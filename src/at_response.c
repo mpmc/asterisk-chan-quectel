@@ -185,7 +185,7 @@ static void __attribute__((format(printf, 7, 8))) at_ok_response_log(int level, 
     static const ssize_t MSG_MAX_LEN = 1024;
     // U+2713 : Check mark : 0xE2 0x9C 0x93
 
-    struct ast_str* msg = ast_str_create(MSG_DEF_LEN);
+    RAII_VAR(struct ast_str*, msg, ast_str_create(MSG_DEF_LEN), ast_free);
 
     if (ecmd) {
         ast_str_set(&msg, MSG_MAX_LEN, "[%s][%s] \xE2\x9C\x93", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
@@ -202,7 +202,6 @@ static void __attribute__((format(printf, 7, 8))) at_ok_response_log(int level, 
     }
 
     ast_log(level, file, line, function, "%s\n", ast_str_buffer(msg));
-    ast_free(msg);
 }
 
 #define at_ok_response_dbg(level, pvt, ecmd, ...)                      \
@@ -559,7 +558,7 @@ static void __attribute__((format(printf, 7, 8))) at_err_response_log(int level,
     static const ssize_t MSG_MAX_LEN = 1024;
     // U+237B: Not check mark
 
-    struct ast_str* msg = ast_str_create(MSG_DEF_LEN);
+    RAII_VAR(struct ast_str*, msg, ast_str_create(MSG_DEF_LEN), ast_free);
 
     if (ecmd) {
         ast_str_set(&msg, MSG_MAX_LEN, "[%s][%s] \xE2\x8D\xBB", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
@@ -576,7 +575,6 @@ static void __attribute__((format(printf, 7, 8))) at_err_response_log(int level,
     }
 
     ast_log(level, file, line, function, "%s\n", ast_str_buffer(msg));
-    ast_free(msg);
 }
 
 #define at_err_response_dbg(level, pvt, ecmd, ...)                      \
@@ -1180,7 +1178,7 @@ static int at_response_clcc(struct pvt* const pvt, const struct ast_str* const r
         CPVT_RESET_FLAGS(cpvt, CALL_FLAG_ALIVE);
     }
 
-    struct ast_str* line = ast_str_create(LINE_DEF_LEN);
+    RAII_VAR(struct ast_str*, line, ast_str_create(LINE_DEF_LEN), ast_free);
     for (const char* str = ast_str_buffer(response); str; str = next_line(str)) {
         current_line(str, &line);
 
@@ -1205,7 +1203,6 @@ static int at_response_clcc(struct pvt* const pvt, const struct ast_str* const r
         handle_clcc(pvt, call_idx, dir, state, mode, mpty ? TRIBOOL_TRUE : TRIBOOL_FALSE, number, type);
     }
 
-    ast_free(line);
     return 0;
 }
 
@@ -1475,13 +1472,13 @@ static int at_response_cmgs(struct pvt* const pvt, const struct ast_str* const r
         pvt_try_restate(pvt);
     }
 
-    struct ast_str* payload = (partno == partcnt) ? ast_str_create(PAYLOAD_DEF_LEN) : NULL;
-    struct ast_str* dst     = (partno == partcnt) ? ast_str_create(DST_DEF_LEN) : NULL;
+    RAII_VAR(struct ast_str*, payload, (partno == partcnt) ? ast_str_create(PAYLOAD_DEF_LEN) : NULL, ast_free);
+    RAII_VAR(struct ast_str*, dst, (partno == partcnt) ? ast_str_create(DST_DEF_LEN) : NULL, ast_free);
 
     const ssize_t payload_len = smsdb_outgoing_part_put(task->uid, refid, dst, payload);
     if (payload_len >= 0) {
         ast_verb(3, "[%s][SMS:%d] SMS payload: [%s]\n", PVT_ID(pvt), task->uid, ast_str_buffer(payload));
-        struct ast_str* report = ast_str_create(REPORT_DEF_LEN);
+        RAII_VAR(struct ast_str*, report, ast_str_create(REPORT_DEF_LEN), ast_free);
         if (partcnt <= 1) {
             ast_str_set(&report, REPORT_MAX_LEN, "[SMS:%d REF:%d] Successfully sent message", task->uid, refid);
         } else {
@@ -1489,31 +1486,25 @@ static int at_response_cmgs(struct pvt* const pvt, const struct ast_str* const r
         }
 
         start_local_report_channel(pvt, ast_str_buffer(dst), payload, NULL, NULL, 1, 'i', report);
-        ast_free(report);
     }
-    ast_free(payload);
-    ast_free(dst);
     return 0;
 }
 
 static int at_response_cmgs_error(struct pvt* const pvt, const at_queue_task_t* const task)
 {
-    struct ast_str* payload = ast_str_create(PAYLOAD_DEF_LEN);
-    struct ast_str* dst     = ast_str_create(DST_DEF_LEN);
+    RAII_VAR(struct ast_str*, payload, ast_str_create(PAYLOAD_DEF_LEN), ast_free);
+    RAII_VAR(struct ast_str*, dst, ast_str_create(DST_DEF_LEN), ast_free);
 
     const ssize_t payload_len = smsdb_outgoing_clear(task->uid, dst, payload);
     if (payload_len >= 0) {
         ast_verb(1, "[%s][SMS:%d] Error sending message: [%s]\n", PVT_ID(pvt), task->uid, ast_str_buffer(payload));
-        struct ast_str* report = ast_str_create(REPORT_DEF_LEN);
+        RAII_VAR(struct ast_str*, report, ast_str_create(REPORT_DEF_LEN), ast_free);
         ast_str_set(&report, REPORT_MAX_LEN, "[SMS:%d] Error sending message: [%s]", task->uid, ast_str_buffer(payload));
         start_local_report_channel(pvt, ast_str_buffer(dst), payload, NULL, NULL, 0, 'i', report);
-        ast_free(report);
     } else {
         ast_verb(1, "[%s][SMS:%d] Error sending message\n", PVT_ID(pvt), task->uid);
     }
     pvt->outgoing_sms = 0;
-    ast_free(payload);
-    ast_free(dst);
     return 0;
 }
 
@@ -1608,11 +1599,11 @@ static int at_response_msg(struct pvt* const pvt, const struct ast_str* const re
 
     pdu_udh_init(&udh);
 
-    scts[0]             = '\000';
-    struct ast_str* msg = ast_str_create(MSG_MAX_LEN);
-    struct ast_str* oa  = ast_str_create(512);
-    struct ast_str* sca = ast_str_create(512);
-    size_t msg_len      = ast_str_size(msg);
+    scts[0] = '\000';
+    RAII_VAR(struct ast_str*, msg, ast_str_create(MSG_MAX_LEN), ast_free);
+    RAII_VAR(struct ast_str*, oa, ast_str_create(512), ast_free);
+    RAII_VAR(struct ast_str*, sca, ast_str_create(512), ast_free);
+    size_t msg_len = ast_str_size(msg);
 
     switch (cmd) {
         case RES_CMGR:
@@ -1650,9 +1641,6 @@ static int at_response_msg(struct pvt* const pvt, const struct ast_str* const re
         ast_str_reset(msg);
         ast_str_reset(oa);
         ast_str_reset(sca);
-        ast_free(msg);
-        ast_free(oa);
-        ast_free(sca);
         ast_log(LOG_WARNING, "[%s] Error parsing incoming message: %s\n", PVT_ID(pvt), error2str(chan_quectel_err));
         msg_ack = TRIBOOL_FALSE;
         goto msg_done_ack;
@@ -1665,10 +1653,10 @@ static int at_response_msg(struct pvt* const pvt, const struct ast_str* const re
 
             ast_verb(1, "[%s][SMS:%d] Got status report from %s and status code %d\n", PVT_ID(pvt), mr, ast_str_buffer(oa), st);
 
-            int* const status_report          = (int*)ast_malloc(sizeof(int) * 256);
-            struct ast_str* status_report_str = ast_str_create(REPORT_DEF_LEN);
-            struct ast_str* payload           = ast_str_create(PAYLOAD_DEF_LEN);
-            const ssize_t payload_len         = smsdb_outgoing_part_status(pvt->imsi, ast_str_buffer(oa), mr, st, status_report, payload);
+            RAII_VAR(int*, status_report, (int*)ast_cmalloc(sizeof(int), 256), ast_free);
+            RAII_VAR(struct ast_str*, status_report_str, ast_str_create(REPORT_DEF_LEN), ast_free);
+            RAII_VAR(struct ast_str*, payload, ast_str_create(PAYLOAD_DEF_LEN), ast_free);
+            const ssize_t payload_len = smsdb_outgoing_part_status(pvt->imsi, ast_str_buffer(oa), mr, st, status_report, payload);
             if (payload_len >= 0) {
                 int success = 1;
                 int srroff  = 0;
@@ -1686,14 +1674,11 @@ static int at_response_msg(struct pvt* const pvt, const struct ast_str* const re
                 start_local_report_channel(pvt, ast_str_buffer(oa), payload, scts, dt, success, 'e', status_report_str);
             }
 
-            ast_free(status_report);
-            ast_free(status_report_str);
-            ast_free(payload);
             break;
         }
 
         case PDUTYPE_MTI_SMS_DELIVER: {
-            struct ast_str* fullmsg = ast_str_create(MSG_MAX_LEN);
+            RAII_VAR(struct ast_str*, fullmsg, ast_str_create(MSG_MAX_LEN), ast_free);
             if (udh.parts > 1) {
                 ast_verb(2, "[%s][SMS:%d PART:%d/%d TS:%s] Got message part from %s: [%s]\n", PVT_ID(pvt), (int)udh.ref, (int)udh.order, (int)udh.parts, scts,
                          ast_str_buffer(oa), tmp_esc_str(msg));
@@ -1728,7 +1713,7 @@ receive_as_is:
                      tmp_esc_str(fullmsg));
 
             if (ast_str_strlen(fullmsg)) {
-                struct ast_str* b64 = ast_str_create(40800);
+                RAII_VAR(struct ast_str*, b64, ast_str_create(40800), ast_free);
                 ast_base64encode(ast_str_buffer(b64), (unsigned char*)ast_str_buffer(fullmsg), ast_str_strlen(fullmsg), ast_str_size(b64));
                 ast_str_update(b64);
 
@@ -1739,8 +1724,6 @@ receive_as_is:
                     {NULL,         NULL                   },
                 };
                 start_local_channel(pvt, "sms", ast_str_buffer(oa), vars);
-
-                ast_free(b64);
             } else {
                 const channel_var_t vars[] = {
                     {"SMS_TS", scts},
@@ -1748,16 +1731,11 @@ receive_as_is:
                 };
                 start_local_channel(pvt, "sms", ast_str_buffer(oa), vars);
             }
-            ast_free(fullmsg);
             break;
         }
     }
 
 msg_done:
-
-    ast_free(msg);
-    ast_free(oa);
-    ast_free(sca);
 
     if (CONF_SHARED(pvt, autodeletesms) && msg_complete) {
         switch (cmd) {
@@ -2483,9 +2461,8 @@ static void at_response_qrxgain(struct pvt* const pvt, const struct ast_str* con
         return;
     }
 
-    struct ast_str* const sgain = gain2str(gain);
+    RAII_VAR(struct ast_str*, sgain, gain2str(gain), ast_free);
     ast_verb(1, "[%s] RX Gain: %s [%d]\n", PVT_ID(pvt), ast_str_buffer(sgain), gain);
-    ast_free(sgain);
 }
 
 static void at_response_qmic(struct pvt* const pvt, const struct ast_str* const response)
@@ -2497,9 +2474,8 @@ static void at_response_qmic(struct pvt* const pvt, const struct ast_str* const 
         return;
     }
 
-    struct ast_str* const sgain = gain2str(gain);
+    RAII_VAR(struct ast_str*, sgain, gain2str(gain), ast_free);
     ast_verb(1, "[%s] Microphone Gain: %s [%d], %d\n", PVT_ID(pvt), ast_str_buffer(sgain), gain, dgain);
-    ast_free(sgain);
 }
 
 static void at_response_cmicgain(struct pvt* const pvt, const struct ast_str* const response)
@@ -2511,9 +2487,8 @@ static void at_response_cmicgain(struct pvt* const pvt, const struct ast_str* co
         return;
     }
 
-    struct ast_str* const sgain = gain2str_simcom(gain);
+    RAII_VAR(struct ast_str*, sgain, gain2str_simcom(gain), ast_free);
     ast_verb(1, "[%s] RX Gain: %s [%d]\n", PVT_ID(pvt), ast_str_buffer(sgain), gain);
-    ast_free(sgain);
 }
 
 static void at_response_coutgain(struct pvt* const pvt, const struct ast_str* const response)
@@ -2525,9 +2500,8 @@ static void at_response_coutgain(struct pvt* const pvt, const struct ast_str* co
         return;
     }
 
-    struct ast_str* const sgain = gain2str_simcom(gain);
+    RAII_VAR(struct ast_str*, sgain, gain2str_simcom(gain), ast_free);
     ast_verb(1, "[%s] TX Gain: %s [%d]\n", PVT_ID(pvt), ast_str_buffer(sgain), gain);
-    ast_free(sgain);
 }
 
 static void at_response_crxvol(struct pvt* const pvt, const struct ast_str* const response)
@@ -2539,9 +2513,8 @@ static void at_response_crxvol(struct pvt* const pvt, const struct ast_str* cons
         return;
     }
 
-    struct ast_str* const sgain = gain2str(gain);
+    RAII_VAR(struct ast_str*, sgain, gain2str(gain), ast_free);
     ast_verb(1, "[%s] RX Volume: %s [%d]\n", PVT_ID(pvt), ast_str_buffer(sgain), gain);
-    ast_free(sgain);
 }
 
 static void at_response_ctxvol(struct pvt* const pvt, const struct ast_str* const response)
@@ -2553,9 +2526,8 @@ static void at_response_ctxvol(struct pvt* const pvt, const struct ast_str* cons
         return;
     }
 
-    struct ast_str* const sgain = gain2str(gain);
+    RAII_VAR(struct ast_str*, sgain, gain2str(gain), ast_free);
     ast_verb(1, "[%s] Microphone Volume: %s [%d]\n", PVT_ID(pvt), ast_str_buffer(sgain), gain);
-    ast_free(sgain);
 }
 
 static int at_response_csms(struct pvt*, const struct ast_str* const)
@@ -2714,10 +2686,9 @@ static int at_response_psuttz(struct pvt* const pvt, const struct ast_str* const
         return -1;
     }
 
-    struct ast_str* module_time = ast_str_create(MODULE_TIME_DEF_SIZE);
+    RAII_VAR(struct ast_str*, module_time, ast_str_create(MODULE_TIME_DEF_SIZE), ast_free);
     ast_str_set(&module_time, MODULE_TIME_MAX_SIZE, "%02d/%02d/%02d,%02d:%02d:%02d%+d", year % 100, month, day, hour, min, sec, time_zone);
     ast_string_field_set(pvt, module_time, ast_str_buffer(module_time));
-    ast_free(module_time);
 
     ast_verb(3, "[%s] Module time: %s\n", PVT_ID(pvt), pvt->module_time);
     return 0;

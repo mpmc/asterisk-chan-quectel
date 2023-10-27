@@ -23,10 +23,15 @@
 /* Define to the address where bug reports for this package should be sent. */
 #define PACKAGE_BUGREPORT "@PROJECT_HOMEPAGE_URL@"
 
+/* clang-format off */
+
 /* The Asterisk version */
 #cmakedefine ASTERISK_VERSION_NUM @ASTERISK_VERSION_NUM@
 
+/* clang-format on */
+
 #cmakedefine USE_SYSV_UUCP_LOCKS
+
 
 /* Revision of package */
 #define PACKAGE_REVISION "@PROJECT_VERSION_TWEAK@@CHAN_STATUS@"
@@ -34,8 +39,12 @@
 /* Name of asterisk module */
 #cmakedefine AST_MODULE "@AST_MODULE@"
 
+/* clang-format off */
+
 /* Define if you have HAVE_AST_CONTROL_SRCCHANGE in asterisk/frame.h */
 #define HAVE_AST_CONTROL_SRCCHANGE @HAVE_AST_CONTROL_SRCCHANGE_STR@
+
+/* clang-format on */
 
 /* Define you have the <fcntl.h> header file. */
 #cmakedefine01 HAVE_FCNTL_H
@@ -64,8 +73,10 @@
 /* Define you have the <unistd.h> header file. */
 #cmakedefine01 HAVE_UNISTD_H
 
+/* clang-format off */
 #define ICONV_CONST @ICONV_CONST_STR@
 #cmakedefine ICONV_T @ICONV_T@
+/* clang-format on */
 
 /* Define to 1 if you have the `memchr' function. */
 #cmakedefine01 HAVE_MEMCHR

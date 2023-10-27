@@ -41,39 +41,34 @@ bad:
 
 struct cpvt* cpvt_alloc(struct pvt* pvt, int call_idx, unsigned dir, call_state_t state, unsigned local_channel)
 {
-    int filedes[2];
-    struct cpvt* cpvt = NULL;
+    int fd[2] = {-1, -1};
 
     if (CONF_SHARED(pvt, multiparty)) {
-        if (init_pipe(filedes)) {
-            goto c_ret;
+        if (init_pipe(fd)) {
+            return NULL;
         }
-    } else {
-        filedes[0] = filedes[1] = -1;
     }
 
-    cpvt = ast_calloc(1, sizeof(*cpvt));
+    struct cpvt* const cpvt = ast_calloc(1, sizeof(*cpvt));
     if (!cpvt) {
         if (CONF_SHARED(pvt, multiparty)) {
-            close(filedes[0]);
-            close(filedes[1]);
+            close(fd[0]);
+            close(fd[1]);
         }
-        goto c_ret;
+        return NULL;
     }
+
+    const struct ast_format* const fmt = pvt_get_audio_format(pvt);
+    const size_t buffer_size           = pvt_get_audio_frame_size(PTIME_PLAYBACK, fmt);
 
     cpvt->pvt           = pvt;
     cpvt->call_idx      = call_idx;
     cpvt->state         = state;
     cpvt->dir           = dir;
     cpvt->local_channel = local_channel;
-    cpvt->rd_pipe[0]    = filedes[0];
-    cpvt->rd_pipe[1]    = filedes[1];
-
-    const struct ast_format* const fmt  = pvt_get_audio_format(pvt);
-    size_t buffer_size                  = pvt_get_audio_frame_size(1, fmt);
-    buffer_size                        += AST_FRIENDLY_OFFSET;
-    cpvt->a_read_buf                    = ast_malloc(buffer_size);
-    cpvt->a_read_buf_size               = buffer_size;
+    cpvt->rd_pipe[0]    = fd[0];
+    cpvt->rd_pipe[1]    = fd[1];
+    cpvt->read_buf      = ast_calloc(1, buffer_size + AST_FRIENDLY_OFFSET);
 
     AST_LIST_INSERT_TAIL(&pvt->chans, cpvt, entry);
     if (PVT_NO_CHANS(pvt)) {
@@ -83,31 +78,12 @@ struct cpvt* cpvt_alloc(struct pvt* pvt, int call_idx, unsigned dir, call_state_
     PVT_STATE(pvt, chan_count[cpvt->state])++;
 
     ast_debug(3, "[%s] Create cpvt - idx:%d dir:%d state:%s buffer_len:%u\n", PVT_ID(pvt), call_idx, dir, call_state2str(state), (unsigned int)buffer_size);
-
-c_ret:
     return cpvt;
 }
 
-#/* */
-
-void cpvt_free(struct cpvt* cpvt)
+static void decrease_chan_counters(const struct cpvt* const cpvt, struct pvt* const pvt)
 {
-    pvt_t* const pvt = cpvt->pvt;
-
     struct cpvt* found;
-    struct at_queue_task* task;
-
-    if (cpvt->a_read_buf) {
-        ast_free(cpvt->a_read_buf);
-        cpvt->a_read_buf = NULL;
-    }
-    cpvt->a_read_buf_size = 0u;
-
-    close(cpvt->rd_pipe[1]);
-    close(cpvt->rd_pipe[0]);
-
-    ast_debug(3, "[%s] Destroy cpvt - idx:%d dir:%d state:%s flags:%d channel:%s\n", PVT_ID(pvt), cpvt->call_idx, cpvt->dir, call_state2str(cpvt->state),
-              cpvt->flags, cpvt->channel ? "attached" : "detached");
 
     AST_LIST_TRAVERSE_SAFE_BEGIN(&pvt->chans, found, entry)
         if (found == cpvt) {
@@ -117,6 +93,11 @@ void cpvt_free(struct cpvt* cpvt)
             break;
         }
     AST_LIST_TRAVERSE_SAFE_END;
+}
+
+static void relink_to_sys_chan(const struct cpvt* const cpvt, struct pvt* const pvt)
+{
+    struct at_queue_task* task;
 
     /* relink task to sys_chan */
     AST_LIST_TRAVERSE(&pvt->at_queue, task, entry) {
@@ -124,11 +105,28 @@ void cpvt_free(struct cpvt* cpvt)
             task->cpvt = &pvt->sys_chan;
         }
     }
+}
+
+void cpvt_free(struct cpvt* cpvt)
+{
+    struct pvt* const pvt = cpvt->pvt;
+
+    ast_debug(3, "[%s] Destroy cpvt - idx:%d dir:%d state:%s flags:%d channel:%s\n", PVT_ID(pvt), cpvt->call_idx, cpvt->dir, call_state2str(cpvt->state),
+              cpvt->flags, cpvt->channel ? "attached" : "detached");
 
     if (PVT_NO_CHANS(pvt)) {
         pvt_on_remove_last_channel(pvt);
         pvt_try_restate(pvt);
     }
+
+    decrease_chan_counters(cpvt, pvt);
+    relink_to_sys_chan(cpvt, pvt);
+
+    ast_free(cpvt->read_buf);
+    cpvt->read_buf = NULL;
+
+    close(cpvt->rd_pipe[1]);
+    close(cpvt->rd_pipe[0]);
 
     ast_free(cpvt);
 }
@@ -138,6 +136,7 @@ void cpvt_free(struct cpvt* cpvt)
 struct cpvt* pvt_find_cpvt(struct pvt* pvt, int call_idx)
 {
     struct cpvt* cpvt;
+
     AST_LIST_TRAVERSE(&pvt->chans, cpvt, entry) {
         if (call_idx == cpvt->call_idx) {
             return cpvt;
@@ -150,6 +149,7 @@ struct cpvt* pvt_find_cpvt(struct pvt* pvt, int call_idx)
 struct cpvt* active_cpvt(struct pvt* pvt)
 {
     struct cpvt* cpvt;
+
     AST_LIST_TRAVERSE(&pvt->chans, cpvt, entry) {
         if (CPVT_IS_SOUND_SOURCE(cpvt) || (cpvt)->state == CALL_STATE_INCOMING) {
             return cpvt;
@@ -181,6 +181,7 @@ const char* pvt_call_dir(const struct pvt* pvt)
 
     int index = 0;
     struct cpvt* cpvt;
+
     AST_LIST_TRAVERSE(&pvt->chans, cpvt, entry) {
         if (cpvt->dir == CALL_DIR_OUTGOING) {
             index |= 0x1;

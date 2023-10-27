@@ -1,0 +1,14 @@
+//
+// ptime-config.h
+//
+
+#ifndef PTIME_CONFIG_H
+#define PTIME_CONFIG_H
+
+#define PTIME_CAPTURE 20
+#define PTIME_PLAYBACK 20
+#define PTIME_BUFFER 1000
+
+#cmakedefine01 PTIME_USE_DEFAULT
+
+#endif  // PTIME_CONFIG_H

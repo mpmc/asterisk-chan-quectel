@@ -4,6 +4,8 @@
 #ifndef CHAN_QUECTEL_CPVT_H_INCLUDED
 #define CHAN_QUECTEL_CPVT_H_INCLUDED
 
+#include <ptime-config.h>
+
 #include "ast_config.h"
 
 #include <asterisk/frame.h>       /* AST_FRIENDLY_OFFSET */
@@ -11,10 +13,6 @@
 
 #include "mixbuffer.h" /* struct mixstream */
 #include "mutils.h"    /* enum2str() ITEMS_OF() */
-
-#define FRAME_SIZE_CAPTURE 640
-#define FRAME_SIZE_PLAYBACK 1600
-#define BUFFER_SIZE 9600
 
 typedef enum {
     CALL_STATE_MIN = 0,
@@ -73,15 +71,8 @@ typedef struct cpvt {
 
     struct mixstream mixstream; /*!< mix stream */
 
-    void* a_read_buf; /*!< audio read buffer */
-    size_t a_read_buf_size;
-
-    struct ast_frame a_read_frame; /*!< voice frame */
-
-    //	size_t			write;				/*!< write position in pvt->a_write_buf */
-    //	size_t			used;				/*!< bytes used in pvt->a_write_buf */
-    //	char			a_write_buf[FRAME_SIZE * 5];	/*!< audio write buffer */
-    //	struct ringbuffer	a_write_rb;			/*!< audio ring buffer */
+    void* read_buf;              /*!< audio read buffer */
+    struct ast_frame read_frame; /*!< voice frame */
 } cpvt_t;
 
 #define CPVT_SET_FLAGS(cpvt, flag) \

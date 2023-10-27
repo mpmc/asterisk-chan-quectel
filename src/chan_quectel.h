@@ -30,7 +30,6 @@
 #include "cpvt.h"      /* struct cpvt */
 #include "dc_config.h" /* pvt_config_t */
 
-#define DESIRED_RATE 8000
 #define ALSA_PCM_NEW_HW_PARAMS_API
 #define ALSA_PCM_NEW_SW_PARAMS_API
 #if __BYTE_ORDER == __LITTLE_ENDIAN
@@ -131,10 +130,10 @@ typedef struct pvt {
 
     struct ast_timer* a_timer; /*!< audio write timer */
 
-    char a_silence_buf[FRAME_SIZE_PLAYBACK * 2];
+    void* silence_buf;  //[FRAME_SIZE_PLAYBACK * 2];
 
-    char a_write_buf[FRAME_SIZE_PLAYBACK * 5]; /*!< audio write buffer */
-    struct mixbuffer a_write_mixb;             /*!< audio mix buffer */
+    void* write_buf;             //[FRAME_SIZE_PLAYBACK * 5]; /*!< audio write buffer */
+    struct mixbuffer write_mixb; /*!< audio mix buffer */
 
     int timeout;                /*!< used to set the timeout for data */
 #define DATA_READ_TIMEOUT 10000 /* 10 seconds */
@@ -247,7 +246,7 @@ void pvt_try_restate(struct pvt* pvt);
 int pvt_set_act(struct pvt* pvt, int act);
 
 const struct ast_format* pvt_get_audio_format(const struct pvt* const);
-size_t pvt_get_audio_frame_size(int, const struct ast_format* const);
+size_t pvt_get_audio_frame_size(unsigned int, const struct ast_format* const);
 void* pvt_get_silence_buffer(struct pvt* const);
 
 #ifdef USE_SYSV_UUCP_LOCKS
@@ -265,6 +264,7 @@ static inline struct pvt* find_device(const char* name) { return find_device_ex(
 
 struct pvt* find_device_ext(const char* name);
 struct pvt* find_device_by_resource_ex(struct public_state* state, const char* resource, int opts, const struct ast_channel* requestor, int* exists);
+void unlock_pvt(struct pvt* const pvt);
 
 static inline struct pvt* find_device_by_resource(const char* resource, int opts, const struct ast_channel* requestor, int* exists)
 {
