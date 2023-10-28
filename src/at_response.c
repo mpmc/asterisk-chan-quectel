@@ -356,7 +356,8 @@ static int at_response_ok(struct pvt* const pvt, const at_res_t at_res, const at
 
         case CMD_AT_D:
             pvt->dialing = 1;
-            /* fall through */
+            change_channel_state(task->cpvt, CALL_STATE_DIALING, 0);
+        /* fall through */
         case CMD_AT_A:
         case CMD_AT_CHLD_2x:
             /* not work, ^CONN: appear before OK for CHLD_ANSWER

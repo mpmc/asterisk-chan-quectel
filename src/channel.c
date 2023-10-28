@@ -1078,10 +1078,22 @@ void change_channel_state(struct cpvt* cpvt, unsigned newstate, int cause)
 
     /* check channel is dead */
     if (!channel) {
-        /* channel already dead */
-        if (newstate == CALL_STATE_RELEASED) {
-            cpvt_free(cpvt);
-        }
+        switch (newstate) {
+            case CALL_STATE_RELEASED:
+                cpvt_free(cpvt);
+                break;
+
+            case CALL_STATE_INIT:
+            case CALL_STATE_ONHOLD:
+            case CALL_STATE_DIALING:
+            case CALL_STATE_ALERTING:
+            case CALL_STATE_INCOMING:
+            case CALL_STATE_WAITING:
+                if (at_enqueue_hangup(&pvt->sys_chan, cpvt->call_idx, AST_CAUSE_NORMAL_UNSPECIFIED)) {
+                    ast_log(LOG_ERROR, "[%s] Unable to hangup call id:%d\n", PVT_ID(pvt), cpvt->call_idx);
+                }
+                break;
+        };
     } else {
         /* for live channel */
         switch (newstate) {
@@ -1282,15 +1294,15 @@ int queue_control_channel(struct cpvt* cpvt, enum ast_control_frame_type control
 /* NOTE: bg: called from device level and change_channel_state() with pvt locked */
 int queue_hangup(struct ast_channel* channel, int hangupcause)
 {
-    int rv = 0;
-    if (channel) {
-        if (hangupcause) {
-            ast_channel_hangupcause_set(channel, hangupcause);
-        }
-
-        rv = ast_queue_hangup(channel);
+    if (!channel) {
+        return -1;
     }
-    return rv;
+
+    if (hangupcause) {
+        ast_channel_hangupcause_set(channel, hangupcause);
+    }
+
+    return ast_queue_hangup(channel);
 }
 
 void start_local_report_channel(struct pvt* pvt, const char* number, const struct ast_str* const payload, const char* ts, const char* dt, int success,
