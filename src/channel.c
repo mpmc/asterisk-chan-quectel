@@ -531,6 +531,11 @@ static struct ast_frame* prepare_voice_frame(struct cpvt* const cpvt, void* cons
     return f;
 }
 
+static struct ast_frame* prepare_silence_voice_frame(struct cpvt* const cpvt, int samples, const struct ast_format* const fmt)
+{
+    return prepare_voice_frame(cpvt, pvt_get_silence_buffer(cpvt->pvt), samples, fmt);
+}
+
 static struct ast_frame* channel_read_tty(struct cpvt* cpvt, struct pvt* pvt, size_t frame_size, const struct ast_format* const fmt)
 {
     char* const buf = cpvt->read_buf + AST_FRIENDLY_OFFSET;
@@ -657,14 +662,14 @@ static struct ast_frame* channel_read(struct ast_channel* channel)
 
     ast_debug(8, "[%s] Read - idx:%d state:%s audio_fd:%d\n", PVT_ID(pvt), cpvt->call_idx, call_state2str(cpvt->state), pvt->audio_fd);
 
+    const int fdno                     = ast_channel_fdno(channel);
+    const struct ast_format* const fmt = pvt_get_audio_format(pvt);
+    const size_t frame_size            = pvt_get_audio_frame_size(PTIME_CAPTURE, fmt);
+
     /* FIXME: move down for enable timing_write() to device ? */
     if (CONF_UNIQ(pvt, uac) == TRIBOOL_FALSE && (!CPVT_IS_SOUND_SOURCE(cpvt) || pvt->audio_fd < 0)) {
         goto f_ret;
     }
-
-    const int fdno                     = ast_channel_fdno(channel);
-    const struct ast_format* const fmt = pvt_get_audio_format(pvt);
-    const size_t frame_size            = pvt_get_audio_frame_size(PTIME_CAPTURE, fmt);
 
     if (fdno == 1) {
         ast_timer_ack(pvt->a_timer, 1);
@@ -688,8 +693,10 @@ static struct ast_frame* channel_read(struct ast_channel* channel)
 
 f_ret:
     if (f == NULL || f->frametype == AST_FRAME_NULL) {
-        ast_debug(5, "[%s] Read - idx:%d state:%s - returning NULL frame\n", PVT_ID(pvt), cpvt->call_idx, call_state2str(cpvt->state));
-        return &ast_null_frame;
+        const int fd = ast_channel_fd(channel, 0);
+        ast_debug(5, "[%s] Read - idx:%d state:%s audio:%d:%d - returning SILENCE frame\n", PVT_ID(pvt), cpvt->call_idx, call_state2str(cpvt->state), fd,
+                  pvt->audio_fd);
+        return prepare_silence_voice_frame(cpvt, frame_size / sizeof(short), fmt);
     } else {
         ast_debug(8, "[%s] Read - idx:%d state:%s samples:%d\n", PVT_ID(pvt), cpvt->call_idx, call_state2str(cpvt->state), f->samples);
         return f;

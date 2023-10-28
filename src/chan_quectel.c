@@ -1386,7 +1386,7 @@ void pvt_on_create_1st_channel(struct pvt* pvt)
 {
     const struct ast_format* const fmt = pvt_get_audio_format(pvt);
     const size_t silence_buf_size      = 2u * pvt_get_audio_frame_size(PTIME_PLAYBACK, fmt);
-    pvt->silence_buf                   = ast_calloc(1, silence_buf_size);
+    pvt->silence_buf                   = ast_calloc(1, silence_buf_size + AST_FRIENDLY_OFFSET);
 
     if (CONF_SHARED(pvt, multiparty)) {
         if (CONF_UNIQ(pvt, uac) > TRIBOOL_FALSE) {
@@ -2218,7 +2218,7 @@ size_t pvt_get_audio_frame_size(unsigned int ptime, const struct ast_format* con
 
 #endif
 
-void* pvt_get_silence_buffer(struct pvt* const pvt) { return pvt->silence_buf; }
+void* pvt_get_silence_buffer(struct pvt* const pvt) { return pvt->silence_buf + AST_FRIENDLY_OFFSET; }
 
 static int load_module()
 {
