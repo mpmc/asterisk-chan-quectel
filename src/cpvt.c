@@ -151,7 +151,7 @@ struct cpvt* active_cpvt(struct pvt* pvt)
     struct cpvt* cpvt;
 
     AST_LIST_TRAVERSE(&pvt->chans, cpvt, entry) {
-        if (CPVT_IS_SOUND_SOURCE(cpvt) || (cpvt)->state == CALL_STATE_INCOMING) {
+        if (CPVT_IS_SOUND_SOURCE(cpvt)) {
             return cpvt;
         }
     }

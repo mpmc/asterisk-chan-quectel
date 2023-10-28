@@ -90,7 +90,7 @@ typedef struct cpvt {
 
 #define CPVT_IS_MASTER(cpvt) CPVT_TEST_FLAG(cpvt, CALL_FLAG_MASTER)
 #define CPVT_IS_ACTIVE(cpvt) ((cpvt)->state == CALL_STATE_ACTIVE)
-#define CPVT_IS_SOUND_SOURCE(cpvt) ((cpvt)->state == CALL_STATE_ACTIVE || (cpvt)->state == CALL_STATE_DIALING || (cpvt)->state == CALL_STATE_ALERTING)
+#define CPVT_IS_SOUND_SOURCE(cpvt) ((cpvt)->state <= CALL_STATE_INCOMING || (cpvt)->state == CALL_STATE_INIT)
 
 struct cpvt* cpvt_alloc(struct pvt* pvt, int call_idx, unsigned dir, call_state_t statem, unsigned local_channel);
 void cpvt_free(struct cpvt* cpvt);
@@ -108,7 +108,7 @@ static inline const char* call_state2str(call_state_t state)
                                          "active", "held", "dialing", "alerting", "incoming", "waiting",
 
                                          /* pseudo states */
-                                         "released", "initialize"};
+                                         "released", "init"};
 
     return enum2str(state, states, ITEMS_OF(states));
 }
