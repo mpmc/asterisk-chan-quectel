@@ -113,4 +113,11 @@ static inline const char* call_state2str(call_state_t state)
     return enum2str(state, states, ITEMS_OF(states));
 }
 
+void lock_cpvt(struct cpvt* const);
+void try_lock_cpvt(struct cpvt* const);
+void unlock_cpvt(struct cpvt* const);
+
+#define SCOPED_CPVT(varname, lock) SCOPED_LOCK(varname, lock, lock_cpvt, unlock_cpvt)
+#define SCOPED_CPVT_TL(varname, lock) SCOPED_LOCK(varname, lock, try_lock_cpvt, unlock_cpvt)
+
 #endif /* CHAN_QUECTEL_CPVT_H_INCLUDED */

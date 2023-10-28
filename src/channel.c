@@ -653,16 +653,13 @@ static struct ast_frame* channel_read(struct ast_channel* channel)
     }
 
     struct pvt* const pvt = cpvt->pvt;
-
-    while (ast_mutex_trylock(&pvt->lock)) {
-        CHANNEL_DEADLOCK_AVOIDANCE(channel);
-    }
+    SCOPED_CPVT_TL(cpvt_lock, cpvt);
 
     ast_debug(8, "[%s] Read - idx:%d state:%s audio_fd:%d\n", PVT_ID(pvt), cpvt->call_idx, call_state2str(cpvt->state), pvt->audio_fd);
 
     /* FIXME: move down for enable timing_write() to device ? */
     if (CONF_UNIQ(pvt, uac) == TRIBOOL_FALSE && (!CPVT_IS_SOUND_SOURCE(cpvt) || pvt->audio_fd < 0)) {
-        goto m_unlock;
+        goto f_ret;
     }
 
     const int fdno                     = ast_channel_fdno(channel);
@@ -680,7 +677,7 @@ static struct ast_frame* channel_read(struct ast_channel* channel)
             }
             ast_debug(7, "[%s] *** timing ***\n", PVT_ID(pvt));
         }
-        goto m_unlock;
+        goto f_ret;
     }
 
     if (CONF_UNIQ(pvt, uac) > TRIBOOL_FALSE && CPVT_IS_MASTER(cpvt)) {
@@ -689,9 +686,7 @@ static struct ast_frame* channel_read(struct ast_channel* channel)
         f = channel_read_tty(cpvt, pvt, frame_size, fmt);
     }
 
-m_unlock:
-    ast_mutex_unlock(&pvt->lock);
-
+f_ret:
     if (f == NULL || f->frametype == AST_FRAME_NULL) {
         ast_debug(5, "[%s] Read - idx:%d state:%s - returning NULL frame\n", PVT_ID(pvt), cpvt->call_idx, call_state2str(cpvt->state));
         return &ast_null_frame;
@@ -869,17 +864,13 @@ static int channel_write(struct ast_channel* channel, struct ast_frame* f)
     }
 
     struct pvt* const pvt = cpvt->pvt;
-
-    while (ast_mutex_trylock(&pvt->lock)) {
-        CHANNEL_DEADLOCK_AVOIDANCE(channel);
-    }
+    SCOPED_CPVT_TL(cpvt_lock, cpvt);
 
     const struct ast_format* const fmt = pvt_get_audio_format(pvt);
     const size_t frame_size            = pvt_get_audio_frame_size(PTIME_PLAYBACK, fmt);
 
     if (f->frametype != AST_FRAME_VOICE || ast_format_cmp(f->subclass.format, fmt) != AST_FORMAT_CMP_EQUAL) {
         ast_debug(1, "[%s] Unsupported audio codec: %s\n", PVT_ID(pvt), ast_format_get_name(f->subclass.format));
-        ast_mutex_unlock(&pvt->lock);
         return 0;
     }
 
@@ -898,7 +889,6 @@ static int channel_write(struct ast_channel* channel, struct ast_frame* f)
         res = channel_write_tty(channel, f, cpvt, pvt);
     }
 
-    ast_mutex_unlock(&pvt->lock);
     return res >= 0 ? 0 : -1;
 }
 
@@ -1353,15 +1343,10 @@ static int channel_func_read(struct ast_channel* channel, attribute_unused const
         ast_log(LOG_WARNING, "call on unreferenced %s\n", ast_channel_name(channel));
         return -1;
     }
-    struct pvt* const pvt = cpvt->pvt;
 
     if (!strcasecmp(data, "callstate")) {
-        while (ast_mutex_trylock(&pvt->lock)) {
-            CHANNEL_DEADLOCK_AVOIDANCE(channel);
-        }
+        SCOPED_CPVT_TL(cpvt_lock, cpvt);
         call_state_t state = cpvt->state;
-        ast_mutex_unlock(&pvt->lock);
-
         ast_copy_string(buf, call_state2str(state), len);
     } else {
         ret = -1;
@@ -1391,9 +1376,7 @@ static int channel_func_write(struct ast_channel* channel, const char* function,
             return -1;
         }
 
-        while (ast_mutex_trylock(&cpvt->pvt->lock)) {
-            CHANNEL_DEADLOCK_AVOIDANCE(channel);
-        }
+        SCOPED_CPVT_TL(cpvt_lock, cpvt);
         oldstate = cpvt->state;
 
         if (oldstate == newstate)
@@ -1407,7 +1390,6 @@ static int channel_func_write(struct ast_channel* channel, const char* function,
             ast_log(LOG_WARNING, "allow change state to 'active' only from 'held' in %s(callstate).\n", function);
             ret = -1;
         }
-        ast_mutex_unlock(&cpvt->pvt->lock);
     } else {
         ret = -1;
     }

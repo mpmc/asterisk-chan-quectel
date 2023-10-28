@@ -192,3 +192,40 @@ const char* pvt_call_dir(const struct pvt* pvt)
 
     return dirs[index];
 }
+
+void lock_cpvt(struct cpvt* const cpvt)
+{
+    struct pvt* const pvt = cpvt->pvt;
+    if (!pvt) {
+        return;
+    }
+
+    ast_mutex_trylock(&pvt->lock);
+}
+
+void try_lock_cpvt(struct cpvt* const cpvt)
+{
+    struct pvt* const pvt = cpvt->pvt;
+    if (!pvt) {
+        return;
+    }
+
+    struct ast_channel* const channel = cpvt->channel;
+    if (!channel) {
+        return;
+    }
+
+    ast_mutex_t* const mutex = &pvt->lock;
+
+    while (ast_mutex_trylock(mutex)) {
+        CHANNEL_DEADLOCK_AVOIDANCE(channel);
+    }
+}
+
+void unlock_cpvt(struct cpvt* const cpvt)
+{
+    if (!cpvt) {
+        return;
+    }
+    unlock_pvt(cpvt->pvt);
+}
