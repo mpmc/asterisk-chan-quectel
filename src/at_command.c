@@ -1397,6 +1397,24 @@ int at_enqueue_enable_uac(struct cpvt* cpvt)
     return 0;
 }
 
+int at_enqueue_uac_apply(struct cpvt* cpvt)
+{
+    DECLARE_NAKED_AT_CMD(qpcmv0, "+QPCMV=0");
+    DECLARE_NAKED_AT_CMD(cfun, "+CFUN=1,1");
+
+    static const at_queue_cmd_t cmds[] = {
+        ATQ_CMD_DECLARE_ST(CMD_AT_QPCMV_0, qpcmv0),
+        ATQ_CMD_DECLARE_ST(CMD_AT_QRXGAIN, cfun),
+    };
+
+    if (at_queue_insert_const_at_once(cpvt, cmds, ITEMS_OF(cmds), 0)) {
+        chan_quectel_err = E_QUEUE;
+        return -1;
+    }
+
+    return 0;
+}
+
 int at_enqueue_qlts(struct cpvt* cpvt, int mode)
 {
     DECLARE_AT_CMDNT(qlts, "+QLTS=%d");

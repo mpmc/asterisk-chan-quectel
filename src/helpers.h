@@ -28,6 +28,7 @@ int query_micgain(const char* dev_name);
 int send_micgain(const char* dev_name, int gain);
 int query_rxgain(const char* dev_name);
 int send_rxgain(const char* dev_name, int gain);
+int send_uac_apply(const char* dev_name);
 int send_at_command(const char* dev_name, const char* command);
 int schedule_restart_event(dev_state_t event, restate_time_t when, const char* dev_name);
 int is_valid_phone_number(const char* number);

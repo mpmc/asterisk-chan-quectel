@@ -79,12 +79,12 @@ Supported modules:
 
 * `txgain` and `rxgain` options reimplented.
 
-    * TX/RX gain is performed by module itself.
-        
+  * TX/RX gain is performed by module itself.
+
         This channel driver just sends `AT+QMIC`/`AT+QRXGAIN` (`AT+CMICGAIN`/`AT+COUTGAIN` for *SimCOM* module) commands.
 
-    * Default value is **-1** now - use current module setting, do not change gain.
-    * Range: **0-65535** or **0-100%**.
+  * Default value is **-1** now - use current module setting, do not change gain.
+  * Range: **0-65535** or **0-100%**.
 
     See also `quectel autio gain tx` and `quectel audio gain rx` commands below.
 
@@ -192,14 +192,14 @@ Supported modules:
     Some of theese fields are constantly updated via `act` and `csq` notifications (see `AT+QINDCFG` command).
 
     Additional channel variables are also defined:
-    
-    - `QUECTELNETWORKNAME`,
-    - `QUECTELSHORTNETWORKNAME`,
-    - `QUECTELPROVIDER`,
-    - `QUECTELPLMN`,
-    - `QUECTELMCC`,
-    - `QUECTELMNC`,
-    - `QUECTELICCID`.
+
+  * `QUECTELNETWORKNAME`,
+  * `QUECTELSHORTNETWORKNAME`,
+  * `QUECTELPROVIDER`,
+  * `QUECTELPLMN`,
+  * `QUECTELMCC`,
+  * `QUECTELMNC`,
+  * `QUECTELICCID`.
 
     `PLMN` (*Public Land Mobile Network Code*) combines `MCC` (*Mobile Country Code*) and `MNC` (*Mobile Network Code*).
 
@@ -249,13 +249,18 @@ Supported modules:
     | `quectel audio gain rx` | `AT+QRXGAIN` |
     | `quectel audio loop` | `AT+QAUDLOOP` |
 
+* New `quectel uac apply` command:
+
+    This command just sends `AT+QPCMV=0` and `AT+CFUN=1,1` commands.
+    It is helpful if you change `TTY` mode to `UAC` or vice versa.
+
 ## Internal
 
 * *UCS-2* encoding is mandatory now.
 * Call handling is based on automatic call status contifications.
 
-    * For *Quectel* modules `ccinfo` (default) or `dsci` notifications are used.
-    * For *SimCOM* modules `clcc` notifications are used.
+  * For *Quectel* modules `ccinfo` (default) or `dsci` notifications are used.
+  * For *SimCOM* modules `clcc` notifications are used.
 
 * Improved/extended *AT* commands response handler.
 
@@ -264,10 +269,10 @@ Supported modules:
 
 * Simplyfying audio handling (when `mutliparty` is off, see above) in UAC and TTY mode.
 
-    * Using less resources.
-    * Much simpler error handling.
-    * More debug messages.
-    * Reorganized, improved and simplified code.
+  * Using less resources.
+  * Much simpler error handling.
+  * More debug messages.
+  * Reorganized, improved and simplified code.
 
 * Fixed `USSD` sending/receiving.
 * Getting `ICCID` from SIM card.
@@ -285,13 +290,13 @@ Supported modules:
 
     Links:
 
-    * [ClangFormat](https://clang.llvm.org/docs/ClangFormat.html),
-    * [Edit C++ in Visual Studio Code -- Code formatting](https://code.visualstudio.com/docs/cpp/cpp-ide#_code-formatting).
+  * [ClangFormat](https://clang.llvm.org/docs/ClangFormat.html),
+  * [Edit C++ in Visual Studio Code -- Code formatting](https://code.visualstudio.com/docs/cpp/cpp-ide#_code-formatting).
 
 * Using [`CMake` build system](//github.com/RoEdAl/asterisk-chan-quectel/wiki/Building).
 * Improved debug messages.
 
-    * Non-printable characters are C escaped using custom function based on `ast_escape_c`:
+  * Non-printable characters are C escaped using custom function based on `ast_escape_c`:
 
         ```
         DEBUG[11643]: at_read.c:93 at_read: [quectel0] [1][\r\n+QIND: "csq",27,99\r\n]
@@ -300,7 +305,7 @@ Supported modules:
         DEBUG[13411]: at_queue.c:181 at_write: [quectel0] [AT+QSPN;+QNWINFO\r]
         ```
 
-    * Using *Unicode* characters in log messages.
+  * Using *Unicode* characters in log messages.
 
         Mostly arrows are used:
 
@@ -314,9 +319,9 @@ Supported modules:
 
         ```
 
- * Using modern serial port locking methods:
+* Using modern serial port locking methods:
 
-    * `ioctl(fd, TIOCGEXCL, &locking_status)` and `ioctl(fd, TIOCEXCL)`,
-    * `flock(fd, LOCK_EX | LOCK_NB)`.
-    
+  * `ioctl(fd, TIOCGEXCL, &locking_status)` and `ioctl(fd, TIOCEXCL)`,
+  * `flock(fd, LOCK_EX | LOCK_NB)`.
+
 * Many small optimizations.

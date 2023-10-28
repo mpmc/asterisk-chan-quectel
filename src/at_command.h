@@ -164,6 +164,7 @@ int at_hangup_immediately(struct cpvt* cpvt, int release_cause);
 int at_disable_uac_immediately(struct pvt* pvt);
 int at_enqueue_enable_tty(struct cpvt* cpvt);
 int at_enqueue_enable_uac(struct cpvt* cpvt);
+int at_enqueue_uac_apply(struct cpvt* cpvt);
 int at_enqueue_mute(struct cpvt* cpvt, int mute);
 int at_enqueue_qlts(struct cpvt* cpvt, int mode);
 int at_enqueue_qlts_1(struct cpvt* cpvt);

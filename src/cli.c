@@ -708,7 +708,7 @@ static char* cli_reset(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
         return CLI_SHOWUSAGE;
     }
 
-    int res = send_reset(a->argv[2]);
+    const int res = send_reset(a->argv[2]);
     ast_cli(a->fd, "[%s] %s\n", a->argv[2], res < 0 ? error2str(chan_quectel_err) : "Reset command queued for execute");
 
     return CLI_SUCCESS;
@@ -864,6 +864,31 @@ static char* cli_reload(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a
 }
 
 CLI_ALIASES(cli_reload, "reload", "reload < now | gracefully | when convenient <device>", "Reloads the configuration")
+
+static char* cli_uac_apply(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
+{
+    switch (cmd) {
+        case CLI_INIT:
+            e->command = "quectel uac apply\n";
+            e->usage   = "Usage: quectel uac apply <device>\n       Apply UAC mode and restart.\n";
+            return NULL;
+
+        case CLI_GENERATE:
+            if (a->pos == 3) {
+                return complete_device(a->word, a->n);
+            }
+            return NULL;
+    }
+
+    if (a->argc != 4) {
+        return CLI_SHOWUSAGE;
+    }
+
+    int res = send_uac_apply(a->argv[3]);
+    ast_cli(a->fd, "[%s] %s\n", a->argv[3], res < 0 ? error2str(chan_quectel_err) : dev_state2str_msg(DEV_STATE_STARTED));
+
+    return CLI_SUCCESS;
+}
 
 #/* */
 
@@ -1137,6 +1162,7 @@ static struct ast_cli_entry cli[] = {
 	CLI_DEF_ENTRIES(cli_restart,				"Restart channel")
 	CLI_DEF_ENTRIES(cli_remove,					"Remove channel")
 	CLI_DEF_ENTRIES(cli_reload,					"Reload channel")
+    AST_CLI_DEFINE(cli_uac_apply,               "Apply UAC mode"),
 
 	CLI_DEF_ENTRIES(cli_start,					"Start channel")
 	CLI_DEF_ENTRIES(cli_discovery,				"Discovery devices and create config")

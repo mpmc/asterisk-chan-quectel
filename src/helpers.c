@@ -356,6 +356,22 @@ int send_rxgain(const char* dev_name, int gain)
     return res;
 }
 
+int send_uac_apply(const char* dev_name)
+{
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), unlock_pvt);
+
+    if (!pvt) {
+        return -1;
+    }
+
+    if (pvt->is_simcom) {
+        return -1;
+    }
+
+    const int res = at_enqueue_uac_apply(&pvt->sys_chan);
+    return res;
+}
+
 #/* */
 
 int send_at_command(const char* dev_name, const char* command)
