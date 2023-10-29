@@ -751,7 +751,7 @@ static int at_response_error(struct pvt* const pvt, const at_res_t at_res, const
             break;
 
         case CMD_AT_CPCMREG1:
-            if (CONF_UNIQ(pvt, uac) == TRIBOOL_FALSE && CPVT_IS_SOUND_SOURCE(task->cpvt)) {
+            if (CONF_UNIQ(pvt, uac) == TRIBOOL_FALSE && CPVT_IS_ACTIVE(task->cpvt)) {
                 at_err_response_dbg(3, pvt, ecmd, "Trying to activate audio stream again");
                 at_enqueue_cpcmreg(task->cpvt, 1);
             } else {
@@ -1040,7 +1040,7 @@ static void handle_clcc(struct pvt* const pvt, const unsigned int call_idx, cons
     switch (state) {
         case CALL_STATE_ACTIVE:
             if (cpvt && pvt->is_simcom && CONF_UNIQ(pvt, uac) == TRIBOOL_FALSE && pvt->has_voice) {
-                at_enqueue_cpcmreg(&pvt->sys_chan, 1);
+                at_enqueue_cpcmreg(cpvt, 1);
             }
             break;
 
