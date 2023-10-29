@@ -773,7 +773,7 @@ int at_enqueue_dial(struct cpvt* cpvt, const char* number, int clir)
     }
 
     /* set CALL_FLAG_NEED_HANGUP early because ATD may be still in queue while local hangup called */
-    CPVT_SET_FLAGS(cpvt, CALL_FLAG_NEED_HANGUP);
+    CPVT_SET_FLAG(cpvt, CALL_FLAG_NEED_HANGUP);
     return 0;
 }
 
@@ -1223,7 +1223,7 @@ int at_enqueue_hangup(struct cpvt* cpvt, int call_idx, int release_cause)
 {
     struct pvt* const pvt = cpvt->pvt;
 
-    if (cpvt == &pvt->sys_chan || cpvt->dir == CALL_DIR_INCOMING || (cpvt->state != CALL_STATE_INIT && cpvt->state != CALL_STATE_DIALING)) {
+    if (cpvt == &pvt->sys_chan || CPVT_DIR_INCOMING(cpvt) || (cpvt->state != CALL_STATE_INIT && cpvt->state != CALL_STATE_DIALING)) {
         /* FIXME: other channels may be in RELEASED or INIT state */
         if (PVT_STATE(pvt, chansno) > 1) {
             DECLARE_AT_CMD(chld1x, "+CHLD=1%d");

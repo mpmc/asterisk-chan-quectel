@@ -61,14 +61,15 @@ struct cpvt* cpvt_alloc(struct pvt* pvt, int call_idx, unsigned dir, call_state_
     const struct ast_format* const fmt = pvt_get_audio_format(pvt);
     const size_t buffer_size           = pvt_get_audio_frame_size(PTIME_PLAYBACK, fmt);
 
-    cpvt->pvt           = pvt;
-    cpvt->call_idx      = call_idx;
-    cpvt->state         = state;
-    cpvt->dir           = dir;
-    cpvt->local_channel = local_channel;
-    cpvt->rd_pipe[0]    = fd[0];
-    cpvt->rd_pipe[1]    = fd[1];
-    cpvt->read_buf      = ast_calloc(1, buffer_size + AST_FRIENDLY_OFFSET);
+    cpvt->pvt        = pvt;
+    cpvt->call_idx   = call_idx;
+    cpvt->state      = state;
+    cpvt->rd_pipe[0] = fd[0];
+    cpvt->rd_pipe[1] = fd[1];
+    cpvt->read_buf   = ast_calloc(1, buffer_size + AST_FRIENDLY_OFFSET);
+
+    CPVT_SET_DIRECTION(cpvt, dir);
+    CPVT_SET_LOCAL(cpvt, local_channel);
 
     AST_LIST_INSERT_TAIL(&pvt->chans, cpvt, entry);
     if (PVT_NO_CHANS(pvt)) {
@@ -111,8 +112,8 @@ void cpvt_free(struct cpvt* cpvt)
 {
     struct pvt* const pvt = cpvt->pvt;
 
-    ast_debug(3, "[%s] Destroy cpvt - idx:%d dir:%d state:%s flags:%d channel:%s\n", PVT_ID(pvt), cpvt->call_idx, cpvt->dir, call_state2str(cpvt->state),
-              cpvt->flags, cpvt->channel ? "attached" : "detached");
+    ast_debug(3, "[%s] Destroy cpvt - idx:%d dir:%d state:%s flags:%d channel:%s\n", PVT_ID(pvt), cpvt->call_idx, CPVT_DIRECTION(cpvt),
+              call_state2str(cpvt->state), cpvt->flags, cpvt->channel ? "attached" : "detached");
 
     if (PVT_NO_CHANS(pvt)) {
         pvt_on_remove_last_channel(pvt);
@@ -183,7 +184,7 @@ const char* pvt_call_dir(const struct pvt* pvt)
     struct cpvt* cpvt;
 
     AST_LIST_TRAVERSE(&pvt->chans, cpvt, entry) {
-        if (cpvt->dir == CALL_DIR_OUTGOING) {
+        if (CPVT_DIR_OUTGOING(cpvt)) {
             index |= 0x1;
         } else {
             index |= 0x2;

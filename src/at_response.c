@@ -127,7 +127,7 @@ static int at_response_rcend(struct pvt* pvt)
         call_index = cpvt->call_idx;
         ast_debug(1, "[%s] CEND: call_index %d duration %d end_status %d cc_cause %d Line disconnected\n", PVT_ID(pvt), call_index, duration, end_status,
                   cc_cause);
-        CPVT_RESET_FLAGS(cpvt, CALL_FLAG_NEED_HANGUP);
+        CPVT_RESET_FLAG(cpvt, CALL_FLAG_NEED_HANGUP);
         PVT_STAT(pvt, calls_duration[cpvt->dir]) += duration;
         change_channel_state(cpvt, CALL_STATE_RELEASED, cc_cause);
     }
@@ -166,7 +166,7 @@ static int at_response_cend(struct pvt* const pvt, const char* str)
         call_index = cpvt->call_idx;
         ast_debug(1, "[%s] CEND: call_index %d duration %d end_status %d cc_cause %d Line disconnected\n", PVT_ID(pvt), call_index, duration, end_status,
                   cc_cause);
-        CPVT_RESET_FLAGS(cpvt, CALL_FLAG_NEED_HANGUP);
+        CPVT_RESET_FLAG(cpvt, CALL_FLAG_NEED_HANGUP);
         PVT_STAT(pvt, calls_duration[cpvt->dir]) += duration;
         change_channel_state(cpvt, CALL_STATE_RELEASED, cc_cause);
     } else {
@@ -364,7 +364,7 @@ static int at_response_ok(struct pvt* const pvt, const at_res_t at_res, const at
                             task->cpvt->answered = 1;
                             task->cpvt->needhangup = 1;
             */
-            CPVT_SET_FLAGS(task->cpvt, CALL_FLAG_NEED_HANGUP);
+            CPVT_SET_FLAG(task->cpvt, CALL_FLAG_NEED_HANGUP);
             at_ok_response_dbg(3, pvt, ecmd, "Call id:%d\n", task->cpvt->call_idx);
             break;
 
@@ -391,7 +391,7 @@ static int at_response_ok(struct pvt* const pvt, const at_res_t at_res, const at
         case CMD_AT_CHUP:
         case CMD_AT_QHUP:
         case CMD_AT_CHLD_1x:
-            CPVT_RESET_FLAGS(task->cpvt, CALL_FLAG_NEED_HANGUP);
+            CPVT_RESET_FLAG(task->cpvt, CALL_FLAG_NEED_HANGUP);
             at_ok_response_dbg(1, pvt, ecmd, "Successful hangup for call idx:%d", task->cpvt->call_idx);
             break;
 
@@ -951,7 +951,7 @@ static int start_pbx(struct pvt* const pvt, const char* const number, const int 
 
     struct cpvt* const cpvt = ast_channel_tech_pvt(channel);
     // FIXME: not execute if channel_new() failed
-    CPVT_SET_FLAGS(cpvt, CALL_FLAG_NEED_HANGUP);
+    CPVT_SET_FLAG(cpvt, CALL_FLAG_NEED_HANGUP);
 
     /* ast_pbx_start() usually failed if asterisk.conf minmemfree
      * set too low, try drop buffer cache
@@ -977,19 +977,19 @@ static void handle_clcc(struct pvt* const pvt, const unsigned int call_idx, cons
 
     if (cpvt) {
         /* cpvt alive */
-        CPVT_SET_FLAGS(cpvt, CALL_FLAG_ALIVE);
+        CPVT_SET_FLAG(cpvt, CALL_FLAG_ALIVE);
 
-        if (dir != cpvt->dir) {
-            ast_log(LOG_ERROR, "[%s] CLCC call idx:%d - direction mismatch %d/%d\n", PVT_ID(pvt), cpvt->call_idx, dir, cpvt->dir);
+        if (dir != CPVT_DIRECTION(cpvt)) {
+            ast_log(LOG_ERROR, "[%s] CLCC call idx:%d - direction mismatch %d/%d\n", PVT_ID(pvt), cpvt->call_idx, dir, CPVT_DIRECTION(cpvt));
             return;
         }
 
         if (mpty) {
             if (CONF_SHARED(pvt, multiparty)) {
                 if (mpty > 0) {
-                    CPVT_SET_FLAGS(cpvt, CALL_FLAG_MULTIPARTY);
+                    CPVT_SET_FLAG(cpvt, CALL_FLAG_MULTIPARTY);
                 } else {
-                    CPVT_RESET_FLAGS(cpvt, CALL_FLAG_MULTIPARTY);
+                    CPVT_RESET_FLAG(cpvt, CALL_FLAG_MULTIPARTY);
                 }
             } else {
                 if (!CPVT_TEST_FLAG(cpvt, CALL_FLAG_MULTIPARTY) && mpty > 0) {
@@ -1056,7 +1056,7 @@ static void handle_clcc(struct pvt* const pvt, const unsigned int call_idx, cons
             pvt->cwaiting = 0;
             pvt->ring     = 0;
 
-            PVT_STAT(pvt, calls_answered[cpvt->dir])++;
+            PVT_STAT(pvt, calls_answered[CPVT_DIRECTION(cpvt)])++;
             if (CPVT_TEST_FLAG(cpvt, CALL_FLAG_CONFERENCE)) {
                 at_enqueue_conference(cpvt);
             }
@@ -1170,7 +1170,7 @@ static int at_response_clcc(struct pvt* const pvt, const struct ast_str* const r
 
     struct cpvt* cpvt;
     AST_LIST_TRAVERSE(&pvt->chans, cpvt, entry) {
-        CPVT_RESET_FLAGS(cpvt, CALL_FLAG_ALIVE);
+        CPVT_RESET_FLAG(cpvt, CALL_FLAG_ALIVE);
     }
 
     RAII_VAR(struct ast_str*, line, ast_str_create(LINE_DEF_LEN), ast_free);

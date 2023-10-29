@@ -767,7 +767,7 @@ static void disconnect_quectel(struct pvt* pvt)
         struct cpvt* cpvt;
         AST_LIST_TRAVERSE(&(pvt->chans), cpvt, entry) {
             at_hangup_immediately(cpvt, AST_CAUSE_NORMAL_UNSPECIFIED);
-            CPVT_RESET_FLAGS(cpvt, CALL_FLAG_NEED_HANGUP);
+            CPVT_RESET_FLAG(cpvt, CALL_FLAG_NEED_HANGUP);
             change_channel_state(cpvt, CALL_STATE_RELEASED, AST_CAUSE_NORMAL_UNSPECIFIED);
         }
     }

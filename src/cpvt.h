@@ -33,19 +33,23 @@ typedef enum {
 #define CALL_STATES_NUMBER (CALL_STATE_MAX - CALL_STATE_MIN + 1)
 
 typedef enum {
-    CALL_FLAG_NONE         = 0,
-    CALL_FLAG_HOLD_OTHER   = 1,   /*!< external, from channel_call() hold other calls and dial this number */
-    CALL_FLAG_NEED_HANGUP  = 2,   /*!< internal, require issue AT+CHUP or AT+CHLD=1x for call */
-    CALL_FLAG_ACTIVATED    = 4,   /*!< internal, fd attached to channel fds list */
-    CALL_FLAG_ALIVE        = 8,   /*!< internal, temporary, still listed in CLCC */
-    CALL_FLAG_CONFERENCE   = 16,  /*!< external, from dial() begin conference after activate this call */
-    CALL_FLAG_MASTER       = 32,  /*!< internal, channel fd[0] is pvt->audio_fd and  fd[1] is timer fd */
-    CALL_FLAG_BRIDGE_LOOP  = 64,  /*!< internal, found channel bridged to channel on same device */
-    CALL_FLAG_BRIDGE_CHECK = 128, /*!< internal, we already do check for bridge loop */
-    CALL_FLAG_MULTIPARTY   = 256, /*!< internal, CLCC mpty is 1 */
+    CALL_FLAG_NONE          = 0,
+    CALL_FLAG_HOLD_OTHER    = 1,   /*!< external, from channel_call() hold other calls and dial this number */
+    CALL_FLAG_NEED_HANGUP   = 2,   /*!< internal, require issue AT+CHUP or AT+CHLD=1x for call */
+    CALL_FLAG_ACTIVATED     = 4,   /*!< internal, fd attached to channel fds list */
+    CALL_FLAG_ALIVE         = 8,   /*!< internal, temporary, still listed in CLCC */
+    CALL_FLAG_CONFERENCE    = 16,  /*!< external, from dial() begin conference after activate this call */
+    CALL_FLAG_MASTER        = 32,  /*!< internal, channel fd[0] is pvt->audio_fd and  fd[1] is timer fd */
+    CALL_FLAG_BRIDGE_LOOP   = 64,  /*!< internal, found channel bridged to channel on same device */
+    CALL_FLAG_BRIDGE_CHECK  = 128, /*!< internal, we already do check for bridge loop */
+    CALL_FLAG_MULTIPARTY    = 256, /*!< internal, CLCC mpty is 1 */
+    CALL_FLAG_DIRECTION     = 512, /*!< call direction */
+    CALL_FLAG_LOCAL_CHANNEL = 1024 /*!< local channel flag */
 } call_flag_t;
 
-/* */
+#define CALL_DIR_INCOMING 1u
+#define CALL_DIR_OUTGOING 0u
+
 typedef struct cpvt {
     AST_LIST_ENTRY(cpvt) entry; /*!< linked list pointers */
 
@@ -57,13 +61,7 @@ typedef struct cpvt {
 #define MAX_CALL_IDX 31
 
     call_state_t state; /*!< see also call_state_t */
-    int flags;          /*!< see also call_flag_t */
-
-    /* TODO: join with flags */
-    unsigned int dir          :1; /*!< call direction */
-    unsigned int local_channel:1; /*!< local channel flag */
-#define CALL_DIR_OUTGOING 0
-#define CALL_DIR_INCOMING 1
+    unsigned int flags; /*!< see also call_flag_t */
 
     int rd_pipe[2]; /*!< pipe for split read from device */
 #define PIPE_READ 0
@@ -75,20 +73,23 @@ typedef struct cpvt {
     struct ast_frame read_frame; /*!< voice frame */
 } cpvt_t;
 
-#define CPVT_SET_FLAGS(cpvt, flag) \
-    do {                           \
-        (cpvt)->flags |= (flag);   \
-    } while (0)
-
-#define CPVT_RESET_FLAGS(cpvt, flag)   \
-    do {                               \
-        (cpvt)->flags &= ~((int)flag); \
-    } while (0)
-
-#define CPVT_TEST_FLAG(cpvt, flag) ((cpvt)->flags & (flag))
-#define CPVT_TEST_FLAGS(cpvt, flag) (((cpvt)->flags & (flag)) == (flag))
+#define CPVT_SET_FLAG(cpvt, flag) ast_set2_flag(cpvt, 1, flag)
+#define CPVT_SET_FLAGS(cpvt, flag) ast_set_flag(cpvt, flag)
+#define CPVT_RESET_FLAG(cpvt, flag) ast_set2_flag(cpvt, 0, flag)
+#define CPVT_RESET_FLAGS(cpvt, flag) ast_clear_flag(cpvt, flag)
+#define CPVT_TEST_FLAG(cpvt, flag) ast_test_flag(cpvt, flag)
 
 #define CPVT_IS_MASTER(cpvt) CPVT_TEST_FLAG(cpvt, CALL_FLAG_MASTER)
+
+#define CPVT_DIR_INCOMING(cpvt) CPVT_TEST_FLAG(cpvt, CALL_FLAG_DIRECTION)
+#define CPVT_DIR_OUTGOING(cpvt) (!CPVT_TEST_FLAG(cpvt, CALL_FLAG_DIRECTION))
+#define CPVT_DIRECTION(cpvt) (CPVT_TEST_FLAG(cpvt, CALL_FLAG_DIRECTION) ? CALL_DIR_INCOMING : CALL_DIR_OUTGOING)
+#define CPVT_SET_DIRECTION(cpvt, dir) ast_set2_flag(cpvt, dir, CALL_FLAG_DIRECTION)
+
+#define CPVT_IS_LOCAL(cpvt) CPVT_TEST_FLAG(cpvt, CALL_FLAG_LOCAL_CHANNEL)
+#define CPVT_SET_LOCAL(cpvt, local) ast_set2_flag(cpvt, local, CALL_FLAG_LOCAL_CHANNEL)
+
+// state
 #define CPVT_IS_ACTIVE(cpvt) ((cpvt)->state == CALL_STATE_ACTIVE)
 #define CPVT_IS_SOUND_SOURCE(cpvt) ((cpvt)->state <= CALL_STATE_INCOMING || (cpvt)->state == CALL_STATE_INIT)
 

@@ -253,7 +253,7 @@ static void activate_call(struct cpvt* cpvt)
     struct cpvt* cpvt2;
 
     /* nothing todo, already main */
-    if (CPVT_TEST_FLAG(cpvt, CALL_FLAG_MASTER)) {
+    if (CPVT_IS_MASTER(cpvt)) {
         return;
     }
 
@@ -265,11 +265,11 @@ static void activate_call(struct cpvt* cpvt)
             continue;
         }
 
-        if (CPVT_TEST_FLAG(cpvt, CALL_FLAG_MASTER)) {
+        if (CPVT_IS_MASTER(cpvt)) {
             ast_debug(6, "[%s] Call idx:%d gave master\n", PVT_ID(pvt), cpvt2->call_idx);
         }
 
-        CPVT_RESET_FLAGS(cpvt2, CALL_FLAG_MASTER);
+        CPVT_RESET_FLAG(cpvt2, CALL_FLAG_MASTER);
 
         if (cpvt2->channel) {
             ast_channel_set_fd(cpvt2->channel, 1, -1);
@@ -315,7 +315,7 @@ static int channel_hangup(struct ast_channel* channel)
             if (at_enqueue_hangup(cpvt, cpvt->call_idx, hangup_cause)) {
                 ast_log(LOG_ERROR, "[%s] Error adding AT+CHUP command to queue, call not terminated!\n", PVT_ID(pvt));
             } else {
-                CPVT_RESET_FLAGS(cpvt, CALL_FLAG_NEED_HANGUP);
+                CPVT_RESET_FLAG(cpvt, CALL_FLAG_NEED_HANGUP);
             }
         }
 
@@ -348,7 +348,7 @@ static int channel_answer(struct ast_channel* channel)
 
     SCOPED_MUTEX(pvt_lock, &pvt->lock);
 
-    if (cpvt->dir == CALL_DIR_INCOMING) {
+    if (CPVT_DIR_INCOMING(cpvt)) {
         if (at_enqueue_answer(cpvt)) {
             ast_log(LOG_ERROR, "[%s] Error sending answer commands\n", PVT_ID(pvt));
         }
@@ -653,7 +653,7 @@ static struct ast_frame* channel_read(struct ast_channel* channel)
     struct cpvt* const cpvt = ast_channel_tech_pvt(channel);
     struct ast_frame* f     = NULL;
 
-    if (!cpvt || cpvt->channel != channel || !cpvt->pvt || cpvt->local_channel) {
+    if (!cpvt || cpvt->channel != channel || !cpvt->pvt || CPVT_IS_LOCAL(cpvt)) {
         return &ast_null_frame;
     }
 
@@ -709,11 +709,11 @@ static int channel_write_tty(struct ast_channel* channel, struct ast_frame* f, s
         RAII_VAR(struct ast_channel*, bridged, ast_channel_bridge_peer(channel), ast_channel_cleanup);
         struct cpvt* tmp_cpvt;
 
-        CPVT_SET_FLAGS(cpvt, CALL_FLAG_BRIDGE_CHECK);
+        CPVT_SET_FLAG(cpvt, CALL_FLAG_BRIDGE_CHECK);
 
         if (bridged && ast_channel_tech(bridged) == &channel_tech && (tmp_cpvt = ast_channel_tech_pvt(bridged)) && tmp_cpvt->pvt == pvt) {
-            CPVT_SET_FLAGS(cpvt, CALL_FLAG_BRIDGE_LOOP);
-            CPVT_SET_FLAGS((struct cpvt*)ast_channel_tech_pvt(bridged), CALL_FLAG_BRIDGE_LOOP);
+            CPVT_SET_FLAG(cpvt, CALL_FLAG_BRIDGE_LOOP);
+            CPVT_SET_FLAG((struct cpvt*)ast_channel_tech_pvt(bridged), CALL_FLAG_BRIDGE_LOOP);
             ast_log(LOG_WARNING, "[%s] Bridged channels %s and %s working on same device, discard writes to avoid voice loop\n", PVT_ID(pvt),
                     ast_channel_name(channel), ast_channel_name(bridged));
             return 0;
@@ -859,7 +859,7 @@ static int channel_write(struct ast_channel* channel, struct ast_frame* f)
     struct cpvt* const cpvt = ast_channel_tech_pvt(channel);
     int res                 = -1;
 
-    if (!cpvt || cpvt->channel != channel || !cpvt->pvt || cpvt->local_channel) {
+    if (!cpvt || cpvt->channel != channel || !cpvt->pvt || CPVT_IS_LOCAL(cpvt)) {
         return 0;
     }
 
@@ -1119,7 +1119,7 @@ void change_channel_state(struct cpvt* cpvt, unsigned newstate, int cause)
                 if (oldstate == CALL_STATE_ONHOLD) {
                     ast_debug(1, "[%s] Unhold call idx:%d\n", PVT_ID(pvt), call_idx);
                     queue_control_channel(cpvt, AST_CONTROL_UNHOLD);
-                } else if (cpvt->dir == CALL_DIR_OUTGOING) {
+                } else if (CPVT_DIR_OUTGOING(cpvt)) {
                     ast_debug(1, "[%s] Remote end answered on call idx:%d\n", PVT_ID(pvt), call_idx);
                     queue_control_channel(cpvt, AST_CONTROL_ANSWER);
                 } else { /* if (cpvt->answered) */
