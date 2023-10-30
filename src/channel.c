@@ -779,7 +779,7 @@ static int channel_write_tty(struct ast_channel* channel, struct ast_frame* f, s
     return 0;
 }
 
-static int channel_write_uac(struct ast_channel*, struct ast_frame* f, struct cpvt*, struct pvt* pvt)
+static int channel_write_uac(struct ast_channel* attribute_unused(channel), struct ast_frame* f, struct cpvt* attribute_unused cpvt, struct pvt* pvt)
 {
     const int samples = f->samples;
     int res           = 0;

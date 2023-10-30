@@ -94,7 +94,8 @@ const char* dev_state2str_msg(dev_state_t state)
     return enum2str(state, states, ITEMS_OF(states));
 }
 
-void _show_alsa_state(int, const char* file, int line, const char* function, const char* const pcm_desc, const char* const pvt_id, snd_pcm_t* const pcm)
+void _show_alsa_state(int attribute_unused lvl, const char* file, int line, const char* function, const char* const pcm_desc, const char* const pvt_id,
+                      snd_pcm_t* const pcm)
 {
     const size_t ss                    = snd_pcm_status_sizeof();
     snd_pcm_status_t* const pcm_status = (snd_pcm_status_t*)ast_alloca(ss);
@@ -2201,7 +2202,7 @@ static size_t pvt_get_audio_frame_size_r(unsigned int ptime, const unsigned int 
 
 #if PTIME_USE_DEFAULT
 
-size_t pvt_get_audio_frame_size(unsigned int, const struct ast_format* const fmt)
+size_t pvt_get_audio_frame_size(unsigned int attribute_unused(ptime), const struct ast_format* const fmt)
 {
     const unsigned int sr      = ast_format_get_sample_rate(fmt);
     const unsigned int framing = ast_format_get_default_ms(fmt);

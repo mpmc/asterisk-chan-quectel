@@ -45,7 +45,7 @@ static const char MANUFACTURER_QUECTEL[] = "Quectel";
 static const char MANUFACTURER_SIMCOM[]  = "SimCom";
 
 static const int REPORT_DEF_LEN = SMSDB_DST_MAX_LEN;
-static const int REPORT_MAX_LEN = SMSDB_PAYLOAD_MAX_LEN + REPORT_DEF_LEN;
+static const int REPORT_MAX_LEN = SMSDB_PAYLOAD_MAX_LEN + SMSDB_DST_MAX_LEN;
 
 static const int DST_DEF_LEN     = 32;
 static const int PAYLOAD_DEF_LEN = 64;
@@ -2525,12 +2525,6 @@ static void at_response_ctxvol(struct pvt* const pvt, const struct ast_str* cons
     ast_verb(1, "[%s] Microphone Volume: %s [%d]\n", PVT_ID(pvt), ast_str_buffer(sgain), gain);
 }
 
-static int at_response_csms(struct pvt*, const struct ast_str* const)
-{
-    // nothing to do?
-    return 0;
-}
-
 static int at_response_qaudloop(struct pvt* const pvt, const struct ast_str* const response)
 {
     int aloop;
@@ -2949,7 +2943,7 @@ int at_response(struct pvt* const pvt, const struct ast_str* const response, con
             return 0;
 
         case RES_CSMS:
-            return at_response_csms(pvt, response);
+            return 0;
 
         case RES_QAUDMOD:
             return at_response_qaudmod(pvt, response);

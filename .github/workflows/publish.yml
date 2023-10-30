@@ -230,6 +230,7 @@ jobs:
     - uses: ./.github/actions/install-openwrt-sdk
       with:
         openwrt-version: ${{ env.OWRTVER }}
+        gcc-version: 11.2.0
         target: ${{ matrix.target }}
         arch: ${{ matrix.arch }}
         eabi: ${{ matrix.eabi }}

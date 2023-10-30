@@ -16,7 +16,7 @@ else
     make defconfig
 fi
 
-make package/${PKG_NAME}/compile
+make package/${PKG_NAME}/compile "$@"
 make package/index
 
 IPK=$(ls bin/packages/*/strskx/*.ipk)

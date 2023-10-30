@@ -8,7 +8,7 @@ runs:
       with:
         packages: |
           git wget
-          build-essential
+          build-essential python2
           libasound2-dev libsqlite3-dev asterisk-dev
   
     - name: Git configuration

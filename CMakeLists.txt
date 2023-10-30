@@ -142,12 +142,18 @@ MESSAGE(STATUS "Project version: ${CHAN_VER_STR}")
 IF(OPENWRT_PACKAGE)
     OPTION(OPENWRT_PACKAGE_STANDALONE "OpenWRT standalone package" ON)
 ENDIF()
-SET(ASTERISK_VERSION_NUM 180000 CACHE STRING "Asterisk version")
+
+IF(NOT DEFINED ASTERISK_VERSION_NUM)
+    SET(ASTERISK_VERSION_NUM 180000 CACHE STRING "Asterisk version")
+ENDIF()
+
 OPTION(ICONV_CONST "iconv() const declaration of input buffer" OFF)
 OPTION(USE_SYSV_UUCP_LOCKS "Use SYSV-style UUCP device locks" OFF)
 OPTION(PTIME_USE_DEFAULT "Use default framing" ON)
 SET(ICONV_T iconv_t CACHE STRING "iconv type")
 SET(AST_MODULE chan_quectel)
+
+MESSAGE(STATUS "Asterisk version: ${ASTERISK_VERSION_NUM}")
 
 INCLUDE(CheckIncludeFile)
 INCLUDE(CheckIncludeFiles)
@@ -161,10 +167,17 @@ PROJECT(asterisk-chan-quectel
 )
 
 SET(CMAKE_REQUIRED_DEFINITIONS "-DAST_MODULE_SELF_SYM=__internal_chan_quectel_self")
-CHECK_INCLUDE_FILE(asterisk.h HAVE_ASTERISK_H)
+
+IF(DEFINED AST_HEADER_DIR)
+    MESSAGE(STATUS "Asterisk header directory: ${AST_HEADER_DIR}")
+    INCLUDE_DIRECTORIES(BEFORE ${AST_HEADER_DIR})
+    CHECK_INCLUDE_FILE(asterisk.h HAVE_ASTERISK_H -I${AST_HEADER_DIR})
+ELSE()
+    CHECK_INCLUDE_FILE(asterisk.h HAVE_ASTERISK_H)
+ENDIF()
 
 IF(NOT HAVE_ASTERISK_H)
-    MESSAGE(FATAL_ERROR "Asterisk header not found. Cannot continue.")
+    MESSAGE(FATAL_ERROR "Asterisk header not found.")
 ENDIF()
 
 CHECK_INCLUDE_FILES("stdarg.h;asterisk.h;asterisk/frame.h" HAVE_ASTERISK_FRAME_H)

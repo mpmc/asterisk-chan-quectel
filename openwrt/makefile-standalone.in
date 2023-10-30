@@ -18,6 +18,8 @@ MAKE_PATH:=src
 
 MODULES_DIR:=/usr/lib/asterisk/modules
 
+@PKG_CMAKE_OPTIONS@
+
 include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/cmake.mk
  
@@ -26,7 +28,7 @@ define Package/@PROJECT_NAME@
   SECTION:=net
   CATEGORY:=Network
   URL:=http://github.com/RoEdAl/@PROJECT_NAME@
-  DEPENDS:=asterisk +alsa-lib +libsqlite3
+  DEPENDS:=@ASTERISK_PKG@ +alsa-lib +libsqlite3
   EXTRA_DEPENDS:=kmod-usb2 kmod-usb-acm kmod-usb-serial kmod-usb-serial-option kmod-usb-audio usb-modeswitch
   TITLE:=Quectel module support
 endef

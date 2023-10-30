@@ -10,6 +10,10 @@ inputs:
   arch:
     required: false
     description: Archtecture name
+  gcc-version:
+    required: true
+    description: GCC version
+    default: 11.2.0
   eabi:
     required: false
     description: EABI
@@ -39,21 +43,21 @@ runs:
       if: steps.cache-owrt-sdk-restore.outputs.cache-hit != 'true' && inputs.kirkwood != 'true' && inputs.eabi == 'true'
       shell: bash
       working-directory: owrtsdk
-      run: ${{ github.action_path }}/download-owrt-sdk.sh ${{ inputs.target }} ${{ inputs.openwrt-version }} openwrt-sdk-${{ inputs.openwrt-version }}-${{ inputs.target }}_gcc-11.2.0_musl_eabi.Linux-x86_64
+      run: ${{ github.action_path }}/download-owrt-sdk.sh ${{ inputs.target }} ${{ inputs.openwrt-version }} openwrt-sdk-${{ inputs.openwrt-version }}-${{ inputs.target }}_gcc-${{ inputs.gcc-version }}_musl_eabi.Linux-x86_64
 
     - name: Download OpenWRT SDK (kirkwood)
       id: download-owrt-sdk-kirkwood
       if: steps.cache-owrt-sdk-restore.outputs.cache-hit != 'true' && inputs.kirkwood == 'true' && inputs.eabi == 'true'
       shell: bash
       working-directory: owrtsdk
-      run: ${{ github.action_path }}/download-owrt-sdk.sh ${{ inputs.target }} ${{ inputs.openwrt-version }} openwrt-sdk-${{ inputs.openwrt-version }}-kirkwood_gcc-11.2.0_musl_eabi.Linux-x86_64      
+      run: ${{ github.action_path }}/download-owrt-sdk.sh ${{ inputs.target }} ${{ inputs.openwrt-version }} openwrt-sdk-${{ inputs.openwrt-version }}-kirkwood_gcc-${{ inputs.gcc-version }}_musl_eabi.Linux-x86_64      
 
     - name: Download OpenWRT SDK
       id: download-owrt-sdk
       if: steps.cache-owrt-sdk-restore.outputs.cache-hit != 'true' && inputs.kirkwood != 'true' && inputs.eabi != 'true'
       shell: bash
       working-directory: owrtsdk
-      run: ${{ github.action_path }}/download-owrt-sdk.sh ${{ inputs.target }} ${{ inputs.openwrt-version }} openwrt-sdk-${{ inputs.openwrt-version }}-${{ inputs.target }}_gcc-11.2.0_musl.Linux-x86_64
+      run: ${{ github.action_path }}/download-owrt-sdk.sh ${{ inputs.target }} ${{ inputs.openwrt-version }} openwrt-sdk-${{ inputs.openwrt-version }}-${{ inputs.target }}_gcc-${{ inputs.gcc-version }}_musl.Linux-x86_64
 
     - name: Prepare OpenWRT SDK
       id: prepare-owrt-sdk
