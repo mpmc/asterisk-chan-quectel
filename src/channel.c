@@ -528,6 +528,8 @@ static struct ast_frame* prepare_voice_frame(struct cpvt* const cpvt, void* cons
     f->offset          = AST_FRIENDLY_OFFSET;
     f->src             = AST_MODULE;
 
+    ast_frame_byteswap_le(f);
+
     return f;
 }
 
@@ -571,7 +573,6 @@ static struct ast_frame* channel_read_tty(struct cpvt* cpvt, struct pvt* pvt, si
     }
 
     struct ast_frame* const f = prepare_voice_frame(cpvt, buf, res / 2, fmt);
-    ast_frame_byteswap_le(f);
     return f;
 }
 
@@ -813,6 +814,7 @@ static int channel_write_uac(struct ast_channel* attribute_unused(channel), stru
             goto w_finish;
     }
 
+    ast_frame_byteswap_le(f);
     if (pvt->ocard_channels == 1u) {
         res = snd_pcm_mmap_writei(pvt->ocard, f->data.ptr, samples);
     } else {
