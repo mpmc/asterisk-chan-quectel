@@ -208,7 +208,7 @@ static int pcm_init(struct pvt* pvt, const char* dev, snd_pcm_stream_t stream, c
         goto alsa_fail;
     }
 
-    res = snd_pcm_hw_params_set_format(handle, hwparams, format);
+    res = snd_pcm_hw_params_set_format(handle, hwparams, pcm_format);
     if (res < 0) {
         ast_log(LOG_ERROR, "[%s][ALSA][%s] HW Set format failed: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
         goto alsa_fail;

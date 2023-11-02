@@ -29,13 +29,8 @@
 #include "cpvt.h"      /* struct cpvt */
 #include "dc_config.h" /* pvt_config_t */
 
-#define ALSA_PCM_NEW_HW_PARAMS_API
-#define ALSA_PCM_NEW_SW_PARAMS_API
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-static const snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
-#else
-static const snd_pcm_format_t format = SND_PCM_FORMAT_S16_BE;
-#endif
+static const snd_pcm_format_t pcm_format = SND_PCM_FORMAT_S16_LE;
+
 #define MAX_BUFFER_SIZE 100
 #define MODULE_DESCRIPTION "Channel Driver for Mobile Telephony"
 #define MAXQUECTELDEVICES 128
