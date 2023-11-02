@@ -18,10 +18,6 @@ inputs:
     required: false
     description: EABI
     default: false
-  kirkwood:
-    required: false
-    description: Kirkwood
-    default: false
 runs:
   using: composite
   steps:
@@ -40,21 +36,14 @@ runs:
 
     - name: Download OpenWRT SDK (eabi)
       id: download-owrt-sdk-eabi
-      if: steps.cache-owrt-sdk-restore.outputs.cache-hit != 'true' && inputs.kirkwood != 'true' && inputs.eabi == 'true'
+      if: steps.cache-owrt-sdk-restore.outputs.cache-hit != 'true' && inputs.eabi == 'true'
       shell: bash
       working-directory: owrtsdk
       run: ${{ github.action_path }}/download-owrt-sdk.sh ${{ inputs.target }} ${{ inputs.openwrt-version }} openwrt-sdk-${{ inputs.openwrt-version }}-${{ inputs.target }}_gcc-${{ inputs.gcc-version }}_musl_eabi.Linux-x86_64
 
-    - name: Download OpenWRT SDK (kirkwood)
-      id: download-owrt-sdk-kirkwood
-      if: steps.cache-owrt-sdk-restore.outputs.cache-hit != 'true' && inputs.kirkwood == 'true' && inputs.eabi == 'true'
-      shell: bash
-      working-directory: owrtsdk
-      run: ${{ github.action_path }}/download-owrt-sdk.sh ${{ inputs.target }} ${{ inputs.openwrt-version }} openwrt-sdk-${{ inputs.openwrt-version }}-kirkwood_gcc-${{ inputs.gcc-version }}_musl_eabi.Linux-x86_64      
-
     - name: Download OpenWRT SDK
       id: download-owrt-sdk
-      if: steps.cache-owrt-sdk-restore.outputs.cache-hit != 'true' && inputs.kirkwood != 'true' && inputs.eabi != 'true'
+      if: steps.cache-owrt-sdk-restore.outputs.cache-hit != 'true' && inputs.eabi != 'true'
       shell: bash
       working-directory: owrtsdk
       run: ${{ github.action_path }}/download-owrt-sdk.sh ${{ inputs.target }} ${{ inputs.openwrt-version }} openwrt-sdk-${{ inputs.openwrt-version }}-${{ inputs.target }}_gcc-${{ inputs.gcc-version }}_musl.Linux-x86_64
