@@ -9,14 +9,6 @@
 
 const static long DEF_DTMF_DURATION = 120;
 
-static struct ast_jb_conf jbconf_default = {
-    .flags            = 0,
-    .max_size         = -1,
-    .resync_threshold = -1,
-    .impl             = "",
-    .target_extra     = -1,
-};
-
 const char* dc_cw_setting2str(call_waiting_t cw)
 {
     static const char* const options[] = {"disabled", "allowed", "auto"};
@@ -307,8 +299,6 @@ void dc_sconfig_fill(struct ast_config* cfg, const char* cat, struct dc_sconfig*
 
 void dc_gconfig_fill(struct ast_config* cfg, const char* cat, struct dc_gconfig* config)
 {
-    /* set default values */
-    memcpy(&config->jbconf, &jbconf_default, sizeof(config->jbconf));
     config->discovery_interval = DEFAULT_DISCOVERY_INT;
     ast_copy_string(config->sms_db, DEFAULT_SMS_DB, sizeof(config->sms_db));
     config->csms_ttl = DEFAULT_CSMS_TTL;
@@ -338,11 +328,6 @@ void dc_gconfig_fill(struct ast_config* cfg, const char* cat, struct dc_gconfig*
         } else {
             config->csms_ttl = tmp;
         }
-    }
-
-    for (const struct ast_variable* v = ast_variable_browse(cfg, cat); v; v = v->next) {
-        /* handle jb conf */
-        ast_jb_read_conf(&config->jbconf, v->name, v->value);
     }
 }
 

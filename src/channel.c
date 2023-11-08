@@ -1238,8 +1238,6 @@ struct ast_channel* new_channel(struct pvt* pvt, int ast_state, const char* cid_
                 setvar_helper(pvt, channel, "CALLERID(dnid)", dnid);
             }
 
-            ast_jb_configure(channel, &CONF_GLOBAL(jbconf));
-
             if (state != CALL_STATE_INIT) {
                 change_channel_state(cpvt, state, AST_CAUSE_NORMAL_UNSPECIFIED);
             }
