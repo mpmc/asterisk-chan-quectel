@@ -588,54 +588,74 @@ int at_enqueue_sms(struct cpvt* cpvt, const char* destination, const char* msg, 
 
 int at_enqueue_ussd(struct cpvt* cpvt, const char* code, int gsm7)
 {
+    static const size_t USSD_DEF_LEN = 64;
+    static const size_t USSD_MAX_LEN = 4096;
+
     static const char at_cmd[]     = "AT+CUSD=1,\"";
     static const char at_cmd_end[] = "\",15\r";
 
-    at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_CUSD);
-    ssize_t res;
-    int length;
-    char buf[4096];
+    RAII_VAR(struct ast_str*, buf, ast_str_create(USSD_DEF_LEN), ast_free);
+    if (!buf) {
+        chan_quectel_err = E_MALLOC;
+        return -1;
+    }
 
-    memcpy(buf, at_cmd, STRLEN(at_cmd));
-    length       = STRLEN(at_cmd);
-    int code_len = strlen(code);
+    ast_str_append(&buf, USSD_MAX_LEN, at_cmd);
+
+    const size_t code_len = strlen(code);
 
     // use 7 bit encoding. 15 is 00001111 in binary and means 'Language using the GSM 7 bit default alphabet; Language
     // unspecified' accodring to GSM 23.038
-    uint16_t code16[code_len * 2];
-    res = utf8_to_ucs2(code, code_len, code16, sizeof(code16));
-    if (res < 0) {
+    const size_t code16_buf_len = sizeof(uint16_t) * code_len * 2;
+    RAII_VAR(uint16_t*, code16, ast_calloc(sizeof(uint16_t), code_len * 2), ast_free);
+    if (!code16) {
+        chan_quectel_err = E_MALLOC;
+        return -1;
+    }
+
+    const ssize_t code16_len = utf8_to_ucs2(code, code_len, code16, code16_buf_len);
+    if (code16_len < 0) {
         chan_quectel_err = E_PARSE_UTF8;
         return -1;
     }
-    if (gsm7) {
-        uint8_t code_packed[4069];
 
-        res = gsm7_encode(code16, res, code16);
+    if (gsm7) {
+        const size_t code_packed_buf_len = sizeof(uint8_t) * 4069;
+        RAII_VAR(uint8_t*, code_packed, ast_calloc(sizeof(uint8_t), 4069), ast_free);
+        if (code_packed) {
+            chan_quectel_err = E_MALLOC;
+            return -1;
+        }
+
+        ssize_t res = gsm7_encode(code16, code16_len, code16);
         if (res < 0) {
             chan_quectel_err = E_ENCODE_GSM7;
             return -1;
         }
-        res = gsm7_pack(code16, res, (char*)code_packed, sizeof(code_packed), 0);
+
+        res = gsm7_pack(code16, res, (char*)code_packed, code_packed_buf_len, 0);
         if (res < 0) {
             chan_quectel_err = E_PACK_GSM7;
             return -1;
         }
+
         res = (res + 1) / 2;
-        hexify(code_packed, res, buf + STRLEN(at_cmd));
-        length += res * 2;
+        ast_str_make_space(&buf, ast_str_strlen(buf) + (res * 2) + 1u);
+        hexify(code_packed, res, ast_str_buffer(buf) + ast_str_strlen(buf));
     } else {
-        hexify((const uint8_t*)code16, res * 2, buf + STRLEN(at_cmd));
-        length += res * 4;
+        ast_str_make_space(&buf, ast_str_strlen(buf) + (code16_len * 4) + 1u);
+        hexify((const uint8_t*)code16, code16_len * 2, ast_str_buffer(buf) + ast_str_strlen(buf));
     }
 
-    memcpy(buf + length, at_cmd_end, STRLEN(at_cmd_end) + 1);
-    length += STRLEN(at_cmd_end);
+    ast_str_update(buf);
+    ast_str_append(&buf, USSD_MAX_LEN, at_cmd_end);
 
-    cmd.length = length;
-    cmd.data   = ast_strdup(buf);
+    at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_CUSD);
+
+    cmd.length = ast_str_strlen(buf);
+    cmd.data   = ast_strdup(ast_str_buffer(buf));
     if (!cmd.data) {
-        chan_quectel_err = E_UNKNOWN;
+        chan_quectel_err = E_MALLOC;
         return -1;
     }
 
