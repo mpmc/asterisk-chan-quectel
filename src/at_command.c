@@ -432,7 +432,7 @@ int at_enqueue_qspn_qnwinfo(struct cpvt* cpvt)
 }
 
 /* SMS sending */
-static int at_enqueue_pdu(const char* pdu, size_t length, size_t tpdulen, at_queue_cmd_t* cmds)
+static int at_enqueue_pdu(const char* pdu, size_t length, size_t tpdulen, at_queue_cmd_t* const cmds)
 {
     DECLARE_AT_CMDNT(cmgs, "+CMGS=%d");
 
@@ -463,7 +463,7 @@ static int at_enqueue_pdu(const char* pdu, size_t length, size_t tpdulen, at_que
     return 0;
 }
 
-static void clear_pdus(at_queue_cmd_t* cmds, ssize_t idx)
+static void pdus_clear(at_queue_cmd_t* cmds, ssize_t idx)
 {
     if (idx <= 0) {
         return;
@@ -473,6 +473,64 @@ static void clear_pdus(at_queue_cmd_t* cmds, ssize_t idx)
     for (ssize_t i = 0; i < u; ++i) {
         ast_free(cmds[i].data);
     }
+}
+
+static int pdus_build(pdu_part_t* const pdus, const char* msg, int csmsref, const char* destination, unsigned validity, int report_req)
+{
+    if (!pdus) {
+        chan_quectel_err = E_BUILD_PDU;
+        return -1;
+    }
+
+    const int msg_len             = strlen(msg);
+    const size_t msg_ucs2_buf_len = sizeof(uint16_t) * msg_len * 2;
+    RAII_VAR(uint16_t*, msg_ucs2, ast_calloc(sizeof(uint16_t), msg_len * 2), ast_free);
+
+    if (!msg_ucs2) {
+        chan_quectel_err = E_MALLOC;
+        return -1;
+    }
+
+    const ssize_t msg_ucs2_len = utf8_to_ucs2(msg, msg_len, msg_ucs2, msg_ucs2_buf_len);
+    if (msg_ucs2_len <= 0) {
+        chan_quectel_err = E_PARSE_UTF8;
+        return msg_ucs2_len;
+    }
+
+    const int res = pdu_build_mult(pdus, "", destination, msg_ucs2, msg_ucs2_len, validity, report_req, csmsref);
+    return res;
+}
+
+static int pdus_enqueue(struct cpvt* const cpvt, const pdu_part_t* const pdus, ssize_t len, const int uid)
+{
+    RAII_VAR(at_queue_cmd_t*, cmds, ast_calloc(sizeof(at_queue_cmd_t), len * 2), ast_free);
+    if (!cmds) {
+        chan_quectel_err = E_MALLOC;
+        return -1;
+    }
+
+    RAII_VAR(char*, hexbuf, ast_malloc(PDU_LENGTH * 2 + 1), ast_free);
+    if (!hexbuf) {
+        chan_quectel_err = E_MALLOC;
+        return -1;
+    }
+
+    at_queue_cmd_t* pcmds = cmds;
+
+    for (ssize_t i = 0; i < len; ++i, pcmds += 2) {
+        hexify(pdus[i].buffer, pdus[i].length, hexbuf);
+        if (at_enqueue_pdu(hexbuf, pdus[i].length * 2, pdus[i].tpdu_length, pcmds) < 0) {
+            pdus_clear(cmds, i);
+            return -1;
+        }
+    }
+
+    if (at_queue_insert_uid(cpvt, cmds, len * 2, 0, uid)) {
+        chan_quectel_err = E_QUEUE;
+        return -1;
+    }
+
+    return 0;
 }
 
 /*!
@@ -491,55 +549,34 @@ int at_enqueue_sms(struct cpvt* cpvt, const char* destination, const char* msg, 
         validity_minutes = 3 * 24 * 60;
     }
 
-    const int msg_len = strlen(msg);
-    uint16_t msg_ucs2[msg_len * 2];
-    ssize_t res = utf8_to_ucs2(msg, msg_len, msg_ucs2, sizeof(msg_ucs2));
-    if (res < 0) {
-        chan_quectel_err = E_PARSE_UTF8;
-        return -1;
-    }
-
     const int csmsref = smsdb_get_refid(pvt->imsi, destination);
     if (csmsref < 0) {
         chan_quectel_err = E_SMSDB;
         return -1;
     }
 
-    pdu_part_t pdus[255];
-    res = pdu_build_mult(pdus, "" /* pvt->sms_scenter */, destination, msg_ucs2, res, validity_minutes, !!report_req, csmsref);
-    if (res < 0) {
-        /* pdu_build_mult sets chan_quectel_err */
-        return -1;
+    RAII_VAR(pdu_part_t*, pdus, ast_calloc(sizeof(pdu_part_t), 255), ast_free);
+    const int pdus_len = pdus_build(pdus, msg, csmsref, destination, validity_minutes, !!report_req);
+    if (pdus_len <= 0) {
+        return pdus_len;
     }
 
-    const int uid = smsdb_outgoing_add(pvt->imsi, destination, res, validity_minutes * 60, report_req, payload, payload_len);
-    if (uid < 0) {
+    const int uid = smsdb_outgoing_add(pvt->imsi, destination, pdus_len, validity_minutes * 60, report_req, payload, payload_len);
+    if (uid <= 0) {
         chan_quectel_err = E_SMSDB;
         return -1;
     }
 
-    at_queue_cmd_t cmds[res * 2];
-    at_queue_cmd_t* pcmds = cmds;
-    char hexbuf[PDU_LENGTH * 2 + 1];
-
-    for (ssize_t i = 0; i < res; ++i, pcmds += 2) {
-        hexify(pdus[i].buffer, pdus[i].length, hexbuf);
-        if (at_enqueue_pdu(hexbuf, pdus[i].length * 2, pdus[i].tpdu_length, pcmds) < 0) {
-            clear_pdus(cmds, i);
-            return -1;
-        }
-    }
-
-    if (at_queue_insert_uid(cpvt, cmds, res * 2, 0, uid)) {
-        chan_quectel_err = E_QUEUE;
+    if (pdus_enqueue(cpvt, pdus, pdus_len, uid)) {
         return -1;
     }
 
-    if (res <= 1) {
+    if (pdus_len <= 1) {
         ast_verb(1, "[%s][SMS:%d] Message enqueued\n", PVT_ID(pvt), uid);
     } else {
-        ast_verb(1, "[%s][SMS:%d] Message enqueued [%d parts]\n", PVT_ID(pvt), uid, (int)res);
+        ast_verb(1, "[%s][SMS:%d] Message enqueued in %d parts\n", PVT_ID(pvt), uid, pdus_len);
     }
+
     return 0;
 }
 

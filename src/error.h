@@ -34,7 +34,8 @@ enum error {
     E_BUILD_SCA,
     E_BUILD_PHONE_NUMBER,
     E_2BIG,
-    E_CMD_FORMAT
+    E_CMD_FORMAT,
+    E_MALLOC
 };
 
 static inline const char* error2str(int err)
@@ -68,6 +69,7 @@ static inline const char* error2str(int err)
         "Cannot build phone number",
         "Input too large",
         "Fail to format AT command",
+        "Unable to allocate memory",
     };
     return enum2str(err, errors, ITEMS_OF(errors));
 }
