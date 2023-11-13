@@ -1831,6 +1831,17 @@ static int at_response_sms_prompt(struct pvt* const pvt, const at_queue_task_t* 
     return 0;
 }
 
+static attribute_pure size_t base64_buffer_size(size_t s)
+{
+    size_t res = 4 * s / 3;
+    if (res % 4) {
+        res /= 4;
+        res += 1;
+        res *= 4;
+    };
+    return res;
+}
+
 /*!
  * \brief Handle CUSD response
  * \param pvt -- pvt structure
@@ -1844,15 +1855,11 @@ static int at_response_cusd(struct pvt* const pvt, const struct ast_str* const r
     static const char* const types[] = {
         "USSD Notify", "USSD Request", "USSD Terminated by network", "Other local client has responded", "Operation not supported", "Network time out",
     };
+    static const size_t USSD_DEF_LEN = 4096;
 
-    ssize_t res;
     int type;
     char* cusd;
     int dcs;
-    char cusd_utf8_str[1024];
-    char text_base64[16384];
-    char typebuf[2];
-    const char* typestr;
 
     if (at_parse_cusd(ast_str_buffer(response), &type, &cusd, &dcs)) {
         ast_verb(1, "[%s] Error parsing CUSD: [%s]\n", PVT_ID(pvt), ast_str_buffer(response));
@@ -1863,10 +1870,8 @@ static int at_response_cusd(struct pvt* const pvt, const struct ast_str* const r
         ast_log(LOG_WARNING, "[%s] Unknown CUSD type: %d\n", PVT_ID(pvt), type);
     }
 
-    typestr = enum2str(type, types, ITEMS_OF(types));
-
-    typebuf[0] = type + '0';
-    typebuf[1] = 0;
+    const char typestr[2] = {type + '0', 0};
+    const char* typedesc  = enum2str(type, types, ITEMS_OF(types));
 
     if (dcs >= 0) {
         // sanitize DCS
@@ -1881,50 +1886,78 @@ static int at_response_cusd(struct pvt* const pvt, const struct ast_str* const r
             dcs = 0;
         }
 
-        if (dcs == 0) {  // GSM-7
-            uint16_t out_ucs2[1024];
-            const int cusd_nibbles = unhex(cusd, (uint8_t*)cusd);
-            res                    = gsm7_unpack_decode(cusd, cusd_nibbles, out_ucs2, sizeof(out_ucs2) / 2, 0, 0, 0);
-            if (res < 0) {
-                return -1;
+        ssize_t res;
+        RAII_VAR(struct ast_str*, cusd_str, NULL, ast_free);
+
+        switch (dcs) {
+            case 0: {  // GSM-7
+                static const size_t OUT_UCS2_BUF_SIZE = sizeof(uint16_t) * USSD_DEF_LEN;
+
+                RAII_VAR(uint16_t*, out_ucs2, ast_calloc(sizeof(uint16_t), USSD_DEF_LEN), ast_free);
+                const int cusd_nibbles = unhex(cusd, (uint8_t*)cusd);
+                res                    = gsm7_unpack_decode(cusd, cusd_nibbles, out_ucs2, OUT_UCS2_BUF_SIZE / sizeof(uint16_t), 0, 0, 0);
+                if (res > 0) {
+                    const size_t res_buf_size = (res * 4) + 1u;
+                    cusd_str                  = ast_str_create(res_buf_size);
+                    res                       = ucs2_to_utf8(out_ucs2, res, ast_str_buffer(cusd_str), ast_str_size(cusd_str));
+                }
+                break;
+            };
+
+            case 1: {  // ASCII
+                res                       = strlen(cusd);
+                const size_t res_buf_size = res + 1u;
+                cusd_str                  = ast_str_create(res_buf_size);
+
+                ast_str_set_substr(&cusd_str, USSD_DEF_LEN, cusd, res);
+                break;
+            };
+
+            case 2: {  // UCS-2
+                const int cusd_nibbles    = unhex(cusd, (uint8_t*)cusd);
+                const size_t res_buf_size = ((cusd_nibbles + 1) * 4) + 1u;
+                cusd_str                  = ast_str_create(res_buf_size);
+                res                       = ucs2_to_utf8((const uint16_t*)cusd, (cusd_nibbles + 1) / 4, ast_str_buffer(cusd_str), ast_str_size(cusd_str));
+                break;
             }
-            res = ucs2_to_utf8(out_ucs2, res, cusd_utf8_str, STRLEN(cusd_utf8_str));
-        } else if (dcs == 1) {  // ASCII
-            res = strlen(cusd);
-            if ((size_t)res > STRLEN(cusd_utf8_str)) {
+
+            default:
                 res = -1;
-            } else {
-                memcpy(cusd_utf8_str, cusd, res);
-            }
-        } else if (dcs == 2) {  // UCS-2
-            const int cusd_nibbles = unhex(cusd, (uint8_t*)cusd);
-            res                    = ucs2_to_utf8((const uint16_t*)cusd, (cusd_nibbles + 1) / 4, cusd_utf8_str, STRLEN(cusd_utf8_str));
-        } else {
-            res = -1;
+                break;
         }
 
         if (res < 0) {
             return -1;
         }
-        cusd_utf8_str[res] = '\000';
 
-        ast_verb(1, "[%s] Got USSD type %d '%s': [%s]\n", PVT_ID(pvt), type, typestr, cusd_utf8_str);
-        ast_base64encode(text_base64, (unsigned char*)cusd_utf8_str, res, sizeof(text_base64));
-    } else {
-        text_base64[0] = '\000';
-        ast_verb(1, "[%s] Got USSD type %d '%s'\n", PVT_ID(pvt), type, typestr);
-    }
+        ast_str_truncate(cusd_str, res);
 
-    {
+        ast_verb(1, "[%s] Got USSD type %d '%s': [%s]\n", PVT_ID(pvt), type, typedesc, ast_str_buffer(cusd_str));
+
+        RAII_VAR(struct ast_str*, cusd_base64, ast_str_create(base64_buffer_size(ast_str_strlen(cusd_str)) + 1u), ast_free);
+        ast_base64encode(ast_str_buffer(cusd_base64), (unsigned char*)ast_str_buffer(cusd_str), ast_str_strlen(cusd_str), ast_str_size(cusd_base64));
+        ast_str_update(cusd_base64);
+
         const channel_var_t vars[] = {
-            {"USSD_TYPE",     typebuf             },
-            {"USSD_TYPE_STR", ast_strdupa(typestr)},
-            {"USSD",          cusd_utf8_str       },
-            {"USSD_BASE64",   text_base64         },
-            {NULL,            NULL                },
+            {"USSD_TYPE",     typestr                    },
+            {"USSD_TYPE_STR", typedesc                   },
+            {"USSD",          ast_str_buffer(cusd_str)   },
+            {"USSD_BASE64",   ast_str_buffer(cusd_base64)},
+            {NULL,            NULL                       },
+        };
+        start_local_channel(pvt, "ussd", "ussd", vars);
+
+    } else {
+        ast_verb(1, "[%s] Got USSD type %d '%s'\n", PVT_ID(pvt), type, typedesc);
+
+        const channel_var_t vars[] = {
+            {"USSD_TYPE",     typestr },
+            {"USSD_TYPE_STR", typedesc},
+            {NULL,            NULL    },
         };
         start_local_channel(pvt, "ussd", "ussd", vars);
     }
+
     return 0;
 }
 
