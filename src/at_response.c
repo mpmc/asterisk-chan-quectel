@@ -52,6 +52,25 @@ static const int PAYLOAD_DEF_LEN = 64;
 
 // ================================================================
 
+static attribute_pure size_t base64_buffer_size(size_t s)
+{
+    size_t res = 4 * s / 3;
+    if (res % 4) {
+        res /= 4;
+        res += 1;
+        res *= 4;
+    };
+    return res;
+}
+
+static struct ast_str* base64_encode(const struct ast_str* const s)
+{
+    struct ast_str* res = ast_str_create(base64_buffer_size(ast_str_size(s)) + 1u);
+    ast_base64encode(ast_str_buffer(res), (unsigned char*)ast_str_buffer(s), ast_str_strlen(s), ast_str_size(res));
+    ast_str_update(res);
+    return res;
+}
+
 static const at_response_t at_responses_list[] = {
 
     AT_RESPONSES_TABLE(AT_RES_AS_STRUCTLIST)
@@ -1704,22 +1723,22 @@ receive_as_is:
                 ast_str_copy_string(&fullmsg, msg);
             }
 
-            ast_verb(1, "[%s][SMS:%d PARTS:%d TS:%s] Got message from %s: [%s]\n", PVT_ID(pvt), (int)udh.ref, (int)udh.parts, scts, ast_str_buffer(oa),
-                     tmp_esc_str(fullmsg));
-
             if (ast_str_strlen(fullmsg)) {
-                RAII_VAR(struct ast_str*, b64, ast_str_create(40800), ast_free);
-                ast_base64encode(ast_str_buffer(b64), (unsigned char*)ast_str_buffer(fullmsg), ast_str_strlen(fullmsg), ast_str_size(b64));
-                ast_str_update(b64);
+                ast_verb(1, "[%s][SMS:%d PARTS:%d TS:%s] Got message from %s: [%s]\n", PVT_ID(pvt), (int)udh.ref, (int)udh.parts, scts, ast_str_buffer(oa),
+                         tmp_esc_str(fullmsg));
+
+                RAII_VAR(struct ast_str*, fullmsg_b64, base64_encode(fullmsg), ast_free);
 
                 const channel_var_t vars[] = {
-                    {"SMS",        ast_str_buffer(fullmsg)},
-                    {"SMS_BASE64", ast_str_buffer(b64)    },
-                    {"SMS_TS",     scts                   },
-                    {NULL,         NULL                   },
+                    {"SMS",        ast_str_buffer(fullmsg)    },
+                    {"SMS_BASE64", ast_str_buffer(fullmsg_b64)},
+                    {"SMS_TS",     scts                       },
+                    {NULL,         NULL                       },
                 };
                 start_local_channel(pvt, "sms", ast_str_buffer(oa), vars);
             } else {
+                ast_verb(1, "[%s][SMS:%d PARTS:%d TS:%s] Got empty message from %s\n", PVT_ID(pvt), (int)udh.ref, (int)udh.parts, scts, ast_str_buffer(oa));
+
                 const channel_var_t vars[] = {
                     {"SMS_TS", scts},
                     {NULL,     NULL},
@@ -1831,17 +1850,6 @@ static int at_response_sms_prompt(struct pvt* const pvt, const at_queue_task_t* 
     return 0;
 }
 
-static attribute_pure size_t base64_buffer_size(size_t s)
-{
-    size_t res = 4 * s / 3;
-    if (res % 4) {
-        res /= 4;
-        res += 1;
-        res *= 4;
-    };
-    return res;
-}
-
 /*!
  * \brief Handle CUSD response
  * \param pvt -- pvt structure
@@ -1934,16 +1942,14 @@ static int at_response_cusd(struct pvt* const pvt, const struct ast_str* const r
 
         ast_verb(1, "[%s] Got USSD type %d '%s': [%s]\n", PVT_ID(pvt), type, typedesc, ast_str_buffer(cusd_str));
 
-        RAII_VAR(struct ast_str*, cusd_base64, ast_str_create(base64_buffer_size(ast_str_strlen(cusd_str)) + 1u), ast_free);
-        ast_base64encode(ast_str_buffer(cusd_base64), (unsigned char*)ast_str_buffer(cusd_str), ast_str_strlen(cusd_str), ast_str_size(cusd_base64));
-        ast_str_update(cusd_base64);
+        RAII_VAR(struct ast_str*, cusd_b64, base64_encode(cusd_str), ast_free);
 
         const channel_var_t vars[] = {
-            {"USSD_TYPE",     typestr                    },
-            {"USSD_TYPE_STR", typedesc                   },
-            {"USSD",          ast_str_buffer(cusd_str)   },
-            {"USSD_BASE64",   ast_str_buffer(cusd_base64)},
-            {NULL,            NULL                       },
+            {"USSD_TYPE",     typestr                 },
+            {"USSD_TYPE_STR", typedesc                },
+            {"USSD",          ast_str_buffer(cusd_str)},
+            {"USSD_BASE64",   ast_str_buffer(cusd_b64)},
+            {NULL,            NULL                    },
         };
         start_local_channel(pvt, "ussd", "ussd", vars);
 
