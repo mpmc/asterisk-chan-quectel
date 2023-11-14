@@ -1652,9 +1652,6 @@ static int at_response_msg(struct pvt* const pvt, const struct ast_str* const re
     }
 
     if (res < 0) {
-        ast_str_reset(msg);
-        ast_str_reset(oa);
-        ast_str_reset(sca);
         ast_log(LOG_WARNING, "[%s] Error parsing incoming message: %s\n", PVT_ID(pvt), error2str(chan_quectel_err));
         msg_ack = TRIBOOL_FALSE;
         goto msg_done_ack;
@@ -1667,7 +1664,7 @@ static int at_response_msg(struct pvt* const pvt, const struct ast_str* const re
 
             ast_verb(1, "[%s][SMS:%d] Got status report from %s and status code %d\n", PVT_ID(pvt), mr, ast_str_buffer(oa), st);
 
-            RAII_VAR(int*, status_report, (int*)ast_calloc(sizeof(int), 256), ast_free);
+            RAII_VAR(int*, status_report, ast_calloc(sizeof(int), 256), ast_free);
             RAII_VAR(struct ast_str*, status_report_str, ast_str_create(REPORT_DEF_LEN), ast_free);
             RAII_VAR(struct ast_str*, payload, ast_str_create(PAYLOAD_DEF_LEN), ast_free);
             const ssize_t payload_len = smsdb_outgoing_part_status(pvt->imsi, ast_str_buffer(oa), mr, st, status_report, payload);

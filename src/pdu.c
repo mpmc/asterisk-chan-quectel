@@ -446,18 +446,17 @@ static int pdu_parse_number(uint8_t* pdu, size_t pdu_length, unsigned digits, ch
 
 static int pdu_parse_timestamp(uint8_t* pdu, size_t length, char* out)
 {
-    int d, m, y, h, i, s, o, os;
     if (length >= 7) {
-        y  = (10 * (pdu[0] & 15) + (pdu[0] >> 4)) + 2000;
-        m  = 10 * (pdu[1] & 15) + (pdu[1] >> 4);
-        d  = 10 * (pdu[2] & 15) + (pdu[2] >> 4);
-        h  = 10 * (pdu[3] & 15) + (pdu[3] >> 4);
-        i  = 10 * (pdu[4] & 15) + (pdu[4] >> 4);
-        s  = 10 * (pdu[5] & 15) + (pdu[5] >> 4);
-        o  = (pdu[6] >> 4) + 10 * (pdu[6] & 7);
-        os = pdu[6] & 0x8;
+        const int y  = (10 * (pdu[0] & 15) + (pdu[0] >> 4)) + 2000;
+        const int m  = 10 * (pdu[1] & 15) + (pdu[1] >> 4);
+        const int d  = 10 * (pdu[2] & 15) + (pdu[2] >> 4);
+        const int h  = 10 * (pdu[3] & 15) + (pdu[3] >> 4);
+        const int i  = 10 * (pdu[4] & 15) + (pdu[4] >> 4);
+        const int s  = 10 * (pdu[5] & 15) + (pdu[5] >> 4);
+        const int o  = (pdu[6] >> 4) + 10 * (pdu[6] & 7);
+        const int os = pdu[6] & 0x8;
 
-        sprintf(out, "%02d-%02d-%02d %02d:%02d:%02d %c%02d:%02d", y, m, d, h, i, s, os ? '-' : '+', o / 4, (o % 4) * 15);
+        sprintf(out, "%04d-%02d-%02d %02d:%02d:%02d %c%02d:%02d", y, m, d, h, i, s, os ? '-' : '+', o / 4, (o % 4) * 15);
 
         return 7;
     }

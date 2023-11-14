@@ -1325,15 +1325,18 @@ void start_local_report_channel(struct pvt* pvt, const char* number, const struc
 
 void start_local_channel(struct pvt* pvt, const char* exten, const char* number, const channel_var_t* vars)
 {
-    int cause = 0;
-    char channel_name[1024];
+    static const ssize_t CN_DEF_LEN = 64;
+    static const ssize_t CN_MAX_LEN = 1024;
 
-    snprintf(channel_name, sizeof(channel_name), "%s@%s", exten, CONF_SHARED(pvt, context));
+    RAII_VAR(struct ast_str*, channel_name, ast_str_create(CN_DEF_LEN), ast_free);
+    ast_str_set(&channel_name, CN_MAX_LEN, "%s@%s", exten, CONF_SHARED(pvt, context));
+
+    int cause = 0;
 
     struct ast_channel* const channel =
-        ast_request("Local", pvt->local_format_cap ? pvt->local_format_cap : channel_tech.capabilities, NULL, NULL, channel_name, &cause);
+        ast_request("Local", pvt->local_format_cap ? pvt->local_format_cap : channel_tech.capabilities, NULL, NULL, ast_str_buffer(channel_name), &cause);
     if (!channel) {
-        ast_log(LOG_ERROR, "[%s] Unable to request channel Local/%s\n", PVT_ID(pvt), channel_name);
+        ast_log(LOG_ERROR, "[%s] Unable to request channel Local/%s\n", PVT_ID(pvt), ast_str_buffer(channel_name));
         return;
     }
 
@@ -1347,7 +1350,7 @@ void start_local_channel(struct pvt* pvt, const char* exten, const char* number,
     cause = ast_pbx_start(channel);
     if (cause) {
         ast_hangup(channel);
-        ast_log(LOG_ERROR, "[%s] Unable to start pbx on channel Local/%s\n", PVT_ID(pvt), channel_name);
+        ast_log(LOG_ERROR, "[%s] Unable to start pbx on channel Local/%s\n", PVT_ID(pvt), ast_str_buffer(channel_name));
     }
 }
 
