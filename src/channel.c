@@ -17,6 +17,7 @@
 
 #include <asterisk/causes.h> /* AST_CAUSE_INCOMPATIBLE_DESTINATION AST_CAUSE_FACILITY_NOT_IMPLEMENTED AST_CAUSE_REQUESTED_CHAN_UNAVAIL */
 #include <asterisk/format_cache.h>
+#include <asterisk/json.h>
 #include <asterisk/lock.h>        /* AST_MUTEX_DEFINE_STATIC */
 #include <asterisk/module.h>      /* ast_module_ref() ast_module_info = shit */
 #include <asterisk/musiconhold.h> /* ast_moh_start() ast_moh_stop() */
@@ -37,8 +38,22 @@
 
 static int setvar_helper(const struct pvt* const pvt, struct ast_channel* chan, const char* name, const char* value)
 {
-    ast_debug(1, "[%s] Setting chanvar %s = %s\n", PVT_ID(pvt), S_OR(name, "(null)"), S_OR(value, "(null)"));
+    if (ast_strlen_zero(name) || ast_strlen_zero(value)) {
+        ast_debug(3, "[%s] Skipping chanvar %s = %s\n", PVT_ID(pvt), S_OR(name, "(null)"), S_OR(value, "(null)"));
+        return -1;
+    }
+    ast_debug(1, "[%s] Setting chanvar %s = %s\n", PVT_ID(pvt), name, value);
     return pbx_builtin_setvar_helper(chan, name, value);
+}
+
+static int setvar_helper_json(const struct pvt* const pvt, struct ast_channel* chan, const char* name, struct ast_json* const value)
+{
+    if (ast_strlen_zero(name) || !value) {
+        ast_debug(3, "[%s] Skipping chanvar %s = (null)\n", PVT_ID(pvt), S_OR(name, "(null)"));
+    }
+
+    RAII_VAR(char* const, jv, ast_json_dump_string(value), ast_json_free);
+    return pbx_builtin_setvar_helper(chan, name, jv);
 }
 
 #/* */
@@ -1154,36 +1169,46 @@ void change_channel_state(struct cpvt* cpvt, unsigned newstate, int cause)
 
 #/* */
 
+static struct ast_json* get_device_name(struct ast_channel* const channel)
+{
+    static const size_t DEVICE_NAME_DEF_LEN = 256;
+
+    RAII_VAR(char*, dn, ast_malloc(DEVICE_NAME_DEF_LEN), ast_free);
+    ast_channel_get_device_name(channel, dn, DEVICE_NAME_DEF_LEN);
+    return ast_json_string_create(dn);
+}
+
+#define SET_PVT_STRING_FIELD(j, f) \
+    if (!ast_strlen_zero(pvt->f)) ast_json_object_set(j, #f, ast_json_string_create(pvt->f))
+
 static void set_channel_vars(struct pvt* pvt, struct ast_channel* channel)
 {
-    char plmn[20];  // public land mobile network
-    snprintf(plmn, ITEMS_OF(plmn), "%d", pvt->operator);
+    RAII_VAR(struct ast_json*, qdata, ast_json_object_create(), ast_json_unref);
+    ast_json_object_set(qdata, "name", ast_json_string_create(PVT_ID(pvt)));
+    ast_json_object_set(qdata, "device_name", get_device_name(channel));
 
-    char mcc[20];  // mobile country code
-    snprintf(mcc, ITEMS_OF(mcc), "%d", pvt->operator/ 100);
+    SET_PVT_STRING_FIELD(qdata, subscriber_number);
+    SET_PVT_STRING_FIELD(qdata, network_name);
+    SET_PVT_STRING_FIELD(qdata, short_network_name);
+    SET_PVT_STRING_FIELD(qdata, provider_name);
+    SET_PVT_STRING_FIELD(qdata, imei);
+    SET_PVT_STRING_FIELD(qdata, imsi);
+    SET_PVT_STRING_FIELD(qdata, iccid);
+    SET_PVT_STRING_FIELD(qdata, location_area_code);
+    SET_PVT_STRING_FIELD(qdata, cell_id);
+    SET_PVT_STRING_FIELD(qdata, band);
+    SET_PVT_STRING_FIELD(qdata, sms_scenter);
 
-    char mnc[20];  // mobile network code
-    snprintf(mnc, ITEMS_OF(mnc), "%02d", pvt->operator% 100);
-
-    const channel_var_t dev_vars[] = {
-        {"QUECTELNAME", PVT_ID(pvt)},
-        {"QUECTELNETWORKNAME", pvt->network_name},
-        {"QUECTELSHORTNETWORKNAME", pvt->short_network_name},
-        {"QUECTELPROVIDER", pvt->provider_name},
-        {"QUECTELPLMN", plmn},
-        {"QUECTELMCC", mcc},
-        {"QUECTELMNC", mnc},
-        {"QUECTELIMEI", pvt->imei},
-        {"QUECTELIMSI", pvt->imsi},
-        {"QUECTELICCID", pvt->iccid},
-        {"QUECTELNUMBER", S_OR(pvt->subscriber_number, "Unknown")},
-    };
-
-    ast_channel_language_set(channel, CONF_SHARED(pvt, language));
-
-    for (size_t i = 0; i < ITEMS_OF(dev_vars); ++i) {
-        setvar_helper(pvt, channel, dev_vars[i].name, dev_vars[i].value);
+    if (pvt->operator) {
+        struct ast_json* const plmn = ast_json_object_create();
+        ast_json_object_set(plmn, "value", ast_json_integer_create(pvt->operator));
+        ast_json_object_set(plmn, "mcc", ast_json_integer_create(pvt->operator/ 100));
+        ast_json_object_set(plmn, "mnc", ast_json_stringf("%02d", pvt->operator% 100));
+        ast_json_object_set(qdata, "plmn", plmn);
     }
+
+    setvar_helper_json(pvt, channel, "QUECTEL", qdata);
+    ast_channel_language_set(channel, CONF_SHARED(pvt, language));
 }
 
 /* NOTE: called from device and current levels with locked pvt */
@@ -1309,14 +1334,35 @@ void start_local_report_channel(struct pvt* pvt, const char* number, const struc
                                 const char report_type, const struct ast_str* const report)
 {
     const char report_type_str[2] = {report_type, '\000'};
-    const channel_var_t vars[]    = {
-        {"SMS_REPORT_PAYLOAD", ast_str_buffer(payload)},
-        {"SMS_REPORT_TS", ts},
-        {"SMS_REPORT_DT", dt},
-        {"SMS_REPORT_SUCCESS", S_COR(success, "1", "0")},
-        {"SMS_REPORT_TYPE", report_type_str},
-        {"SMS_REPORT", ast_str_buffer(report)},
-        {NULL, NULL},
+    RAII_VAR(struct ast_json*, rprt, ast_json_object_create(), ast_json_unref);
+    ast_json_object_set(rprt, "type", ast_json_string_create(report_type_str));
+    // ast_json_object_set(rprt, "success", ast_json_boolean(success));
+    ast_json_object_set(rprt, "success", ast_json_integer_create(!!success));
+
+    if (!ast_strlen_zero(ts)) {
+        ast_json_object_set(rprt, "ts", ast_json_string_create(ts));
+    }
+
+    if (!ast_strlen_zero(dt)) {
+        ast_json_object_set(rprt, "dt", ast_json_string_create(dt));
+    }
+
+    if (ast_str_strlen(report)) {
+        ast_json_object_set(rprt, "report", ast_json_string_create(ast_str_buffer(report)));
+    }
+
+    if (ast_str_strlen(payload)) {
+        ast_json_object_set(rprt, "payload", ast_json_string_create(ast_str_buffer(payload)));
+    }
+
+    if (!ast_strlen_zero(number)) {
+        ast_json_object_set(rprt, "number", ast_json_string_create(number));
+    }
+
+    RAII_VAR(char*, jreport, ast_json_dump_string(rprt), ast_json_free);
+    const channel_var_t vars[] = {
+        {"REPORT", jreport},
+        {NULL,     NULL   },
     };
     start_local_channel(pvt, "report", number, vars);
 }

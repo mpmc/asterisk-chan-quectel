@@ -15,6 +15,7 @@
 #include "ast_config.h"
 
 #include <asterisk/causes.h> /* AST_CAUSE_... definitions */
+#include <asterisk/json.h>
 #include <asterisk/logger.h> /* ast_debug() */
 #include <asterisk/pbx.h>    /* ast_pbx_start() */
 
@@ -51,25 +52,6 @@ static const int DST_DEF_LEN     = 32;
 static const int PAYLOAD_DEF_LEN = 64;
 
 // ================================================================
-
-static attribute_pure size_t base64_buffer_size(size_t s)
-{
-    size_t res = 4 * s / 3;
-    if (res % 4) {
-        res /= 4;
-        res += 1;
-        res *= 4;
-    };
-    return res;
-}
-
-static struct ast_str* base64_encode(const struct ast_str* const s)
-{
-    struct ast_str* res = ast_str_create(base64_buffer_size(ast_str_size(s)) + 1u);
-    ast_base64encode(ast_str_buffer(res), (unsigned char*)ast_str_buffer(s), ast_str_strlen(s), ast_str_size(res));
-    ast_str_update(res);
-    return res;
-}
 
 static const at_response_t at_responses_list[] = {
 
@@ -1613,7 +1595,7 @@ static int at_response_msg(struct pvt* const pvt, const struct ast_str* const re
 
     pdu_udh_init(&udh);
 
-    scts[0] = '\000';
+    scts[0] = dt[0] = '\000';
     RAII_VAR(struct ast_str*, msg, ast_str_create(MSG_MAX_LEN), ast_free);
     RAII_VAR(struct ast_str*, oa, ast_str_create(512), ast_free);
     RAII_VAR(struct ast_str*, sca, ast_str_create(512), ast_free);
@@ -1720,28 +1702,27 @@ receive_as_is:
                 ast_str_copy_string(&fullmsg, msg);
             }
 
+            RAII_VAR(struct ast_json*, sms, ast_json_object_create(), ast_json_unref);
+            ast_json_object_set(sms, "ts", ast_json_string_create(scts));
+            ast_json_object_set(sms, "ref", ast_json_integer_create((int)udh.ref));
+            ast_json_object_set(sms, "parts", ast_json_integer_create((int)udh.parts));
+            ast_json_object_set(sms, "from", ast_json_string_create(ast_str_buffer(oa)));
+
             if (ast_str_strlen(fullmsg)) {
                 ast_verb(1, "[%s][SMS:%d PARTS:%d TS:%s] Got message from %s: [%s]\n", PVT_ID(pvt), (int)udh.ref, (int)udh.parts, scts, ast_str_buffer(oa),
                          tmp_esc_str(fullmsg));
 
-                RAII_VAR(struct ast_str*, fullmsg_b64, base64_encode(fullmsg), ast_free);
-
-                const channel_var_t vars[] = {
-                    {"SMS",        ast_str_buffer(fullmsg)    },
-                    {"SMS_BASE64", ast_str_buffer(fullmsg_b64)},
-                    {"SMS_TS",     scts                       },
-                    {NULL,         NULL                       },
-                };
-                start_local_channel(pvt, "sms", ast_str_buffer(oa), vars);
+                ast_json_object_set(sms, "msg", ast_json_string_create(ast_str_buffer(fullmsg)));
             } else {
                 ast_verb(1, "[%s][SMS:%d PARTS:%d TS:%s] Got empty message from %s\n", PVT_ID(pvt), (int)udh.ref, (int)udh.parts, scts, ast_str_buffer(oa));
-
-                const channel_var_t vars[] = {
-                    {"SMS_TS", scts},
-                    {NULL,     NULL},
-                };
-                start_local_channel(pvt, "sms", ast_str_buffer(oa), vars);
             }
+
+            RAII_VAR(char* const, jsms, ast_json_dump_string(sms), ast_json_free);
+            const channel_var_t vars[] = {
+                {"SMS", jsms},
+                {NULL,  NULL},
+            };
+            start_local_channel(pvt, "sms", ast_str_buffer(oa), vars);
             break;
         }
     }
@@ -1875,8 +1856,8 @@ static int at_response_cusd(struct pvt* const pvt, const struct ast_str* const r
         ast_log(LOG_WARNING, "[%s] Unknown CUSD type: %d\n", PVT_ID(pvt), type);
     }
 
-    const char typestr[2] = {type + '0', 0};
-    const char* typedesc  = enum2str(type, types, ITEMS_OF(types));
+    const char* typedesc = enum2str(type, types, ITEMS_OF(types));
+    RAII_VAR(struct ast_str*, cusd_str, NULL, ast_free);
 
     if (dcs >= 0) {
         // sanitize DCS
@@ -1892,7 +1873,6 @@ static int at_response_cusd(struct pvt* const pvt, const struct ast_str* const r
         }
 
         ssize_t res;
-        RAII_VAR(struct ast_str*, cusd_str, NULL, ast_free);
 
         switch (dcs) {
             case 0: {  // GSM-7
@@ -1938,29 +1918,23 @@ static int at_response_cusd(struct pvt* const pvt, const struct ast_str* const r
         ast_str_truncate(cusd_str, res);
 
         ast_verb(1, "[%s] Got USSD type %d '%s': [%s]\n", PVT_ID(pvt), type, typedesc, ast_str_buffer(cusd_str));
-
-        RAII_VAR(struct ast_str*, cusd_b64, base64_encode(cusd_str), ast_free);
-
-        const channel_var_t vars[] = {
-            {"USSD_TYPE",     typestr                 },
-            {"USSD_TYPE_STR", typedesc                },
-            {"USSD",          ast_str_buffer(cusd_str)},
-            {"USSD_BASE64",   ast_str_buffer(cusd_b64)},
-            {NULL,            NULL                    },
-        };
-        start_local_channel(pvt, "ussd", "ussd", vars);
-
     } else {
         ast_verb(1, "[%s] Got USSD type %d '%s'\n", PVT_ID(pvt), type, typedesc);
-
-        const channel_var_t vars[] = {
-            {"USSD_TYPE",     typestr },
-            {"USSD_TYPE_STR", typedesc},
-            {NULL,            NULL    },
-        };
-        start_local_channel(pvt, "ussd", "ussd", vars);
     }
 
+    RAII_VAR(struct ast_json*, ussd, ast_json_object_create(), ast_json_unref);
+    ast_json_object_set(ussd, "type", ast_json_integer_create(type));
+    ast_json_object_set(ussd, "type_description", ast_json_string_create(typedesc));
+    if (cusd_str) {
+        ast_json_object_set(ussd, "ussd", ast_json_string_create(ast_str_buffer(cusd_str)));
+    }
+
+    RAII_VAR(char*, jussd, ast_json_dump_string(ussd), ast_json_free);
+    const channel_var_t vars[] = {
+        {"USSD", jussd},
+        {NULL,   NULL },
+    };
+    start_local_channel(pvt, "ussd", "ussd", vars);
     return 0;
 }
 
