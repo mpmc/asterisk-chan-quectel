@@ -45,11 +45,7 @@ static const unsigned int CLCC_CALL_TYPE_FAX = 2;
 static const char MANUFACTURER_QUECTEL[] = "Quectel";
 static const char MANUFACTURER_SIMCOM[]  = "SimCom";
 
-static const int REPORT_DEF_LEN = SMSDB_DST_MAX_LEN;
-static const int REPORT_MAX_LEN = SMSDB_PAYLOAD_MAX_LEN + SMSDB_DST_MAX_LEN;
-
-static const int DST_DEF_LEN     = 32;
-static const int PAYLOAD_DEF_LEN = 64;
+static const int DST_DEF_LEN = 32;
 
 // ================================================================
 
@@ -1468,35 +1464,32 @@ static int at_response_cmgs(struct pvt* const pvt, const struct ast_str* const r
         pvt_try_restate(pvt);
     }
 
-    RAII_VAR(struct ast_str*, payload, (partno == partcnt) ? ast_str_create(PAYLOAD_DEF_LEN) : NULL, ast_free);
     RAII_VAR(struct ast_str*, dst, (partno == partcnt) ? ast_str_create(DST_DEF_LEN) : NULL, ast_free);
-
-    const ssize_t payload_len = smsdb_outgoing_part_put(task->uid, refid, dst, payload);
-    if (payload_len >= 0) {
-        ast_verb(3, "[%s][SMS:%d] SMS payload: [%s]\n", PVT_ID(pvt), task->uid, ast_str_buffer(payload));
-        RAII_VAR(struct ast_str*, report, ast_str_create(REPORT_DEF_LEN), ast_free);
-        if (partcnt <= 1) {
-            ast_str_set(&report, REPORT_MAX_LEN, "[SMS:%d REF:%d] Successfully sent message", task->uid, refid);
-        } else {
-            ast_str_set(&report, REPORT_MAX_LEN, "[SMS:%d] Successfully sent message [%d parts]", task->uid, partcnt);
+    const ssize_t dst_len = smsdb_outgoing_part_put(task->uid, refid, dst);
+    if (dst_len >= 0) {
+        ast_verb(3, "[%s][SMS:%d] SMS: [%s]\n", PVT_ID(pvt), task->uid, ast_str_buffer(dst));
+        RAII_VAR(struct ast_json*, report, ast_json_object_create(), ast_json_unref);
+        ast_json_object_set(report, "uid", ast_json_integer_create(task->uid));
+        ast_json_object_set(report, "refid", ast_json_integer_create(refid));
+        if (partcnt > 1) {
+            ast_json_object_set(report, "parts", ast_json_integer_create(partcnt));
         }
-
-        start_local_report_channel(pvt, ast_str_buffer(dst), payload, NULL, NULL, 1, 'i', report);
+        start_local_report_channel(pvt, ast_str_buffer(dst), NULL, NULL, 1, 'i', report);
     }
     return 0;
 }
 
 static int at_response_cmgs_error(struct pvt* const pvt, const at_queue_task_t* const task)
 {
-    RAII_VAR(struct ast_str*, payload, ast_str_create(PAYLOAD_DEF_LEN), ast_free);
     RAII_VAR(struct ast_str*, dst, ast_str_create(DST_DEF_LEN), ast_free);
 
-    const ssize_t payload_len = smsdb_outgoing_clear(task->uid, dst, payload);
-    if (payload_len >= 0) {
-        ast_verb(1, "[%s][SMS:%d] Error sending message: [%s]\n", PVT_ID(pvt), task->uid, ast_str_buffer(payload));
-        RAII_VAR(struct ast_str*, report, ast_str_create(REPORT_DEF_LEN), ast_free);
-        ast_str_set(&report, REPORT_MAX_LEN, "[SMS:%d] Error sending message: [%s]", task->uid, ast_str_buffer(payload));
-        start_local_report_channel(pvt, ast_str_buffer(dst), payload, NULL, NULL, 0, 'i', report);
+    const ssize_t dst_len = smsdb_outgoing_clear(task->uid, dst);
+    if (dst_len >= 0) {
+        ast_verb(1, "[%s][SMS:%d] Error sending message: [%s]\n", PVT_ID(pvt), task->uid, ast_str_buffer(dst));
+        RAII_VAR(struct ast_json*, report, ast_json_object_create(), ast_json_unref);
+        ast_json_object_set(report, "uid", ast_json_integer_create(task->uid));
+        ast_json_object_set(report, "dst", ast_json_string_create(ast_str_buffer(dst)));
+        start_local_report_channel(pvt, ast_str_buffer(dst), NULL, NULL, 0, 'i', report);
     } else {
         ast_verb(1, "[%s][SMS:%d] Error sending message\n", PVT_ID(pvt), task->uid);
     }
@@ -1642,29 +1635,26 @@ static int at_response_msg(struct pvt* const pvt, const struct ast_str* const re
     ast_str_update(msg);
     switch (PDUTYPE_MTI(tpdu_type)) {
         case PDUTYPE_MTI_SMS_STATUS_REPORT: {
-            static const ssize_t STATUS_REPORT_MAX_STR_LEN = 255 * 4 + 1;
-
             ast_verb(1, "[%s][SMS:%d] Got status report from %s and status code %d\n", PVT_ID(pvt), mr, ast_str_buffer(oa), st);
 
             RAII_VAR(int*, status_report, ast_calloc(sizeof(int), 256), ast_free);
-            RAII_VAR(struct ast_str*, status_report_str, ast_str_create(REPORT_DEF_LEN), ast_free);
-            RAII_VAR(struct ast_str*, payload, ast_str_create(PAYLOAD_DEF_LEN), ast_free);
-            const ssize_t payload_len = smsdb_outgoing_part_status(pvt->imsi, ast_str_buffer(oa), mr, st, status_report, payload);
-            if (payload_len >= 0) {
-                int success = 1;
-                int srroff  = 0;
+            const ssize_t pres = smsdb_outgoing_part_status(pvt->imsi, ast_str_buffer(oa), mr, st, status_report);
+            if (pres >= 0) {
+                RAII_VAR(struct ast_json*, report, ast_json_object_create(), ast_json_unref);
+                ast_json_object_set(report, "uid", ast_json_integer_create(mr));
+                struct ast_json* statuses = ast_json_array_create();
+                int success               = 1;
                 for (int i = 0; status_report[i] != -1; ++i) {
                     success &= !(status_report[i] & 0x40);
-                    ast_str_append(&status_report_str, STATUS_REPORT_MAX_STR_LEN, "%03d,", status_report[i]);
-                    srroff += 4;
+                    ast_json_array_append(statuses, ast_json_stringf("%03d,", status_report[i]));
                 }
+                ast_json_object_set(report, "status", statuses);
 
-                ast_verb(2, "[%s][SMS:%d] Report: success:%d payload:[%s] report:[%s]\n", PVT_ID(pvt), mr, success, ast_str_buffer(payload),
-                         tmp_esc_str(status_report_str));
+                ast_verb(2, "[%s][SMS:%d] Report: success:%d\n", PVT_ID(pvt), mr, success);
                 msg_ack      = TRIBOOL_TRUE;
                 msg_ack_uid  = mr;
                 msg_complete = 1;
-                start_local_report_channel(pvt, ast_str_buffer(oa), payload, scts, dt, success, 'e', status_report_str);
+                start_local_report_channel(pvt, ast_str_buffer(oa), scts, dt, success, 'e', report);
             }
 
             break;

@@ -1330,8 +1330,8 @@ int queue_hangup(struct ast_channel* channel, int hangupcause)
     return ast_queue_hangup(channel);
 }
 
-void start_local_report_channel(struct pvt* pvt, const char* number, const struct ast_str* const payload, const char* ts, const char* dt, int success,
-                                const char report_type, const struct ast_str* const report)
+void start_local_report_channel(struct pvt* pvt, const char* number, const char* ts, const char* dt, int success, const char report_type,
+                                struct ast_json* const report)
 {
     const char report_type_str[2] = {report_type, '\000'};
     RAII_VAR(struct ast_json*, rprt, ast_json_object_create(), ast_json_unref);
@@ -1347,22 +1347,18 @@ void start_local_report_channel(struct pvt* pvt, const char* number, const struc
         ast_json_object_set(rprt, "dt", ast_json_string_create(dt));
     }
 
-    if (ast_str_strlen(report)) {
-        ast_json_object_set(rprt, "report", ast_json_string_create(ast_str_buffer(report)));
-    }
-
-    if (ast_str_strlen(payload)) {
-        ast_json_object_set(rprt, "payload", ast_json_string_create(ast_str_buffer(payload)));
+    if (report) {
+        ast_json_object_set(rprt, "report", ast_json_copy(report));
     }
 
     if (!ast_strlen_zero(number)) {
         ast_json_object_set(rprt, "number", ast_json_string_create(number));
     }
 
-    RAII_VAR(char*, jreport, ast_json_dump_string(rprt), ast_json_free);
+    RAII_VAR(char*, jrprt, ast_json_dump_string(rprt), ast_json_free);
     const channel_var_t vars[] = {
-        {"REPORT", jreport},
-        {NULL,     NULL   },
+        {"REPORT", jrprt},
+        {NULL,     NULL },
     };
     start_local_channel(pvt, "report", number, vars);
 }

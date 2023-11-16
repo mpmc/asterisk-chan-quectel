@@ -417,7 +417,6 @@ CLI_ALIASES(cli_ussd, "ussd", "ussd <device> <command>", "Send ussd <command> wi
 
 static char* cli_sms_send(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
-    static const char DEF_PAYLOAD[]  = "CLI";
     static const int DEF_VALIDITY    = 15;
     static const int DEF_REPORT      = 1;
     static const ssize_t MSG_DEF_LEN = 160;
@@ -445,7 +444,7 @@ static char* cli_sms_send(struct ast_cli_entry* e, int cmd, struct ast_cli_args*
         }
     }
 
-    const int res = send_sms(a->argv[3], a->argv[4], ast_str_buffer(buf), DEF_VALIDITY, DEF_REPORT, DEF_PAYLOAD, STRLEN(DEF_PAYLOAD));
+    const int res = send_sms(a->argv[3], a->argv[4], ast_str_buffer(buf), DEF_VALIDITY, DEF_REPORT);
     ast_cli(a->fd, "[%s] %s\n", a->argv[3], res < 0 ? error2str(chan_quectel_err) : "SMS queued for send");
 
     return CLI_SUCCESS;

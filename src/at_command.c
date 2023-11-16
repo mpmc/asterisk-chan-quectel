@@ -539,8 +539,7 @@ static int pdus_enqueue(struct cpvt* const cpvt, const pdu_part_t* const pdus, s
  * \param number -- the destination of the message
  * \param msg -- utf-8 encoded message
  */
-int at_enqueue_sms(struct cpvt* cpvt, const char* destination, const char* msg, unsigned validity_minutes, int report_req, const char* payload,
-                   size_t payload_len)
+int at_enqueue_sms(struct cpvt* cpvt, const char* destination, const char* msg, unsigned validity_minutes, int report_req)
 {
     struct pvt* const pvt = cpvt->pvt;
 
@@ -561,7 +560,7 @@ int at_enqueue_sms(struct cpvt* cpvt, const char* destination, const char* msg, 
         return pdus_len;
     }
 
-    const int uid = smsdb_outgoing_add(pvt->imsi, destination, pdus_len, validity_minutes * 60, report_req, payload, payload_len);
+    const int uid = smsdb_outgoing_add(pvt->imsi, destination, pdus_len, validity_minutes * 60, report_req);
     if (uid <= 0) {
         chan_quectel_err = E_SMSDB;
         return -1;
