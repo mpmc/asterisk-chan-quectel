@@ -959,6 +959,10 @@ int at_enqueue_ping(struct cpvt* cpvt)
     return -1;
 }
 
+static void at_enqueue_ping_sys_chan(struct pvt* pvt) { at_enqueue_ping(&pvt->sys_chan); }
+
+int at_enqueue_ping_taskproc(void* tpdata) { return pvt_taskproc_trylock_and_execute(tpdata, at_enqueue_ping_sys_chan); }
+
 /*!
  * \brief Enqueue user-specified command
  * \param cpvt -- cpvt structure

@@ -23,6 +23,7 @@
 
 #include "at_parse.h"
 #include "at_queue.h"
+#include "at_read.h"
 #include "chan_quectel.h"
 #include "channel.h" /* channel_queue_hangup() channel_queue_control() */
 #include "char_conv.h"
@@ -344,7 +345,6 @@ static int at_response_ok(struct pvt* const pvt, const at_res_t at_res, const at
                 at_ok_response_dbg(2, pvt, ecmd, "SMS indication mode configured");
 
                 pvt->has_sms = 1;
-                pvt->timeout = DATA_READ_TIMEOUT;
             } else {
                 at_ok_response_dbg(2, pvt, ecmd, "SMS indication mode configured");
                 ast_verb(2, "[%s] Message indication mode configured\n", PVT_ID(pvt));
@@ -375,7 +375,6 @@ static int at_response_ok(struct pvt* const pvt, const at_res_t at_res, const at
         case CMD_AT_CPCMREG1:
             at_ok_response_dbg(3, pvt, ecmd, NULL);
             if (!pvt->initialized) {
-                pvt->timeout     = DATA_READ_TIMEOUT;
                 pvt->initialized = 1;
                 ast_verb(3, "[%s] SimCom initialized and ready\n", PVT_ID(pvt));
             }
@@ -715,7 +714,6 @@ static int at_response_error(struct pvt* const pvt, const at_res_t at_res, const
         case CMD_AT_CNMI:
             at_err_response_dbg(1, pvt, ecmd, "No SMS support");
             pvt->has_sms = 0;
-            pvt->timeout = DATA_READ_TIMEOUT;
             break;
 
         case CMD_AT_CSCS:
@@ -2739,7 +2737,7 @@ static void show_response(const struct pvt* const pvt, const at_queue_cmd_t* con
  * \retval -1 error
  */
 
-int at_response(struct pvt* const pvt, const struct ast_str* const response, const at_res_t at_res)
+static int at_response(struct pvt* const pvt, const struct ast_str* const response, const at_res_t at_res)
 {
     if (!ast_str_strlen(response)) {
         return 0;
@@ -3016,6 +3014,47 @@ int at_response(struct pvt* const pvt, const struct ast_str* const response, con
 
         case COMPATIBILITY_RES_START_AT_MINUSONE:
             break;
+    }
+
+    return 0;
+}
+
+at_response_taskproc_data* at_response_taskproc_data_alloc(struct pvt* const pvt, const struct ast_str* const response)
+{
+    const size_t response_len = ast_str_strlen(response);
+
+    at_response_taskproc_data* const res = ast_calloc(1, sizeof(at_response_taskproc_data) + response_len + 1u);
+    res->pvt                             = pvt;
+    res->response.__AST_STR_LEN          = response_len + 1u;
+    res->response.__AST_STR_USED         = response_len;
+    res->response.__AST_STR_TS           = DS_STATIC;
+    ast_copy_string(ast_str_buffer(&res->response), ast_str_buffer(response), response_len + 1u);
+    return res;
+}
+
+int at_response_taskproc(void* _tpdata)
+{
+    RAII_VAR(at_response_taskproc_data* const, tpdata, _tpdata, ast_free);
+
+    const at_res_t at_res = at_str2res(&tpdata->response);
+    if (at_res != RES_UNKNOWN) {
+        ast_str_trim_blanks(&tpdata->response);
+    }
+
+    SCOPED_MUTEX(plock, &tpdata->pvt->lock);
+
+    PVT_STAT(tpdata->pvt, at_responses)++;
+    if (at_response(tpdata->pvt, &tpdata->response, at_res)) {
+        ast_log(LOG_ERROR, "[%s] Fail to handle response\n", PVT_ID(tpdata->pvt));
+    }
+
+    if (tpdata->pvt->terminate_monitor) {
+        return 0;
+    }
+
+    if (at_queue_run(tpdata->pvt)) {
+        ast_log(LOG_ERROR, "[%s] Fail to run command from queue\n", PVT_ID(tpdata->pvt));
+        tpdata->pvt->terminate_monitor = 1;
     }
 
     return 0;

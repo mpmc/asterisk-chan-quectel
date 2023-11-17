@@ -52,7 +52,9 @@
 #include <asterisk/module.h> /* AST_MODULE_LOAD_DECLINE ... */
 #include <asterisk/stasis_channels.h>
 #include <asterisk/stringfields.h> /* AST_DECLARE_STRING_FIELDS for asterisk/manager.h */
-#include <asterisk/timing.h>       /* ast_timer_open() ast_timer_fd() */
+#include <asterisk/taskprocessor.h>
+#include <asterisk/threadpool.h>
+#include <asterisk/timing.h> /* ast_timer_open() ast_timer_fd() */
 
 #include "at_command.h" /* at_cmd2str() */
 #include "at_queue.h"   /* struct at_queue_task_cmd at_queue_head_cmd() */
@@ -896,6 +898,26 @@ void clean_read_data(const char* devname, int fd, struct ringbuffer* const rb)
     }
 }
 
+static struct ast_threadpool* threadpool_create(const char* const dev)
+{
+    static const size_t TP_DEF_LEN = 32;
+    static const size_t TP_MAX_LEN = 512;
+
+    static const struct ast_threadpool_options options = {
+        .version = AST_THREADPOOL_OPTIONS_VERSION, .idle_timeout = 0, .auto_increment = 0, .initial_size = 1, .max_size = 1};
+
+    RAII_VAR(struct ast_str*, threadpool_name, ast_str_create(TP_DEF_LEN), ast_free);
+    ast_str_set(&threadpool_name, TP_MAX_LEN, "chan-quectel/%s", dev);
+    return ast_threadpool_create(ast_str_buffer(threadpool_name), NULL, &options);
+}
+
+static struct ast_taskprocessor* threadpool_serializer(struct ast_threadpool* pool, const char* const dev)
+{
+    char taskprocessor_name[AST_TASKPROCESSOR_MAX_NAME + 1];
+    ast_taskprocessor_build_name(taskprocessor_name, sizeof(taskprocessor_name), "chan-quectel/%s", dev);
+    return ast_threadpool_serializer(taskprocessor_name, pool);
+}
+
 static void handle_expired_reports(struct pvt* pvt)
 {
     RAII_VAR(struct ast_str*, dst, ast_str_create(SMSDB_DST_MAX_LEN), ast_free);
@@ -911,6 +933,74 @@ static void handle_expired_reports(struct pvt* pvt)
     }
 }
 
+static int handle_expired_reports_taskproc(void* tpdata) { return pvt_taskproc_trylock_and_execute(tpdata, handle_expired_reports); }
+
+static void cmd_timeout(struct pvt* const pvt)
+{
+    if (!pvt->terminate_monitor) {
+        return;
+    }
+
+    const struct at_queue_cmd* const ecmd = at_queue_head_cmd(pvt);
+    if (!ecmd || ecmd->length) {
+        return;
+    }
+
+    if (ecmd->flags & ATQ_CMD_FLAG_IGNORE) {
+        ast_log(LOG_WARNING, "[%s][%s] Timeout [%s]\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd), at_res2str(ecmd->res));
+        at_queue_handle_result(pvt, RES_UNKNOWN);
+        if (pvt->terminate_monitor) {
+            return;
+        }
+        if (at_queue_run(pvt)) {
+            ast_log(LOG_ERROR, "[%s] Fail to run command from queue\n", PVT_ID(pvt));
+            pvt->terminate_monitor = 1;
+        }
+    } else {
+        ast_log(LOG_ERROR, "[%s][%s] Timeout [%s]\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd), at_res2str(ecmd->res));
+        pvt->terminate_monitor = 1;
+    }
+}
+
+static int cmd_timeout_taskproc(void* tpdata) { return pvt_taskproc_trylock_and_execute(tpdata, cmd_timeout); }
+
+static int check_dev_status(struct pvt* const pvt)
+{
+    int err;
+    if (port_status(pvt->data_fd, &err)) {
+        ast_log(LOG_ERROR, "[%s][DATA] Lost connection: %s\n", PVT_ID(pvt), strerror(err));
+        return -1;
+    }
+
+    switch (CONF_UNIQ(pvt, uac)) {
+        case TRIBOOL_FALSE:
+            if (port_status(pvt->audio_fd, &err)) {
+                if (reopen_audio_port(pvt)) {
+                    ast_log(LOG_WARNING, "[%s][AUDIO][TTY] Lost connection: %s\n", PVT_ID(pvt), strerror(err));
+                } else {
+                    ast_log(LOG_ERROR, "[%s][AUDIO][TTY] Lost connection: %s\n", PVT_ID(pvt), strerror(err));
+                    return -1;
+                }
+            }
+            break;
+
+        case TRIBOOL_TRUE:
+            show_alsa_state(2, "PLAYBACK", PVT_ID(pvt), pvt->ocard);
+            show_alsa_state(2, "CAPTURE", PVT_ID(pvt), pvt->icard);
+            break;
+
+        case TRIBOOL_NONE:
+            show_alsa_state(2, "PLAYBACK", PVT_ID(pvt), pvt->ocard);
+            show_alsa_state(2, "CAPTURE", PVT_ID(pvt), pvt->icard);
+            if (alsa_status(PVT_ID(pvt), pvt->ocard, pvt->icard)) {
+                ast_log(LOG_ERROR, "[%s][AUDIO][ALSA] Lost connection\n", PVT_ID(pvt));
+                return -1;
+            }
+            break;
+    }
+    return 0;
+}
+
 /*!
  * \brief Check if the module is unloading.
  * \retval 0 not unloading
@@ -920,6 +1010,7 @@ static void handle_expired_reports(struct pvt* pvt)
 static void* do_monitor_phone(void* data)
 {
     static const size_t RINGBUFFER_SIZE = 2 * 1024;
+    static const int DATA_READ_TIMEOUT  = 10000;
 
     struct pvt* const pvt = (struct pvt*)data;
     struct ringbuffer rb;
@@ -928,14 +1019,24 @@ static void* do_monitor_phone(void* data)
     RAII_VAR(struct ast_str* const, result, ast_str_create(RINGBUFFER_SIZE), ast_free);
 
     rb_init(&rb, buf, RINGBUFFER_SIZE);
-    pvt->timeout = DATA_READ_TIMEOUT;
-    ast_mutex_lock(&pvt->lock);
 
+    ast_mutex_lock(&pvt->lock);
     RAII_VAR(char* const, dev, ast_strdup(PVT_ID(pvt)), ast_free);
+
+    RAII_VAR(struct ast_threadpool*, threadpool, threadpool_create(dev), ast_threadpool_shutdown);
+    if (!threadpool) {
+        ast_log(LOG_ERROR, "[%s] Error initializing threadpool\n", dev);
+        goto e_cleanup;
+    }
+
+    RAII_VAR(struct ast_taskprocessor*, tps, threadpool_serializer(threadpool, dev), ast_taskprocessor_unreference);
+    if (!tps) {
+        ast_log(LOG_ERROR, "[%s] Error initializing taskprocessor\n", dev);
+        goto e_cleanup;
+    }
 
     /* 4 reduce locking time make copy of this readonly fields */
     const int fd = pvt->data_fd;
-
     clean_read_data(dev, fd, &rb);
 
     /* schedule initilization  */
@@ -948,77 +1049,52 @@ static void* do_monitor_phone(void* data)
 
     int read_result = 0;
     while (1) {
-        ast_mutex_lock(&pvt->lock);
-
-        handle_expired_reports(pvt);
-        int err;
-        if (port_status(pvt->data_fd, &err)) {
-            ast_log(LOG_ERROR, "[%s][DATA] Lost connection: %s\n", dev, strerror(err));
-            goto e_cleanup;
+        if (ast_taskprocessor_push(tps, handle_expired_reports_taskproc, pvt)) {
+            ast_debug(5, "[%s] Unable to handle exprired reports\n", dev);
         }
 
-        switch (CONF_UNIQ(pvt, uac)) {
-            case TRIBOOL_FALSE:
-                if (port_status(pvt->audio_fd, &err)) {
-                    if (reopen_audio_port(pvt)) {
-                        ast_log(LOG_WARNING, "[%s][AUDIO][TTY] Lost connection: %s\n", dev, strerror(err));
-                    } else {
-                        ast_log(LOG_ERROR, "[%s][AUDIO][TTY] Lost connection: %s\n", dev, strerror(err));
-                        goto e_cleanup;
-                    }
+        if (ast_mutex_trylock(&pvt->lock)) {  // pvt unlocked
+            int t = DATA_READ_TIMEOUT;
+            if (!at_wait(fd, &t)) {
+                if (ast_taskprocessor_push(tps, at_enqueue_ping_taskproc, pvt)) {
+                    ast_debug(5, "[%s] Unable to handle timeout\n", dev);
                 }
-                break;
-
-            case TRIBOOL_TRUE:
-                show_alsa_state(2, "PLAYBACK", dev, pvt->ocard);
-                show_alsa_state(2, "CAPTURE", dev, pvt->icard);
-                break;
-
-            case TRIBOOL_NONE:
-                show_alsa_state(2, "PLAYBACK", dev, pvt->ocard);
-                show_alsa_state(2, "CAPTURE", dev, pvt->icard);
-                if (alsa_status(dev, pvt->ocard, pvt->icard)) {
-                    ast_log(LOG_ERROR, "[%s][AUDIO][ALSA] Lost connection\n", dev);
-                    goto e_cleanup;
-                }
-                break;
-        }
-
-        if (pvt->terminate_monitor) {
-            ast_log(LOG_NOTICE, "[%s] Stopping by %s request\n", dev, dev_state2str(pvt->desired_state));
-            goto e_restart;
-        }
-
-        int t = at_queue_timeout(pvt);
-        if (t < 0) {
-            t = pvt->timeout;
-        }
-
-        ast_mutex_unlock(&pvt->lock);
-
-        if (!at_wait(fd, &t)) {
-            ast_mutex_lock(&pvt->lock);
-            const struct at_queue_cmd* const ecmd = at_queue_head_cmd(pvt);
-            if (ecmd) {
-                if (ecmd->flags & ATQ_CMD_FLAG_IGNORE) {
-                    ast_log(LOG_WARNING, "[%s][%s] Timeout [%s]\n", dev, at_cmd2str(ecmd->cmd), at_res2str(ecmd->res));
-                    at_queue_handle_result(pvt, RES_UNKNOWN);
-                    if (!pvt->terminate_monitor) {
-                        if (at_queue_run(pvt)) {
-                            ast_log(LOG_ERROR, "[%s] Fail to run command from queue\n", dev);
-                            goto e_cleanup;
-                        }
-                    }
-                } else {
-                    ast_log(LOG_ERROR, "[%s][%s] Timeout [%s]\n", dev, at_cmd2str(ecmd->cmd), at_res2str(ecmd->res));
-                    goto e_cleanup;
-                }
+                continue;
             }
-            if (pvt->initialized) {
-                at_enqueue_ping(&pvt->sys_chan);
+        } else {  // pvt locked
+            if (check_dev_status(pvt)) {
+                goto e_cleanup;
             }
+
+            if (pvt->terminate_monitor) {
+                ast_log(LOG_NOTICE, "[%s] Stopping by %s request\n", dev, dev_state2str(pvt->desired_state));
+                goto e_restart;
+            }
+
+            int t;
+            int is_cmd_timeout = 1;
+            if (at_queue_timeout(pvt, &t)) {
+                is_cmd_timeout = 0;
+            }
+
             ast_mutex_unlock(&pvt->lock);
-            continue;
+
+            if (is_cmd_timeout) {
+                if (t < 0 || !at_wait(fd, &t)) {
+                    if (ast_taskprocessor_push(tps, cmd_timeout_taskproc, pvt)) {
+                        ast_debug(5, "[%s] Unable to handle timeout\n", dev);
+                    }
+                    continue;
+                }
+            } else {
+                t = DATA_READ_TIMEOUT;
+                if (!at_wait(fd, &t)) {
+                    if (ast_taskprocessor_push(tps, at_enqueue_ping_taskproc, pvt)) {
+                        ast_debug(5, "[%s] Unable to handle timeout\n", dev);
+                    }
+                    continue;
+                }
+            }
         }
 
         /* FIXME: access to device not locked */
@@ -1027,9 +1103,10 @@ static void* do_monitor_phone(void* data)
             break;
         }
 
-        ast_mutex_lock(&pvt->lock);
-        PVT_STAT(pvt, d_read_bytes) += iovcnt;
-        ast_mutex_unlock(&pvt->lock);
+        if (!ast_mutex_trylock(&pvt->lock)) {
+            PVT_STAT(pvt, d_read_bytes) += iovcnt;
+            ast_mutex_unlock(&pvt->lock);
+        }
 
         struct iovec iov[2];
         size_t skip = 0u;
@@ -1042,29 +1119,17 @@ static void* do_monitor_phone(void* data)
                 continue;
             }
 
-            const at_res_t at_res = at_str2res(result);
-            if (at_res != RES_UNKNOWN) {
-                ast_str_trim_blanks(result);
-            }
-
-            ast_mutex_lock(&pvt->lock);
-            PVT_STAT(pvt, at_responses)++;
-            if (at_response(pvt, result, at_res)) {
-                ast_log(LOG_ERROR, "[%s] Fail to handle response\n", dev);
-                goto e_cleanup;
-            }
-            ast_mutex_unlock(&pvt->lock);
-        }
-
-        ast_mutex_lock(&pvt->lock);
-        if (!pvt->terminate_monitor) {
-            if (at_queue_run(pvt)) {
-                ast_log(LOG_ERROR, "[%s] Fail to run command from queue\n", dev);
-                goto e_cleanup;
+            at_response_taskproc_data* const tpdata = at_response_taskproc_data_alloc(pvt, result);
+            if (tpdata) {
+                if (ast_taskprocessor_push(tps, at_response_taskproc, tpdata)) {
+                    ast_log(LOG_ERROR, "[%s] Fail to handle response\n", dev);
+                    ast_free(tpdata);
+                    goto e_restart;
+                }
             }
         }
-        ast_mutex_unlock(&pvt->lock);
     }
+
     ast_mutex_lock(&pvt->lock);
 
 e_cleanup:
@@ -1542,6 +1607,22 @@ void unlock_pvt(struct pvt* const pvt)
     ast_mutex_unlock(&pvt->lock);
 }
 
+int pvt_taskproc_trylock_and_execute(void* tpdata, void (*task_exe)(struct pvt* pvt))
+{
+    if (!tpdata) {
+        return 0;
+    }
+    struct pvt* const pvt = (struct pvt*)tpdata;
+
+    if (ast_mutex_trylock(&pvt->lock)) {
+        return 0;
+    }
+
+    task_exe(pvt);
+    ast_mutex_unlock(&pvt->lock);
+    return 0;
+}
+
 #/* return locked pvt or NULL */
 
 struct pvt* find_device_ex(struct public_state* state, const char* name)
@@ -1952,25 +2033,19 @@ static struct pvt* pvt_create(const pvt_config_t* settings)
 
     AST_LIST_HEAD_INIT_NOLOCK(&pvt->at_queue);
     AST_LIST_HEAD_INIT_NOLOCK(&pvt->chans);
-    pvt->sys_chan.pvt   = pvt;
-    pvt->sys_chan.state = CALL_STATE_RELEASED;
 
     pvt->monitor_thread     = AST_PTHREADT_NULL;
+    pvt->sys_chan.pvt       = pvt;
+    pvt->sys_chan.state     = CALL_STATE_RELEASED;
     pvt->audio_fd           = -1;
-    pvt->icard              = NULL;
-    pvt->ocard              = NULL;
     pvt->data_fd            = -1;
-    pvt->timeout            = DATA_READ_TIMEOUT;
     pvt->gsm_reg_status     = -1;
     pvt->incoming_sms_index = -1;
+    pvt->desired_state      = SCONFIG(settings, initstate);
 
     ast_string_field_init(pvt, 15);
-
     ast_string_field_set(pvt, provider_name, "NONE");
     ast_string_field_set(pvt, subscriber_number, NULL);
-
-    pvt->has_subscriber_number = 0;
-    pvt->desired_state         = SCONFIG(settings, initstate);
 
     /* and copy settings */
     memcpy(&pvt->settings, settings, sizeof(pvt->settings));

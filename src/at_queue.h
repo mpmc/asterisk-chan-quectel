@@ -112,7 +112,7 @@ void at_queue_handle_result(struct pvt* pvt, at_res_t res);
 void at_queue_flush(struct pvt* pvt);
 const at_queue_task_t* at_queue_head_task(const struct pvt* pvt);
 const at_queue_cmd_t* at_queue_head_cmd(const struct pvt* pvt);
-int at_queue_timeout(const struct pvt* pvt);
+int at_queue_timeout(const struct pvt* pvt, int* diff);
 int at_queue_run(struct pvt* pvt);
 int at_queue_run_immediately(struct pvt* pvt);
 

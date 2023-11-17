@@ -138,6 +138,7 @@ int at_enqueue_initialization_quectel(struct cpvt*, unsigned int);
 int at_enqueue_initialization_simcom(struct cpvt*);
 int at_enqueue_initialization_other(struct cpvt*);
 int at_enqueue_ping(struct cpvt* cpvt);
+int at_enqueue_ping_taskproc(void*);
 int at_enqueue_cspn_cops(struct cpvt* cpvt);
 int at_enqueue_qspn_qnwinfo(struct cpvt* cpvt);
 int at_enqueue_sms(struct cpvt* cpvt, const char* number, const char* msg, unsigned validity_min, int report_req);

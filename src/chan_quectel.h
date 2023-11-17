@@ -103,7 +103,8 @@ typedef struct pvt {
     AST_LIST_HEAD_NOLOCK(, cpvt) chans; /*!< list of channels */
     struct cpvt sys_chan;               /*!< system channel */
 
-    pthread_t monitor_thread; /*!< monitor (at commands reader) thread handle */
+    unsigned long channel_instance; /*!< number of channels created on this device */
+    pthread_t monitor_thread;       /*!< monitor (at commands reader) thread handle */
 
     int audio_fd; /*!< audio descriptor */
     snd_pcm_t* icard;
@@ -116,17 +117,10 @@ typedef struct pvt {
     char* dlock; /*!< name of lockfile for data */
 #endif
 
-    struct ast_timer* a_timer; /*!< audio write timer */
-
-    void* silence_buf;  //[FRAME_SIZE_PLAYBACK * 2];
-
+    struct ast_timer* a_timer;   /*!< audio write timer */
+    void* silence_buf;           //[FRAME_SIZE_PLAYBACK * 2];
     void* write_buf;             //[FRAME_SIZE_PLAYBACK * 5]; /*!< audio write buffer */
     struct mixbuffer write_mixb; /*!< audio mix buffer */
-
-    int timeout;                /*!< used to set the timeout for data */
-#define DATA_READ_TIMEOUT 10000 /* 10 seconds */
-
-    unsigned long channel_instance; /*!< number of channels created on this device */
 
     /* device state */
     int gsm_reg_status;
@@ -258,6 +252,8 @@ static inline struct pvt* find_device_by_resource(const char* resource, int opts
 {
     return find_device_by_resource_ex(gpublic, resource, opts, requestor, exists);
 }
+
+int pvt_taskproc_trylock_and_execute(void*, void (*task_exe)(struct pvt* pvt));
 
 struct ast_module* self_module();
 

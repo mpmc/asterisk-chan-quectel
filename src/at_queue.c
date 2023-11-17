@@ -364,16 +364,14 @@ const struct at_queue_task* at_queue_head_task(const struct pvt* pvt) { return A
 
 const at_queue_cmd_t* at_queue_head_cmd(const struct pvt* pvt) { return at_queue_task_cmd(at_queue_head_task(pvt)); }
 
-int at_queue_timeout(const struct pvt* pvt)
+int at_queue_timeout(const struct pvt* pvt, int* diff)
 {
-    int ms_timeout            = -1;
     const at_queue_cmd_t* cmd = at_queue_head_cmd(pvt);
 
-    if (cmd) {
-        if (cmd->length == 0) {
-            ms_timeout = ast_tvdiff_ms(cmd->timeout, ast_tvnow());
-        }
+    if (!cmd || cmd->length) {
+        return -1;
     }
 
-    return ms_timeout;
+    *diff = ast_tvdiff_ms(cmd->timeout, ast_tvnow());
+    return 0;
 }
