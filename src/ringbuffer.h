@@ -56,6 +56,8 @@ int rb_read_until_mem_iov(const struct ringbuffer*, struct iovec* iov, const voi
 /*!< advice read position to len bytes */
 size_t rb_read_upd(struct ringbuffer* rb, size_t len);
 
+int rb_read_is_printable(struct ringbuffer* rb);
+
 /*!< fill io vectors array with free data (situable for readv()) and return number of io vectors updated  */
 int rb_write_iov(const struct ringbuffer*, struct iovec* iov);
 

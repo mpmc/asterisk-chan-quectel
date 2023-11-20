@@ -105,16 +105,13 @@ size_t at_combine_iov(struct ast_str* const result, const struct iovec* const io
 {
     const size_t len = at_get_iov_size_n(iov, iovcnt);
 
-    ast_str_reset(result);
+    ast_str_truncate(result, len);
     if (iovcnt > 0) {
         char* const buf = ast_str_buffer(result);
         memcpy(buf, iov[0].iov_base, iov[0].iov_len);
         if (iovcnt > 1) {
             memcpy(buf + iov[0].iov_len, iov[1].iov_base, iov[1].iov_len);
         }
-        buf[len]     = '\000';
-        result->used = len;
-        // ast_str_update(result);
     }
 
     return len;
@@ -180,6 +177,11 @@ int at_read_result_iov(const char* dev, int* read_result, size_t* skip, struct r
 
                 return at_read_result_iov(dev, read_result, skip, rb, iov, buf);
             } else if (res > 0) {
+                if (rb_read_is_printable(rb)) {
+                    *read_result = 1;
+                    return at_read_result_iov(dev, read_result, skip, rb, iov, buf);
+                }
+
                 if (!rb_memcmp(rb, "\n", 1)) {
                     rb_read_upd(rb, 1);
                     return at_read_result_iov(dev, read_result, skip, rb, iov, buf);

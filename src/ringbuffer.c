@@ -85,6 +85,21 @@ int rb_read_n_iov(const struct ringbuffer* rb, struct iovec* iov, size_t len)
     return 0;
 }
 
+static void* np_memchr(const void* bigptr, int ch, size_t length)
+{
+    const char* big = (const char*)bigptr;
+
+    for (size_t n = 0; n < length; n++) {
+        if (big[n] >= ' ') {
+            break;
+        }
+        if (big[n] == ch) {
+            return (void*)&big[n];
+        }
+    }
+    return NULL;
+}
+
 int rb_read_until_char_iov(const struct ringbuffer* rb, struct iovec* iov, char c)
 {
     if (rb->used > 0) {
@@ -93,13 +108,13 @@ int rb_read_until_char_iov(const struct ringbuffer* rb, struct iovec* iov, char 
         if ((rb->read + rb->used) > rb->size) {
             iov[0].iov_base = rb->buffer + rb->read;
             iov[0].iov_len  = rb->size - rb->read;
-            if ((p = memchr(iov[0].iov_base, c, iov[0].iov_len)) != NULL) {
+            if ((p = np_memchr(iov[0].iov_base, c, iov[0].iov_len)) != NULL) {
                 iov[0].iov_len = p - iov[0].iov_base;
                 iov[1].iov_len = 0;
                 return 1;
             }
 
-            if ((p = memchr(rb->buffer, c, rb->used - iov[0].iov_len)) != NULL) {
+            if ((p = np_memchr(rb->buffer, c, rb->used - iov[0].iov_len)) != NULL) {
                 iov[1].iov_base = rb->buffer;
                 iov[1].iov_len  = p - rb->buffer;
                 return 2;
@@ -107,7 +122,7 @@ int rb_read_until_char_iov(const struct ringbuffer* rb, struct iovec* iov, char 
         } else {
             iov[0].iov_base = rb->buffer + rb->read;
             iov[0].iov_len  = rb->used;
-            if ((p = memchr(iov[0].iov_base, c, iov[0].iov_len)) != NULL) {
+            if ((p = np_memchr(iov[0].iov_base, c, iov[0].iov_len)) != NULL) {
                 iov[0].iov_len = p - iov[0].iov_base;
                 iov[1].iov_len = 0;
                 return 1;
@@ -213,6 +228,16 @@ size_t rb_read_upd(struct ringbuffer* rb, size_t len)
     }
 
     return len;
+}
+
+int rb_read_is_printable(struct ringbuffer* rb)
+{
+    if (!rb->used) {
+        return 0;
+    }
+
+    const char* const read_ptr = rb->buffer + rb->read;
+    return *read_ptr >= ' ';
 }
 
 /* ============================ WRITE ============================ */

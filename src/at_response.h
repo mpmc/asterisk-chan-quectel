@@ -14,6 +14,7 @@ struct iovec;
 #define AT_RESPONSES_TABLE(_)                          \
     _(PARSE_ERROR, "PARSE ERROR", "")                  \
     _(UNKNOWN, "UNK", "")                              \
+    _(TIMEOUT, "TIMEOUT", "")                          \
                                                        \
     _(BOOT, "^BOOT", "^BOOT:")                         \
     _(BUSY, "BUSY", "BUSY\r")                          \
@@ -132,6 +133,8 @@ typedef struct at_responses_t {
 /*! responses description */
 extern const at_responses_t at_responses;
 const char* at_res2str(at_res_t res);
+
+int at_response(struct pvt* const pvt, const struct ast_str* const response, const at_res_t at_res);
 
 typedef struct at_response_taskproc_data {
     struct pvt* pvt;

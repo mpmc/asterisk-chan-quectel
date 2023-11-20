@@ -946,20 +946,18 @@ static void cmd_timeout(struct pvt* const pvt)
         return;
     }
 
-    if (ecmd->flags & ATQ_CMD_FLAG_IGNORE) {
-        ast_log(LOG_WARNING, "[%s][%s] Timeout [%s]\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd), at_res2str(ecmd->res));
-        at_queue_handle_result(pvt, RES_UNKNOWN);
-        if (pvt->terminate_monitor) {
-            return;
-        }
-        if (at_queue_run(pvt)) {
-            ast_log(LOG_ERROR, "[%s] Fail to run command from queue\n", PVT_ID(pvt));
-            pvt->terminate_monitor = 1;
-        }
-    } else {
-        ast_log(LOG_ERROR, "[%s][%s] Timeout [%s]\n", PVT_ID(pvt), at_cmd2str(ecmd->cmd), at_res2str(ecmd->res));
+    if (at_response(pvt, &pvt->empty_str, RES_TIMEOUT)) {
+        ast_log(LOG_ERROR, "[%s] Fail to handle response\n", PVT_ID(pvt));
         pvt->terminate_monitor = 1;
+        return;
     }
+
+    if (ecmd->flags & ATQ_CMD_FLAG_IGNORE) {
+        return;
+    }
+
+    pvt->terminate_monitor = 1;
+    ast_log(LOG_ERROR, "[%s] COMMAND TIMEOUT #3\n", PVT_ID(pvt));
 }
 
 static int cmd_timeout_taskproc(void* tpdata) { return pvt_taskproc_trylock_and_execute(tpdata, cmd_timeout); }
@@ -2022,7 +2020,7 @@ const char* rssi2dBm(int rssi, char* buf, size_t len)
 
 static struct pvt* pvt_create(const pvt_config_t* settings)
 {
-    struct pvt* const pvt = ast_calloc(1, sizeof(*pvt));
+    struct pvt* const pvt = ast_calloc(1, sizeof(*pvt) + 1u);
 
     if (!pvt) {
         ast_log(LOG_ERROR, "[%s] Skipping device: Error allocating memory\n", UCONFIG(settings, id));
@@ -2049,6 +2047,9 @@ static struct pvt* pvt_create(const pvt_config_t* settings)
 
     /* and copy settings */
     memcpy(&pvt->settings, settings, sizeof(pvt->settings));
+
+    pvt->empty_str.__AST_STR_LEN = 1;
+    pvt->empty_str.__AST_STR_TS  = DS_STATIC;
     return pvt;
 }
 

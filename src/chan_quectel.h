@@ -186,6 +186,8 @@ typedef struct pvt {
     pvt_config_t settings; /*!< all device settings from config file */
     pvt_state_t state;     /*!< state */
     pvt_stat_t stat;       /*!< various statistics */
+
+    struct ast_str empty_str; /*!< empty string */
 } pvt_t;
 
 #define CONF_GLOBAL(name) (gpublic->global_settings.name)

@@ -62,7 +62,7 @@ static const at_response_t at_responses_list[] = {
 };
 
 
-const at_responses_t at_responses = {at_responses_list, 2, ITEMS_OF(at_responses_list), RES_MIN, RES_MAX};
+const at_responses_t at_responses = {at_responses_list, 3, ITEMS_OF(at_responses_list), RES_MIN, RES_MAX};
 
 /*!
  * \brief Get the string representation of the given AT response
@@ -2737,9 +2737,9 @@ static void show_response(const struct pvt* const pvt, const at_queue_cmd_t* con
  * \retval -1 error
  */
 
-static int at_response(struct pvt* const pvt, const struct ast_str* const response, const at_res_t at_res)
+int at_response(struct pvt* const pvt, const struct ast_str* const response, const at_res_t at_res)
 {
-    if (!ast_str_strlen(response)) {
+    if (at_res != RES_TIMEOUT && !ast_str_strlen(response)) {
         return 0;
     }
 
@@ -2764,6 +2764,7 @@ static int at_response(struct pvt* const pvt, const struct ast_str* const respon
 
         case RES_CMS_ERROR:
         case RES_ERROR:
+        case RES_TIMEOUT:
             return at_response_error(pvt, at_res, task, ecmd);
 
         case RES_QIND:

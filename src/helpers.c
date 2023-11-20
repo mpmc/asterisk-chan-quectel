@@ -551,7 +551,7 @@ struct ast_str* escape_nstr(const char* buf, size_t cnt)
 {
     if (!buf || !cnt) {  // build empty string
         struct ast_str* nbuf = ast_str_create(1);
-        ast_str_reset(nbuf);
+        ast_str_truncate(nbuf, 0);
         return nbuf;
     }
 
@@ -574,7 +574,7 @@ struct ast_str* escape_nstr(const char* buf, size_t cnt)
 const char* escape_nstr_ex(struct ast_str* ebuf, const char* buf, size_t cnt)
 {
     if (!cnt) {
-        ast_str_reset(ebuf);
+        ast_str_truncate(ebuf, 0);
         return ast_str_buffer(ebuf);
     }
 
@@ -595,7 +595,7 @@ struct ast_str* escape_str(const struct ast_str* const str)
 {
     if (!str || !ast_str_strlen(str)) {
         struct ast_str* nbuf = ast_str_create(1);
-        ast_str_reset(nbuf);
+        ast_str_truncate(nbuf, 0);
         return nbuf;
     }
 
