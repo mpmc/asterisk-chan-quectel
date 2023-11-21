@@ -59,4 +59,7 @@ const char* escape_str_ex(struct ast_str*, const struct ast_str* const);
         escape_nstr_ex(STR_TMP, str, len);                       \
     })
 
+#define AST_JSON_OBJECT_SET(j, s) \
+    if (s && ast_str_strlen(s)) ast_json_object_set(j, #s, ast_json_string_create(ast_str_buffer(s)));
+
 #endif /* CHAN_QUECTEL_HELPERS_H_INCLUDED */

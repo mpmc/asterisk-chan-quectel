@@ -1463,12 +1463,15 @@ static int at_response_cmgs(struct pvt* const pvt, const struct ast_str* const r
     }
 
     RAII_VAR(struct ast_str*, dst, (partno == partcnt) ? ast_str_create(DST_DEF_LEN) : NULL, ast_free);
-    const ssize_t dst_len = smsdb_outgoing_part_put(task->uid, refid, dst);
-    if (dst_len >= 0) {
+    RAII_VAR(struct ast_str*, msg, (partno == partcnt) ? ast_str_create(DST_DEF_LEN) : NULL, ast_free);
+    const ssize_t res = smsdb_outgoing_part_put(task->uid, refid, &dst, &msg);
+    if (res >= 0) {
         ast_verb(3, "[%s][SMS:%d] SMS: [%s]\n", PVT_ID(pvt), task->uid, ast_str_buffer(dst));
         RAII_VAR(struct ast_json*, report, ast_json_object_create(), ast_json_unref);
         ast_json_object_set(report, "uid", ast_json_integer_create(task->uid));
         ast_json_object_set(report, "refid", ast_json_integer_create(refid));
+        AST_JSON_OBJECT_SET(report, dst);
+        AST_JSON_OBJECT_SET(report, msg);
         if (partcnt > 1) {
             ast_json_object_set(report, "parts", ast_json_integer_create(partcnt));
         }
@@ -1480,13 +1483,15 @@ static int at_response_cmgs(struct pvt* const pvt, const struct ast_str* const r
 static int at_response_cmgs_error(struct pvt* const pvt, const at_queue_task_t* const task)
 {
     RAII_VAR(struct ast_str*, dst, ast_str_create(DST_DEF_LEN), ast_free);
+    RAII_VAR(struct ast_str*, msg, ast_str_create(DST_DEF_LEN), ast_free);
 
-    const ssize_t dst_len = smsdb_outgoing_clear(task->uid, dst);
+    const ssize_t dst_len = smsdb_outgoing_clear(task->uid, &dst, &msg);
     if (dst_len >= 0) {
         ast_verb(1, "[%s][SMS:%d] Error sending message: [%s]\n", PVT_ID(pvt), task->uid, ast_str_buffer(dst));
         RAII_VAR(struct ast_json*, report, ast_json_object_create(), ast_json_unref);
         ast_json_object_set(report, "uid", ast_json_integer_create(task->uid));
-        ast_json_object_set(report, "dst", ast_json_string_create(ast_str_buffer(dst)));
+        AST_JSON_OBJECT_SET(report, dst);
+        AST_JSON_OBJECT_SET(report, msg);
         start_local_report_channel(pvt, ast_str_buffer(dst), NULL, NULL, 0, 'i', report);
     } else {
         ast_verb(1, "[%s][SMS:%d] Error sending message\n", PVT_ID(pvt), task->uid);
@@ -1573,6 +1578,7 @@ static int at_response_cdsi(struct pvt* const pvt, const struct ast_str* const r
 
 static int at_response_msg(struct pvt* const pvt, const struct ast_str* const response, at_res_t cmd)
 {
+    static const ssize_t MSG_DEF_LEN = 64;
     static const ssize_t MSG_MAX_LEN = 4096;
 
     char scts[64], dt[64];
@@ -1659,11 +1665,11 @@ static int at_response_msg(struct pvt* const pvt, const struct ast_str* const re
         }
 
         case PDUTYPE_MTI_SMS_DELIVER: {
-            RAII_VAR(struct ast_str*, fullmsg, ast_str_create(MSG_MAX_LEN), ast_free);
+            RAII_VAR(struct ast_str*, fullmsg, ast_str_create(MSG_DEF_LEN), ast_free);
             if (udh.parts > 1) {
                 ast_verb(2, "[%s][SMS:%d PART:%d/%d TS:%s] Got message part from %s: [%s]\n", PVT_ID(pvt), (int)udh.ref, (int)udh.order, (int)udh.parts, scts,
                          ast_str_buffer(oa), tmp_esc_str(msg));
-                int csms_cnt = smsdb_put(pvt->imsi, ast_str_buffer(oa), udh.ref, udh.parts, udh.order, ast_str_buffer(msg), ast_str_buffer(fullmsg));
+                int csms_cnt = smsdb_put(pvt->imsi, ast_str_buffer(oa), udh.ref, udh.parts, udh.order, ast_str_buffer(msg), &fullmsg);
                 if (csms_cnt <= 0) {
                     ast_log(LOG_ERROR, "[%s][SMS:%d PART:%d/%d TS:%s] Error putting message part to database\n", PVT_ID(pvt), (int)udh.ref, (int)udh.order,
                             (int)udh.parts, scts);
@@ -1700,7 +1706,7 @@ receive_as_is:
                 ast_verb(1, "[%s][SMS:%d PARTS:%d TS:%s] Got message from %s: [%s]\n", PVT_ID(pvt), (int)udh.ref, (int)udh.parts, scts, ast_str_buffer(oa),
                          tmp_esc_str(fullmsg));
 
-                ast_json_object_set(sms, "msg", ast_json_string_create(ast_str_buffer(fullmsg)));
+                AST_JSON_OBJECT_SET(sms, msg);
             } else {
                 ast_verb(1, "[%s][SMS:%d PARTS:%d TS:%s] Got empty message from %s\n", PVT_ID(pvt), (int)udh.ref, (int)udh.parts, scts, ast_str_buffer(oa));
             }

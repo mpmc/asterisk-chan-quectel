@@ -560,7 +560,7 @@ int at_enqueue_sms(struct cpvt* cpvt, const char* destination, const char* msg, 
         return pdus_len;
     }
 
-    const int uid = smsdb_outgoing_add(pvt->imsi, destination, pdus_len, validity_minutes * 60, report_req);
+    const int uid = smsdb_outgoing_add(pvt->imsi, destination, msg, pdus_len, validity_minutes * 60, report_req);
     if (uid <= 0) {
         chan_quectel_err = E_SMSDB;
         return -1;
