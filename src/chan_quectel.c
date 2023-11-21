@@ -929,11 +929,11 @@ static void handle_expired_reports(struct pvt* pvt)
     if (res >= 0) {
         ast_verb(3, "[%s][SMS:%d %s] Expired\n", PVT_ID(pvt), uid, ast_str_buffer(dst));
         RAII_VAR(struct ast_json*, report, ast_json_object_create(), ast_json_unref);
+        ast_json_object_set(report, "info", ast_json_string_create("Message expired"));
         ast_json_object_set(report, "uid", ast_json_integer_create(uid));
         ast_json_object_set(report, "expired", ast_json_integer_create(1));
-        AST_JSON_OBJECT_SET(report, dst);
         AST_JSON_OBJECT_SET(report, msg);
-        start_local_report_channel(pvt, ast_str_buffer(dst), NULL, NULL, 0, 't', report);
+        start_local_report_channel(pvt, "sms", LOCAL_REPORT_DIRECTION_OUTGOING, ast_str_buffer(dst), NULL, NULL, 0, report);
     }
 }
 

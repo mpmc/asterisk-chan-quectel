@@ -1466,16 +1466,16 @@ static int at_response_cmgs(struct pvt* const pvt, const struct ast_str* const r
     RAII_VAR(struct ast_str*, msg, (partno == partcnt) ? ast_str_create(DST_DEF_LEN) : NULL, ast_free);
     const ssize_t res = smsdb_outgoing_part_put(task->uid, refid, &dst, &msg);
     if (res >= 0) {
-        ast_verb(3, "[%s][SMS:%d] SMS: [%s]\n", PVT_ID(pvt), task->uid, ast_str_buffer(dst));
+        ast_verb(3, "[%s][SMS:%d %s] SMS: [%s]\n", PVT_ID(pvt), task->uid, ast_str_buffer(dst), ast_str_buffer(msg));
         RAII_VAR(struct ast_json*, report, ast_json_object_create(), ast_json_unref);
+        ast_json_object_set(report, "info", ast_json_string_create("Message send"));
         ast_json_object_set(report, "uid", ast_json_integer_create(task->uid));
         ast_json_object_set(report, "refid", ast_json_integer_create(refid));
-        AST_JSON_OBJECT_SET(report, dst);
         AST_JSON_OBJECT_SET(report, msg);
         if (partcnt > 1) {
             ast_json_object_set(report, "parts", ast_json_integer_create(partcnt));
         }
-        start_local_report_channel(pvt, ast_str_buffer(dst), NULL, NULL, 1, 'i', report);
+        start_local_report_channel(pvt, "sms", LOCAL_REPORT_DIRECTION_OUTGOING, ast_str_buffer(dst), NULL, NULL, 1, report);
     }
     return 0;
 }
@@ -1489,10 +1489,10 @@ static int at_response_cmgs_error(struct pvt* const pvt, const at_queue_task_t* 
     if (dst_len >= 0) {
         ast_verb(1, "[%s][SMS:%d] Error sending message: [%s]\n", PVT_ID(pvt), task->uid, ast_str_buffer(dst));
         RAII_VAR(struct ast_json*, report, ast_json_object_create(), ast_json_unref);
+        ast_json_object_set(report, "info", ast_json_string_create("Error sending message"));
         ast_json_object_set(report, "uid", ast_json_integer_create(task->uid));
-        AST_JSON_OBJECT_SET(report, dst);
         AST_JSON_OBJECT_SET(report, msg);
-        start_local_report_channel(pvt, ast_str_buffer(dst), NULL, NULL, 0, 'i', report);
+        start_local_report_channel(pvt, "sms", LOCAL_REPORT_DIRECTION_OUTGOING, ast_str_buffer(dst), NULL, NULL, 0, report);
     } else {
         ast_verb(1, "[%s][SMS:%d] Error sending message\n", PVT_ID(pvt), task->uid);
     }
@@ -1645,6 +1645,10 @@ static int at_response_msg(struct pvt* const pvt, const struct ast_str* const re
             const ssize_t pres = smsdb_outgoing_part_status(pvt->imsi, ast_str_buffer(oa), mr, st, status_report);
             if (pres >= 0) {
                 RAII_VAR(struct ast_json*, report, ast_json_object_create(), ast_json_unref);
+                ast_json_object_set(report, "info", ast_json_stringf("SMS Status"));
+                if (st) {
+                    ast_json_object_set(report, "status_code", ast_json_integer_create(st));
+                }
                 ast_json_object_set(report, "uid", ast_json_integer_create(mr));
                 struct ast_json* statuses = ast_json_array_create();
                 int success               = 1;
@@ -1658,7 +1662,7 @@ static int at_response_msg(struct pvt* const pvt, const struct ast_str* const re
                 msg_ack      = TRIBOOL_TRUE;
                 msg_ack_uid  = mr;
                 msg_complete = 1;
-                start_local_report_channel(pvt, ast_str_buffer(oa), scts, dt, success, 'e', report);
+                start_local_report_channel(pvt, "sms", LOCAL_REPORT_DIRECTION_INCOMING, ast_str_buffer(oa), scts, dt, success, report);
             }
 
             break;
@@ -1698,15 +1702,19 @@ receive_as_is:
 
             RAII_VAR(struct ast_json*, sms, ast_json_object_create(), ast_json_unref);
             ast_json_object_set(sms, "ts", ast_json_string_create(scts));
-            ast_json_object_set(sms, "ref", ast_json_integer_create((int)udh.ref));
-            ast_json_object_set(sms, "parts", ast_json_integer_create((int)udh.parts));
+            if (udh.ref) {
+                ast_json_object_set(sms, "ref", ast_json_integer_create((int)udh.ref));
+            }
+            if (udh.parts) {
+                ast_json_object_set(sms, "parts", ast_json_integer_create((int)udh.parts));
+            }
             ast_json_object_set(sms, "from", ast_json_string_create(ast_str_buffer(oa)));
 
             if (ast_str_strlen(fullmsg)) {
                 ast_verb(1, "[%s][SMS:%d PARTS:%d TS:%s] Got message from %s: [%s]\n", PVT_ID(pvt), (int)udh.ref, (int)udh.parts, scts, ast_str_buffer(oa),
                          tmp_esc_str(fullmsg));
 
-                AST_JSON_OBJECT_SET(sms, msg);
+                ast_json_object_set(sms, "msg", ast_json_string_create(ast_str_buffer(fullmsg)));
             } else {
                 ast_verb(1, "[%s][SMS:%d PARTS:%d TS:%s] Got empty message from %s\n", PVT_ID(pvt), (int)udh.ref, (int)udh.parts, scts, ast_str_buffer(oa));
             }

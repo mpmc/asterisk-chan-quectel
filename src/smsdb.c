@@ -107,7 +107,7 @@ DEFINE_SQL_STATEMENT(create_outgoingmsg,
                      "dev VARCHAR(256), dst VARCHAR(256), message VARCHAR(256), cnt INTEGER, expiration TIMESTAMP, srr BOOLEAN)")
 
 // TABLE: outgoing_ref
-DEFINE_SQL_STATEMENT(create_outgoingref, "CREATE TABLE IF NOT EXISTS outgoing_ref (key VARCHAR(256), refid INTEGER, PRIMARY KEY(key))")
+DEFINE_SQL_STATEMENT(create_outgoingref, "CREATE TABLE IF NOT EXISTS outgoing_ref (key VARCHAR(256), refid INTEGER DEFAULT 0, PRIMARY KEY(key))")
 
 // TABLE: outgoing_part(KEY: IMSI/DEST_ADDR/MR)
 DEFINE_SQL_STATEMENT(create_outgoingpart, "CREATE TABLE IF NOT EXISTS outgoing_part (key VARCHAR(256), msg INTEGER, status INTEGER, PRIMARY KEY(key))")
@@ -130,8 +130,8 @@ DEFINE_SQL_STATEMENT(get_outgoingmsg, "SELECT dst, message FROM outgoing_msg WHE
 DEFINE_SQL_STATEMENT(get_outgoingmsg_expired, "SELECT uid, dst, message FROM outgoing_msg WHERE expiration < unixepoch('now') LIMIT 1")
 
 // OPER: outgoing_ref
-DEFINE_SQL_STATEMENT(put_outgoingref, "INSERT INTO outgoing_ref (refid, key) VALUES (?, ?)")
-DEFINE_SQL_STATEMENT(set_outgoingref, "UPDATE outgoing_ref SET refid = ? WHERE key = ?")
+DEFINE_SQL_STATEMENT(put_outgoingref, "INSERT INTO outgoing_ref (key) VALUES (?)")
+DEFINE_SQL_STATEMENT(set_outgoingref, "UPDATE outgoing_ref SET refid = (refid + 1) % 256 WHERE key = ?")
 DEFINE_SQL_STATEMENT(get_outgoingref, "SELECT refid FROM outgoing_ref WHERE key = ?")
 
 // OPER: outgoing_part
@@ -493,7 +493,7 @@ int smsdb_put(const char* id, const char* addr, int ref, int parts, int order, c
 
 int smsdb_get_refid(const char* id, const char* addr)
 {
-    int res = 0;
+    int res = -1;
 
     SCOPED_TRANSACTION(dbtrans);
     RAII_VAR(struct ast_str*, fullkey, ast_str_create(DBKEY_DEF_LEN), ast_free);
@@ -510,23 +510,18 @@ int smsdb_get_refid(const char* id, const char* addr)
         SCOPED_STMT(get_outgoingref);
         if (sqlite3_bind_text(get_outgoingref, 1, ast_str_buffer(fullkey), ast_str_strlen(fullkey), SQLITE_STATIC) != SQLITE_OK) {
             ast_log(LOG_WARNING, "Couldn't bind key to stmt: %s\n", sqlite3_errmsg(smsdb));
-            res = -1;
         } else if (sqlite3_step(get_outgoingref) != SQLITE_ROW) {
-            res        = 255;
+            res        = 0;
             use_insert = 1;
         } else {
-            res = sqlite3_column_int(get_outgoingref, 0);
+            res = sqlite3_column_int(get_outgoingref, 0) + 1;
         }
     }
 
     if (res >= 0) {
-        ++res;
         sqlite3_stmt* const outgoingref_stmt = use_insert ? put_outgoingref_stmt : set_outgoingref_stmt;
         SCOPED_STMT(outgoingref);
-        if (sqlite3_bind_int(outgoingref, 1, res) != SQLITE_OK) {
-            ast_log(LOG_WARNING, "Couldn't bind refid to stmt: %s\n", sqlite3_errmsg(smsdb));
-            res = -1;
-        } else if (sqlite3_bind_text(outgoingref, 2, ast_str_buffer(fullkey), ast_str_strlen(fullkey), SQLITE_STATIC) != SQLITE_OK) {
+        if (sqlite3_bind_text(outgoingref, 1, ast_str_buffer(fullkey), ast_str_strlen(fullkey), SQLITE_STATIC) != SQLITE_OK) {
             ast_log(LOG_WARNING, "Couldn't bind key to stmt: %s\n", sqlite3_errmsg(smsdb));
             res = -1;
         } else if (sqlite3_step(outgoingref) != SQLITE_DONE) {

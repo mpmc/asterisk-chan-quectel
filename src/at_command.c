@@ -25,7 +25,8 @@
 
 #include "at_queue.h"
 #include "chan_quectel.h" /* struct pvt */
-#include "char_conv.h"    /* char_to_hexstr_7bit() */
+#include "channel.h"
+#include "char_conv.h" /* char_to_hexstr_7bit() */
 #include "error.h"
 #include "pdu.h" /* build_pdu() */
 #include "smsdb.h"
@@ -575,6 +576,18 @@ int at_enqueue_sms(struct cpvt* cpvt, const char* destination, const char* msg, 
     } else {
         ast_verb(1, "[%s][SMS:%d] Message enqueued in %d parts\n", PVT_ID(pvt), uid, pdus_len);
     }
+
+    RAII_VAR(struct ast_json*, report, ast_json_object_create(), ast_json_unref);
+    ast_json_object_set(report, "info", ast_json_string_create("Message enqueued"));
+    ast_json_object_set(report, "uid", ast_json_integer_create(uid));
+    ast_json_object_set(report, "refid", ast_json_integer_create(csmsref));
+    if (!ast_strlen_zero(msg)) {
+        ast_json_object_set(report, "msg", ast_json_string_create(msg));
+    }
+    if (pdus_len > 1) {
+        ast_json_object_set(report, "parts", ast_json_integer_create(pdus_len));
+    }
+    start_local_report_channel(pvt, "sms", LOCAL_REPORT_DIRECTION_OUTGOING, destination, NULL, NULL, 1, report);
 
     return 0;
 }

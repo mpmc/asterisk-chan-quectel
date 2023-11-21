@@ -1330,14 +1330,23 @@ int queue_hangup(struct ast_channel* channel, int hangupcause)
     return ast_queue_hangup(channel);
 }
 
-void start_local_report_channel(struct pvt* pvt, const char* number, const char* ts, const char* dt, int success, const char report_type,
-                                struct ast_json* const report)
+void start_local_report_channel(struct pvt* pvt, const char* subject, local_report_direction direction, const char* number, const char* ts, const char* dt,
+                                int success, struct ast_json* const report)
 {
-    const char report_type_str[2] = {report_type, '\000'};
     RAII_VAR(struct ast_json*, rprt, ast_json_object_create(), ast_json_unref);
-    ast_json_object_set(rprt, "type", ast_json_string_create(report_type_str));
-    // ast_json_object_set(rprt, "success", ast_json_boolean(success));
-    ast_json_object_set(rprt, "success", ast_json_integer_create(!!success));
+    ast_json_object_set(rprt, "subject", ast_json_string_create(subject));
+    switch (direction) {
+        case LOCAL_REPORT_DIRECTION_INCOMING:
+            ast_json_object_set(rprt, "direction", ast_json_string_create("incoming"));
+            break;
+
+        case LOCAL_REPORT_DIRECTION_OUTGOING:
+            ast_json_object_set(rprt, "direction", ast_json_string_create("outgoing"));
+            break;
+
+        default:
+            break;
+    }
 
     if (!ast_strlen_zero(ts)) {
         ast_json_object_set(rprt, "ts", ast_json_string_create(ts));
@@ -1347,12 +1356,15 @@ void start_local_report_channel(struct pvt* pvt, const char* number, const char*
         ast_json_object_set(rprt, "dt", ast_json_string_create(dt));
     }
 
-    if (report) {
-        ast_json_object_set(rprt, "report", ast_json_copy(report));
-    }
+    // ast_json_object_set(rprt, "success", ast_json_boolean(success));
+    ast_json_object_set(rprt, "success", ast_json_integer_create(!!success));
 
     if (!ast_strlen_zero(number)) {
         ast_json_object_set(rprt, "number", ast_json_string_create(number));
+    }
+
+    if (report) {
+        ast_json_object_set(rprt, "report", ast_json_copy(report));
     }
 
     RAII_VAR(char*, jrprt, ast_json_dump_string(rprt), ast_json_free);
