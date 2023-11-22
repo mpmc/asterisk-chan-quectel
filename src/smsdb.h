@@ -5,9 +5,6 @@
 #ifndef CHAN_QUECTEL_SMSDB_H_INCLUDED
 #define CHAN_QUECTEL_SMSDB_H_INCLUDED
 
-#define SMSDB_PAYLOAD_MAX_LEN 4096
-#define SMSDB_DST_MAX_LEN 256
-
 int smsdb_init();
 void smsdb_atexit();
 int smsdb_put(const char* id, const char* addr, int ref, int parts, int order, const char* msg, struct ast_str** out);

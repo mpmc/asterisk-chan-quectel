@@ -570,14 +570,9 @@ static int pdiscovery_get_info(const char* port, const struct pdiscovery_request
         {1, 2}  // want_imei = 1
     };
 
-    int fail = 1;
-#ifdef USE_SYSV_UUCP_LOCKS
-    char* lock_file;
-
-    const int fd = opentty(port, &lock_file, 0);
-#else
+    int fail     = 1;
     const int fd = opentty(port, 0);
-#endif
+
     if (fd >= 0) {
         unsigned want_imei = req->imei && res->imei == NULL;  // 1 && 0
         unsigned want_imsi = req->imsi && res->imsi == NULL;  // 1 && 1
@@ -585,11 +580,7 @@ static int pdiscovery_get_info(const char* port, const struct pdiscovery_request
 
         /* clean queue first ? */
         fail = pdiscovery_do_cmd(req, fd, port, cmds[cmd].cmd, cmds[cmd].length, res);
-#ifdef USE_SYSV_UUCP_LOCKS
-        closetty(port, fd, &lock_file);
-#else
         closetty(port, fd);
-#endif
     }
 
     return fail;
@@ -616,21 +607,9 @@ static int pdiscovery_get_info_cached(const char* port, const struct pdiscovery_
 
 static int pdiscovery_read_info(const struct pdiscovery_request* req, struct pdiscovery_result* res)
 {
-    int fail          = 1;
     const char* dport = res->ports.ports[INTERFACE_TYPE_DATA];
+    const int fail    = pdiscovery_get_info_cached(dport, req, res);
 
-#ifdef USE_SYSV_UUCP_LOCKS
-    char* dlock;
-    int pid = lock_try(dport, &dlock);
-    if (!pid) {
-        fail = pdiscovery_get_info_cached(dport, req, res);
-        closetty(dport, -1, &dlock);
-    } else {
-        ast_debug(4, "[%s discovery] %s already used by process %d, skipped\n", req->name, dport, pid);
-    }
-#else
-    fail = pdiscovery_get_info_cached(dport, req, res);
-#endif
     return fail;
 }
 

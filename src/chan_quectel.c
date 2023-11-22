@@ -33,15 +33,12 @@
  * \ingroup channel_drivers
  */
 
-#include <sys/stat.h> /* S_IRUSR | S_IRGRP | S_IROTH */
-#ifndef USE_SYSV_UUCP_LOCKS
-#include <sys/file.h>
-#endif
-
 #include <fcntl.h>   /* O_RDWR O_NOCTTY */
 #include <pthread.h> /* pthread_t pthread_kill() pthread_join() */
 #include <signal.h>  /* SIGURG */
-#include <termios.h> /* struct termios tcgetattr() tcsetattr()  */
+#include <sys/file.h>
+#include <sys/stat.h> /* S_IRUSR | S_IRGRP | S_IROTH */
+#include <termios.h>  /* struct termios tcgetattr() tcsetattr()  */
 
 #include "ast_config.h"
 
@@ -52,21 +49,21 @@
 #include <asterisk/module.h> /* AST_MODULE_LOAD_DECLINE ... */
 #include <asterisk/stasis_channels.h>
 #include <asterisk/stringfields.h> /* AST_DECLARE_STRING_FIELDS for asterisk/manager.h */
-#include <asterisk/taskprocessor.h>
-#include <asterisk/threadpool.h>
-#include <asterisk/timing.h> /* ast_timer_open() ast_timer_fd() */
+#include <asterisk/timing.h>       /* ast_timer_open() ast_timer_fd() */
+
+#include "chan_quectel.h"
 
 #include "at_command.h" /* at_cmd2str() */
 #include "at_queue.h"   /* struct at_queue_task_cmd at_queue_head_cmd() */
 #include "at_read.h"
 #include "at_response.h" /* at_res_t */
-#include "chan_quectel.h"
-#include "channel.h" /* channel_queue_hangup() */
+#include "channel.h"     /* channel_queue_hangup() */
 #include "cli.h"
 #include "dc_config.h" /* dc_uconfig_fill() dc_gconfig_fill() dc_sconfig_fill()  */
 #include "errno.h"
 #include "error.h"
 #include "helpers.h"
+#include "monitor_thread.h"
 #include "mutils.h"     /* ITEMS_OF() */
 #include "pdiscovery.h" /* pdiscovery_lookup() pdiscovery_init() pdiscovery_fini() */
 #include "smsdb.h"
@@ -387,230 +384,7 @@ static int soundcard_init(struct pvt* pvt)
 
 static int public_state_init(struct public_state* state);
 
-/*!
- * Get status of the quectel. It might happen that the device disappears
- * (e.g. due to a USB unplug).
- *
- * \return 0 if device seems ok, non-0 if it seems not available
- */
-
-static int port_status(int fd, int* err)
-{
-    struct termios t;
-
-    if (fd < 0) {
-        if (err) {
-            *err = EINVAL;
-        }
-        return -1;
-    }
-
-    const int res = tcgetattr(fd, &t);
-    if (res) {
-        if (err) {
-            *err = errno;
-        }
-    }
-    return res;
-}
-
-static int is_snd_pcm_disconnected(snd_pcm_t* const pcm)
-{
-    const snd_pcm_state_t state = snd_pcm_state(pcm);
-    return (state == SND_PCM_STATE_DISCONNECTED);
-}
-
-static int alsa_status(const char* const pvt_id, snd_pcm_t* const pcm_playback, snd_pcm_t* const pcm_capture)
-{
-    if (is_snd_pcm_disconnected(pcm_playback) || is_snd_pcm_disconnected(pcm_capture)) {
-        return -1;
-    }
-
-    return 0;
-}
-
-#ifdef USE_SYSV_UUCP_LOCKS
-
-#/* return length of lockname */
-
-static int lock_build(const char* devname, char* buf, unsigned length)
-{
-    const char* basename;
-    char resolved_path[PATH_MAX];
-
-    /* follow symlinks */
-    if (realpath(devname, resolved_path) != NULL) {
-        devname = resolved_path;
-    }
-
-    basename = strrchr(devname, '/');
-    if (basename) {
-        basename++;
-    } else {
-        basename = devname;
-    }
-
-/* NOTE: use system system wide lock directory */
-#if defined(__FreeBSD__)
-    return snprintf(buf, length, "/var/spool/lock/LCK..%s", basename);
-#else
-    return snprintf(buf, length, "/var/lock/LCK..%s", basename);
-#endif
-}
-
-#/* return 0 on error */
-
-static int lock_create(const char* lockfile)
-{
-    int fd;
-    int len = 0;
-    char pidb[21];
-
-    fd = open(lockfile, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IRGRP | S_IROTH);
-    if (fd >= 0) {
-        /* NOTE: bg: i assume next open reuse same fd - not thread-safe */
-        len = snprintf(pidb, sizeof(pidb), "%d %d", getpid(), fd);
-        len = write(fd, pidb, len);
-        close(fd);
-    } else {
-        ast_log(LOG_ERROR, "open('%s') failed: %s\n", lockfile, strerror(errno));
-    }
-
-    return len;
-}
-
-#/* return pid of owner, 0 if free */
-
-int lock_try(const char* devname, char** lockname)
-{
-    int fd;
-    int len;
-    int pid = 0;
-    int assigned;
-    int fd2;
-    char name[1024];
-    char buffer[65];
-
-    lock_build(devname, name, sizeof(name));
-
-    /* FIXME: rise conditions: some time between lock check and got lock */
-    fd = open(name, O_RDONLY);
-    if (fd >= 0) {
-        len = read(fd, buffer, sizeof(buffer) - 1);
-        if (len > 0) {
-            buffer[len] = 0;
-            assigned    = sscanf(buffer, "%d %d", &len, &fd2);
-            if (assigned > 0 && !kill(len, 0)) {
-                if (len == getpid() && assigned > 1) {
-                    if (!port_status(fd2, NULL)) {
-                        pid = len;
-                    }
-                } else {
-                    pid = len;
-                }
-            }
-        }
-        close(fd);
-    }
-
-    if (pid == 0) {
-        unlink(name);
-        lock_create(name);
-        *lockname = ast_strdup(name);
-    }
-    return pid;
-}
-
-#/* */
-
-void closetty(const char* dev, int fd, char** lockfname)
-{
-    if (ioctl(fd, TIOCNXCL)) {
-        ast_log(LOG_WARNING, "ioctl(TIOCNXCL) failed for %s: %s\n", dev, strerror(errno));
-    }
-
-    close(fd);
-
-    /* remove lock */
-    unlink(*lockfname);
-    ast_free(*lockfname);
-    *lockfname = NULL;
-}
-
-int opentty(const char* dev, char** lockfile, int typ)
-{
-    int flags;
-    int pid;
-    int fd;
-    struct termios term_attr;
-    char buf[40];
-
-    pid = lock_try(dev, lockfile);
-    if (pid) {
-        ast_log(LOG_WARNING, "%s already used by process %d\n", dev, pid);
-        return -1;
-    }
-
-    fd = open(dev, O_RDWR | O_NOCTTY);
-    if (fd < 0) {
-        flags = errno;
-        closetty(dev, fd, lockfile);
-        snprintf(buf, sizeof(buf), "Open Failed\r\nErrorCode: %d", flags);
-        ast_log(LOG_WARNING, "unable to open %s: %s\n", dev, strerror(flags));
-        return -1;
-    }
-
-    /* Put the terminal into exclusive mode. All other open(2)s by
-     * non-root will fail with EBUSY. */
-    if (ioctl(fd, TIOCEXCL)) {
-        ast_log(LOG_WARNING, "ioctl(TIOCEXCL) failed for %s: %s\n", dev, strerror(errno));
-    }
-
-    flags = fcntl(fd, F_GETFD);
-    if (flags == -1 || fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1) {
-        flags = errno;
-        closetty(dev, fd, lockfile);
-        ast_log(LOG_WARNING, "fcntl(F_GETFD/F_SETFD) failed for %s: %s\n", dev, strerror(flags));
-        return -1;
-    }
-
-    if (tcgetattr(fd, &term_attr)) {
-        flags = errno;
-        closetty(dev, fd, lockfile);
-        ast_log(LOG_WARNING, "tcgetattr() failed for %s: %s\n", dev, strerror(flags));
-        return -1;
-    }
-
-    switch (typ) {
-        case 2:
-            term_attr.c_cflag = B115200 | CS8 | CREAD | CLOCAL;
-            break;
-
-        case 1:
-            term_attr.c_cflag = B115200 | CS8 | CREAD | CRTSCTS | CLOCAL;
-            break;
-
-        default:
-            term_attr.c_cflag = B115200 | CS8 | CREAD | CRTSCTS;
-            break;
-    }
-
-    term_attr.c_iflag     = 0;
-    term_attr.c_oflag     = 0;
-    term_attr.c_lflag     = 0;
-    term_attr.c_cc[VMIN]  = 1;
-    term_attr.c_cc[VTIME] = 0;
-
-    if (tcsetattr(fd, TCSAFLUSH, &term_attr)) {
-        ast_log(LOG_WARNING, "tcsetattr(TCSAFLUSH) failed for %s: %s\n", dev, strerror(errno));
-    }
-
-    return fd;
-}
-
-#else
-
-static void internal_closetty(const char* dev, int fd, int exclusive, int flck)
+void closetty_lck(const char* dev, int fd, int exclusive, int flck)
 {
     if (flck) {
         if (flock(fd, LOCK_UN | LOCK_NB) < 0) {
@@ -634,7 +408,7 @@ void closetty(const char* dev, int fd)
     if (fd < 0) {
         return;
     }
-    internal_closetty(dev, fd, 1, 1);
+    closetty_lck(dev, fd, 1, 1);
 }
 
 int opentty(const char* dev, int typ)
@@ -645,7 +419,7 @@ int opentty(const char* dev, int typ)
     fd = open(dev, O_RDWR | O_NOCTTY);
     if (fd < 0) {
         const int errno_save = errno;
-        internal_closetty(dev, fd, 0, 0);
+        closetty_lck(dev, fd, 0, 0);
         ast_log(LOG_WARNING, "Unable to open %s: %s\n", dev, strerror(errno_save));
         return -1;
     }
@@ -653,27 +427,27 @@ int opentty(const char* dev, int typ)
     int locking_status = 0;
     if (ioctl(fd, TIOCGEXCL, &locking_status) < 0) {
         const int errno_save = errno;
-        internal_closetty(dev, fd, 0, 0);
+        closetty_lck(dev, fd, 0, 0);
         ast_log(LOG_WARNING, "Unable to get locking status for %s: %s\n", dev, strerror(errno_save));
         return -1;
     }
 
     if (locking_status) {
-        internal_closetty(dev, fd, 0, 0);
+        closetty_lck(dev, fd, 0, 0);
         ast_verb(1, "Device %s locked.\n", dev);
         return -1;
     }
 
     if (ioctl(fd, TIOCEXCL) < 0) {
         const int errno_save = errno;
-        internal_closetty(dev, fd, 0, 0);
+        closetty_lck(dev, fd, 0, 0);
         ast_log(LOG_WARNING, "Unable to put %s into exclusive mode: %s\n", dev, strerror(errno_save));
         return -1;
     }
 
     if (flock(fd, LOCK_EX | LOCK_NB) < 0) {
         const int errno_save = errno;
-        internal_closetty(dev, fd, 1, 0);
+        closetty_lck(dev, fd, 1, 0);
         ast_log(LOG_WARNING, "Unable to flock %s: %s\n", dev, strerror(errno_save));
         return -1;
     }
@@ -681,14 +455,14 @@ int opentty(const char* dev, int typ)
     const int flags = fcntl(fd, F_GETFD);
     if (flags == -1 || fcntl(fd, F_SETFD, flags | FD_CLOEXEC) < 0) {
         const int errno_save = errno;
-        internal_closetty(dev, fd, 1, 1);
+        closetty_lck(dev, fd, 1, 1);
         ast_log(LOG_WARNING, "fcntl(F_GETFD/F_SETFD) failed for %s: %s\n", dev, strerror(errno_save));
         return -1;
     }
 
     if (tcgetattr(fd, &term_attr)) {
         const int errno_save = errno;
-        internal_closetty(dev, fd, 1, 1);
+        closetty_lck(dev, fd, 1, 1);
         ast_log(LOG_WARNING, "tcgetattr() failed for %s: %s\n", dev, strerror(errno_save));
         return -1;
     }
@@ -720,8 +494,6 @@ int opentty(const char* dev, int typ)
     return fd;
 }
 
-#endif
-
 static int pcm_close(snd_pcm_t** ad, snd_pcm_stream_t stream_type)
 {
     if (*ad == NULL) {
@@ -743,29 +515,9 @@ static int pcm_close(snd_pcm_t** ad, snd_pcm_stream_t stream_type)
     return res;
 }
 
-static int reopen_audio_port(struct pvt* pvt)
-{
-#ifdef USE_SYSV_UUCP_LOCKS
-    closetty(PVT_STATE(pvt, audio_tty), pvt->audio_fd, &pvt->alock);
-    pvt->audio_fd = opentty(PVT_STATE(pvt, audio_tty), &pvt->alock, pvt->is_simcom);
-#else
-    internal_closetty(PVT_STATE(pvt, audio_tty), pvt->audio_fd, 0, 0);
-    pvt->audio_fd = opentty(PVT_STATE(pvt, audio_tty), pvt->is_simcom);
-#endif
-
-    if (!PVT_NO_CHANS(pvt)) {
-        struct cpvt* cpvt;
-        AST_LIST_TRAVERSE(&(pvt->chans), cpvt, entry) {
-            ast_channel_set_fd(cpvt->channel, 0, pvt->audio_fd);
-        }
-    }
-
-    return (pvt->audio_fd > 0);
-}
-
 #/* phone monitor thread pvt cleanup */
 
-static void disconnect_quectel(struct pvt* pvt)
+void pvt_disconnect(struct pvt* pvt)
 {
     if (!PVT_NO_CHANS(pvt)) {
         struct cpvt* cpvt;
@@ -803,18 +555,10 @@ static void disconnect_quectel(struct pvt* pvt)
             pvt->ocard_channels = 0;
         }
     } else {
-#ifdef USE_SYSV_UUCP_LOCKS
-        closetty(PVT_STATE(pvt, audio_tty), pvt->audio_fd, &pvt->alock);
-#else
         closetty(PVT_STATE(pvt, audio_tty), pvt->audio_fd);
-#endif
     }
 
-#ifdef USE_SYSV_UUCP_LOCKS
-    closetty(PVT_STATE(pvt, data_tty), pvt->data_fd, &pvt->dlock);
-#else
     closetty(PVT_STATE(pvt, data_tty), pvt->data_fd);
-#endif
 
     pvt->data_fd  = -1;
     pvt->audio_fd = -1;
@@ -899,288 +643,6 @@ void clean_read_data(const char* devname, int fd, struct ringbuffer* const rb)
     }
 }
 
-static struct ast_threadpool* threadpool_create(const char* const dev)
-{
-    static const size_t TP_DEF_LEN = 32;
-    static const size_t TP_MAX_LEN = 512;
-
-    static const struct ast_threadpool_options options = {
-        .version = AST_THREADPOOL_OPTIONS_VERSION, .idle_timeout = 0, .auto_increment = 0, .initial_size = 1, .max_size = 1};
-
-    RAII_VAR(struct ast_str*, threadpool_name, ast_str_create(TP_DEF_LEN), ast_free);
-    ast_str_set(&threadpool_name, TP_MAX_LEN, "chan-quectel/%s", dev);
-    return ast_threadpool_create(ast_str_buffer(threadpool_name), NULL, &options);
-}
-
-static struct ast_taskprocessor* threadpool_serializer(struct ast_threadpool* pool, const char* const dev)
-{
-    char taskprocessor_name[AST_TASKPROCESSOR_MAX_NAME + 1];
-    ast_taskprocessor_build_name(taskprocessor_name, sizeof(taskprocessor_name), "chan-quectel/%s", dev);
-    return ast_threadpool_serializer(taskprocessor_name, pool);
-}
-
-static void handle_expired_reports(struct pvt* pvt)
-{
-    RAII_VAR(struct ast_str*, dst, ast_str_create(SMSDB_DST_MAX_LEN), ast_free);
-    RAII_VAR(struct ast_str*, msg, ast_str_create(SMSDB_DST_MAX_LEN), ast_free);
-
-    int uid;
-    const ssize_t res = smsdb_outgoing_purge_one(&uid, &dst, &msg);
-    if (res >= 0) {
-        ast_verb(3, "[%s][SMS:%d %s] Expired\n", PVT_ID(pvt), uid, ast_str_buffer(dst));
-        RAII_VAR(struct ast_json*, report, ast_json_object_create(), ast_json_unref);
-        ast_json_object_set(report, "info", ast_json_string_create("Message expired"));
-        ast_json_object_set(report, "uid", ast_json_integer_create(uid));
-        ast_json_object_set(report, "expired", ast_json_integer_create(1));
-        AST_JSON_OBJECT_SET(report, msg);
-        start_local_report_channel(pvt, "sms", LOCAL_REPORT_DIRECTION_OUTGOING, ast_str_buffer(dst), NULL, NULL, 0, report);
-    }
-}
-
-static int handle_expired_reports_taskproc(void* tpdata) { return pvt_taskproc_trylock_and_execute(tpdata, handle_expired_reports); }
-
-static void cmd_timeout(struct pvt* const pvt)
-{
-    if (!pvt->terminate_monitor) {
-        return;
-    }
-
-    const struct at_queue_cmd* const ecmd = at_queue_head_cmd(pvt);
-    if (!ecmd || ecmd->length) {
-        return;
-    }
-
-    if (at_response(pvt, &pvt->empty_str, RES_TIMEOUT)) {
-        ast_log(LOG_ERROR, "[%s] Fail to handle response\n", PVT_ID(pvt));
-        pvt->terminate_monitor = 1;
-        return;
-    }
-
-    if (ecmd->flags & ATQ_CMD_FLAG_IGNORE) {
-        return;
-    }
-
-    pvt->terminate_monitor = 1;
-}
-
-static int cmd_timeout_taskproc(void* tpdata) { return pvt_taskproc_trylock_and_execute(tpdata, cmd_timeout); }
-
-static int check_dev_status(struct pvt* const pvt)
-{
-    int err;
-    if (port_status(pvt->data_fd, &err)) {
-        ast_log(LOG_ERROR, "[%s][DATA] Lost connection: %s\n", PVT_ID(pvt), strerror(err));
-        return -1;
-    }
-
-    switch (CONF_UNIQ(pvt, uac)) {
-        case TRIBOOL_FALSE:
-            if (port_status(pvt->audio_fd, &err)) {
-                if (reopen_audio_port(pvt)) {
-                    ast_log(LOG_WARNING, "[%s][AUDIO][TTY] Lost connection: %s\n", PVT_ID(pvt), strerror(err));
-                } else {
-                    ast_log(LOG_ERROR, "[%s][AUDIO][TTY] Lost connection: %s\n", PVT_ID(pvt), strerror(err));
-                    return -1;
-                }
-            }
-            break;
-
-        case TRIBOOL_TRUE:
-            show_alsa_state(2, "PLAYBACK", PVT_ID(pvt), pvt->ocard);
-            show_alsa_state(2, "CAPTURE", PVT_ID(pvt), pvt->icard);
-            break;
-
-        case TRIBOOL_NONE:
-            show_alsa_state(2, "PLAYBACK", PVT_ID(pvt), pvt->ocard);
-            show_alsa_state(2, "CAPTURE", PVT_ID(pvt), pvt->icard);
-            if (alsa_status(PVT_ID(pvt), pvt->ocard, pvt->icard)) {
-                ast_log(LOG_ERROR, "[%s][AUDIO][ALSA] Lost connection\n", PVT_ID(pvt));
-                return -1;
-            }
-            break;
-    }
-    return 0;
-}
-
-/*!
- * \brief Check if the module is unloading.
- * \retval 0 not unloading
- * \retval 1 unloading
- */
-
-static void* do_monitor_phone(void* data)
-{
-    static const size_t RINGBUFFER_SIZE = 2 * 1024;
-    static const int DATA_READ_TIMEOUT  = 10000;
-
-    struct pvt* const pvt = (struct pvt*)data;
-    struct ringbuffer rb;
-
-    RAII_VAR(void* const, buf, ast_calloc(1, RINGBUFFER_SIZE), ast_free);
-    RAII_VAR(struct ast_str* const, result, ast_str_create(RINGBUFFER_SIZE), ast_free);
-
-    rb_init(&rb, buf, RINGBUFFER_SIZE);
-
-    ast_mutex_lock(&pvt->lock);
-    RAII_VAR(char* const, dev, ast_strdup(PVT_ID(pvt)), ast_free);
-
-    RAII_VAR(struct ast_threadpool*, threadpool, threadpool_create(dev), ast_threadpool_shutdown);
-    if (!threadpool) {
-        ast_log(LOG_ERROR, "[%s] Error initializing threadpool\n", dev);
-        goto e_cleanup;
-    }
-
-    RAII_VAR(struct ast_taskprocessor*, tps, threadpool_serializer(threadpool, dev), ast_taskprocessor_unreference);
-    if (!tps) {
-        ast_log(LOG_ERROR, "[%s] Error initializing taskprocessor\n", dev);
-        goto e_cleanup;
-    }
-
-    /* 4 reduce locking time make copy of this readonly fields */
-    const int fd = pvt->data_fd;
-    clean_read_data(dev, fd, &rb);
-
-    /* schedule initilization  */
-    if (at_enqueue_initialization(&pvt->sys_chan)) {
-        ast_log(LOG_ERROR, "[%s] Error adding initialization commands to queue\n", dev);
-        goto e_cleanup;
-    }
-
-    ast_mutex_unlock(&pvt->lock);
-
-    int read_result = 0;
-    while (1) {
-        if (ast_taskprocessor_push(tps, handle_expired_reports_taskproc, pvt)) {
-            ast_debug(5, "[%s] Unable to handle exprired reports\n", dev);
-        }
-
-        if (ast_mutex_trylock(&pvt->lock)) {  // pvt unlocked
-            int t = DATA_READ_TIMEOUT;
-            if (!at_wait(fd, &t)) {
-                if (ast_taskprocessor_push(tps, at_enqueue_ping_taskproc, pvt)) {
-                    ast_debug(5, "[%s] Unable to handle timeout\n", dev);
-                }
-                continue;
-            }
-        } else {  // pvt locked
-            if (check_dev_status(pvt)) {
-                goto e_cleanup;
-            }
-
-            if (pvt->terminate_monitor) {
-                ast_log(LOG_NOTICE, "[%s] Stopping by %s request\n", dev, dev_state2str(pvt->desired_state));
-                goto e_restart;
-            }
-
-            int t;
-            int is_cmd_timeout = 1;
-            if (at_queue_timeout(pvt, &t)) {
-                is_cmd_timeout = 0;
-            }
-
-            ast_mutex_unlock(&pvt->lock);
-
-            if (is_cmd_timeout) {
-                if (t < 0 || !at_wait(fd, &t)) {
-                    if (ast_taskprocessor_push(tps, cmd_timeout_taskproc, pvt)) {
-                        ast_debug(5, "[%s] Unable to handle timeout\n", dev);
-                    }
-                    continue;
-                }
-            } else {
-                t = DATA_READ_TIMEOUT;
-                if (!at_wait(fd, &t)) {
-                    if (ast_taskprocessor_push(tps, at_enqueue_ping_taskproc, pvt)) {
-                        ast_debug(5, "[%s] Unable to handle timeout\n", dev);
-                    }
-                    continue;
-                }
-            }
-        }
-
-        /* FIXME: access to device not locked */
-        int iovcnt = at_read(fd, dev, &rb);
-        if (iovcnt < 0) {
-            break;
-        }
-
-        if (!ast_mutex_trylock(&pvt->lock)) {
-            PVT_STAT(pvt, d_read_bytes) += iovcnt;
-            ast_mutex_unlock(&pvt->lock);
-        }
-
-        struct iovec iov[2];
-        size_t skip = 0u;
-
-        while ((iovcnt = at_read_result_iov(dev, &read_result, &skip, &rb, iov, result)) > 0) {
-            const size_t len = at_combine_iov(result, iov, iovcnt);
-            rb_read_upd(&rb, len + skip);
-            skip = 0u;
-            if (!len) {
-                continue;
-            }
-
-            at_response_taskproc_data* const tpdata = at_response_taskproc_data_alloc(pvt, result);
-            if (tpdata) {
-                if (ast_taskprocessor_push(tps, at_response_taskproc, tpdata)) {
-                    ast_log(LOG_ERROR, "[%s] Fail to handle response\n", dev);
-                    ast_free(tpdata);
-                    goto e_restart;
-                }
-            }
-        }
-    }
-
-    ast_mutex_lock(&pvt->lock);
-
-e_cleanup:
-    if (!pvt->initialized) {
-        // TODO: send monitor event
-        ast_verb(3, "[%s] Error initializing channel\n", dev);
-    }
-    /* it real, unsolicited disconnect */
-    pvt->terminate_monitor = 0;
-
-e_restart:
-    disconnect_quectel(pvt);
-    //	pvt->monitor_running = 0;
-    ast_mutex_unlock(&pvt->lock);
-
-    /* TODO: wakeup discovery thread after some delay */
-    return NULL;
-}
-
-static int start_monitor(struct pvt* pvt)
-{
-    if (ast_pthread_create_background(&pvt->monitor_thread, NULL, do_monitor_phone, pvt) < 0) {
-        pvt->monitor_thread = AST_PTHREADT_NULL;
-        return 0;
-    }
-
-    return 1;
-}
-
-#/* */
-
-static void pvt_stop(struct pvt* pvt)
-{
-    if (pvt->monitor_thread == AST_PTHREADT_NULL) {
-        return;
-    }
-
-    pvt->terminate_monitor = 1;
-    pthread_kill(pvt->monitor_thread, SIGURG);
-
-    {
-        const pthread_t id = pvt->monitor_thread;
-        SCOPED_LOCK(pvt_lock, &pvt->lock, ast_mutex_unlock, ast_mutex_lock);  // scoped UNlock
-        pthread_join(id, NULL);
-    }
-
-    pvt->terminate_monitor = 0;
-    pvt->monitor_thread    = AST_PTHREADT_NULL;
-}
-
 #/* called with pvt lock hold */
 
 static int pvt_discovery(struct pvt* pvt)
@@ -1236,7 +698,7 @@ static void pvt_start(struct pvt* pvt)
         return;
     }
 
-    pvt_stop(pvt);
+    pvt_monitor_stop(pvt);
 
     if (pvt_discovery(pvt)) {
         return;
@@ -1244,26 +706,19 @@ static void pvt_start(struct pvt* pvt)
 
     ast_verb(3, "[%s] Trying to connect on %s...\n", PVT_ID(pvt), PVT_STATE(pvt, data_tty));
 
-#ifdef USE_SYSV_UUCP_LOCKS
-    pvt->data_fd = opentty(PVT_STATE(pvt, data_tty), &pvt->dlock, (CONF_UNIQ(pvt, uac) == TRIBOOL_NONE) ? 2 : 0);
-#else
     pvt->data_fd = opentty(PVT_STATE(pvt, data_tty), (CONF_UNIQ(pvt, uac) == TRIBOOL_NONE) ? 2 : 0);
-#endif
     if (pvt->data_fd < 0) {
         return;
     }
+
     if (CONF_UNIQ(pvt, uac) > TRIBOOL_FALSE) {
         if (soundcard_init(pvt) < 0) {
-            disconnect_quectel(pvt);
+            pvt_disconnect(pvt);
             goto cleanup_datafd;
         }
     } else {
         // TODO: delay until device activate voice call or at pvt_on_create_1st_channel()
-#ifdef USE_SYSV_UUCP_LOCKS
-        pvt->audio_fd = opentty(PVT_STATE(pvt, audio_tty), &pvt->alock, pvt->is_simcom);
-#else
         pvt->audio_fd = opentty(PVT_STATE(pvt, audio_tty), pvt->is_simcom);
-#endif
         if (pvt->audio_fd < 0) {
             goto cleanup_datafd;
         }
@@ -1273,7 +728,7 @@ static void pvt_start(struct pvt* pvt)
         ast_format_cap_append_by_type(pvt->local_format_cap, AST_MEDIA_TYPE_TEXT);
     }
 
-    if (!start_monitor(pvt)) {
+    if (!pvt_monitor_start(pvt)) {
         if (CONF_UNIQ(pvt, uac) > TRIBOOL_FALSE) {
             goto cleanup_datafd;
         } else {
@@ -1301,19 +756,11 @@ static void pvt_start(struct pvt* pvt)
 
 cleanup_audiofd:
     if (pvt->audio_fd > 0) {
-#ifdef USE_SYSV_UUCP_LOCKS
-        closetty(PVT_STATE(pvt, audio_tty), pvt->audio_fd, &pvt->alock);
-#else
         closetty(PVT_STATE(pvt, audio_tty), pvt->audio_fd);
-#endif
     }
 
 cleanup_datafd:
-#ifdef USE_SYSV_UUCP_LOCKS
-    closetty(PVT_STATE(pvt, data_tty), pvt->data_fd, &pvt->dlock);
-#else
     closetty(PVT_STATE(pvt, data_tty), pvt->data_fd);
-#endif
 }
 
 #/* */
@@ -1332,7 +779,7 @@ static void pvt_free(struct pvt* pvt)
 static void pvt_destroy(struct pvt* pvt)
 {
     ast_mutex_lock(&pvt->lock);
-    pvt_stop(pvt);
+    pvt_monitor_stop(pvt);
     pvt_free(pvt);
 }
 
@@ -1358,7 +805,7 @@ static void* do_discovery(void* arg)
 
             switch (pvt->desired_state) {
                 case DEV_STATE_RESTARTED:
-                    pvt_stop(pvt);
+                    pvt_monitor_stop(pvt);
                     pvt->desired_state = DEV_STATE_STARTED;
                     /* fall through */
 
@@ -1367,12 +814,12 @@ static void* do_discovery(void* arg)
                     break;
 
                 case DEV_STATE_REMOVED:
-                    pvt_stop(pvt);
+                    pvt_monitor_stop(pvt);
                     pvt->must_remove = 1;
                     break;
 
                 case DEV_STATE_STOPPED:
-                    pvt_stop(pvt);
+                    pvt_monitor_stop(pvt);
                     break;
             }
         }

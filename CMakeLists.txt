@@ -148,7 +148,6 @@ IF(NOT DEFINED ASTERISK_VERSION_NUM)
 ENDIF()
 
 OPTION(ICONV_CONST "iconv() const declaration of input buffer" OFF)
-OPTION(USE_SYSV_UUCP_LOCKS "Use SYSV-style UUCP device locks" OFF)
 OPTION(PTIME_USE_DEFAULT "Use default framing" ON)
 SET(ICONV_T iconv_t CACHE STRING "iconv type")
 SET(AST_MODULE chan_quectel)

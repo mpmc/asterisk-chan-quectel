@@ -22,6 +22,7 @@ SET(SOURCES
     pdiscovery.c
     error.c
     smsdb.c
+    monitor_thread.c
 )
 
 SET(HEADERS
@@ -47,4 +48,5 @@ SET(HEADERS
     mutils.h
     gsm7_luts.h
     ast_config.h
+    monitor_thread.h
 )

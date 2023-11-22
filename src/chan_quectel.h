@@ -112,10 +112,6 @@ typedef struct pvt {
     unsigned int ocard_channels;
 
     int data_fd; /*!< data descriptor */
-#ifdef USE_SYSV_UUCP_LOCKS
-    char* alock; /*!< name of lockfile for audio */
-    char* dlock; /*!< name of lockfile for data */
-#endif
 
     struct ast_timer* a_timer;   /*!< audio write timer */
     void* silence_buf;           //[FRAME_SIZE_PLAYBACK * 2];
@@ -233,14 +229,11 @@ const struct ast_format* pvt_get_audio_format(const struct pvt* const);
 size_t pvt_get_audio_frame_size(unsigned int, const struct ast_format* const);
 void* pvt_get_silence_buffer(struct pvt* const);
 
-#ifdef USE_SYSV_UUCP_LOCKS
-int opentty(const char* dev, char** lockfile, int typ);
-void closetty(const char* dev, int fd, char** lockfname);
-int lock_try(const char* devname, char** lockname);
-#else
+void pvt_disconnect(struct pvt* pvt);
+
 int opentty(const char* dev, int typ);
+void closetty_lck(const char* dev, int fd, int exclusive, int flck);
 void closetty(const char* dev, int fd);
-#endif
 
 struct pvt* find_device_ex(struct public_state* state, const char* name);
 
