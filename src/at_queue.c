@@ -156,7 +156,7 @@ static void at_queue_remove_cmd(struct pvt* pvt, at_res_t res)
         task->cindex             = task->cmdsno;
         PVT_STATE(pvt, at_cmds) -= task->cmdsno;
 
-        if (task->cmds[0].res == res || (task->cmds[0].flags & ATQ_CMD_FLAG_IGNORE)) {
+        if (task->cmds[0].res == res || (task->cmds[0].flags & ATQ_CMD_FLAG_IGNORE) || res == RES_TIMEOUT) {
             at_queue_remove(pvt);
         }
     } else {
@@ -173,7 +173,7 @@ static void at_queue_remove_cmd(struct pvt* pvt, at_res_t res)
                       at_res2str(task->cmds[index].res), at_res2str(res), task->cindex, task->cmdsno, task->cmds[index].flags);
         }
 
-        if ((task->cindex >= task->cmdsno) || (task->cmds[index].res != res && !(task->cmds[index].flags & ATQ_CMD_FLAG_IGNORE))) {
+        if ((task->cindex >= task->cmdsno) || (task->cmds[index].res != res && !(task->cmds[index].flags & ATQ_CMD_FLAG_IGNORE)) || res == RES_TIMEOUT) {
             at_queue_remove(pvt);
         }
     }

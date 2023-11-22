@@ -21,16 +21,17 @@
 #include "helpers.h"
 #include "smsdb.h"
 
+static const int TASKPROCESSOR_HIGH_WATER = 400;
+
 static struct ast_threadpool* threadpool_create(const char* const dev)
 {
     static const size_t TP_DEF_LEN = 32;
-    static const size_t TP_MAX_LEN = 512;
 
     static const struct ast_threadpool_options options = {
-        .version = AST_THREADPOOL_OPTIONS_VERSION, .idle_timeout = 0, .auto_increment = 0, .initial_size = 1, .max_size = 1};
+        .version = AST_THREADPOOL_OPTIONS_VERSION, .idle_timeout = 600, .auto_increment = 1, .initial_size = 0, .max_size = 1};
 
     RAII_VAR(struct ast_str*, threadpool_name, ast_str_create(TP_DEF_LEN), ast_free);
-    ast_str_set(&threadpool_name, TP_MAX_LEN, "chan-quectel/%s", dev);
+    ast_str_set(&threadpool_name, 0, "chan-quectel/%s", dev);
     return ast_threadpool_create(ast_str_buffer(threadpool_name), NULL, &options);
 }
 
@@ -38,7 +39,21 @@ static struct ast_taskprocessor* threadpool_serializer(struct ast_threadpool* po
 {
     char taskprocessor_name[AST_TASKPROCESSOR_MAX_NAME + 1];
     ast_taskprocessor_build_name(taskprocessor_name, sizeof(taskprocessor_name), "chan-quectel/%s", dev);
-    return ast_threadpool_serializer(taskprocessor_name, pool);
+    struct ast_taskprocessor* const res = ast_threadpool_serializer(taskprocessor_name, pool);
+    if (res) {
+        ast_taskprocessor_alert_set_levels(res, -1, TASKPROCESSOR_HIGH_WATER);
+    }
+    return res;
+}
+
+static int check_taskprocessor(struct ast_taskprocessor* tps, const char* dev)
+{
+    const long size     = ast_taskprocessor_size(tps);
+    const int suspended = ast_taskprocessor_is_suspended(tps);
+    if (size || suspended) {
+        ast_log(LOG_WARNING, "[%s] Taskprocessor - size:%ld suspended:%d\n", dev, size, suspended);
+    }
+    return size >= TASKPROCESSOR_HIGH_WATER;
 }
 
 static void handle_expired_reports(struct pvt* pvt)
@@ -65,14 +80,14 @@ static void handle_expired_reports(struct pvt* pvt)
     start_local_report_channel(pvt, "sms", LOCAL_REPORT_DIRECTION_OUTGOING, ast_str_buffer(dst), NULL, NULL, 0, report);
 }
 
-static int handle_expired_reports_taskproc(void* tpdata) { return pvt_taskproc_trylock_and_execute(tpdata, handle_expired_reports); }
+static int handle_expired_reports_taskproc(void* tpdata) { return PVT_TASKPROC_TRYLOCK_AND_EXECUTE(tpdata, handle_expired_reports); }
+
+static void restart_monitor(struct pvt* pvt) { pvt->terminate_monitor = 1; }
+
+static int restart_monitor_taskproc(void* tpdata) { return PVT_TASKPROC_TRYLOCK_AND_EXECUTE(tpdata, restart_monitor); }
 
 static void cmd_timeout(struct pvt* const pvt)
 {
-    if (!pvt->terminate_monitor) {
-        return;
-    }
-
     const struct at_queue_cmd* const ecmd = at_queue_head_cmd(pvt);
     if (!ecmd || ecmd->length) {
         return;
@@ -91,7 +106,7 @@ static void cmd_timeout(struct pvt* const pvt)
     pvt->terminate_monitor = 1;
 }
 
-static int cmd_timeout_taskproc(void* tpdata) { return pvt_taskproc_trylock_and_execute(tpdata, cmd_timeout); }
+static int cmd_timeout_taskproc(void* tpdata) { return PVT_TASKPROC_TRYLOCK_AND_EXECUTE(tpdata, cmd_timeout); }
 
 /*!
  * Get status of the quectel. It might happen that the device disappears
@@ -189,8 +204,9 @@ static int check_dev_status(struct pvt* const pvt)
 
 static void monitor_threadproc_pvt(struct pvt* const pvt)
 {
-    static const size_t RINGBUFFER_SIZE = 2 * 1024;
-    static const int DATA_READ_TIMEOUT  = 10000;
+    static const size_t RINGBUFFER_SIZE        = 2 * 1024;
+    static const int DATA_READ_TIMEOUT         = 10000;
+    static const int UNHANDLED_COMMAND_TIMEOUT = 500;
 
     struct ringbuffer rb;
     RAII_VAR(void* const, buf, ast_calloc(1, RINGBUFFER_SIZE), ast_free);
@@ -258,7 +274,22 @@ static void monitor_threadproc_pvt(struct pvt* const pvt)
             ast_mutex_unlock(&pvt->lock);
 
             if (is_cmd_timeout) {
-                if (t < 0 || !at_wait(fd, &t)) {
+                if (t <= 0) {
+                    if (check_taskprocessor(tps, dev)) {
+                        if (ast_taskprocessor_push(tps, restart_monitor_taskproc, pvt)) {
+                            ast_debug(5, "[%s] Unable to restart monitor thread\n", dev);
+                        }
+                    }
+
+                    if (ast_taskprocessor_push(tps, cmd_timeout_taskproc, pvt)) {
+                        ast_debug(5, "[%s] Unable to handle timeout\n", dev);
+                    }
+
+                    t = UNHANDLED_COMMAND_TIMEOUT;
+                    if (!at_wait(fd, &t)) {
+                        continue;
+                    }
+                } else if (!at_wait(fd, &t)) {
                     if (ast_taskprocessor_push(tps, cmd_timeout_taskproc, pvt)) {
                         ast_debug(5, "[%s] Unable to handle timeout\n", dev);
                     }
@@ -267,6 +298,12 @@ static void monitor_threadproc_pvt(struct pvt* const pvt)
             } else {
                 t = DATA_READ_TIMEOUT;
                 if (!at_wait(fd, &t)) {
+                    if (check_taskprocessor(tps, dev)) {
+                        if (ast_taskprocessor_push(tps, restart_monitor_taskproc, pvt)) {
+                            ast_debug(5, "[%s] Unable to restart monitor thread\n", dev);
+                        }
+                    }
+
                     if (ast_taskprocessor_push(tps, at_enqueue_ping_taskproc, pvt)) {
                         ast_debug(5, "[%s] Unable to handle timeout\n", dev);
                     }
@@ -297,7 +334,7 @@ static void monitor_threadproc_pvt(struct pvt* const pvt)
                 continue;
             }
 
-            at_response_taskproc_data* const tpdata = at_response_taskproc_data_alloc(pvt, result);
+            struct at_response_taskproc_data* const tpdata = at_response_taskproc_data_alloc(pvt, result);
             if (tpdata) {
                 if (ast_taskprocessor_push(tps, at_response_taskproc, tpdata)) {
                     ast_log(LOG_ERROR, "[%s] Fail to handle response\n", dev);

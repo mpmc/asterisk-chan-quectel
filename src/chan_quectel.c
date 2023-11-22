@@ -1055,19 +1055,46 @@ void unlock_pvt(struct pvt* const pvt)
     ast_mutex_unlock(&pvt->lock);
 }
 
-int pvt_taskproc_trylock_and_execute(void* tpdata, void (*task_exe)(struct pvt* pvt))
+int pvt_taskproc_trylock_and_execute(struct pvt* pvt, void (*task_exe)(struct pvt* pvt), const char* task_name)
 {
-    if (!tpdata) {
+    if (!pvt) {
         return 0;
     }
-    struct pvt* const pvt = (struct pvt*)tpdata;
 
     if (ast_mutex_trylock(&pvt->lock)) {
+        ast_debug(4, "[%s] Task skipping: no lock\n", S_OR(task_name, "UNKNOWN"));
         return 0;
     }
 
+    if (pvt->terminate_monitor) {
+        ast_debug(5, "[%s][%s] Task skipping: monitor thread terminated\n", PVT_ID(pvt), S_OR(task_name, "UNKNOWN"));
+        ast_mutex_unlock(&pvt->lock);
+        return 0;
+    }
+
+    ast_debug(5, "[%s][%s] Task executing\n", PVT_ID(pvt), S_OR(task_name, "UNKNOWN"));
     task_exe(pvt);
+    ast_debug(6, "[%s][%s] Task executed\n", PVT_ID(pvt), S_OR(task_name, "UNKNOWN"));
     ast_mutex_unlock(&pvt->lock);
+    return 0;
+}
+
+int pvt_taskproc_lock_and_execute(struct pvt_taskproc_data* ptd, void (*task_exe)(struct pvt_taskproc_data* ptd), const char* task_name)
+{
+    if (!ptd || !ptd->pvt) {
+        return 0;
+    }
+
+    SCOPED_MUTEX(plock, &ptd->pvt->lock);
+
+    if (ptd->pvt->terminate_monitor) {
+        ast_debug(5, "[%s][%s] Task skipping: monitor thread terminated\n", PVT_ID(ptd->pvt), S_OR(task_name, "UNKNOWN"));
+        return 0;
+    }
+
+    ast_debug(5, "[%s][%s] Task executing\n", PVT_ID(ptd->pvt), S_OR(task_name, "UNKNOWN"));
+    task_exe(ptd);
+    ast_debug(6, "[%s][%s] Task executed\n", PVT_ID(ptd->pvt), S_OR(task_name, "UNKNOWN"));
     return 0;
 }
 

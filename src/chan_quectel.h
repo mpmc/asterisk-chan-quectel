@@ -248,7 +248,15 @@ static inline struct pvt* find_device_by_resource(const char* resource, int opts
     return find_device_by_resource_ex(gpublic, resource, opts, requestor, exists);
 }
 
-int pvt_taskproc_trylock_and_execute(void*, void (*task_exe)(struct pvt* pvt));
+int pvt_taskproc_trylock_and_execute(struct pvt* pvt, void (*task_exe)(struct pvt* pvt), const char* task_name);
+#define PVT_TASKPROC_TRYLOCK_AND_EXECUTE(p, t) pvt_taskproc_trylock_and_execute(p, t, #t)
+
+typedef struct pvt_taskproc_data {
+    struct pvt* pvt;
+} pvt_taskproc_data_t;
+
+int pvt_taskproc_lock_and_execute(struct pvt_taskproc_data* ptd, void (*task_exe)(struct pvt_taskproc_data* ptd), const char* task_name);
+#define PVT_TASKPROC_LOCK_AND_EXECUTE(p, t) pvt_taskproc_lock_and_execute(p, t, #t)
 
 struct ast_module* self_module();
 

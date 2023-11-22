@@ -208,15 +208,19 @@ static void __attribute__((format(printf, 7, 8))) at_ok_response_log(int level, 
         }                                                              \
     } while (0)
 
+#define at_ok_response_err(pvt, ecmd, ...) at_ok_response_log(LOG_ERROR, pvt, ecmd, __VA_ARGS__)
+#define at_ok_response_wrn(pvt, ecmd, ...) at_ok_response_log(LOG_WARNING, pvt, ecmd, __VA_ARGS__)
+#define at_ok_response_notice(pvt, ecmd, ...) at_ok_response_log(LOG_NOTICE, pvt, ecmd, __VA_ARGS__)
+
 static int at_response_ok(struct pvt* const pvt, const at_res_t at_res, const at_queue_task_t* const task, const at_queue_cmd_t* const ecmd)
 {
     if (!ecmd) {
-        at_ok_response_log(LOG_ERROR, pvt, ecmd, "Received unexpected [%s], ignoring", at_res2str(at_res));
+        at_ok_response_err(pvt, ecmd, "Received unexpected [%s], ignoring", at_res2str(at_res));
         return 0;
     }
 
     if (ecmd->res != at_res) {
-        at_ok_response_log(LOG_ERROR, pvt, ecmd, "Received unexpected [%s], ignoring", at_res2str(at_res));
+        at_ok_response_wrn(pvt, ecmd, "Received unexpected [%s], ignoring", at_res2str(at_res));
         return 0;
     }
 
@@ -402,7 +406,7 @@ static int at_response_ok(struct pvt* const pvt, const at_res_t at_res, const at
             } else if (cmd == CMD_AT_CNMA) {
                 at_ok_response_dbg(1, pvt, ecmd, "[SMS:%d] Message confirmed\n", safe_task_uid(task));
             } else {
-                at_ok_response_log(LOG_ERROR, pvt, ecmd, "Unexpected message text response");
+                at_ok_response_err(pvt, ecmd, "Unexpected message text response");
             }
             break;
         }
@@ -511,11 +515,11 @@ static int at_response_ok(struct pvt* const pvt, const at_res_t at_res, const at
             break;
 
         case CMD_AT_CPCMFRM_8K:
-            at_ok_response_log(LOG_NOTICE, pvt, ecmd, "Audio sample rate set to 8kHz");
+            at_ok_response_notice(pvt, ecmd, "Audio sample rate set to 8kHz");
             break;
 
         case CMD_AT_CPCMFRM_16K:
-            at_ok_response_log(LOG_NOTICE, pvt, ecmd, "Audio sample rate set to 16kHz");
+            at_ok_response_notice(pvt, ecmd, "Audio sample rate set to 16kHz");
             break;
 
         case CMD_AT_VTD:
@@ -539,7 +543,7 @@ static int at_response_ok(struct pvt* const pvt, const at_res_t at_res, const at
             break;
 
         default:
-            at_ok_response_log(LOG_ERROR, pvt, ecmd, "Unhandled command");
+            at_ok_response_err(pvt, ecmd, "Unhandled command");
             break;
     }
 
@@ -580,6 +584,9 @@ static void __attribute__((format(printf, 7, 8))) at_err_response_log(int level,
         }                                                               \
     } while (0)
 
+#define at_err_response_err(pvt, ecmd, ...) at_err_response_log(LOG_ERROR, pvt, ecmd, __VA_ARGS__)
+#define at_err_response_wrn(pvt, ecmd, ...) at_err_response_log(LOG_WARNING, pvt, ecmd, __VA_ARGS__)
+
 /*!
  * \brief Handle ERROR response
  * \param pvt -- pvt structure
@@ -590,12 +597,12 @@ static void __attribute__((format(printf, 7, 8))) at_err_response_log(int level,
 static int at_response_error(struct pvt* const pvt, const at_res_t at_res, const at_queue_task_t* const task, const at_queue_cmd_t* const ecmd)
 {
     if (!ecmd) {
-        at_err_response_log(LOG_ERROR, pvt, ecmd, "Received unexpected [%s], ignoring", at_res2str(at_res));
+        at_err_response_err(pvt, ecmd, "Received unexpected [%s], ignoring", at_res2str(at_res));
         return 0;
     }
 
     if (!(ecmd->res == RES_OK || ecmd->res == RES_SMS_PROMPT)) {
-        at_err_response_log(LOG_ERROR, pvt, ecmd, "Received unexpected [%s], ignoring", at_res2str(at_res));
+        at_err_response_err(pvt, ecmd, "Received unexpected [%s], ignoring", at_res2str(at_res));
         return 0;
     }
 
@@ -605,12 +612,12 @@ static int at_response_error(struct pvt* const pvt, const at_res_t at_res, const
         case CMD_AT_Z:
         case CMD_AT_E:
         case CMD_AT_CLCC:
-            at_err_response_log(LOG_ERROR, pvt, ecmd, NULL);
+            at_err_response_err(pvt, ecmd, NULL);
             /* mean disconnected from device */
             goto e_return;
 
         case CMD_AT_FINAL:
-            at_err_response_log(LOG_ERROR, pvt, ecmd, "Channel not initialized");
+            at_err_response_err(pvt, ecmd, "Channel not initialized");
             pvt->initialized = 0;
             goto e_return;
 
@@ -618,44 +625,44 @@ static int at_response_error(struct pvt* const pvt, const at_res_t at_res, const
         case CMD_AT_CCWA_SET:
         case CMD_AT_CCWA_STATUS:
         case CMD_AT_CNUM:
-            at_err_response_log(LOG_ERROR, pvt, ecmd, NULL);
+            at_err_response_err(pvt, ecmd, NULL);
             /* mean ignore error */
             break;
 
         case CMD_AT_CGMI:
-            at_err_response_log(LOG_ERROR, pvt, ecmd, "Unable to get manufacturer info");
+            at_err_response_err(pvt, ecmd, "Unable to get manufacturer info");
             goto e_return;
 
         case CMD_AT_CGMM:
-            at_err_response_log(LOG_ERROR, pvt, ecmd, "Unable to get model info");
+            at_err_response_err(pvt, ecmd, "Unable to get model info");
             goto e_return;
 
         case CMD_AT_CGMR:
-            at_err_response_log(LOG_ERROR, pvt, ecmd, "Unable to get firmware info");
+            at_err_response_err(pvt, ecmd, "Unable to get firmware info");
             goto e_return;
 
         case CMD_AT_CMEE:
-            at_err_response_log(LOG_ERROR, pvt, ecmd, "Fail to set verbosity level");
+            at_err_response_err(pvt, ecmd, "Fail to set verbosity level");
             goto e_return;
 
         case CMD_AT_CGSN:
-            at_err_response_log(LOG_ERROR, pvt, ecmd, "Unable to get IMEI number");
+            at_err_response_err(pvt, ecmd, "Unable to get IMEI number");
             goto e_return;
 
         case CMD_AT_CIMI:
-            at_err_response_log(LOG_ERROR, pvt, ecmd, "Unable to get IMSI number");
+            at_err_response_err(pvt, ecmd, "Unable to get IMSI number");
             goto e_return;
 
         case CMD_AT_CPIN:
-            at_err_response_log(LOG_ERROR, pvt, ecmd, "Error checking PIN state");
+            at_err_response_err(pvt, ecmd, "Error checking PIN state");
             goto e_return;
 
         case CMD_AT_COPS_INIT:
-            at_err_response_log(LOG_ERROR, pvt, ecmd, "Error setting operator select parameters");
+            at_err_response_err(pvt, ecmd, "Error setting operator select parameters");
             goto e_return;
 
         case CMD_AT_CREG_INIT:
-            at_err_response_log(LOG_ERROR, pvt, ecmd, "Error enabling registration info");
+            at_err_response_err(pvt, ecmd, "Error enabling registration info");
             goto e_return;
 
         case CMD_AT_CEREG_INIT:
@@ -705,7 +712,7 @@ static int at_response_error(struct pvt* const pvt, const at_res_t at_res, const
             break;
 
         case CMD_AT_CSSN:
-            at_err_response_log(LOG_ERROR, pvt, ecmd, "Unable to activate Supplementary Service Notifications");
+            at_err_response_err(pvt, ecmd, "Unable to activate Supplementary Service Notifications");
             goto e_return;
 
         case CMD_AT_CSCA:
@@ -717,22 +724,22 @@ static int at_response_error(struct pvt* const pvt, const at_res_t at_res, const
             break;
 
         case CMD_AT_CSCS:
-            at_err_response_log(LOG_ERROR, pvt, ecmd, "No UCS-2 encoding support");
+            at_err_response_err(pvt, ecmd, "No UCS-2 encoding support");
             goto e_return;
 
         case CMD_AT_A:
         case CMD_AT_CHLD_2x:
-            at_err_response_log(LOG_ERROR, pvt, ecmd, "Answer failed for call idx:%d", task->cpvt->call_idx);
+            at_err_response_err(pvt, ecmd, "Answer failed for call idx:%d", task->cpvt->call_idx);
             queue_hangup(task->cpvt->channel, AST_CAUSE_CALL_REJECTED);
             break;
 
         case CMD_AT_CHLD_3:
-            at_err_response_log(LOG_ERROR, pvt, ecmd, "Can't begin conference call idx:%d", task->cpvt->call_idx);
+            at_err_response_err(pvt, ecmd, "Can't begin conference call idx:%d", task->cpvt->call_idx);
             queue_hangup(task->cpvt->channel, AST_CAUSE_CALL_REJECTED);
             break;
 
         case CMD_AT_CLIR:
-            at_err_response_log(LOG_ERROR, pvt, ecmd, "Setting CLIR failed");
+            at_err_response_err(pvt, ecmd, "Setting CLIR failed");
             break;
 
         case CMD_AT_CHLD_2:
@@ -741,7 +748,7 @@ static int at_response_error(struct pvt* const pvt, const at_res_t at_res, const
             }
             /* fall through */
         case CMD_AT_D:
-            at_err_response_log(LOG_ERROR, pvt, ecmd, "Dial failed");
+            at_err_response_err(pvt, ecmd, "Dial failed");
             queue_control_channel(task->cpvt, AST_CONTROL_CONGESTION);
             break;
 
@@ -750,18 +757,18 @@ static int at_response_error(struct pvt* const pvt, const at_res_t at_res, const
                 at_err_response_dbg(3, pvt, ecmd, "Trying to activate audio stream again");
                 at_enqueue_cpcmreg(task->cpvt, 1);
             } else {
-                at_err_response_log(LOG_ERROR, pvt, ecmd, "Could not activate audio stream");
+                at_err_response_err(pvt, ecmd, "Could not activate audio stream");
             }
             break;
 
         case CMD_AT_CPCMREG0:
-            at_err_response_log(LOG_ERROR, pvt, ecmd, "Could not deactivate audio stream");
+            at_err_response_err(pvt, ecmd, "Could not deactivate audio stream");
             break;
 
         case CMD_AT_CHUP:
         case CMD_AT_QHUP:
         case CMD_AT_CHLD_1x:
-            at_err_response_log(LOG_ERROR, pvt, ecmd, "Error sending hangup for call idx:%d", task->cpvt->call_idx);
+            at_err_response_err(pvt, ecmd, "Error sending hangup for call idx:%d", task->cpvt->call_idx);
             break;
 
         case CMD_AT_CMGR:
@@ -771,11 +778,11 @@ static int at_response_error(struct pvt* const pvt, const at_res_t at_res, const
             break;
 
         case CMD_AT_CMGD:
-            at_err_response_log(LOG_ERROR, pvt, ecmd, "Error deleting message");
+            at_err_response_err(pvt, ecmd, "Error deleting message");
             break;
 
         case CMD_AT_CMGS:
-            at_err_response_log(LOG_ERROR, pvt, ecmd, "[SMS:%d] Error sending message", task->uid);
+            at_err_response_err(pvt, ecmd, "[SMS:%d] Error sending message", task->uid);
             at_response_cmgs_error(pvt, task);
             pvt_try_restate(pvt);
             break;
@@ -783,23 +790,23 @@ static int at_response_error(struct pvt* const pvt, const at_res_t at_res, const
         case CMD_AT_SMSTEXT: {
             const at_cmd_t cmd = task->cmds[0].cmd;
             if (cmd == CMD_AT_CMGS) {
-                at_err_response_log(LOG_ERROR, pvt, ecmd, "[SMS:%d] Error sending message", task->uid);
+                at_err_response_err(pvt, ecmd, "[SMS:%d] Error sending message", task->uid);
                 at_response_cmgs_error(pvt, task);
                 pvt_try_restate(pvt);
             } else if (cmd == CMD_AT_CNMA) {
-                at_err_response_log(LOG_ERROR, pvt, ecmd, "[SMS:%d] Cannot acknowledge message", task->uid);
+                at_err_response_err(pvt, ecmd, "[SMS:%d] Cannot acknowledge message", task->uid);
             } else {
-                at_err_response_log(LOG_ERROR, pvt, ecmd, "Unexpected SMS text prompt");
+                at_err_response_err(pvt, ecmd, "Unexpected SMS text prompt");
             }
             break;
         }
 
         case CMD_ESC:
-            at_err_response_log(LOG_ERROR, pvt, ecmd, "Cannot acknowledge message");
+            at_err_response_err(pvt, ecmd, "Cannot acknowledge message");
             break;
 
         case CMD_AT_DTMF:
-            at_err_response_log(LOG_ERROR, pvt, ecmd, "Error sending DTMF");
+            at_err_response_err(pvt, ecmd, "Error sending DTMF");
             break;
 
         case CMD_AT_COPS:
@@ -821,7 +828,7 @@ static int at_response_error(struct pvt* const pvt, const at_res_t at_res, const
 
         case CMD_AT_CUSD:
             ast_verb(3, "[%s] Error sending USSD %p\n", PVT_ID(pvt), task);
-            at_err_response_log(LOG_ERROR, pvt, ecmd, "Error sending USSD %p", task);
+            at_err_response_err(pvt, ecmd, "Error sending USSD %p", task);
             break;
 
         case CMD_AT_CMUT_0:
@@ -833,37 +840,37 @@ static int at_response_error(struct pvt* const pvt, const at_res_t at_res, const
             break;
 
         case CMD_AT_QPCMV_0:
-            at_err_response_log(LOG_WARNING, pvt, ecmd, "Cannot disable UAC");
+            at_err_response_wrn(pvt, ecmd, "Cannot disable UAC");
             break;
 
         case CMD_AT_QPCMV_TTY:
-            at_err_response_log(LOG_WARNING, pvt, ecmd, "Cannot enable audio on serial port");
+            at_err_response_wrn(pvt, ecmd, "Cannot enable audio on serial port");
             break;
 
         case CMD_AT_QPCMV_UAC:
-            at_err_response_log(LOG_WARNING, pvt, ecmd, "Cannot enable UAC");
+            at_err_response_wrn(pvt, ecmd, "Cannot enable UAC");
             break;
 
         case CMD_AT_QTONEDET_0:
         case CMD_AT_DDET_0:
-            at_err_response_log(LOG_WARNING, pvt, ecmd, "Cannot disable tone detection");
+            at_err_response_wrn(pvt, ecmd, "Cannot disable tone detection");
             break;
 
         case CMD_AT_QTONEDET_1:
         case CMD_AT_DDET_1:
-            at_err_response_log(LOG_WARNING, pvt, ecmd, "Cannot enable tone detection");
+            at_err_response_wrn(pvt, ecmd, "Cannot enable tone detection");
             break;
 
         case CMD_AT_QMIC:
         case CMD_AT_QRXGAIN:
         case CMD_AT_COUTGAIN:
         case CMD_AT_CMICGAIN:
-            at_err_response_log(LOG_WARNING, pvt, ecmd, "Cannot update TX/RG gain");
+            at_err_response_wrn(pvt, ecmd, "Cannot update TX/RG gain");
             break;
 
         case CMD_AT_CTXVOL:
         case CMD_AT_CRXVOL:
-            at_err_response_log(LOG_WARNING, pvt, ecmd, "Cannot update TX/RG volume");
+            at_err_response_wrn(pvt, ecmd, "Cannot update TX/RG volume");
             break;
 
         case CMD_AT_CMGL:
@@ -871,36 +878,36 @@ static int at_response_error(struct pvt* const pvt, const at_res_t at_res, const
             break;
 
         case CMD_AT_CNMA:
-            at_err_response_log(LOG_WARNING, pvt, ecmd, "Cannot confirm message reception");
+            at_err_response_wrn(pvt, ecmd, "Cannot confirm message reception");
             break;
 
         case CMD_AT_CSMS:
-            at_err_response_log(LOG_WARNING, pvt, ecmd, "Message service channel not configured");
+            at_err_response_wrn(pvt, ecmd, "Message service channel not configured");
             break;
 
         case CMD_AT_QAUDLOOP:
-            at_err_response_log(LOG_WARNING, pvt, ecmd, "Audio loop not configured");
+            at_err_response_wrn(pvt, ecmd, "Audio loop not configured");
             break;
 
         case CMD_AT_QAUDMOD:
-            at_err_response_log(LOG_WARNING, pvt, ecmd, "Audio mode not configured");
+            at_err_response_wrn(pvt, ecmd, "Audio mode not configured");
             break;
 
         case CMD_AT_CNSMOD_0:
-            at_err_response_log(LOG_WARNING, pvt, ecmd, "Could not disable network mode notifications");
+            at_err_response_wrn(pvt, ecmd, "Could not disable network mode notifications");
             break;
 
         case CMD_AT_CNSMOD_1:
-            at_err_response_log(LOG_WARNING, pvt, ecmd, "Could not enable network mode notifications");
+            at_err_response_wrn(pvt, ecmd, "Could not enable network mode notifications");
             break;
 
         case CMD_AT_CPCMFRM_8K:
         case CMD_AT_CPCMFRM_16K:
-            at_err_response_log(LOG_WARNING, pvt, ecmd, "Could not set audio sample rate");
+            at_err_response_wrn(pvt, ecmd, "Could not set audio sample rate");
             break;
 
         case CMD_AT_VTD:
-            at_err_response_log(LOG_WARNING, pvt, ecmd, "Could not set tone duration");
+            at_err_response_wrn(pvt, ecmd, "Could not set tone duration");
             break;
 
         case CMD_AT_CCID:
@@ -909,14 +916,14 @@ static int at_response_error(struct pvt* const pvt, const at_res_t at_res, const
 
         case CMD_AT_CICCID:
         case CMD_AT_QCCID:
-            at_err_response_log(LOG_WARNING, pvt, ecmd, "Could not get ICCID");
+            at_err_response_wrn(pvt, ecmd, "Could not get ICCID");
             break;
 
         case CMD_USER:
             break;
 
         default:
-            at_err_response_log(LOG_ERROR, pvt, ecmd, "Unhandled command");
+            at_err_response_err(pvt, ecmd, "Unhandled command");
             break;
     }
 
@@ -3034,43 +3041,37 @@ int at_response(struct pvt* const pvt, const struct ast_str* const response, con
     return 0;
 }
 
-at_response_taskproc_data* at_response_taskproc_data_alloc(struct pvt* const pvt, const struct ast_str* const response)
+struct at_response_taskproc_data* at_response_taskproc_data_alloc(struct pvt* const pvt, const struct ast_str* const response)
 {
     const size_t response_len = ast_str_strlen(response);
 
-    at_response_taskproc_data* const res = ast_calloc(1, sizeof(at_response_taskproc_data) + response_len + 1u);
-    res->pvt                             = pvt;
-    res->response.__AST_STR_LEN          = response_len + 1u;
-    res->response.__AST_STR_USED         = response_len;
-    res->response.__AST_STR_TS           = DS_STATIC;
+    struct at_response_taskproc_data* const res = ast_calloc(1, sizeof(struct at_response_taskproc_data) + response_len + 1u);
+    res->ptd.pvt                                = pvt;
+    res->response.__AST_STR_LEN                 = response_len + 1u;
+    res->response.__AST_STR_USED                = response_len;
+    res->response.__AST_STR_TS                  = DS_STATIC;
     ast_copy_string(ast_str_buffer(&res->response), ast_str_buffer(response), response_len + 1u);
     return res;
 }
 
-int at_response_taskproc(void* _tpdata)
+static void response_taskproc(struct pvt_taskproc_data* ptd)
 {
-    RAII_VAR(at_response_taskproc_data* const, tpdata, _tpdata, ast_free);
+    RAII_VAR(struct at_response_taskproc_data* const, rtd, (struct at_response_taskproc_data*)ptd, ast_free);
 
-    const at_res_t at_res = at_str2res(&tpdata->response);
+    const at_res_t at_res = at_str2res(&rtd->response);
     if (at_res != RES_UNKNOWN) {
-        ast_str_trim_blanks(&tpdata->response);
+        ast_str_trim_blanks(&rtd->response);
     }
 
-    SCOPED_MUTEX(plock, &tpdata->pvt->lock);
-
-    PVT_STAT(tpdata->pvt, at_responses)++;
-    if (at_response(tpdata->pvt, &tpdata->response, at_res)) {
-        ast_log(LOG_ERROR, "[%s] Fail to handle response\n", PVT_ID(tpdata->pvt));
+    PVT_STAT(rtd->ptd.pvt, at_responses)++;
+    if (at_response(rtd->ptd.pvt, &rtd->response, at_res)) {
+        ast_log(LOG_WARNING, "[%s] Fail to handle response\n", PVT_ID(rtd->ptd.pvt));
     }
 
-    if (tpdata->pvt->terminate_monitor) {
-        return 0;
+    if (at_queue_run(rtd->ptd.pvt)) {
+        ast_log(LOG_ERROR, "[%s] Fail to run command from queue\n", PVT_ID(rtd->ptd.pvt));
+        rtd->ptd.pvt->terminate_monitor = 1;
     }
-
-    if (at_queue_run(tpdata->pvt)) {
-        ast_log(LOG_ERROR, "[%s] Fail to run command from queue\n", PVT_ID(tpdata->pvt));
-        tpdata->pvt->terminate_monitor = 1;
-    }
-
-    return 0;
 }
+
+int at_response_taskproc(void* tpdata) { return PVT_TASKPROC_LOCK_AND_EXECUTE(tpdata, response_taskproc); }

@@ -7,6 +7,8 @@
 struct pvt;
 struct iovec;
 
+#include "chan_quectel.h"
+
 /* AT_RESPONSES_TABLE */
 #define AT_RES_AS_ENUM(res, desc, str) RES_##res,
 #define AT_RES_AS_STRUCTLIST(res, desc, str) {RES_##res, desc, str, (sizeof(str) - 1)},
@@ -137,11 +139,11 @@ const char* at_res2str(at_res_t res);
 int at_response(struct pvt* const pvt, const struct ast_str* const response, const at_res_t at_res);
 
 typedef struct at_response_taskproc_data {
-    struct pvt* pvt;
+    struct pvt_taskproc_data ptd;
     struct ast_str response;
-} at_response_taskproc_data;
+} at_response_taskproc_data_t;
 
-at_response_taskproc_data* at_response_taskproc_data_alloc(struct pvt* const pvt, const struct ast_str* const response);
-int at_response_taskproc(void* _tpdata);
+struct at_response_taskproc_data* at_response_taskproc_data_alloc(struct pvt* const pvt, const struct ast_str* const response);
+int at_response_taskproc(void* tpdata);
 
 #endif /* CHAN_QUECTEL_AT_RESPONSE_H_INCLUDED */
