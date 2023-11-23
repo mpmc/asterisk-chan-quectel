@@ -14,5 +14,6 @@ ssize_t smsdb_outgoing_clear(int uid, struct ast_str** dst, struct ast_str** msg
 ssize_t smsdb_outgoing_part_put(int uid, int refid, struct ast_str** dst, struct ast_str** msg);
 ssize_t smsdb_outgoing_part_status(const char* id, const char* addr, int mr, int st, int* status_all);
 ssize_t smsdb_outgoing_purge_one(int* uid, struct ast_str** dst, struct ast_str** msg);
+int smsdb_vacuum_into(const char* backup_file);
 
 #endif

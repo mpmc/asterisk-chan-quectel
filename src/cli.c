@@ -656,6 +656,20 @@ static char* cli_sms_direct_auto(struct ast_cli_entry* e, int cmd, struct ast_cl
 
 CLI_ALIASES(cli_sms_direct_auto, "sms direct auto", "sms direct auto <device>", "Receive messages from <device> in a way specified in configuration")
 
+static char* cli_sms_db_backup(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
+{
+    if (a->argc < 4) {
+        return CLI_SHOWUSAGE;
+    }
+
+    const int res = smsdb_backup();
+    ast_cli(a->fd, "%s\n", res ? "Backup of SMS database created" : "Cannot create backup of SMS database");
+
+    return CLI_SUCCESS;
+}
+
+CLI_ALIASES(cli_sms_db_backup, "sms db backup", "sms db backup", "Backup SMS database")
+
 typedef const char* const* ast_cli_complete2_t;
 
 static char* cli_ccwa_set(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
@@ -1153,6 +1167,7 @@ static struct ast_cli_entry cli[] = {
 	CLI_DEF_ENTRIES(cli_sms_direct_on,				"Receive messages directly")
 	CLI_DEF_ENTRIES(cli_sms_direct_off,				"Receive messages indirectly")
 	CLI_DEF_ENTRIES(cli_sms_direct_auto,			"Receive messages in a way specified in configuration")
+    CLI_DEF_ENTRIES(cli_sms_db_backup,			    "Backup SMS database")
 
 	CLI_DEF_ENTRIES(cli_ccwa_set,				"Enable/Disable Call-Waiting")
 	CLI_DEF_ENTRIES(cli_reset,					"Reset modem")

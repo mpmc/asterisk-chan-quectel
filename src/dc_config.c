@@ -301,6 +301,7 @@ void dc_gconfig_fill(struct ast_config* cfg, const char* cat, struct dc_gconfig*
 {
     config->discovery_interval = DEFAULT_DISCOVERY_INT;
     ast_copy_string(config->sms_db, DEFAULT_SMS_DB, sizeof(config->sms_db));
+    ast_copy_string(config->sms_backup_db, DEFAULT_SMS_BACKUP_DB, sizeof(config->sms_backup_db));
     config->csms_ttl = DEFAULT_CSMS_TTL;
 
     const char* const stmp = ast_variable_retrieve(cfg, cat, "interval");
@@ -317,6 +318,11 @@ void dc_gconfig_fill(struct ast_config* cfg, const char* cat, struct dc_gconfig*
     const char* const smsdb = ast_variable_retrieve(cfg, cat, "smsdb");
     if (smsdb) {
         ast_copy_string(config->sms_db, smsdb, sizeof(config->sms_db));
+    }
+
+    const char* const smsdb_backup = ast_variable_retrieve(cfg, cat, "smsdb_backup");
+    if (smsdb_backup) {
+        ast_copy_string(config->sms_backup_db, smsdb_backup, sizeof(config->sms_backup_db));
     }
 
     const char* const csmsttl = ast_variable_retrieve(cfg, cat, "csmsttl");

@@ -17,6 +17,7 @@ int send_sms(const char* const dev_name, const char* const number, const char* c
 int list_sms(const char* const dev_name, enum msg_status_t stat);
 int delete_sms(const char* const dev_name, unsigned int idx, int delflag);
 int sms_direct(const char* const dev_name, int directflag);
+int smsdb_backup();
 int send_reset(const char* dev_name);
 int send_ccwa_set(const char* dev_name, call_waiting_t enable);
 int query_qaudloop(const char* dev_name);

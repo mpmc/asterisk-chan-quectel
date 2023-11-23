@@ -19,6 +19,7 @@
 #include "at_command.h"
 #include "chan_quectel.h" /* devices */
 #include "error.h"
+#include "smsdb.h"
 
 // #include "pdu.h"				/* pdu_digit2code() */
 
@@ -185,6 +186,24 @@ int sms_direct(const char* const dev_name, int directflag)
 
     const int res = at_enqueue_msg_direct(&pvt->sys_chan, CONF_SHARED(pvt, msg_direct) > 0);
     return res;
+}
+
+int smsdb_backup()
+{
+    static const size_t FN_DEF_LEN = 64;
+
+    if (ast_strlen_zero(CONF_GLOBAL(sms_backup_db))) {
+        return 0;
+    }
+
+    RAII_VAR(struct ast_str*, backup_file, ast_str_create(FN_DEF_LEN), ast_free);
+    ast_str_set(&backup_file, 0, "%s.sqlite3", CONF_GLOBAL(sms_backup_db));
+
+    if (smsdb_vacuum_into(ast_str_buffer(backup_file))) {
+        return 0;
+    }
+
+    return 1;
 }
 
 #/* */
