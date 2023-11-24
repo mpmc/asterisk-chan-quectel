@@ -420,7 +420,6 @@ static char* cli_sms_send(struct ast_cli_entry* e, int cmd, struct ast_cli_args*
     static const int DEF_VALIDITY    = 15;
     static const int DEF_REPORT      = 1;
     static const ssize_t MSG_DEF_LEN = 160;
-    static const ssize_t MSG_MAX_LEN = MSG_DEF_LEN * 255;
 
     switch (cmd) {
         case CLI_GENERATE:
@@ -438,9 +437,9 @@ static char* cli_sms_send(struct ast_cli_entry* e, int cmd, struct ast_cli_args*
 
     for (int i = 5; i < a->argc; ++i) {
         if (i < (a->argc - 1)) {
-            ast_str_append(&buf, MSG_MAX_LEN, "%s ", a->argv[i]);
+            ast_str_append(&buf, 0, "%s ", a->argv[i]);
         } else {
-            ast_str_append(&buf, MSG_MAX_LEN, "%s", a->argv[i]);
+            ast_str_append(&buf, 0, "%s", a->argv[i]);
         }
     }
 

@@ -34,7 +34,6 @@
 #include "chan_quectel.h"
 
 static const size_t DBKEY_DEF_LEN = 32;
-static const size_t DBKEY_MAX_LEN = 256;
 
 #define DEFINE_SQL_STATEMENT(s, sql)      \
     static sqlite3_stmt* s##_stmt = NULL; \
@@ -339,7 +338,7 @@ int smsdb_put(const char* id, const char* addr, int ref, int parts, int order, c
     int ttl = CONF_GLOBAL(csms_ttl);
 
     RAII_VAR(struct ast_str*, fullkey, ast_str_create(DBKEY_DEF_LEN), ast_free);
-    const int fullkey_len = ast_str_set(&fullkey, DBKEY_MAX_LEN, "%s/%s/%d/%d", id, addr, ref, parts);
+    const int fullkey_len = ast_str_set(&fullkey, 0, "%s/%s/%d/%d", id, addr, ref, parts);
     if (fullkey_len < 0) {
         ast_log(LOG_ERROR, "Fail to create key\n");
         return -1;
@@ -413,7 +412,7 @@ int smsdb_get_refid(const char* id, const char* addr)
     SCOPED_TRANSACTION(dbtrans);
     RAII_VAR(struct ast_str*, fullkey, ast_str_create(DBKEY_DEF_LEN), ast_free);
 
-    const int fullkey_len = ast_str_set(&fullkey, DBKEY_MAX_LEN, "%s/%s", id, addr);
+    const int fullkey_len = ast_str_set(&fullkey, 0, "%s/%s", id, addr);
     if (fullkey_len < 0) {
         ast_log(LOG_ERROR, "Fail to create key\n");
         return -1;
@@ -554,7 +553,7 @@ ssize_t smsdb_outgoing_part_put(int uid, int refid, struct ast_str** dst, struct
             const char* dev       = (const char*)sqlite3_column_text(get_outgoingmsg_key, 0);
             const char* dst       = (const char*)sqlite3_column_text(get_outgoingmsg_key, 1);
             srr                   = sqlite3_column_int(get_outgoingmsg_key, 2);
-            const int fullkey_len = ast_str_set(&fullkey, DBKEY_MAX_LEN, "%s/%s/%d", dev, dst, refid);
+            const int fullkey_len = ast_str_set(&fullkey, 0, "%s/%s/%d", dev, dst, refid);
             if (fullkey_len < 0) {
                 ast_log(LOG_ERROR, "Unable to create key\n");
                 res = -3;
@@ -624,7 +623,7 @@ ssize_t smsdb_outgoing_part_status(const char* id, const char* addr, int mr, int
     int res = 0, partid, uid;
 
     RAII_VAR(struct ast_str*, fullkey, ast_str_create(DBKEY_DEF_LEN), ast_free);
-    const int fullkey_len = ast_str_set(&fullkey, DBKEY_MAX_LEN, "%s/%s/%d", id, addr, mr);
+    const int fullkey_len = ast_str_set(&fullkey, 0, "%s/%s/%d", id, addr, mr);
     if (fullkey_len < 0) {
         ast_log(LOG_ERROR, "Key length must be less than %zu bytes\n", sizeof(fullkey));
         return -1;

@@ -466,7 +466,7 @@ int str2gain(const char* s, int* gain)
 struct ast_str* const gain2str(int gain)
 {
     struct ast_str* res = ast_str_create(5);
-    ast_str_set(&res, 5, "%.0f%%", gain * 100.0f / MAX_GAIN_F);
+    ast_str_set(&res, 0, "%.0f%%", gain * 100.0f / MAX_GAIN_F);
     return res;
 }
 
@@ -515,7 +515,7 @@ int str2gain_simcom(const char* s, int* gain)
 struct ast_str* const gain2str_simcom(int gain)
 {
     struct ast_str* res = ast_str_create(5);
-    ast_str_set(&res, 5, "%.0f%%", gain * 100.0f / MAX_GAIN_SIMCOM_F);
+    ast_str_set(&res, 0, "%.0f%%", gain * 100.0f / MAX_GAIN_SIMCOM_F);
     return res;
 }
 

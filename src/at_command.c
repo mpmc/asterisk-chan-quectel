@@ -58,11 +58,10 @@ const char* at_cmd2str(at_cmd_t cmd)
 static int __attribute__((format(printf, 2, 0))) at_fill_generic_cmd_va(at_queue_cmd_t* cmd, const char* format, va_list ap)
 {
     static const ssize_t AT_CMD_DEF_LEN = 32;
-    static const ssize_t AT_CMD_MAX_LEN = 4096;
 
     RAII_VAR(struct ast_str*, cmdstr, ast_str_create(AT_CMD_DEF_LEN), ast_free);
 
-    ast_str_set_va(&cmdstr, AT_CMD_MAX_LEN, format, ap);
+    ast_str_set_va(&cmdstr, 0, format, ap);
     const size_t cmdlen = ast_str_strlen(cmdstr);
 
     if (!cmdlen) {
@@ -601,7 +600,6 @@ int at_enqueue_sms(struct cpvt* cpvt, const char* destination, const char* msg, 
 int at_enqueue_ussd(struct cpvt* cpvt, const char* code, int gsm7)
 {
     static const size_t USSD_DEF_LEN = 64;
-    static const size_t USSD_MAX_LEN = 4096;
 
     static const char at_cmd[]     = "AT+CUSD=1,\"";
     static const char at_cmd_end[] = "\",15\r";
@@ -612,7 +610,7 @@ int at_enqueue_ussd(struct cpvt* cpvt, const char* code, int gsm7)
         return -1;
     }
 
-    ast_str_append(&buf, USSD_MAX_LEN, at_cmd);
+    ast_str_append(&buf, 0, at_cmd);
 
     const size_t code_len = strlen(code);
 
@@ -660,7 +658,7 @@ int at_enqueue_ussd(struct cpvt* cpvt, const char* code, int gsm7)
     }
 
     ast_str_update(buf);
-    ast_str_append(&buf, USSD_MAX_LEN, at_cmd_end);
+    ast_str_append(&buf, 0, at_cmd_end);
 
     at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_CUSD);
 

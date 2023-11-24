@@ -1380,10 +1380,9 @@ void start_local_report_channel(struct pvt* pvt, const char* subject, local_repo
 void start_local_channel(struct pvt* pvt, const char* exten, const char* number, const channel_var_t* vars)
 {
     static const ssize_t CN_DEF_LEN = 64;
-    static const ssize_t CN_MAX_LEN = 1024;
 
     RAII_VAR(struct ast_str*, channel_name, ast_str_create(CN_DEF_LEN), ast_free);
-    ast_str_set(&channel_name, CN_MAX_LEN, "%s@%s", exten, CONF_SHARED(pvt, context));
+    ast_str_set(&channel_name, 0, "%s@%s", exten, CONF_SHARED(pvt, context));
 
     int cause = 0;
 

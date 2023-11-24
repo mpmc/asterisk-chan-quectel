@@ -179,22 +179,21 @@ static void __attribute__((format(printf, 7, 8))) at_ok_response_log(int level, 
                                                                      const at_queue_cmd_t* const ecmd, const char* const fmt, ...)
 {
     static const ssize_t MSG_DEF_LEN = 128;
-    static const ssize_t MSG_MAX_LEN = 1024;
     // U+2713 : Check mark : 0xE2 0x9C 0x93
 
     RAII_VAR(struct ast_str*, msg, ast_str_create(MSG_DEF_LEN), ast_free);
 
     if (ecmd) {
-        ast_str_set(&msg, MSG_MAX_LEN, "[%s][%s] \xE2\x9C\x93", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
+        ast_str_set(&msg, 0, "[%s][%s] \xE2\x9C\x93", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
     } else {
-        ast_str_set(&msg, MSG_MAX_LEN, "[%s] \xE2\x9C\x93", PVT_ID(pvt));
+        ast_str_set(&msg, 0, "[%s] \xE2\x9C\x93", PVT_ID(pvt));
     }
 
     if (fmt) {
-        ast_str_append(&msg, MSG_MAX_LEN, " ");
+        ast_str_append(&msg, 0, " ");
         va_list ap;
         va_start(ap, fmt);
-        ast_str_append_va(&msg, MSG_MAX_LEN, fmt, ap);
+        ast_str_append_va(&msg, 0, fmt, ap);
         va_end(ap);
     }
 
@@ -555,22 +554,21 @@ static void __attribute__((format(printf, 7, 8))) at_err_response_log(int level,
                                                                       const at_queue_cmd_t* const ecmd, const char* const fmt, ...)
 {
     static const ssize_t MSG_DEF_LEN = 128;
-    static const ssize_t MSG_MAX_LEN = 1024;
     // U+237B: Not check mark
 
     RAII_VAR(struct ast_str*, msg, ast_str_create(MSG_DEF_LEN), ast_free);
 
     if (ecmd) {
-        ast_str_set(&msg, MSG_MAX_LEN, "[%s][%s] \xE2\x8D\xBB", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
+        ast_str_set(&msg, 0, "[%s][%s] \xE2\x8D\xBB", PVT_ID(pvt), at_cmd2str(ecmd->cmd));
     } else {
-        ast_str_set(&msg, MSG_MAX_LEN, "[%s] \xE2\x8D\xBB", PVT_ID(pvt));
+        ast_str_set(&msg, 0, "[%s] \xE2\x8D\xBB", PVT_ID(pvt));
     }
 
     if (fmt) {
-        ast_str_append(&msg, MSG_MAX_LEN, " ");
+        ast_str_append(&msg, 0, " ");
         va_list ap;
         va_start(ap, fmt);
-        ast_str_append_va(&msg, MSG_MAX_LEN, fmt, ap);
+        ast_str_append_va(&msg, 0, fmt, ap);
         va_end(ap);
     }
 
@@ -1129,13 +1127,11 @@ static void handle_clcc(struct pvt* const pvt, const unsigned int call_idx, cons
 
 static void current_line(const char* const str, struct ast_str** line)
 {
-    static const ssize_t LINE_MAX_LEN = 1024;
-
     const char* const p = strchr(str, '\r');
     if (p) {
-        ast_str_set_substr(line, LINE_MAX_LEN, str, p - str);
+        ast_str_set_substr(line, 0, str, p - str);
     } else {
-        ast_str_set(line, LINE_MAX_LEN, "%s", str);
+        ast_str_set(line, 0, "%s", str);
     }
 }
 
@@ -1903,7 +1899,7 @@ static int at_response_cusd(struct pvt* const pvt, const struct ast_str* const r
                 const size_t res_buf_size = res + 1u;
                 cusd_str                  = ast_str_create(res_buf_size);
 
-                ast_str_set_substr(&cusd_str, USSD_DEF_LEN, cusd, res);
+                ast_str_set_substr(&cusd_str, 0, cusd, res);
                 break;
             };
 
@@ -2685,7 +2681,6 @@ static int at_response_ciev(struct pvt* const pvt, const struct ast_str* const r
 static int at_response_psuttz(struct pvt* const pvt, const struct ast_str* const response)
 {
     static const ssize_t MODULE_TIME_DEF_SIZE = 50;
-    static const ssize_t MODULE_TIME_MAX_SIZE = 100;
 
     int year, month, day, hour, min, sec, dst, time_zone;
 
@@ -2695,7 +2690,7 @@ static int at_response_psuttz(struct pvt* const pvt, const struct ast_str* const
     }
 
     RAII_VAR(struct ast_str*, module_time, ast_str_create(MODULE_TIME_DEF_SIZE), ast_free);
-    ast_str_set(&module_time, MODULE_TIME_MAX_SIZE, "%02d/%02d/%02d,%02d:%02d:%02d%+d", year % 100, month, day, hour, min, sec, time_zone);
+    ast_str_set(&module_time, 0, "%02d/%02d/%02d,%02d:%02d:%02d%+d", year % 100, month, day, hour, min, sec, time_zone);
     ast_string_field_set(pvt, module_time, ast_str_buffer(module_time));
 
     ast_verb(3, "[%s] Module time: %s\n", PVT_ID(pvt), pvt->module_time);
