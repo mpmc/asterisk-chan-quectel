@@ -21,6 +21,7 @@
 
 #include <asterisk/linkedlists.h>
 #include <asterisk/lock.h>
+#include <asterisk/threadpool.h>
 
 #include "mixbuffer.h" /* struct mixbuffer */
 // #include "ringbuffer.h"				/* struct ringbuffer */
@@ -198,6 +199,7 @@ typedef struct pvt {
 
 typedef struct public_state {
     AST_RWLIST_HEAD(devices, pvt) devices;
+    struct ast_threadpool* threadpool;
     ast_mutex_t discovery_lock;
     pthread_t discovery_thread;  /* The discovery thread handler */
     volatile int unloading_flag; /* no need mutex or other locking for protect this variable because no concurent r/w

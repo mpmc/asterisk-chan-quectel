@@ -1774,6 +1774,14 @@ size_t pvt_get_audio_frame_size(unsigned int ptime, const struct ast_format* con
 
 void* pvt_get_silence_buffer(struct pvt* const pvt) { return pvt->silence_buf + AST_FRIENDLY_OFFSET; }
 
+static struct ast_threadpool* threadpool_create()
+{
+    static const struct ast_threadpool_options options = {
+        .version = AST_THREADPOOL_OPTIONS_VERSION, .idle_timeout = 300, .auto_increment = 1, .initial_size = 0, .max_size = 0};
+
+    return ast_threadpool_create("chan-quectel", NULL, &options);
+}
+
 static int load_module()
 {
     gpublic = ast_calloc(1, sizeof(*gpublic));
@@ -1783,11 +1791,13 @@ static int load_module()
         return AST_MODULE_LOAD_DECLINE;
     }
 
-    pdiscovery_init();
     const int rv = public_state_init(gpublic);
     if (rv != AST_MODULE_LOAD_SUCCESS) {
         ast_free(gpublic);
+        gpublic = NULL;
     }
+
+    pdiscovery_init();
     return rv;
 }
 
@@ -1815,6 +1825,11 @@ static unsigned int get_default_framing() { return PTIME_CAPTURE }
 static int public_state_init(struct public_state* state)
 {
     int rv = AST_MODULE_LOAD_DECLINE;
+
+    state->threadpool = threadpool_create();
+    if (!state->threadpool) {
+        return rv;
+    }
 
     AST_RWLIST_HEAD_INIT(&state->devices);
     SCOPED_LOCK(state_discovery_lock, &state->discovery_lock, ast_mutex_init, ast_mutex_destroy);
@@ -1874,14 +1889,16 @@ static void public_state_fini(struct public_state* state)
 
     ast_mutex_destroy(&state->discovery_lock);
     AST_RWLIST_HEAD_DESTROY(&state->devices);
+
+    ast_threadpool_shutdown(gpublic->threadpool);
+    smsdb_atexit();
 }
 
 static int unload_module()
 {
-    public_state_fini(gpublic);
     pdiscovery_fini();
+    public_state_fini(gpublic);
     ast_free(gpublic);
-    smsdb_atexit();
     gpublic = NULL;
     return 0;
 }

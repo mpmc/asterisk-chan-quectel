@@ -23,18 +23,6 @@
 
 static const int TASKPROCESSOR_HIGH_WATER = 400;
 
-static struct ast_threadpool* threadpool_create(const char* const dev)
-{
-    static const size_t TP_DEF_LEN = 32;
-
-    static const struct ast_threadpool_options options = {
-        .version = AST_THREADPOOL_OPTIONS_VERSION, .idle_timeout = 600, .auto_increment = 1, .initial_size = 0, .max_size = 1};
-
-    RAII_VAR(struct ast_str*, threadpool_name, ast_str_create(TP_DEF_LEN), ast_free);
-    ast_str_set(&threadpool_name, 0, "chan-quectel/%s", dev);
-    return ast_threadpool_create(ast_str_buffer(threadpool_name), NULL, &options);
-}
-
 static struct ast_taskprocessor* threadpool_serializer(struct ast_threadpool* pool, const char* const dev)
 {
     char taskprocessor_name[AST_TASKPROCESSOR_MAX_NAME + 1];
@@ -204,8 +192,9 @@ static int check_dev_status(struct pvt* const pvt)
 
 static void monitor_threadproc_pvt(struct pvt* const pvt)
 {
-    static const size_t RINGBUFFER_SIZE        = 2 * 1024;
-    static const int DATA_READ_TIMEOUT         = 10000;
+    static const size_t RINGBUFFER_SIZE = 2 * 1024;
+
+    static const int RESPONSE_READ_TIMEOUT     = 10000;
     static const int UNHANDLED_COMMAND_TIMEOUT = 500;
 
     struct ringbuffer rb;
@@ -217,13 +206,7 @@ static void monitor_threadproc_pvt(struct pvt* const pvt)
     ast_mutex_lock(&pvt->lock);
     RAII_VAR(char* const, dev, ast_strdup(PVT_ID(pvt)), ast_free);
 
-    RAII_VAR(struct ast_threadpool*, threadpool, threadpool_create(dev), ast_threadpool_shutdown);
-    if (!threadpool) {
-        ast_log(LOG_ERROR, "[%s] Error initializing threadpool\n", dev);
-        goto e_cleanup;
-    }
-
-    RAII_VAR(struct ast_taskprocessor*, tps, threadpool_serializer(threadpool, dev), ast_taskprocessor_unreference);
+    RAII_VAR(struct ast_taskprocessor*, tps, threadpool_serializer(gpublic->threadpool, dev), ast_taskprocessor_unreference);
     if (!tps) {
         ast_log(LOG_ERROR, "[%s] Error initializing taskprocessor\n", dev);
         goto e_cleanup;
@@ -248,7 +231,7 @@ static void monitor_threadproc_pvt(struct pvt* const pvt)
         }
 
         if (ast_mutex_trylock(&pvt->lock)) {  // pvt unlocked
-            int t = DATA_READ_TIMEOUT;
+            int t = RESPONSE_READ_TIMEOUT;
             if (!at_wait(fd, &t)) {
                 if (ast_taskprocessor_push(tps, at_enqueue_ping_taskproc, pvt)) {
                     ast_debug(5, "[%s] Unable to handle timeout\n", dev);
@@ -296,7 +279,7 @@ static void monitor_threadproc_pvt(struct pvt* const pvt)
                     continue;
                 }
             } else {
-                t = DATA_READ_TIMEOUT;
+                t = RESPONSE_READ_TIMEOUT;
                 if (!at_wait(fd, &t)) {
                     if (check_taskprocessor(tps, dev)) {
                         if (ast_taskprocessor_push(tps, restart_monitor_taskproc, pvt)) {
