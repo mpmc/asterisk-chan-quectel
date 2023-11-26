@@ -14,6 +14,56 @@ Supported modules:
 
 # Changes
 
+## General
+
+* Minimal supported Asterisk version is **16** now.
+* Using JSON-formatted channel variables.
+
+  One may use [`JSON_DECODE`](https://docs.asterisk.org/Asterisk_21_Documentation/API_Documentation/Dialplan_Functions/JSON_DECODE/) function
+  in dialplan in order to extract required field.
+
+  * All `QUECTEL*` variables are wrapped into one JSON-formatted `QUECTEL` variable.
+  * For SMS reporting `SMS` JSON-formatted variable is defined.
+
+    ```ini
+    [incoming-sms]
+    exten => sms,1,NoOp(SMS from device ${JSON_DECODE(QUECTEL,name)})
+    same => n,Set(SMS_TXT=${JSON_DECODE(SMS,msg)})
+    same => n,GotoIf($[${EXISTS(${SMS_TXT})}]?smstxt:smsempty)
+    same => n(smstxt),Verbose(2, [${JSON_DECODE(QUECTEL,name)}] Incoming SMS from ${CALLERID(num)} [${JSON_DECODE(SMS,ts)}]: ${SMS_TXT})
+    same => n,Goto(smsbye)
+    same => n(smsempty),Verbose(2, [${JSON_DECODE(QUECTEL,name)}] Empty incoming SMS from ${CALLERID(num)})
+    same => n(smsbye),Hangup
+    ```
+
+  * For USSD rporting `USSD` JSON-formatted variable is defined.
+
+    ```ini
+    [incoming-ussd]
+    exten => ussd,1,NoOp(USSD from device ${JSON_DECODE(QUECTEL,name)})
+    same => n,Set(USSD_TXT=${JSON_DECODE(USSD,ussd)})
+    same => n,Verbose(2, [${JSON_DECODE(QUECTEL,name)}] Incoming USSD [${JSON_DECODE(USSD,type_description)}]: ${USSD_TXT})
+    same => n,Hangup
+    ```
+
+  * For reporting `REPORT` JSON-formatted variable is defined.
+
+    ```ini
+    [incoming-report]
+    exten => report,1,NoOp(Report from device ${JSON_DECODE(QUECTEL,name)})
+    same => n,Set(REPORT_SUBJECT=${JSON_DECODE(REPORT,subject)})
+    same => n,Set(REPORT_DIRECTION=${JSON_DECODE(REPORT,direction)})
+    same => n,Set(REPORT_SUCCESS=${JSON_DECODE(REPORT,success)})
+    same => n,Set(REPORT_JSON=${JSON_DECODE(REPORT,report)})
+    same => n,Set(REPORT_INFO=${JSON_DECODE(REPORT_JSON,info)})
+    same => n,GotoIf($[${REPORT_SUCCESS} = 1]?reportsuccess:reportfail)
+    same => n(reportsuccess),Verbose(2,${JSON_DECODE(QUECTEL,name)} - ${REPORT_SUBJECT} - ${REPORT_DIRECTION} - ${CALLERID(num)} - ${REPORT_INFO})
+    same => n,Goto(reportbye)
+    same => n(reportfail),Verbose(1,${JSON_DECODE(QUECTEL,name)} - ${REPORT_SUBJECT} - ${REPORT_DIRECTION} - ${CALLERID(num)} - ${REPORT_INFO})
+    same => n,Goto(reportbye)
+    same => n,Hangup
+    ```
+
 ## Configuration
 
 * `quectel_uac` option renamed to `uac` and it's a on/**off**/ext switch now.
@@ -118,6 +168,9 @@ Supported modules:
     You can still put database into a file by specyfying its full path (not recommended).
 
     See also: [SQLIte3: In-Memory Databases](//www.sqlite.org/inmemorydb.html).
+* New `smsdb_backup` option in `[general]` section.
+
+    Path to backup of SMS database created via `quectel sms db backup` command (see below).
 
 ## Commands
 
@@ -141,6 +194,9 @@ Supported modules:
   * `quectel sms direct on <device>`
   * `quectel sms direct off <device>`
   * `quectel sms direct auto <device>`
+  * `quectel sms db backup`
+
+    Backup of SMS database. Path to backup file is specified in configuration file via `smsdb_bakup` general option.
 
 * Additional fields in `show device status` command.
 
@@ -191,15 +247,15 @@ Supported modules:
 
     Some of theese fields are constantly updated via `act` and `csq` notifications (see `AT+QINDCFG` command).
 
-    Additional channel variables are also defined:
+    Additional fields in (JSON-formatted) `QUECTEL` variable are also defined:
 
-  * `QUECTELNETWORKNAME`,
-  * `QUECTELSHORTNETWORKNAME`,
-  * `QUECTELPROVIDER`,
-  * `QUECTELPLMN`,
-  * `QUECTELMCC`,
-  * `QUECTELMNC`,
-  * `QUECTELICCID`.
+  * `network_name`,
+  * `short_network_name`,
+  * `privider`,
+  * `plmn`,
+  * `mcc`,
+  * `mnc`,
+  * `iccid`.
 
     `PLMN` (*Public Land Mobile Network Code*) combines `MCC` (*Mobile Country Code*) and `MNC` (*Mobile Network Code*).
 
@@ -285,7 +341,6 @@ Supported modules:
     exten => s,n,Dial(Quectel/j:898600700907A6019125/+79139131234)
     ```
 
-    Additional variable `QUECTELICCID` is also defined.
 * Code (re)formatted by `clang-format` utility.
 
     Links:
@@ -318,10 +373,26 @@ Supported modules:
         DEBUG[20486]: src/at_queue.c:72 at_queue_remove: [quectel0][AT+QLTS=1] ↳ [OK] tasks:0 
 
         ```
-
+* Redesigned SMS database.
 * Using modern serial port locking methods:
 
   * `ioctl(fd, TIOCGEXCL, &locking_status)` and `ioctl(fd, TIOCEXCL)`,
   * `flock(fd, LOCK_EX | LOCK_NB)`.
+
+* Using thread pools and task processors:
+
+    Reading and processing modem responses in separate threads.
+    You may see basic statistics of used thread pools and task processors via `core show taskprocessors like chan-quectel` command.
+
+    ```
+    Asterisk*CLI> core show taskprocessors like chan-quectel
+
+    Processor                                                               Processed   In Queue  Max Depth  Low water High water
+    chan-quectel/pool                                                           16874          0          1        450        500
+    chan-quectel/pool-control                                                   33749          0          1        450        500
+    chan-quectel/simcom7600-00000051                                            39171          0          4        360        400
+
+    3 taskprocessors
+    ```
 
 * Many small optimizations.
