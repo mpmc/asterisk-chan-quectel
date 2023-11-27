@@ -76,7 +76,6 @@ DEFINE_SQL_STATEMENT(cnt_all_outgoingpart,
                      "SELECT m.cnt, (SELECT COUNT(p.rowid) FROM outgoing_part p WHERE p.msg = m.uid) FROM outgoing_msg "
                      "m WHERE m.uid = ?")
 
-AST_MUTEX_DEFINE_STATIC(dblock);
 static sqlite3* smsdb;
 
 static int set_ast_str(sqlite3_stmt* stmt, int colno, struct ast_str** str)
@@ -99,7 +98,7 @@ static int append_ast_str(sqlite3_stmt* stmt, int colno, struct ast_str** str)
 
 static int bind_ast_str(sqlite3_stmt* stmt, int colno, const struct ast_str* const str)
 {
-    return sqlite3_bind_text(stmt, colno, ast_str_buffer(str), ast_str_strlen(str), SQLITE_STATIC);
+    return sqlite3_bind_text(stmt, colno, ast_str_buffer(str), ast_str_strlen(str), SQLITE_TRANSIENT);
 }
 
 static int init_stmt(sqlite3_stmt** stmt, const char* sql, size_t len)
@@ -119,13 +118,12 @@ static int init_stmt(sqlite3_stmt** stmt, const char* sql, size_t len)
  * sure to take the dblock yourself. */
 static int execute_sql(const char* sql, int (*callback)(void*, int, char**, char**), void* arg)
 {
-    char* errmsg = NULL;
-    int res      = 0;
+    char* errmsg  = NULL;
+    const int res = sqlite3_exec(smsdb, sql, callback, arg, &errmsg);
 
-    if (sqlite3_exec(smsdb, sql, callback, arg, &errmsg) != SQLITE_OK) {
+    if (res != SQLITE_OK) {
         ast_log(LOG_WARNING, "Error executing SQL (%s): %s\n", sql, errmsg);
         sqlite3_free(errmsg);
-        res = -1;
     }
 
     return res;
@@ -152,23 +150,27 @@ static int clean_stmt(sqlite3_stmt** stmt, const char* sql)
 
 #define CLEAN_STMT(s) clean_stmt(&s##_stmt, s##_sql)
 
-static void begin_transaction(ast_mutex_t* mutex)
+static int begin_transaction()
 {
     DEFINE_INTERNAL_SQL_STATEMENT(begin_transaction, "BEGIN TRANSACTION");
 
-    ast_mutex_lock(mutex);
-    EXECUTE_STMT(begin_transaction);
+    return EXECUTE_STMT(begin_transaction);
 }
 
-static void commit_transaction(ast_mutex_t* mutex)
+static void commit_transaction(int res)
 {
     DEFINE_INTERNAL_SQL_STATEMENT(commit_transaction, "COMMIT TRANSACTION");
 
-    ast_mutex_unlock(mutex);
+    if (res != SQLITE_OK) {
+        return;
+    }
+
     EXECUTE_STMT(commit_transaction);
 }
 
-#define SCOPED_TRANSACTION(varname) SCOPED_LOCK(varname, &dblock, begin_transaction, commit_transaction)
+#define SCOPED_TRANSACTION(varname)                                  \
+    RAII_VAR(int, varname, begin_transaction(), commit_transaction); \
+    if (varname != SQLITE_OK) return -1;
 
 static void stmt_begin(sqlite3_stmt* stmt)
 {
@@ -225,8 +227,6 @@ static int db_create(void)
 
 static int db_init_statements(void)
 {
-    SCOPED_MUTEX(dblock_lock, &dblock);
-
     /* Don't initialize create_smsdb_statement here as the smsdb table needs to exist
      * brefore these statements can be initialized */
     return INIT_STMT(get_incomingmsg) || INIT_STMT(put_incomingmsg) || INIT_STMT(del_incomingmsg) || INIT_STMT(get_incomingmsg_cnt) ||
@@ -281,8 +281,6 @@ static int db_name_temporary(const char* db)
 
 static int db_open_url(const char* url)
 {
-    SCOPED_MUTEX(dblock_lock, &dblock);
-
     if (sqlite3_open(url, &smsdb) != SQLITE_OK) {
         ast_log(LOG_WARNING, "Unable to open Asterisk database '%s': %s\n", url, sqlite3_errmsg(smsdb));
         sqlite3_close(smsdb);
@@ -357,7 +355,7 @@ int smsdb_put(const char* id, const char* addr, int ref, int parts, int order, c
         } else if (sqlite3_bind_int(put_incomingmsg, 3, ttl) != SQLITE_OK) {
             ast_log(LOG_WARNING, "Couldn't bind TTL to stmt: %s\n", sqlite3_errmsg(smsdb));
             res = -1;
-        } else if (sqlite3_bind_text(put_incomingmsg, 4, msg, -1, SQLITE_STATIC) != SQLITE_OK) {
+        } else if (sqlite3_bind_text(put_incomingmsg, 4, msg, -1, SQLITE_TRANSIENT) != SQLITE_OK) {
             ast_log(LOG_WARNING, "Couldn't bind msg to stmt: %s\n", sqlite3_errmsg(smsdb));
             res = -1;
         } else if (sqlite3_step(put_incomingmsg) != SQLITE_DONE) {
@@ -453,13 +451,13 @@ int smsdb_outgoing_add(const char* id, const char* addr, const char* msg, int cn
     SCOPED_TRANSACTION(dbtrans);
     SCOPED_STMT(put_outgoingmsg);
 
-    if (sqlite3_bind_text(put_outgoingmsg, 1, id, strlen(id), SQLITE_STATIC) != SQLITE_OK) {
+    if (sqlite3_bind_text(put_outgoingmsg, 1, id, strlen(id), SQLITE_TRANSIENT) != SQLITE_OK) {
         ast_log(LOG_WARNING, "Couldn't bind dev to stmt: %s\n", sqlite3_errmsg(smsdb));
         res = -1;
-    } else if (sqlite3_bind_text(put_outgoingmsg, 2, addr, strlen(addr), SQLITE_STATIC) != SQLITE_OK) {
+    } else if (sqlite3_bind_text(put_outgoingmsg, 2, addr, strlen(addr), SQLITE_TRANSIENT) != SQLITE_OK) {
         ast_log(LOG_WARNING, "Couldn't bind destination address to stmt: %s\n", sqlite3_errmsg(smsdb));
         res = -1;
-    } else if (sqlite3_bind_text(put_outgoingmsg, 3, msg, strlen(msg), SQLITE_STATIC) != SQLITE_OK) {
+    } else if (sqlite3_bind_text(put_outgoingmsg, 3, msg, strlen(msg), SQLITE_TRANSIENT) != SQLITE_OK) {
         ast_log(LOG_WARNING, "Couldn't bind message to stmt: %s\n", sqlite3_errmsg(smsdb));
         res = -1;
     } else if (sqlite3_bind_int(put_outgoingmsg, 4, cnt) != SQLITE_OK) {
@@ -730,8 +728,6 @@ int smsdb_vacuum_into(const char* backup_file)
         remove(backup_file);
     }
 
-    SCOPED_MUTEX(dblock_lock, &dblock);
-
     RAII_VAR(struct ast_str*, sqlstmt, ast_str_create(SQLSTMT_DEF_LEN), ast_free);
     ast_str_set(&sqlstmt, 0, "VACUUM INTO \"%s\"", backup_file);
 
@@ -744,7 +740,6 @@ int smsdb_vacuum_into(const char* backup_file)
  */
 void smsdb_atexit()
 {
-    SCOPED_MUTEX(dblock_lock, &dblock);
     db_clean_statements();
     if (sqlite3_close(smsdb) == SQLITE_OK) {
         smsdb = NULL;
