@@ -11,7 +11,8 @@ struct ringbuffer;
 struct iovec;
 
 int at_wait(int fd, int* ms);
-ssize_t at_read(int fd, const char* dev, struct ringbuffer* rb);
+ssize_t at_read(const char* dev, int fd, struct ringbuffer* rb);
+void at_clean_data(const char* dev, int fd, struct ringbuffer* const rb);
 
 size_t at_get_iov_size(const struct iovec* iov);
 size_t at_get_iov_size_n(const struct iovec* iov, int iovcnt);

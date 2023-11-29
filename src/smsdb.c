@@ -27,7 +27,6 @@
 
 #include <asterisk/app.h>
 #include <asterisk/logger.h>
-#include <asterisk/utils.h>
 
 #include "smsdb.h"
 

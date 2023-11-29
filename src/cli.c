@@ -113,7 +113,7 @@ static char* cli_show_device_settings(struct ast_cli_entry* e, int cmd, struct a
         return CLI_SHOWUSAGE;
     }
 
-    RAII_VAR(struct pvt* const, pvt, find_device(a->argv[4]), unlock_pvt);
+    RAII_VAR(struct pvt* const, pvt, pvt_find(a->argv[4]), pvt_unlock);
 
     if (pvt) {
         const struct ast_format* const fmt = pvt_get_audio_format(pvt);
@@ -177,15 +177,15 @@ static char* cli_show_device_state(struct ast_cli_entry* e, int cmd, struct ast_
         return CLI_SHOWUSAGE;
     }
 
-    RAII_VAR(struct pvt* const, pvt, find_device(a->argv[4]), unlock_pvt);
+    RAII_VAR(struct pvt* const, pvt, pvt_find(a->argv[4]), pvt_unlock);
 
     if (pvt) {
-        RAII_VAR(struct ast_str*, statebuf, pvt_str_state_ex(pvt), ast_free);
-        char buf[40];
+        RAII_VAR(struct ast_str*, state_str, pvt_str_state_ex(pvt), ast_free);
+        RAII_VAR(struct ast_str*, rssi_str, rssi2dBm(pvt->rssi), ast_free);
 
         ast_cli(a->fd, "-------------- Status -------------\n");
         ast_cli(a->fd, "  Device                  : %s\n", PVT_ID(pvt));
-        ast_cli(a->fd, "  State                   : %s\n", ast_str_buffer(statebuf));
+        ast_cli(a->fd, "  State                   : %s\n", ast_str_buffer(state_str));
         if (CONF_UNIQ(pvt, uac) > TRIBOOL_FALSE) {
             ast_cli(a->fd, "  Audio UAC               : %s\n", CONF_UNIQ(pvt, alsadev));
         } else {
@@ -200,8 +200,8 @@ static char* cli_show_device_state(struct ast_cli_entry* e, int cmd, struct ast_
         ast_cli(a->fd, "  IMEI                    : %s\n", pvt->imei);
         ast_cli(a->fd, "  IMSI                    : %s\n", pvt->imsi);
         ast_cli(a->fd, "  ICCID                   : %s\n", pvt->iccid);
-        ast_cli(a->fd, "  GSM Registration Status : %s\n", GSM_regstate2str(pvt->gsm_reg_status));
-        ast_cli(a->fd, "  RSSI                    : %d, %s\n", pvt->rssi, rssi2dBm(pvt->rssi, buf, sizeof(buf)));
+        ast_cli(a->fd, "  GSM Registration Status : %s\n", gsm_regstate2str(pvt->gsm_reg_status));
+        ast_cli(a->fd, "  RSSI                    : %d, %s\n", pvt->rssi, ast_str_buffer(rssi_str));
         ast_cli(a->fd, "  Access technology       : %s\n", sys_act2str(pvt->act));
         ast_cli(a->fd, "  Network Name            : %s\n", pvt->network_name);
         ast_cli(a->fd, "  Short Network Name      : %s\n", pvt->short_network_name);
@@ -285,7 +285,7 @@ static char* cli_show_device_statistics(struct ast_cli_entry* e, int cmd, struct
         return CLI_SHOWUSAGE;
     }
 
-    RAII_VAR(struct pvt* const, pvt, find_device(a->argv[4]), unlock_pvt);
+    RAII_VAR(struct pvt* const, pvt, pvt_find(a->argv[4]), pvt_unlock);
 
     if (pvt) {
         ast_cli(a->fd, "-------------- Statistics -------------\n");

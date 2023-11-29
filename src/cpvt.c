@@ -6,15 +6,26 @@
 
 #include "ast_config.h"
 
+#include <asterisk/causes.h>
 #include <asterisk/utils.h>
 
 #include "cpvt.h"
 
 #include "at_queue.h"     /* struct at_queue_task */
 #include "chan_quectel.h" /* struct pvt */
-#include "mutils.h"       /* ITEMS_OF() */
+#include "channel.h"
+#include "mutils.h" /* ITEMS_OF() */
 
-#/* return 0 on success */
+const char* call_state2str(call_state_t state)
+{
+    static const char* const states[] = {/* real device states */
+                                         "active", "held", "dialing", "alerting", "incoming", "waiting",
+
+                                         /* pseudo states */
+                                         "released", "init"};
+
+    return enum2str(state, states, ITEMS_OF(states));
+}
 
 // TODO: move to activation time, save resources
 static int init_pipe(int filedes[2])
@@ -132,69 +143,235 @@ void cpvt_free(struct cpvt* cpvt)
     ast_free(cpvt);
 }
 
-#/* */
-
-struct cpvt* pvt_find_cpvt(struct pvt* pvt, int call_idx)
+void cpvt_call_disactivate(struct cpvt* const cpvt)
 {
-    struct cpvt* cpvt;
+    if (!(cpvt->pvt && CPVT_TEST_FLAG(cpvt, CALL_FLAG_ACTIVATED))) {
+        return;
+    }
 
-    AST_LIST_TRAVERSE(&pvt->chans, cpvt, entry) {
-        if (call_idx == cpvt->call_idx) {
-            return cpvt;
+    struct pvt* const pvt = cpvt->pvt;
+
+    if (CONF_UNIQ(pvt, uac) > TRIBOOL_FALSE) {
+        // snd_pcm_drop(pvt->icard);
+        // snd_pcm_drop(pvt->ocard);
+    } else {
+        if (CONF_SHARED(pvt, multiparty)) {
+            mixb_detach(&pvt->write_mixb, &cpvt->mixstream);
         }
     }
 
-    return 0;
+    CPVT_RESET_FLAGS(cpvt, CALL_FLAG_ACTIVATED | CALL_FLAG_MASTER);
+    ast_debug(6, "[%s] Call idx:%d disactivated\n", PVT_ID(pvt), cpvt->call_idx);
 }
 
-struct cpvt* active_cpvt(struct pvt* pvt)
+void cpvt_call_activate(struct cpvt* const cpvt)
 {
-    struct cpvt* cpvt;
+    struct cpvt* cpvt2;
 
-    AST_LIST_TRAVERSE(&pvt->chans, cpvt, entry) {
-        if (CPVT_IS_SOUND_SOURCE(cpvt)) {
-            return cpvt;
+    /* nothing todo, already main */
+    if (CPVT_IS_MASTER(cpvt)) {
+        return;
+    }
+
+    /* drop any other from MASTER, any set pipe for actives */
+    struct pvt* const pvt = cpvt->pvt;
+
+    AST_LIST_TRAVERSE(&pvt->chans, cpvt2, entry) {
+        if (cpvt2 == cpvt) {
+            continue;
+        }
+
+        if (CPVT_IS_MASTER(cpvt)) {
+            ast_debug(6, "[%s] Call idx:%d gave master\n", PVT_ID(pvt), cpvt2->call_idx);
+        }
+
+        CPVT_RESET_FLAG(cpvt2, CALL_FLAG_MASTER);
+
+        if (!cpvt2->channel) {
+            continue;
+        }
+
+        ast_channel_set_fd(cpvt2->channel, 1, -1);
+        if (!CPVT_TEST_FLAG(cpvt, CALL_FLAG_ACTIVATED)) {
+            continue;
+        }
+
+        ast_channel_set_fd(cpvt2->channel, 0, cpvt2->rd_pipe[PIPE_READ]);
+        ast_debug(6, "[%s] Call idx:%d FD:%d still active\n", PVT_ID(pvt), cpvt2->call_idx, cpvt2->rd_pipe[PIPE_READ]);
+    }
+
+    /* setup call local write possition */
+    if (!CPVT_TEST_FLAG(cpvt, CALL_FLAG_ACTIVATED)) {
+        // FIXME: reset possition?
+        if (CONF_SHARED(pvt, multiparty)) {
+            mixb_attach(&pvt->write_mixb, &cpvt->mixstream);
         }
     }
 
-    return 0;
+    if (pvt->audio_fd >= 0) {
+        CPVT_SET_FLAGS(cpvt, CALL_FLAG_ACTIVATED | CALL_FLAG_MASTER);
+        ast_debug(6, "[%s] Call idx:%d was master\n", PVT_ID(pvt), cpvt->call_idx);
+    }
 }
 
-struct cpvt* last_initialized_cpvt(struct pvt* pvt)
+/* NOTE: bg: hmm ast_queue_control() say no need channel lock, trylock got deadlock up to 30 seconds here */
+/* NOTE: called from device and current levels with pvt locked */
+int cpvt_control(const struct cpvt* const cpvt, enum ast_control_frame_type control)
 {
-    struct cpvt* cpvt;
-    struct cpvt* res = NULL;
-
-    AST_LIST_TRAVERSE(&pvt->chans, cpvt, entry) {
-        if (CPVT_IS_SOUND_SOURCE(cpvt) || (cpvt)->state == CALL_STATE_INIT) {
-            res = cpvt;
-        }
+    if (!cpvt || !cpvt->channel) {
+        return -1;
     }
 
-    return res;
+    return ast_queue_control(cpvt->channel, control);
 }
 
-#/* */
-
-const char* pvt_call_dir(const struct pvt* pvt)
+/* update bits of devstate cache */
+static void pvt_update_state_flags(struct pvt* const pvt, const call_state_t oldstate, const call_state_t newstate)
 {
-    static const char* dirs[] = {"Active", "Outgoing", "Incoming", "Both"};
+    PVT_STATE(pvt, chan_count[oldstate])--;
+    PVT_STATE(pvt, chan_count[newstate])++;
 
-    int index = 0;
-    struct cpvt* cpvt;
+    switch (newstate) {
+        case CALL_STATE_ACTIVE:
+        case CALL_STATE_RELEASED:
+            /* no split to incoming/outgoing because these states not intersect */
+            switch (oldstate) {
+                case CALL_STATE_INIT:
+                case CALL_STATE_DIALING:
+                case CALL_STATE_ALERTING:
+                    pvt->dialing = 0;
+                    break;
+                case CALL_STATE_INCOMING:
+                    pvt->ring = 0;
+                    break;
+                case CALL_STATE_WAITING:
+                    pvt->cwaiting = 0;
+                    break;
+                default:
+                    break;
+            }
+            break;
 
-    AST_LIST_TRAVERSE(&pvt->chans, cpvt, entry) {
-        if (CPVT_DIR_OUTGOING(cpvt)) {
-            index |= 0x1;
-        } else {
-            index |= 0x2;
-        }
+        default:
+            break;
+    }
+}
+
+static void change_state_no_channel(struct cpvt* const cpvt, struct pvt* const pvt, const call_state_t state)
+{
+    switch (state) {
+        case CALL_STATE_RELEASED:
+            cpvt_free(cpvt);
+            break;
+
+        case CALL_STATE_INIT:
+        case CALL_STATE_ONHOLD:
+        case CALL_STATE_DIALING:
+        case CALL_STATE_ALERTING:
+        case CALL_STATE_INCOMING:
+        case CALL_STATE_WAITING:
+            if (at_enqueue_hangup(&pvt->sys_chan, cpvt->call_idx, AST_CAUSE_NORMAL_UNSPECIFIED)) {
+                ast_log(LOG_ERROR, "[%s] Unable to hangup call id:%d\n", PVT_ID(pvt), cpvt->call_idx);
+            }
+            break;
+
+        default:
+            break;
+    };
+}
+
+static void change_state(struct cpvt* const cpvt, struct pvt* const pvt, struct ast_channel* const channel, const call_state_t oldstate,
+                         const call_state_t newstate, const short call_idx, const int cause)
+{
+    /* for live channel */
+    switch (newstate) {
+        case CALL_STATE_DIALING:
+            /* from ^ORIG:idx,y */
+            cpvt_call_activate(cpvt);
+            cpvt_control(cpvt, AST_CONTROL_PROGRESS);
+            ast_setstate(channel, AST_STATE_DIALING);
+            break;
+
+        case CALL_STATE_ALERTING:
+            cpvt_call_activate(cpvt);
+            cpvt_control(cpvt, AST_CONTROL_RINGING);
+            ast_setstate(channel, AST_STATE_RINGING);
+            break;
+
+        case CALL_STATE_INCOMING:
+            cpvt_call_activate(cpvt);
+            break;
+
+        case CALL_STATE_ACTIVE:
+            cpvt_call_activate(cpvt);
+            if (oldstate == CALL_STATE_ONHOLD) {
+                ast_debug(1, "[%s] Unhold call idx:%d\n", PVT_ID(pvt), call_idx);
+                cpvt_control(cpvt, AST_CONTROL_UNHOLD);
+            } else if (CPVT_DIR_OUTGOING(cpvt)) {
+                ast_debug(1, "[%s] Remote end answered on call idx:%d\n", PVT_ID(pvt), call_idx);
+                cpvt_control(cpvt, AST_CONTROL_ANSWER);
+            } else { /* if (cpvt->answered) */
+                ast_debug(1, "[%s] Call idx:%d answer\n", PVT_ID(pvt), call_idx);
+                ast_setstate(channel, AST_STATE_UP);
+            }
+            break;
+
+        case CALL_STATE_ONHOLD:
+            cpvt_call_disactivate(cpvt);
+            ast_debug(1, "[%s] Hold call idx:%d\n", PVT_ID(pvt), call_idx);
+            cpvt_control(cpvt, AST_CONTROL_HOLD);
+            break;
+
+        case CALL_STATE_RELEASED:
+            cpvt_call_disactivate(cpvt);
+            /* from +CEND, restart or disconnect */
+            /* drop channel -> cpvt reference */
+            ast_channel_tech_pvt_set(channel, NULL);
+            cpvt_free(cpvt);
+            if (queue_hangup(channel, cause)) {
+                ast_log(LOG_ERROR, "[%s] Error queueing hangup...\n", PVT_ID(pvt));
+            }
+            break;
+
+        default:
+            break;
+    }
+}
+
+/* FIXME: protection for cpvt->channel if exists */
+/* NOTE: called from device level with locked pvt */
+int cpvt_change_state(struct cpvt* const cpvt, call_state_t newstate, int cause)
+{
+    const call_state_t oldstate = cpvt->state;
+    if (newstate == oldstate) {
+        return 0;
     }
 
-    return dirs[index];
+    struct pvt* const pvt             = cpvt->pvt;
+    struct ast_channel* const channel = cpvt->channel;
+    const short call_idx              = cpvt->call_idx;
+    cpvt->state                       = newstate;
+
+    pvt_update_state_flags(pvt, oldstate, newstate);
+
+    // U+2192 : Rightwards Arrow : 0xE2 0x86 0x92
+    if (CONF_SHARED(pvt, multiparty)) {
+        ast_debug(1, "[%s] Call - idx:%d channel:%s mpty:%d [%s] \xE2\x86\x92 [%s]\n", PVT_ID(pvt), call_idx, channel ? "attached" : "detached",
+                  CPVT_TEST_FLAG(cpvt, CALL_FLAG_MULTIPARTY) ? 1 : 0, call_state2str(oldstate), call_state2str(newstate));
+    } else {
+        ast_debug(1, "[%s] Call - idx:%d channel:%s [%s] \xE2\x86\x92 [%s]\n", PVT_ID(pvt), call_idx, channel ? "attached" : "detached",
+                  call_state2str(oldstate), call_state2str(newstate));
+    }
+
+    if (channel) {
+        change_state(cpvt, pvt, channel, oldstate, newstate, call_idx, cause);
+    } else {
+        change_state_no_channel(cpvt, pvt, newstate);
+    }
+    return 1;
 }
 
-void lock_cpvt(struct cpvt* const cpvt)
+void cpvt_lock(struct cpvt* const cpvt)
 {
     struct pvt* const pvt = cpvt->pvt;
     if (!pvt) {
@@ -204,7 +381,7 @@ void lock_cpvt(struct cpvt* const cpvt)
     ast_mutex_trylock(&pvt->lock);
 }
 
-void try_lock_cpvt(struct cpvt* const cpvt)
+void cpvt_try_lock(struct cpvt* const cpvt)
 {
     struct pvt* const pvt = cpvt->pvt;
     if (!pvt) {
@@ -223,10 +400,10 @@ void try_lock_cpvt(struct cpvt* const cpvt)
     }
 }
 
-void unlock_cpvt(struct cpvt* const cpvt)
+void cpvt_unlock(struct cpvt* const cpvt)
 {
     if (!cpvt) {
         return;
     }
-    unlock_pvt(cpvt->pvt);
+    pvt_unlock(cpvt->pvt);
 }

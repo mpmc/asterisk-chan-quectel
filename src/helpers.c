@@ -89,7 +89,7 @@ int get_at_clir_value(struct pvt* pvt, int clir)
 
 static struct pvt* get_pvt(const char* dev_name, int online)
 {
-    struct pvt* const pvt = find_device_ext(dev_name);
+    struct pvt* const pvt = pvt_find_by_ext(dev_name);
 
     if (!pvt) {
         chan_quectel_err = E_DEVICE_DISCONNECTED;
@@ -113,7 +113,7 @@ int send_ussd(const char* dev_name, const char* ussd)
         return -1;
     }
 
-    RAII_VAR(struct pvt*, pvt, get_pvt(dev_name, 1), unlock_pvt);
+    RAII_VAR(struct pvt*, pvt, get_pvt(dev_name, 1), pvt_unlock);
 
     if (!pvt) {
         return -1;
@@ -132,7 +132,7 @@ int send_sms(const char* const dev_name, const char* const number, const char* c
         return -1;
     }
 
-    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), unlock_pvt);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), pvt_unlock);
 
     if (!pvt) {
         return -1;
@@ -144,7 +144,7 @@ int send_sms(const char* const dev_name, const char* const number, const char* c
 
 int list_sms(const char* const dev_name, enum msg_status_t stat)
 {
-    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), unlock_pvt);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), pvt_unlock);
 
     if (!pvt) {
         return -1;
@@ -156,7 +156,7 @@ int list_sms(const char* const dev_name, enum msg_status_t stat)
 
 int delete_sms(const char* const dev_name, unsigned int idx, int delflag)
 {
-    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), unlock_pvt);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), pvt_unlock);
 
     if (!pvt) {
         return -1;
@@ -168,7 +168,7 @@ int delete_sms(const char* const dev_name, unsigned int idx, int delflag)
 
 int sms_direct(const char* const dev_name, int directflag)
 {
-    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), unlock_pvt);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), pvt_unlock);
 
     if (!pvt) {
         return -1;
@@ -210,7 +210,7 @@ int smsdb_backup()
 
 int send_reset(const char* dev_name)
 {
-    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 0), unlock_pvt);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 0), pvt_unlock);
 
     if (!pvt) {
         return -1;
@@ -224,7 +224,7 @@ int send_reset(const char* dev_name)
 
 int send_ccwa_set(const char* dev_name, call_waiting_t enable)
 {
-    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), unlock_pvt);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), pvt_unlock);
 
     if (!pvt) {
         return -1;
@@ -238,7 +238,7 @@ int send_ccwa_set(const char* dev_name, call_waiting_t enable)
 
 int query_qaudloop(const char* dev_name)
 {
-    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), unlock_pvt);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), pvt_unlock);
 
     if (!pvt) {
         return -1;
@@ -252,7 +252,7 @@ int query_qaudloop(const char* dev_name)
 
 int send_qaudloop(const char* dev_name, int aloop)
 {
-    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), unlock_pvt);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), pvt_unlock);
 
     if (!pvt) {
         return -1;
@@ -266,7 +266,7 @@ int send_qaudloop(const char* dev_name, int aloop)
 
 int query_qaudmod(const char* dev_name)
 {
-    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), unlock_pvt);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), pvt_unlock);
 
     if (!pvt) {
         return -1;
@@ -280,7 +280,7 @@ int query_qaudmod(const char* dev_name)
 
 int send_qaudmod(const char* dev_name, int amod)
 {
-    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), unlock_pvt);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), pvt_unlock);
 
     if (!pvt) {
         return -1;
@@ -302,7 +302,7 @@ static int to_simcom_gain(int gain) { return gain * MAX_GAIN_SIMCOM / MAX_GAIN; 
 
 int query_micgain(const char* dev_name)
 {
-    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), unlock_pvt);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), pvt_unlock);
 
     if (!pvt) {
         return -1;
@@ -321,7 +321,7 @@ int query_micgain(const char* dev_name)
 
 int send_micgain(const char* dev_name, int gain)
 {
-    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), unlock_pvt);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), pvt_unlock);
 
     if (!pvt) {
         return -1;
@@ -340,7 +340,7 @@ int send_micgain(const char* dev_name, int gain)
 
 int query_rxgain(const char* dev_name)
 {
-    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), unlock_pvt);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), pvt_unlock);
 
     if (!pvt) {
         return -1;
@@ -359,7 +359,7 @@ int query_rxgain(const char* dev_name)
 
 int send_rxgain(const char* dev_name, int gain)
 {
-    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), unlock_pvt);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), pvt_unlock);
 
     if (!pvt) {
         return -1;
@@ -376,7 +376,7 @@ int send_rxgain(const char* dev_name, int gain)
 
 int send_uac_apply(const char* dev_name)
 {
-    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), unlock_pvt);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), pvt_unlock);
 
     if (!pvt) {
         return -1;
@@ -394,7 +394,7 @@ int send_uac_apply(const char* dev_name)
 
 int send_at_command(const char* dev_name, const char* command)
 {
-    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 0), unlock_pvt);
+    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 0), pvt_unlock);
 
     if (!pvt) {
         return -1;
@@ -406,7 +406,7 @@ int send_at_command(const char* dev_name, const char* command)
 
 int schedule_restart_event(dev_state_t event, restate_time_t when, const char* dev_name)
 {
-    RAII_VAR(struct pvt* const, pvt, find_device(dev_name), unlock_pvt);
+    RAII_VAR(struct pvt* const, pvt, pvt_find(dev_name), pvt_unlock);
 
     if (!pvt) {
         chan_quectel_err = E_DEVICE_NOT_FOUND;
@@ -635,4 +635,98 @@ const char* escape_str_ex(struct ast_str* ebuf, const struct ast_str* const str)
     escape_c(ast_str_buffer(ebuf), ast_str_buffer(str), ast_str_size(ebuf));
     ast_str_update(ebuf);
     return ast_str_buffer(ebuf);
+}
+
+#/* */
+
+const char* gsm_regstate2str(int gsm_reg_status)
+{
+    static const char* const gsm_states[] = {
+        "Not registered, not searching", "Registered, home network", "Not registered, but searching", "Registration denied", "Unknown", "Registered, roaming",
+    };
+    return enum2str_def(gsm_reg_status, gsm_states, ITEMS_OF(gsm_states), "Unknown");
+}
+
+#/* */
+
+const char* sys_act2str(int act)
+{
+    static const char* const sys_acts[] = {
+        "No service",
+        "GSM",
+        "GPRS",
+        "EDGE",
+        "WCDMA",
+        "HSDPA",
+        "HSUPA",
+        "HSDPA and HSUPA",
+        "LTE",
+        "TDS-CDMA",
+        "TDS-HSDPA only",
+        "TDS-HSUPA only",
+        "TDS-HSPA (HSDPA and HSUPA)",
+        "CDMA",
+        "EVDO",
+        "CDMA and EVDO",
+        "CDMA and LTE",
+        "???",
+        "???",
+        "???",
+        "???",
+        "???",
+        "???",
+        "Ehrpd",
+        "CDMA and Ehrpd",
+    };
+
+    return enum2str_def(act, sys_acts, ITEMS_OF(sys_acts), "Unknown");
+}
+
+#/* BUGFIX of https://code.google.com/p/asterisk-chan-quectel/issues/detail?id=118 */
+
+struct ast_str* rssi2dBm(int rssi)
+{
+    static const size_t DEF_STR_LEN = 32;
+
+    static const char BELOW_113DBM[]         = "<= -113 dBm";
+    static const char UNDER_51DBM[]          = ">= -51 dBm";
+    static const char UNKNOWN_UNMEASURABLE[] = "unknown or unmeasurable";
+
+    struct ast_str* res = ast_str_create(DEF_STR_LEN);
+    if (rssi <= 0) {
+        ast_str_set_substr(&res, 0, BELOW_113DBM, STRLEN(BELOW_113DBM));
+    } else if (rssi <= 30) {
+        ast_str_set(&res, 0, "%d dBm", 2 * rssi - 113);
+    } else if (rssi == 31) {
+        ast_str_set_substr(&res, 0, UNDER_51DBM, STRLEN(UNDER_51DBM));
+    } else {
+        ast_str_set_substr(&res, 0, UNKNOWN_UNMEASURABLE, STRLEN(UNKNOWN_UNMEASURABLE));
+    }
+    return res;
+}
+
+size_t fd_write_all(int fd, const char* buf, size_t count)
+{
+    size_t total  = 0;
+    unsigned errs = 10;
+
+    while (count > 0) {
+        const ssize_t out_count = write(fd, buf, count);
+        if (out_count <= 0) {
+            if (errno == EINTR || errno == EAGAIN) {
+                errs--;
+                if (errs) {
+                    continue;
+                }
+            }
+            break;
+        }
+
+        errs   = 10;
+        count -= out_count;
+        buf   += out_count;
+        total += out_count;
+    }
+
+    return total;
 }

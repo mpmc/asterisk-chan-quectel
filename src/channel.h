@@ -22,12 +22,13 @@ extern struct ast_channel_tech channel_tech;
 
 struct ast_channel* new_channel(struct pvt* pvt, int ast_state, const char* cid_num, int call_idx, unsigned dir, unsigned state, const char* exten,
                                 const struct ast_assigned_ids* assignedids, const struct ast_channel* requestor, unsigned local_channel);
-int queue_control_channel(struct cpvt* cpvt, enum ast_control_frame_type control);
+
+int channels_loop(struct pvt* pvt, const struct ast_channel* requestor);
+
 int queue_hangup(struct ast_channel* channel, int hangupcause);
+
 void start_local_channel(struct pvt* pvt, const char* exten, const char* number, const channel_var_t* vars);
 void start_local_report_channel(struct pvt* pvt, const char* subject, local_report_direction direction, const char* number, const char* ts, const char* dt,
                                 int success, struct ast_json* const report);
-void change_channel_state(struct cpvt* cpvt, unsigned newstate, int cause);
-int channels_loop(struct pvt* pvt, const struct ast_channel* requestor);
 
 #endif /* CHAN_QUECTEL_CHANNEL_H_INCLUDED */

@@ -20,6 +20,7 @@
 #include "channel.h"
 #include "helpers.h"
 #include "smsdb.h"
+#include "tty.h"
 
 static const int TASKPROCESSOR_HIGH_WATER = 400;
 
@@ -96,52 +97,10 @@ static void cmd_timeout(struct pvt* const pvt)
 
 static int cmd_timeout_taskproc(void* tpdata) { return PVT_TASKPROC_TRYLOCK_AND_EXECUTE(tpdata, cmd_timeout); }
 
-/*!
- * Get status of the quectel. It might happen that the device disappears
- * (e.g. due to a USB unplug).
- *
- * \return 0 if device seems ok, non-0 if it seems not available
- */
-
-static int port_status(int fd, int* err)
-{
-    struct termios t;
-
-    if (fd < 0) {
-        if (err) {
-            *err = EINVAL;
-        }
-        return -1;
-    }
-
-    const int res = tcgetattr(fd, &t);
-    if (res) {
-        if (err) {
-            *err = errno;
-        }
-    }
-    return res;
-}
-
-static int is_snd_pcm_disconnected(snd_pcm_t* const pcm)
-{
-    const snd_pcm_state_t state = snd_pcm_state(pcm);
-    return (state == SND_PCM_STATE_DISCONNECTED);
-}
-
-static int alsa_status(const char* const pvt_id, snd_pcm_t* const pcm_playback, snd_pcm_t* const pcm_capture)
-{
-    if (is_snd_pcm_disconnected(pcm_playback) || is_snd_pcm_disconnected(pcm_capture)) {
-        return -1;
-    }
-
-    return 0;
-}
-
 static int reopen_audio_port(struct pvt* pvt)
 {
-    closetty_lck(PVT_STATE(pvt, audio_tty), pvt->audio_fd, 0, 0);
-    pvt->audio_fd = opentty(PVT_STATE(pvt, audio_tty), pvt->is_simcom);
+    tty_close_lck(PVT_STATE(pvt, audio_tty), pvt->audio_fd, 0, 0);
+    pvt->audio_fd = tty_open(PVT_STATE(pvt, audio_tty), pvt->is_simcom);
 
     if (!PVT_NO_CHANS(pvt)) {
         struct cpvt* cpvt;
@@ -156,14 +115,14 @@ static int reopen_audio_port(struct pvt* pvt)
 static int check_dev_status(struct pvt* const pvt)
 {
     int err;
-    if (port_status(pvt->data_fd, &err)) {
+    if (tty_status(pvt->data_fd, &err)) {
         ast_log(LOG_ERROR, "[%s][DATA] Lost connection: %s\n", PVT_ID(pvt), strerror(err));
         return -1;
     }
 
     switch (CONF_UNIQ(pvt, uac)) {
         case TRIBOOL_FALSE:
-            if (port_status(pvt->audio_fd, &err)) {
+            if (tty_status(pvt->audio_fd, &err)) {
                 if (reopen_audio_port(pvt)) {
                     ast_log(LOG_WARNING, "[%s][AUDIO][TTY] Lost connection: %s\n", PVT_ID(pvt), strerror(err));
                 } else {
@@ -174,14 +133,14 @@ static int check_dev_status(struct pvt* const pvt)
             break;
 
         case TRIBOOL_TRUE:
-            show_alsa_state(2, "PLAYBACK", PVT_ID(pvt), pvt->ocard);
-            show_alsa_state(2, "CAPTURE", PVT_ID(pvt), pvt->icard);
+            pcm_show_state(2, "PLAYBACK", PVT_ID(pvt), pvt->ocard);
+            pcm_show_state(2, "CAPTURE", PVT_ID(pvt), pvt->icard);
             break;
 
         case TRIBOOL_NONE:
-            show_alsa_state(2, "PLAYBACK", PVT_ID(pvt), pvt->ocard);
-            show_alsa_state(2, "CAPTURE", PVT_ID(pvt), pvt->icard);
-            if (alsa_status(PVT_ID(pvt), pvt->ocard, pvt->icard)) {
+            pcm_show_state(2, "PLAYBACK", PVT_ID(pvt), pvt->ocard);
+            pcm_show_state(2, "CAPTURE", PVT_ID(pvt), pvt->icard);
+            if (pcm_status(pvt->ocard, pvt->icard)) {
                 ast_log(LOG_ERROR, "[%s][AUDIO][ALSA] Lost connection\n", PVT_ID(pvt));
                 return -1;
             }
@@ -214,7 +173,7 @@ static void monitor_threadproc_pvt(struct pvt* const pvt)
 
     /* 4 reduce locking time make copy of this readonly fields */
     const int fd = pvt->data_fd;
-    clean_read_data(dev, fd, &rb);
+    at_clean_data(dev, fd, &rb);
 
     /* schedule initilization  */
     if (at_enqueue_initialization(&pvt->sys_chan)) {
@@ -296,7 +255,7 @@ static void monitor_threadproc_pvt(struct pvt* const pvt)
         }
 
         /* FIXME: access to device not locked */
-        int iovcnt = at_read(fd, dev, &rb);
+        int iovcnt = at_read(dev, fd, &rb);
         if (iovcnt < 0) {
             break;
         }

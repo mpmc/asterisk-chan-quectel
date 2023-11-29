@@ -33,12 +33,7 @@
  * \ingroup channel_drivers
  */
 
-#include <fcntl.h>   /* O_RDWR O_NOCTTY */
-#include <pthread.h> /* pthread_t pthread_kill() pthread_join() */
-#include <signal.h>  /* SIGURG */
-#include <sys/file.h>
-#include <sys/stat.h> /* S_IRUSR | S_IRGRP | S_IROTH */
-#include <termios.h>  /* struct termios tcgetattr() tcsetattr()  */
+#include <signal.h>
 
 #include "ast_config.h"
 
@@ -64,9 +59,11 @@
 #include "error.h"
 #include "helpers.h"
 #include "monitor_thread.h"
-#include "mutils.h"     /* ITEMS_OF() */
+#include "mutils.h" /* ITEMS_OF() */
+#include "pcm.h"
 #include "pdiscovery.h" /* pdiscovery_lookup() pdiscovery_init() pdiscovery_fini() */
 #include "smsdb.h"
+#include "tty.h"
 
 static const char* const dev_state_strs[4] = {"stop", "restart", "remove", "start"};
 
@@ -94,280 +91,22 @@ const char* dev_state2str_msg(dev_state_t state)
     return enum2str(state, states, ITEMS_OF(states));
 }
 
-void _show_alsa_state(int attribute_unused lvl, const char* file, int line, const char* function, const char* const pcm_desc, const char* const pvt_id,
-                      snd_pcm_t* const pcm)
-{
-    const size_t ss                    = snd_pcm_status_sizeof();
-    snd_pcm_status_t* const pcm_status = (snd_pcm_status_t*)ast_alloca(ss);
-
-    int res = snd_pcm_status(pcm, pcm_status);
-    if (res < 0) {
-        ast_log(__LOG_ERROR, file, line, function, "[%s][ALSA][%s] Unable to get device status: %s", pvt_id, pcm_desc, snd_strerror(res));
-        return;
-    }
-
-    const snd_pcm_state_t pcm_state = snd_pcm_status_get_state(pcm_status);
-    snd_pcm_sframes_t delay         = snd_pcm_status_get_delay(pcm_status);
-    snd_pcm_uframes_t avail         = snd_pcm_status_get_avail(pcm_status);
-
-    snd_pcm_uframes_t buffer_size;
-    snd_pcm_uframes_t period_size;
-
-    res = snd_pcm_get_params(pcm, &buffer_size, &period_size);
-    if (res < 0) {
-        ast_log(__LOG_ERROR, file, line, function, "[%s][ALSA][%s] Unable to get buffer sizes: %s", pvt_id, pcm_desc, snd_strerror(res));
-    }
-
-    snd_pcm_uframes_t avail_period_buffers = 0;
-    snd_pcm_uframes_t delay_period_buffers = 0;
-    if (res >= 0) {
-        avail_period_buffers  = avail / period_size;
-        avail                %= period_size;
-        delay_period_buffers  = delay / period_size;
-        delay                %= period_size;
-    }
-
-    ast_log(__LOG_DEBUG, file, line, function, "[%s][ALSA][%s] Status - state:%s delay:%ld:%ld avail:%lu:%lu\n", pvt_id, pcm_desc,
-            snd_pcm_state_name(pcm_state), delay_period_buffers, delay, avail_period_buffers, avail);
-}
-
-static attribute_pure snd_pcm_uframes_t adjust_uframes(snd_pcm_uframes_t ptime, unsigned int rate)
-{
-    snd_pcm_uframes_t res  = ptime;
-    res                   *= rate / 1000;
-
-    return res;
-}
-
-static attribute_pure snd_pcm_uframes_t adjust_start_threshold(snd_pcm_uframes_t ptime)
-{
-    static const size_t PTIME_MIN_START_THRESHOLD = 100u;
-    static const size_t PTIME_MAX_START_THRESHOLD = 250u;
-
-    if (ptime < PTIME_MIN_START_THRESHOLD) {
-        return PTIME_MAX_START_THRESHOLD;
-    }
-    if (ptime > PTIME_MIN_START_THRESHOLD) {
-        return PTIME_MAX_START_THRESHOLD;
-    }
-
-    return ptime;
-}
-
-static unsigned int hw_params_get_rate(const snd_pcm_hw_params_t* const params)
-{
-    static const unsigned int UNKNOWN_RATE = 0xffff;
-
-    unsigned int rate;
-    const int res = snd_pcm_hw_params_get_rate(params, &rate, NULL);
-    if (res >= 0) {
-        return rate;
-    } else {
-        return UNKNOWN_RATE;
-    }
-}
-
-static int pcm_init(struct pvt* pvt, const char* dev, snd_pcm_stream_t stream, const struct ast_format* const fmt, snd_pcm_t** pcm, unsigned int* pcm_channels)
-{
-    int res;
-    snd_pcm_t* handle             = NULL;
-    snd_pcm_hw_params_t* hwparams = NULL;
-    snd_pcm_sw_params_t* swparams = NULL;
-    unsigned int rate             = ast_format_get_sample_rate(fmt);
-
-#if PTIME_USE_DEFAULT
-    const size_t ptime = ast_format_get_default_ms(fmt);
-#else
-    const size_t ptime = (stream == SND_PCM_STREAM_CAPTURE) ? PTIME_CAPTURE : PTIME_PLAYBACK;
-#endif
-    snd_pcm_uframes_t period_size     = adjust_uframes(ptime, rate);
-    snd_pcm_uframes_t buffer_size     = adjust_uframes(PTIME_BUFFER, rate);
-    snd_pcm_uframes_t start_threshold = adjust_uframes(adjust_start_threshold(ptime * 2), rate);
-    snd_pcm_uframes_t stop_threshold  = buffer_size - period_size;
-    snd_pcm_uframes_t boundary        = 0u;
-    unsigned int hwrate               = rate;
-    unsigned int channels             = 1;
-
-    const char* const stream_str = (stream == SND_PCM_STREAM_CAPTURE) ? "CAPTURE" : "PLAYBACK";
-
-    res = snd_pcm_open(&handle, dev, stream, SND_PCM_NONBLOCK);
-    if (res < 0) {
-        ast_log(LOG_ERROR, "[%s][ALSA][%s] Fail to open device - dev:'%s' err:'%s'\n", PVT_ID(pvt), stream_str, dev, snd_strerror(res));
-        return res;
-    } else {
-        ast_debug(1, "[%s][ALSA][%s] Device: %s\n", PVT_ID(pvt), stream_str, dev);
-    }
-
-    hwparams = ast_alloca(snd_pcm_hw_params_sizeof());
-    memset(hwparams, 0, snd_pcm_hw_params_sizeof());
-    snd_pcm_hw_params_any(handle, hwparams);
-
-    res = snd_pcm_hw_params_set_access(handle, hwparams, SND_PCM_ACCESS_MMAP_INTERLEAVED);
-    if (res < 0) {
-        ast_log(LOG_ERROR, "[%s][ALSA][%s] HW Set access failed: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
-        goto alsa_fail;
-    }
-
-    res = snd_pcm_hw_params_set_format(handle, hwparams, pcm_format);
-    if (res < 0) {
-        ast_log(LOG_ERROR, "[%s][ALSA][%s] HW Set format failed: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
-        goto alsa_fail;
-    }
-
-    res = snd_pcm_hw_params_set_channels_near(handle, hwparams, &channels);
-    if (res < 0) {
-        ast_log(LOG_ERROR, "[%s][ALSA][%s] HW Set channels failed: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
-        goto alsa_fail;
-    }
-
-    res = snd_pcm_hw_params_set_rate(handle, hwparams, hwrate, 0);
-    if (hwrate != rate) {
-        ast_log(LOG_WARNING, "[%s][ALSA][%s] HW Rate not correct -  requested:%d got:%u\n", PVT_ID(pvt), stream_str, rate, hwrate);
-        goto alsa_fail;
-    }
-
-    res = snd_pcm_hw_params_set_period_size_near(handle, hwparams, &period_size, NULL);
-    if (res < 0) {
-        ast_log(LOG_ERROR, "[%s][ALSA][%s] HW Period size (%lu frames) is bad: %s\n", PVT_ID(pvt), stream_str, period_size, snd_strerror(res));
-        goto alsa_fail;
-    }
-
-    res = snd_pcm_hw_params_set_buffer_size_near(handle, hwparams, &buffer_size);
-    if (res < 0) {
-        ast_log(LOG_ERROR, "[%s][ALSA][%s] HW Problem setting buffer size of %lu: %s\n", PVT_ID(pvt), stream_str, buffer_size, snd_strerror(res));
-        goto alsa_fail;
-    }
-
-    res = snd_pcm_hw_params(handle, hwparams);
-    if (res < 0) {
-        ast_log(LOG_ERROR, "[%s][ALSA][%s] Couldn't set HW params: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
-        goto alsa_fail;
-    }
-
-    res = snd_pcm_hw_params_current(handle, hwparams);
-    if (res < 0) {
-        ast_log(LOG_WARNING, "[%s][ALSA][%s] HW Couldn't get current HW params: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
-        goto alsa_fail;
-    }
-
-    res = snd_pcm_hw_params_get_channels(hwparams, &channels);
-    if (res >= 0) {
-        const unsigned int max_channels = (stream == SND_PCM_STREAM_CAPTURE) ? 1 : 2;
-        if (channels > max_channels) {
-            ast_log(LOG_ERROR, "[%s][ALSA][%s] Too many channels: %u (max %u are supported)\n", PVT_ID(pvt), stream_str, channels, max_channels);
-            goto alsa_fail;
-        }
-        *pcm_channels = channels;
-        ast_debug(1, "[%s][ALSA][%s] Channels: %u\n", PVT_ID(pvt), stream_str, channels);
-    } else {
-        ast_log(LOG_ERROR, "[%s][ALSA][%s] Couldn't get channel count: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
-        goto alsa_fail;
-    }
-
-    ast_debug(1, "[%s][ALSA][%s] Rate: %u\n", PVT_ID(pvt), stream_str, hw_params_get_rate(hwparams));
-
-    res = snd_pcm_hw_params_get_period_size(hwparams, &period_size, NULL);
-    if (res >= 0) {
-        ast_debug(1, "[%s][ALSA][%s] Period size: %lu\n", PVT_ID(pvt), stream_str, period_size);
-    }
-
-    res = snd_pcm_hw_params_get_buffer_size(hwparams, &buffer_size);
-    if (res >= 0) {
-        ast_debug(1, "[%s][ALSA][%s] Buffer size: %lu\n", PVT_ID(pvt), stream_str, buffer_size);
-    }
-
-    swparams = ast_alloca(snd_pcm_sw_params_sizeof());
-    memset(swparams, 0, snd_pcm_sw_params_sizeof());
-    res = snd_pcm_sw_params_current(handle, swparams);
-    if (res < 0) {
-        ast_log(LOG_ERROR, "[%s][ALSA][%s] Couldn't get SW params: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
-        goto alsa_fail;
-    }
-
-    res = snd_pcm_sw_params_get_boundary(swparams, &boundary);
-    if (res < 0) {
-        ast_log(LOG_ERROR, "[%s][ALSA][%s] SW Couldn't get boundary: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
-        boundary = 0u;
-    }
-    ast_debug(3, "[%s][ALSA][%s] Boundary: %lu\n", PVT_ID(pvt), stream_str, boundary);
-
-    if (stream == SND_PCM_STREAM_PLAYBACK) {
-        ast_debug(2, "[%s][ALSA][%s] Start threshold: %lu\n", PVT_ID(pvt), stream_str, start_threshold);
-        res = snd_pcm_sw_params_set_start_threshold(handle, swparams, start_threshold);
-
-        if (res < 0) {
-            ast_log(LOG_ERROR, "[%s][ALSA][%s] SW Couldn't set start threshold: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
-            goto alsa_fail;
-        }
-
-        ast_debug(2, "[%s][ALSA][%s] Stop threshold: %lu, free: %lu\n", PVT_ID(pvt), stream_str, stop_threshold, buffer_size - stop_threshold);
-        res = snd_pcm_sw_params_set_stop_threshold(handle, swparams, stop_threshold);
-        if (res < 0) {
-            ast_log(LOG_ERROR, "[%s][ALSA][%s] SW Couldn't set stop threshold: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
-            goto alsa_fail;
-        }
-    }
-
-    if (stream == SND_PCM_STREAM_PLAYBACK && boundary > 0u) {
-        res = snd_pcm_sw_params_set_silence_threshold(handle, swparams, 0);
-        if (res < 0) {
-            ast_log(LOG_WARNING, "[%s][ALSA][%s] SW Couldn't set silence threshold: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
-        } else {
-            res = snd_pcm_sw_params_set_silence_size(handle, swparams, boundary);
-            if (res < 0) {
-                ast_log(LOG_WARNING, "[%s][ALSA][%s] SW Couldn't set silence size: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
-            }
-        }
-    }
-
-    res = snd_pcm_sw_params(handle, swparams);
-    if (res < 0) {
-        ast_log(LOG_ERROR, "[%s][ALSA][%s] Couldn't set SW params: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
-        goto alsa_fail;
-    }
-
-    if (stream == SND_PCM_STREAM_CAPTURE) {
-        res = snd_pcm_poll_descriptors_count(handle);
-        if (res <= 0) {
-            ast_log(LOG_ERROR, "[%s][ALSA][%s] Unable to get a poll descriptors count: %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
-            goto alsa_fail;
-        }
-
-        struct pollfd pfd[res];
-
-        res = snd_pcm_poll_descriptors(handle, pfd, res);
-        if (res < 0) {
-            ast_log(LOG_ERROR, "[%s][ALSA][%s] Unable to get a poll descriptor(s): %s\n", PVT_ID(pvt), stream_str, snd_strerror(res));
-            goto alsa_fail;
-        }
-        ast_debug(1, "[%s][ALSA][%s] Acquired FD:%d from the poll descriptor(s)\n", PVT_ID(pvt), stream_str, pfd[0].fd);
-        pvt->audio_fd = pfd[0].fd;
-    }
-
-    *pcm = handle;
-    return 0;
-
-alsa_fail:
-    snd_pcm_close(handle);
-    return res;
-}
-
 static int soundcard_init(struct pvt* pvt)
 {
     const struct ast_format* const fmt = pvt_get_audio_format(pvt);
     unsigned int channels;
 
-    if (pcm_init(pvt, CONF_UNIQ(pvt, alsadev), SND_PCM_STREAM_CAPTURE, fmt, &pvt->icard, &channels)) {
+    if (pcm_init(CONF_UNIQ(pvt, alsadev), SND_PCM_STREAM_CAPTURE, fmt, &pvt->icard, &channels, &pvt->audio_fd)) {
         ast_log(LOG_ERROR, "[%s][ALSA] Problem opening capture device '%s'\n", PVT_ID(pvt), CONF_UNIQ(pvt, alsadev));
         return -1;
     }
 
-    if (pcm_init(pvt, CONF_UNIQ(pvt, alsadev), SND_PCM_STREAM_PLAYBACK, fmt, &pvt->ocard, &pvt->ocard_channels)) {
+    if (pcm_init(CONF_UNIQ(pvt, alsadev), SND_PCM_STREAM_PLAYBACK, fmt, &pvt->ocard, &pvt->ocard_channels, NULL)) {
         ast_log(LOG_ERROR, "[%s][ALSA] Problem opening playback device '%s'\n", PVT_ID(pvt), CONF_UNIQ(pvt, alsadev));
         return -1;
     }
 
-    int err = snd_pcm_link(pvt->icard, pvt->ocard);
+    const int err = snd_pcm_link(pvt->icard, pvt->ocard);
     if (err < 0) {
         ast_log(LOG_ERROR, "[%s][ALSA] Couldn't link devices: %s\n", PVT_ID(pvt), snd_strerror(err));
         snd_pcm_close(pvt->icard);
@@ -378,142 +117,11 @@ static int soundcard_init(struct pvt* pvt)
         return -1;
     }
 
-    ast_verb(2, "[%s] Sound card '%s' initialized\n", PVT_ID(pvt), CONF_UNIQ(pvt, alsadev));
+    ast_verb(2, "[%s][ALSA] Sound card '%s' initialized\n", PVT_ID(pvt), CONF_UNIQ(pvt, alsadev));
     return 0;
 }
 
 static int public_state_init(struct public_state* state);
-
-void closetty_lck(const char* dev, int fd, int exclusive, int flck)
-{
-    if (flck) {
-        if (flock(fd, LOCK_UN | LOCK_NB) < 0) {
-            const int errno_save = errno;
-            ast_log(LOG_WARNING, "Unable to unlock %s: %s\n", dev, strerror(errno_save));
-        }
-    }
-
-    if (exclusive) {
-        if (ioctl(fd, TIOCNXCL) < 0) {
-            const int errno_save = errno;
-            ast_log(LOG_WARNING, "Unable to disable exlusive mode for %s: %s\n", dev, strerror(errno_save));
-        }
-    }
-
-    close(fd);
-}
-
-void closetty(const char* dev, int fd)
-{
-    if (fd < 0) {
-        return;
-    }
-    closetty_lck(dev, fd, 1, 1);
-}
-
-int opentty(const char* dev, int typ)
-{
-    int fd;
-    struct termios term_attr;
-
-    fd = open(dev, O_RDWR | O_NOCTTY);
-    if (fd < 0) {
-        const int errno_save = errno;
-        closetty_lck(dev, fd, 0, 0);
-        ast_log(LOG_WARNING, "Unable to open %s: %s\n", dev, strerror(errno_save));
-        return -1;
-    }
-
-    int locking_status = 0;
-    if (ioctl(fd, TIOCGEXCL, &locking_status) < 0) {
-        const int errno_save = errno;
-        closetty_lck(dev, fd, 0, 0);
-        ast_log(LOG_WARNING, "Unable to get locking status for %s: %s\n", dev, strerror(errno_save));
-        return -1;
-    }
-
-    if (locking_status) {
-        closetty_lck(dev, fd, 0, 0);
-        ast_verb(1, "Device %s locked.\n", dev);
-        return -1;
-    }
-
-    if (ioctl(fd, TIOCEXCL) < 0) {
-        const int errno_save = errno;
-        closetty_lck(dev, fd, 0, 0);
-        ast_log(LOG_WARNING, "Unable to put %s into exclusive mode: %s\n", dev, strerror(errno_save));
-        return -1;
-    }
-
-    if (flock(fd, LOCK_EX | LOCK_NB) < 0) {
-        const int errno_save = errno;
-        closetty_lck(dev, fd, 1, 0);
-        ast_log(LOG_WARNING, "Unable to flock %s: %s\n", dev, strerror(errno_save));
-        return -1;
-    }
-
-    const int flags = fcntl(fd, F_GETFD);
-    if (flags == -1 || fcntl(fd, F_SETFD, flags | FD_CLOEXEC) < 0) {
-        const int errno_save = errno;
-        closetty_lck(dev, fd, 1, 1);
-        ast_log(LOG_WARNING, "fcntl(F_GETFD/F_SETFD) failed for %s: %s\n", dev, strerror(errno_save));
-        return -1;
-    }
-
-    if (tcgetattr(fd, &term_attr)) {
-        const int errno_save = errno;
-        closetty_lck(dev, fd, 1, 1);
-        ast_log(LOG_WARNING, "tcgetattr() failed for %s: %s\n", dev, strerror(errno_save));
-        return -1;
-    }
-
-    switch (typ) {
-        case 2:
-            term_attr.c_cflag = B115200 | CS8 | CREAD | CLOCAL;
-            break;
-
-        case 1:
-            term_attr.c_cflag = B115200 | CS8 | CREAD | CRTSCTS | CLOCAL;
-            break;
-
-        default:
-            term_attr.c_cflag = B115200 | CS8 | CREAD | CRTSCTS;
-            break;
-    }
-
-    term_attr.c_iflag     = 0;
-    term_attr.c_oflag     = 0;
-    term_attr.c_lflag     = 0;
-    term_attr.c_cc[VMIN]  = 1;
-    term_attr.c_cc[VTIME] = 0;
-
-    if (tcsetattr(fd, TCSAFLUSH, &term_attr)) {
-        ast_log(LOG_WARNING, "tcsetattr(TCSAFLUSH) failed for %s: %s\n", dev, strerror(errno));
-    }
-
-    return fd;
-}
-
-static int pcm_close(snd_pcm_t** ad, snd_pcm_stream_t stream_type)
-{
-    if (*ad == NULL) {
-        return 0;
-    }
-    const int res = snd_pcm_close(*ad);
-    if (res < 0) {
-        switch (stream_type) {
-            case SND_PCM_STREAM_PLAYBACK:
-                ast_log(LOG_ERROR, "ALSA - failed to close playback device: %s", snd_strerror(res));
-                break;
-
-            case SND_PCM_STREAM_CAPTURE:
-                ast_log(LOG_ERROR, "ALSA - failed to close capture device: %s", snd_strerror(res));
-                break;
-        }
-    }
-    *ad = NULL;
-    return res;
-}
 
 #/* phone monitor thread pvt cleanup */
 
@@ -524,7 +132,7 @@ void pvt_disconnect(struct pvt* pvt)
         AST_LIST_TRAVERSE(&(pvt->chans), cpvt, entry) {
             at_hangup_immediately(cpvt, AST_CAUSE_NORMAL_UNSPECIFIED);
             CPVT_RESET_FLAG(cpvt, CALL_FLAG_NEED_HANGUP);
-            change_channel_state(cpvt, CALL_STATE_RELEASED, AST_CAUSE_NORMAL_UNSPECIFIED);
+            cpvt_change_state(cpvt, CALL_STATE_RELEASED, AST_CAUSE_NORMAL_UNSPECIFIED);
         }
     }
 
@@ -548,17 +156,17 @@ void pvt_disconnect(struct pvt* pvt)
             if (err < 0) {
                 ast_log(LOG_WARNING, "[%s][ALSA] Couldn't unlink devices: %s", PVT_ID(pvt), snd_strerror(err));
             }
-            pcm_close(&pvt->icard, SND_PCM_STREAM_CAPTURE);
+            pcm_close(CONF_UNIQ(pvt, alsadev), &pvt->icard, SND_PCM_STREAM_CAPTURE);
         }
         if (pvt->ocard) {
-            pcm_close(&pvt->ocard, SND_PCM_STREAM_PLAYBACK);
+            pcm_close(CONF_UNIQ(pvt, alsadev), &pvt->ocard, SND_PCM_STREAM_PLAYBACK);
             pvt->ocard_channels = 0;
         }
     } else {
-        closetty(PVT_STATE(pvt, audio_tty), pvt->audio_fd);
+        tty_close(PVT_STATE(pvt, audio_tty), pvt->audio_fd);
     }
 
-    closetty(PVT_STATE(pvt, data_tty), pvt->data_fd);
+    tty_close(PVT_STATE(pvt, data_tty), pvt->data_fd);
 
     pvt->data_fd  = -1;
     pvt->audio_fd = -1;
@@ -624,25 +232,6 @@ void pvt_disconnect(struct pvt* pvt)
     ast_verb(3, "[%s] Disconnected\n", PVT_ID(pvt));
 }
 
-/* anybody wrote some to device before me, and not read results, clean pending results here */
-#/* */
-
-void clean_read_data(const char* devname, int fd, struct ringbuffer* const rb)
-{
-    rb_reset(rb);
-    for (int t = 0; at_wait(fd, &t); t = 0) {
-        const int iovcnt = at_read(fd, devname, rb);
-        if (iovcnt) {
-            ast_debug(4, "[%s] Drop %u bytes of pending data\n", devname, (unsigned)rb_used(rb));
-        }
-        /* drop read */
-        rb_reset(rb);
-        if (!iovcnt) {
-            break;
-        }
-    }
-}
-
 #/* called with pvt lock hold */
 
 static int pvt_discovery(struct pvt* pvt)
@@ -685,12 +274,14 @@ static int pvt_discovery(struct pvt* pvt)
     return !resolved;
 }
 
-#/* */
+static void fd_set_nonblock(const int fd)
+{
+    const int flags = fcntl(fd, F_GETFL);
+    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+}
 
 static void pvt_start(struct pvt* pvt)
 {
-    long flags;
-
     /* prevent start_monitor() multiple times and on turned off devices */
     if (pvt->connected || pvt->desired_state != DEV_STATE_STARTED) {
         // || (pvt->monitor_thread != AST_PTHREADT_NULL &&
@@ -706,7 +297,7 @@ static void pvt_start(struct pvt* pvt)
 
     ast_verb(3, "[%s] Trying to connect on %s...\n", PVT_ID(pvt), PVT_STATE(pvt, data_tty));
 
-    pvt->data_fd = opentty(PVT_STATE(pvt, data_tty), (CONF_UNIQ(pvt, uac) == TRIBOOL_NONE) ? 2 : 0);
+    pvt->data_fd = tty_open(PVT_STATE(pvt, data_tty), (CONF_UNIQ(pvt, uac) == TRIBOOL_NONE) ? 2 : 0);
     if (pvt->data_fd < 0) {
         return;
     }
@@ -718,7 +309,7 @@ static void pvt_start(struct pvt* pvt)
         }
     } else {
         // TODO: delay until device activate voice call or at pvt_on_create_1st_channel()
-        pvt->audio_fd = opentty(PVT_STATE(pvt, audio_tty), pvt->is_simcom);
+        pvt->audio_fd = tty_open(PVT_STATE(pvt, audio_tty), pvt->is_simcom);
         if (pvt->audio_fd < 0) {
             goto cleanup_datafd;
         }
@@ -736,17 +327,18 @@ static void pvt_start(struct pvt* pvt)
         }
     }
 
-    /* Set data_fd and audio_fd to non-blocking. This appears to fix
+
+    /*
+     * Set data_fd and audio_fd to non-blocking. This appears to fix
      * incidental deadlocks occurring with Asterisk 12+ or with
      * jitterbuffer enabled. Apparently Asterisk can call the
      * (audio) read function for sockets that don't have data to
-     * read(). */
-    flags = fcntl(pvt->data_fd, F_GETFL);
-    fcntl(pvt->data_fd, F_SETFL, flags | O_NONBLOCK);
+     * read().
+     */
+    fd_set_nonblock(pvt->data_fd);
 
     if (CONF_UNIQ(pvt, uac) == TRIBOOL_FALSE) {
-        flags = fcntl(pvt->audio_fd, F_GETFL);
-        fcntl(pvt->audio_fd, F_SETFL, flags | O_NONBLOCK);
+        fd_set_nonblock(pvt->audio_fd);
     }
 
     pvt->connected     = 1;
@@ -756,11 +348,11 @@ static void pvt_start(struct pvt* pvt)
 
 cleanup_audiofd:
     if (pvt->audio_fd > 0) {
-        closetty(PVT_STATE(pvt, audio_tty), pvt->audio_fd);
+        tty_close(PVT_STATE(pvt, audio_tty), pvt->audio_fd);
     }
 
 cleanup_datafd:
-    closetty(PVT_STATE(pvt, data_tty), pvt->data_fd);
+    tty_close(PVT_STATE(pvt, data_tty), pvt->data_fd);
 }
 
 #/* */
@@ -943,7 +535,7 @@ int pvt_get_pseudo_call_idx(const struct pvt* pvt)
     int* bits;
     int dwords = ((MAX_CALL_IDX + sizeof(*bits) - 1) / sizeof(*bits));
 
-    bits = alloca(dwords * sizeof(*bits));
+    bits = ast_alloca(dwords * sizeof(*bits));
     memset(bits, 0, dwords * sizeof(*bits));
 
     AST_LIST_TRAVERSE(&pvt->chans, cpvt, entry) {
@@ -1011,7 +603,7 @@ static int is_dial_possible2(const struct pvt* pvt, int opts, const struct cpvt*
 
 #/* */
 
-int is_dial_possible(const struct pvt* pvt, int opts) { return is_dial_possible2(pvt, opts, NULL); }
+int pvt_is_dial_possible(const struct pvt* pvt, int opts) { return is_dial_possible2(pvt, opts, NULL); }
 
 #/* */
 
@@ -1022,7 +614,7 @@ int pvt_enabled(const struct pvt* pvt)
 
 #/* */
 
-int ready4voice_call(const struct pvt* pvt, const struct cpvt* current_cpvt, int opts)
+int pvt_ready4voice_call(const struct pvt* pvt, const struct cpvt* current_cpvt, int opts)
 {
     if (!pvt->connected || !pvt->initialized || !pvt->has_voice || !pvt->gsm_registered || !pvt_enabled(pvt)) {
         return 0;
@@ -1043,10 +635,10 @@ static int can_dial(struct pvt* pvt, int opts, const struct ast_channel* request
     if ((opts & CALL_FLAG_HOLD_OTHER) == CALL_FLAG_HOLD_OTHER && channels_loop(pvt, requestor)) {
         return 0;
     }
-    return ready4voice_call(pvt, NULL, opts);
+    return pvt_ready4voice_call(pvt, NULL, opts);
 }
 
-void unlock_pvt(struct pvt* const pvt)
+void pvt_unlock(struct pvt* const pvt)
 {
     if (!pvt) {
         return;
@@ -1100,7 +692,7 @@ int pvt_taskproc_lock_and_execute(struct pvt_taskproc_data* ptd, void (*task_exe
 
 #/* return locked pvt or NULL */
 
-struct pvt* find_device_ex(struct public_state* state, const char* name)
+struct pvt* pvt_find_ex(struct public_state* state, const char* name)
 {
     struct pvt* pvt;
 
@@ -1119,9 +711,9 @@ struct pvt* find_device_ex(struct public_state* state, const char* name)
 
 #/* return locked pvt or NULL */
 
-struct pvt* find_device_ext(const char* name)
+struct pvt* pvt_find_by_ext(const char* name)
 {
-    struct pvt* pvt = find_device(name);
+    struct pvt* pvt = pvt_find(name);
 
     if (pvt) {
         if (!pvt_enabled(pvt)) {
@@ -1137,7 +729,7 @@ struct pvt* find_device_ext(const char* name)
 
 #/* like find_device but for resource spec; return locked! pvt or NULL */
 
-struct pvt* find_device_by_resource_ex(struct public_state* state, const char* resource, int opts, const struct ast_channel* requestor, int* exists)
+struct pvt* pvt_find_by_resource_ex(struct public_state* state, const char* resource, int opts, const struct ast_channel* requestor, int* exists)
 {
     int group;
     size_t i;
@@ -1334,6 +926,46 @@ struct pvt* find_device_by_resource_ex(struct public_state* state, const char* r
     return found;
 }
 
+struct cpvt* pvt_channel_find_by_call_idx(struct pvt* pvt, int call_idx)
+{
+    struct cpvt* cpvt;
+
+    AST_LIST_TRAVERSE(&pvt->chans, cpvt, entry) {
+        if (call_idx == cpvt->call_idx) {
+            return cpvt;
+        }
+    }
+
+    return 0;
+}
+
+struct cpvt* pvt_channel_find_active(struct pvt* pvt)
+{
+    struct cpvt* cpvt;
+
+    AST_LIST_TRAVERSE(&pvt->chans, cpvt, entry) {
+        if (CPVT_IS_SOUND_SOURCE(cpvt)) {
+            return cpvt;
+        }
+    }
+
+    return 0;
+}
+
+struct cpvt* pvt_channel_find_last_initialized(struct pvt* pvt)
+{
+    struct cpvt* cpvt;
+    struct cpvt* res = NULL;
+
+    AST_LIST_TRAVERSE(&pvt->chans, cpvt, entry) {
+        if (CPVT_IS_SOUND_SOURCE(cpvt) || (cpvt)->state == CALL_STATE_INIT) {
+            res = cpvt;
+        }
+    }
+
+    return res;
+}
+
 #/* */
 
 static const char* pvt_state_base(const struct pvt* pvt)
@@ -1357,27 +989,28 @@ static const char* pvt_state_base(const struct pvt* pvt)
 const char* pvt_str_state(const struct pvt* pvt)
 {
     const char* state = pvt_state_base(pvt);
-    if (!state) {
-        if (pvt->ring || PVT_STATE(pvt, chan_count[CALL_STATE_INCOMING])) {
-            state = "Ring";
-        } else if (pvt->cwaiting || PVT_STATE(pvt, chan_count[CALL_STATE_WAITING])) {
-            state = "Waiting";
-        } else if (pvt->dialing || (PVT_STATE(pvt, chan_count[CALL_STATE_INIT]) + PVT_STATE(pvt, chan_count[CALL_STATE_DIALING]) +
-                                    PVT_STATE(pvt, chan_count[CALL_STATE_ALERTING])) > 0) {
-            state = "Dialing";
-        }
-
-        else if (PVT_STATE(pvt, chan_count[CALL_STATE_ACTIVE]) > 0) {
-            //			state = "Active";
-            state = pvt_call_dir(pvt);
-        } else if (PVT_STATE(pvt, chan_count[CALL_STATE_ONHOLD]) > 0) {
-            state = "Held";
-        } else if (pvt->outgoing_sms || pvt->incoming_sms_index >= 0) {
-            state = "SMS";
-        } else {
-            state = "Free";
-        }
+    if (state) {
+        return state;
     }
+
+    if (pvt->ring || PVT_STATE(pvt, chan_count[CALL_STATE_INCOMING])) {
+        state = "Ring";
+    } else if (pvt->cwaiting || PVT_STATE(pvt, chan_count[CALL_STATE_WAITING])) {
+        state = "Waiting";
+    } else if (pvt->dialing || (PVT_STATE(pvt, chan_count[CALL_STATE_INIT]) + PVT_STATE(pvt, chan_count[CALL_STATE_DIALING]) +
+                                PVT_STATE(pvt, chan_count[CALL_STATE_ALERTING])) > 0) {
+        state = "Dialing";
+    } else if (PVT_STATE(pvt, chan_count[CALL_STATE_ACTIVE]) > 0) {
+        //			state = "Active";
+        state = pvt_str_call_dir(pvt);
+    } else if (PVT_STATE(pvt, chan_count[CALL_STATE_ONHOLD]) > 0) {
+        state = "Held";
+    } else if (pvt->outgoing_sms || pvt->incoming_sms_index >= 0) {
+        state = "SMS";
+    } else {
+        state = "Free";
+    }
+
     return state;
 }
 
@@ -1385,7 +1018,9 @@ const char* pvt_str_state(const struct pvt* pvt)
 
 struct ast_str* pvt_str_state_ex(const struct pvt* pvt)
 {
-    struct ast_str* buf = ast_str_create(256);
+    static const size_t DEF_STATE_LEN = 128;
+
+    struct ast_str* buf = ast_str_create(DEF_STATE_LEN);
     const char* state   = pvt_state_base(pvt);
 
     if (state) {
@@ -1432,65 +1067,22 @@ struct ast_str* pvt_str_state_ex(const struct pvt* pvt)
     return buf;
 }
 
-#/* */
-
-const char* GSM_regstate2str(int gsm_reg_status)
+const char* pvt_str_call_dir(const struct pvt* pvt)
 {
-    static const char* const gsm_states[] = {
-        "Not registered, not searching", "Registered, home network", "Not registered, but searching", "Registration denied", "Unknown", "Registered, roaming",
-    };
-    return enum2str_def(gsm_reg_status, gsm_states, ITEMS_OF(gsm_states), "Unknown");
-}
+    static const char* dirs[] = {"Active", "Outgoing", "Incoming", "Both"};
 
-#/* */
+    int index = 0;
+    struct cpvt* cpvt;
 
-const char* sys_act2str(int act)
-{
-    static const char* const sys_acts[] = {
-        "No service",
-        "GSM",
-        "GPRS",
-        "EDGE",
-        "WCDMA",
-        "HSDPA",
-        "HSUPA",
-        "HSDPA and HSUPA",
-        "LTE",
-        "TDS-CDMA",
-        "TDS-HSDPA only",
-        "TDS-HSUPA only",
-        "TDS-HSPA (HSDPA and HSUPA)",
-        "CDMA",
-        "EVDO",
-        "CDMA and EVDO",
-        "CDMA and LTE",
-        "???",
-        "???",
-        "???",
-        "???",
-        "???",
-        "???",
-        "Ehrpd",
-        "CDMA and Ehrpd",
-    };
-
-    return enum2str_def(act, sys_acts, ITEMS_OF(sys_acts), "Unknown");
-}
-
-#/* BUGFIX of https://code.google.com/p/asterisk-chan-quectel/issues/detail?id=118 */
-
-const char* rssi2dBm(int rssi, char* buf, size_t len)
-{
-    if (rssi <= 0) {
-        snprintf(buf, len, "<= -113 dBm");
-    } else if (rssi <= 30) {
-        snprintf(buf, len, "%d dBm", 2 * rssi - 113);
-    } else if (rssi == 31) {
-        snprintf(buf, len, ">= -51 dBm");
-    } else {
-        snprintf(buf, len, "unknown or unmeasurable");
+    AST_LIST_TRAVERSE(&pvt->chans, cpvt, entry) {
+        if (CPVT_DIR_OUTGOING(cpvt)) {
+            index |= 0x1;
+        } else {
+            index |= 0x2;
+        }
     }
-    return buf;
+
+    return dirs[index];
 }
 
 /* Module */
@@ -1668,7 +1260,7 @@ static int reload_config(public_state_t* state, int recofigure, restate_time_t w
             if (err) {
                 continue;
             }
-            RAII_VAR(struct pvt* const, pvt, find_device(UCONFIG(&settings, id)), unlock_pvt);
+            RAII_VAR(struct pvt* const, pvt, pvt_find(UCONFIG(&settings, id)), pvt_unlock);
 
             if (pvt) {
                 if (!recofigure) {
@@ -1773,6 +1365,19 @@ size_t pvt_get_audio_frame_size(unsigned int ptime, const struct ast_format* con
 #endif
 
 void* pvt_get_silence_buffer(struct pvt* const pvt) { return pvt->silence_buf + AST_FRIENDLY_OFFSET; }
+
+int pvt_direct_write(struct pvt* pvt, const char* buf, size_t count)
+{
+    ast_debug(5, "[%s] [%s]\n", PVT_ID(pvt), tmp_esc_nstr(buf, count));
+
+    const size_t wrote            = fd_write_all(pvt->data_fd, buf, count);
+    PVT_STAT(pvt, d_write_bytes) += wrote;
+    if (wrote != count) {
+        ast_debug(1, "[%s][DATA] Write: %s\n", PVT_ID(pvt), strerror(errno));
+    }
+
+    return wrote != count;
+}
 
 static struct ast_threadpool* threadpool_create()
 {

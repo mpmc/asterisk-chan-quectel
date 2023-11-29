@@ -14,8 +14,10 @@
 #include "at_queue.h"     /* write_all() */
 #include "at_read.h"      /* at_wait() at_read() at_read_result_iov() at_read_result_classification() */
 #include "chan_quectel.h" /* opentty() closetty() */
-#include "mutils.h"       /* ITEMS_OF() */
-#include "ringbuffer.h"   /* struct ringbuffer */
+#include "helpers.h"
+#include "mutils.h"     /* ITEMS_OF() */
+#include "ringbuffer.h" /* struct ringbuffer */
+#include "tty.h"
 
 /*
 static const char sys_bus_usb_drivers_usb[] = "/sys/bus/usb/drivers/usb";
@@ -523,13 +525,13 @@ static int pdiscovery_do_cmd(const struct pdiscovery_request* req, int fd, const
 
     void* const buf = ast_malloc(RINGBUFFER_SIZE);
     rb_init(&rb, buf, RINGBUFFER_SIZE);
-    clean_read_data(req->name, fd, &rb);
+    at_clean_data(req->name, fd, &rb);
 
-    const size_t wrote = write_all(fd, cmd, length);
+    const size_t wrote = fd_write_all(fd, cmd, length);
     if (wrote == length) {
         int timeout = PDISCOVERY_TIMEOUT;
         while (timeout > 0 && at_wait(fd, &timeout)) {
-            int iovcnt = at_read(fd, name, &rb);
+            int iovcnt = at_read(name, fd, &rb);
             if (iovcnt > 0) {
                 struct iovec iov[2];
                 iovcnt = rb_read_all_iov(&rb, iov);
@@ -571,7 +573,7 @@ static int pdiscovery_get_info(const char* port, const struct pdiscovery_request
     };
 
     int fail     = 1;
-    const int fd = opentty(port, 0);
+    const int fd = tty_open(port, 0);
 
     if (fd >= 0) {
         unsigned want_imei = req->imei && res->imei == NULL;  // 1 && 0
@@ -580,7 +582,7 @@ static int pdiscovery_get_info(const char* port, const struct pdiscovery_request
 
         /* clean queue first ? */
         fail = pdiscovery_do_cmd(req, fd, port, cmds[cmd].cmd, cmds[cmd].length, res);
-        closetty(port, fd);
+        tty_close(port, fd);
     }
 
     return fail;

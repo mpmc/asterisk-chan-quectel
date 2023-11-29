@@ -63,4 +63,11 @@ const char* escape_str_ex(struct ast_str*, const struct ast_str* const);
 #define AST_JSON_OBJECT_SET(j, s) \
     if (s && ast_str_strlen(s)) ast_json_object_set(j, #s, ast_json_string_create(ast_str_buffer(s)));
 
+
+const char* gsm_regstate2str(int gsm_reg_status);
+const char* sys_act2str(int sys_submode);
+struct ast_str* rssi2dBm(int rssi);
+
+size_t fd_write_all(int fd, const char* buf, size_t count);
+
 #endif /* CHAN_QUECTEL_HELPERS_H_INCLUDED */

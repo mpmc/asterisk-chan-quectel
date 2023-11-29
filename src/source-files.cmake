@@ -23,6 +23,8 @@ SET(SOURCES
     error.c
     smsdb.c
     monitor_thread.c
+    tty.c
+    pcm.c
 )
 
 SET(HEADERS
@@ -49,4 +51,6 @@ SET(HEADERS
     gsm7_luts.h
     ast_config.h
     monitor_thread.h
+    tty.h
+    pcm.h
 )

@@ -15,7 +15,7 @@
 
 #include "ast_config.h"
 
-#include <asterisk/causes.h> /* AST_CAUSE_INCOMPATIBLE_DESTINATION AST_CAUSE_FACILITY_NOT_IMPLEMENTED AST_CAUSE_REQUESTED_CHAN_UNAVAIL */
+#include <asterisk/causes.h>
 #include <asterisk/format_cache.h>
 #include <asterisk/json.h>
 #include <asterisk/lock.h>        /* AST_MUTEX_DEFINE_STATIC */
@@ -136,7 +136,7 @@ static struct ast_channel* channel_request(attribute_unused const char* type, st
         return NULL;
     }
 
-    RAII_VAR(struct pvt*, pvt, find_device_by_resource(dest_dev, opts, requestor, &exists), unlock_pvt);
+    RAII_VAR(struct pvt*, pvt, pvt_find_by_resource(dest_dev, opts, requestor, &exists), pvt_unlock);
 
     unsigned local_channel = 0;
 
@@ -210,7 +210,7 @@ static int channel_call(struct ast_channel* channel, const char* dest, attribute
     SCOPED_MUTEX(pvt_lock, &pvt->lock);
 
     // FIXME: check if bridged on same device with CALL_FLAG_HOLD_OTHER
-    if (!ready4voice_call(pvt, cpvt, opts)) {
+    if (!pvt_ready4voice_call(pvt, cpvt, opts)) {
         ast_log(LOG_ERROR, "[%s] Error device already in use or uninitialized\n", PVT_ID(pvt));
         return -1;
     }
@@ -239,76 +239,6 @@ static int channel_call(struct ast_channel* channel, const char* dest, attribute
     return 0;
 }
 
-#/* ARCH: move to cpvt level */
-
-static void disactivate_call(struct cpvt* cpvt)
-{
-    struct pvt* pvt = cpvt->pvt;
-
-    if (cpvt->channel && CPVT_TEST_FLAG(cpvt, CALL_FLAG_ACTIVATED)) {
-        if (CONF_UNIQ(pvt, uac) > TRIBOOL_FALSE) {
-            // snd_pcm_drop(pvt->icard);
-            // snd_pcm_drop(pvt->ocard);
-        } else {
-            if (CONF_SHARED(pvt, multiparty)) {
-                mixb_detach(&cpvt->pvt->write_mixb, &cpvt->mixstream);
-            }
-        }
-
-        CPVT_RESET_FLAGS(cpvt, CALL_FLAG_ACTIVATED | CALL_FLAG_MASTER);
-
-        ast_debug(6, "[%s] Call idx %d disactivated\n", PVT_ID(cpvt->pvt), cpvt->call_idx);
-    }
-}
-
-#/* ARCH: move to cpvt level */
-
-static void activate_call(struct cpvt* cpvt)
-{
-    struct cpvt* cpvt2;
-
-    /* nothing todo, already main */
-    if (CPVT_IS_MASTER(cpvt)) {
-        return;
-    }
-
-    /* drop any other from MASTER, any set pipe for actives */
-    struct pvt* const pvt = cpvt->pvt;
-
-    AST_LIST_TRAVERSE(&pvt->chans, cpvt2, entry) {
-        if (cpvt2 == cpvt) {
-            continue;
-        }
-
-        if (CPVT_IS_MASTER(cpvt)) {
-            ast_debug(6, "[%s] Call idx:%d gave master\n", PVT_ID(pvt), cpvt2->call_idx);
-        }
-
-        CPVT_RESET_FLAG(cpvt2, CALL_FLAG_MASTER);
-
-        if (cpvt2->channel) {
-            ast_channel_set_fd(cpvt2->channel, 1, -1);
-            if (CPVT_TEST_FLAG(cpvt, CALL_FLAG_ACTIVATED)) {
-                ast_channel_set_fd(cpvt2->channel, 0, cpvt2->rd_pipe[PIPE_READ]);
-                ast_debug(6, "[%s] Call idx:%d FD:%d still active\n", PVT_ID(pvt), cpvt2->call_idx, cpvt2->rd_pipe[PIPE_READ]);
-            }
-        }
-    }
-
-    /* setup call local write possition */
-    if (!CPVT_TEST_FLAG(cpvt, CALL_FLAG_ACTIVATED)) {
-        // FIXME: reset possition?
-        if (CONF_SHARED(pvt, multiparty)) {
-            mixb_attach(&pvt->write_mixb, &cpvt->mixstream);
-        }
-    }
-
-    if (pvt->audio_fd >= 0) {
-        CPVT_SET_FLAGS(cpvt, CALL_FLAG_ACTIVATED | CALL_FLAG_MASTER);
-        ast_debug(6, "[%s] Call idx:%d was master\n", PVT_ID(pvt), cpvt->call_idx);
-    }
-}
-
 #/* we has 2 case of call this function, when local side want terminate call and when called for cleanup after remote side alreay terminate call, CEND received and cpvt destroyed */
 
 static int channel_hangup(struct ast_channel* channel)
@@ -334,7 +264,7 @@ static int channel_hangup(struct ast_channel* channel)
             }
         }
 
-        disactivate_call(cpvt);
+        cpvt_call_disactivate(cpvt);
 
         /* drop cpvt->channel reference */
         cpvt->channel = NULL;
@@ -449,24 +379,11 @@ static inline void change_audio_endianness_to_le(attribute_unused struct iovec* 
 
 static void timing_write_tty(struct pvt* pvt, size_t frame_size)
 {
-    size_t used;
     int iovcnt;
     struct iovec iov[3];
-    const char* msg = NULL;
-    //	char			buffer[FRAME_SIZE];
-    //	struct cpvt*		cpvt;
 
-    //	ast_debug (6, "[%s] tm write |\n", PVT_ID(pvt));
-
-    //	memset(buffer, 0, sizeof(buffer));
-
-    //	AST_LIST_TRAVERSE(&pvt->chans, cpvt, entry) {
-
-    //		if(!CPVT_IS_ACTIVE(cpvt))
-    //			continue;
-
-    used = mixb_used(&pvt->write_mixb);
-    //		used = rb_used (&cpvt->a_write_rb);
+    const char* msg   = NULL;
+    const size_t used = mixb_used(&pvt->write_mixb);
 
     if (used >= frame_size) {
         iovcnt = mixb_read_n_iov(&pvt->write_mixb, iov, frame_size);
@@ -492,23 +409,15 @@ static void timing_write_tty(struct pvt* pvt, size_t frame_size)
         iov[0].iov_base = pvt_get_silence_buffer(pvt);
         iov[0].iov_len  = frame_size;
         iovcnt          = 1;
-        // no need to change_audio_endianness_to_le for zeroes
-        //			continue;
     }
 
-    //		iov_add(buffer, sizeof(buffer), iov);
     if (msg) {
         ast_debug(7, msg, PVT_ID(pvt));
     }
 
-    //	}
-
-
     if (iov_write(pvt, pvt->audio_fd, iov, iovcnt) >= 0) {
         PVT_STAT(pvt, write_frames)++;
     }
-    // if(write_all(pvt->audio_fd, buffer, sizeof(buffer)) != sizeof(buffer))
-    //   ast_debug (1, "[%s] Write error!\n", PVT_ID(pvt));
 }
 
 #/* copy voice data from device to each channel in conference */
@@ -519,7 +428,7 @@ static void write_conference(struct pvt* pvt, const char* const buffer, size_t l
 
     AST_LIST_TRAVERSE(&pvt->chans, cpvt, entry) {
         if (CPVT_IS_ACTIVE(cpvt) && !CPVT_IS_MASTER(cpvt) && CPVT_TEST_FLAG(cpvt, CALL_FLAG_MULTIPARTY) && cpvt->rd_pipe[PIPE_WRITE] >= 0) {
-            const size_t wr = write_all(cpvt->rd_pipe[PIPE_WRITE], buffer, length);
+            const size_t wr = fd_write_all(cpvt->rd_pipe[PIPE_WRITE], buffer, length);
             //			ast_debug (6, "[%s] write2 | call idx %d pipe fd %d wrote %d bytes\n", PVT_ID(pvt),
             // cpvt->call_idx, cpvt->rd_pipe[PIPE_WRITE], wr);
             if (wr != length) {
@@ -593,7 +502,7 @@ static struct ast_frame* channel_read_tty(struct cpvt* cpvt, struct pvt* pvt, si
 
 static struct ast_frame* channel_read_uac(struct cpvt* cpvt, struct pvt* pvt, size_t frames, const struct ast_format* const fmt)
 {
-    show_alsa_state(6, "CAPTURE", PVT_ID(pvt), pvt->icard);
+    pcm_show_state(6, "CAPTURE", PVT_ID(pvt), pvt->icard);
 
     const snd_pcm_state_t state = snd_pcm_state(pvt->icard);
     switch (state) {
@@ -800,7 +709,7 @@ static int channel_write_uac(struct ast_channel* attribute_unused(channel), stru
     const int samples = f->samples;
     int res           = 0;
 
-    show_alsa_state(6, "PLAYBACK", PVT_ID(pvt), pvt->ocard);
+    pcm_show_state(6, "PLAYBACK", PVT_ID(pvt), pvt->ocard);
 
     const snd_pcm_state_t state = snd_pcm_state(pvt->ocard);
     switch (state) {
@@ -950,14 +859,14 @@ static int channel_devicestate(const char* data)
     ast_debug(1, "[%s] Checking device state\n", device);
 
 
-    RAII_VAR(struct pvt* const, pvt, find_device_ext(device), unlock_pvt);
+    RAII_VAR(struct pvt* const, pvt, pvt_find_by_ext(device), pvt_unlock);
 
     if (!pvt) {
         return res;
     }
 
     if (pvt->connected) {
-        if (is_dial_possible(pvt, CALL_FLAG_NONE)) {
+        if (pvt_is_dial_possible(pvt, CALL_FLAG_NONE)) {
             res = AST_DEVICE_NOT_INUSE;
         } else {
             res = AST_DEVICE_INUSE;
@@ -1039,134 +948,6 @@ static int channel_indicate(struct ast_channel* channel, int condition, const vo
     return res;
 }
 
-/* ARCH: move to cpvt */
-/* FIXME: protection for cpvt->channel if exists */
-#/* NOTE: called from device level with locked pvt */
-
-void change_channel_state(struct cpvt* cpvt, unsigned newstate, int cause)
-{
-    const call_state_t oldstate = cpvt->state;
-    if (newstate == oldstate) {
-        return;
-    }
-
-    struct pvt* const pvt             = cpvt->pvt;
-    struct ast_channel* const channel = cpvt->channel;
-    const short call_idx              = cpvt->call_idx;
-
-    cpvt->state = newstate;
-    PVT_STATE(pvt, chan_count[oldstate])--;
-    PVT_STATE(pvt, chan_count[newstate])++;
-
-    // U+2192 : Rightwards Arrow : 0xE2 0x86 0x92
-    if (CONF_SHARED(pvt, multiparty)) {
-        ast_debug(1, "[%s] Call - idx:%d channel:%s mpty:%d [%s] \xE2\x86\x92 [%s]\n", PVT_ID(pvt), call_idx, channel ? "attached" : "detached",
-                  CPVT_TEST_FLAG(cpvt, CALL_FLAG_MULTIPARTY) ? 1 : 0, call_state2str(oldstate), call_state2str(newstate));
-    } else {
-        ast_debug(1, "[%s] Call - idx:%d channel:%s [%s] \xE2\x86\x92 [%s]\n", PVT_ID(pvt), call_idx, channel ? "attached" : "detached",
-                  call_state2str(oldstate), call_state2str(newstate));
-    }
-
-    /* update bits of devstate cache */
-    switch (newstate) {
-        case CALL_STATE_ACTIVE:
-        case CALL_STATE_RELEASED:
-            /* no split to incoming/outgoing because these states not intersect */
-            switch (oldstate) {
-                case CALL_STATE_INIT:
-                case CALL_STATE_DIALING:
-                case CALL_STATE_ALERTING:
-                    pvt->dialing = 0;
-                    break;
-                case CALL_STATE_INCOMING:
-                    pvt->ring = 0;
-                    break;
-                case CALL_STATE_WAITING:
-                    pvt->cwaiting = 0;
-                    break;
-                default:
-                    break;
-            }
-            break;
-
-        default:
-            break;
-    }
-
-    /* check channel is dead */
-    if (!channel) {
-        switch (newstate) {
-            case CALL_STATE_RELEASED:
-                cpvt_free(cpvt);
-                break;
-
-            case CALL_STATE_INIT:
-            case CALL_STATE_ONHOLD:
-            case CALL_STATE_DIALING:
-            case CALL_STATE_ALERTING:
-            case CALL_STATE_INCOMING:
-            case CALL_STATE_WAITING:
-                if (at_enqueue_hangup(&pvt->sys_chan, cpvt->call_idx, AST_CAUSE_NORMAL_UNSPECIFIED)) {
-                    ast_log(LOG_ERROR, "[%s] Unable to hangup call id:%d\n", PVT_ID(pvt), cpvt->call_idx);
-                }
-                break;
-        };
-    } else {
-        /* for live channel */
-        switch (newstate) {
-            case CALL_STATE_DIALING:
-                /* from ^ORIG:idx,y */
-                activate_call(cpvt);
-                queue_control_channel(cpvt, AST_CONTROL_PROGRESS);
-                ast_setstate(channel, AST_STATE_DIALING);
-                break;
-
-            case CALL_STATE_ALERTING:
-                activate_call(cpvt);
-                queue_control_channel(cpvt, AST_CONTROL_RINGING);
-                ast_setstate(channel, AST_STATE_RINGING);
-                break;
-
-            case CALL_STATE_INCOMING:
-                activate_call(cpvt);
-                break;
-
-            case CALL_STATE_ACTIVE:
-                activate_call(cpvt);
-                if (oldstate == CALL_STATE_ONHOLD) {
-                    ast_debug(1, "[%s] Unhold call idx:%d\n", PVT_ID(pvt), call_idx);
-                    queue_control_channel(cpvt, AST_CONTROL_UNHOLD);
-                } else if (CPVT_DIR_OUTGOING(cpvt)) {
-                    ast_debug(1, "[%s] Remote end answered on call idx:%d\n", PVT_ID(pvt), call_idx);
-                    queue_control_channel(cpvt, AST_CONTROL_ANSWER);
-                } else { /* if (cpvt->answered) */
-                    ast_debug(1, "[%s] Call idx:%d answer\n", PVT_ID(pvt), call_idx);
-                    ast_setstate(channel, AST_STATE_UP);
-                }
-                break;
-
-            case CALL_STATE_ONHOLD:
-                disactivate_call(cpvt);
-                ast_debug(1, "[%s] Hold call idx:%d\n", PVT_ID(pvt), call_idx);
-                queue_control_channel(cpvt, AST_CONTROL_HOLD);
-                break;
-
-            case CALL_STATE_RELEASED:
-                disactivate_call(cpvt);
-                /* from +CEND, restart or disconnect */
-
-
-                /* drop channel -> cpvt reference */
-                ast_channel_tech_pvt_set(channel, NULL);
-                cpvt_free(cpvt);
-                if (queue_hangup(channel, cause)) {
-                    ast_log(LOG_ERROR, "[%s] Error queueing hangup...\n", PVT_ID(pvt));
-                }
-                break;
-        }
-    }
-}
-
 #/* */
 
 static struct ast_json* get_device_name(struct ast_channel* const channel)
@@ -1219,100 +1000,70 @@ struct ast_channel* new_channel(struct pvt* pvt, int ast_state, const char* cid_
     struct cpvt* cpvt;
 
     cpvt = cpvt_alloc(pvt, call_idx, dir, CALL_STATE_INIT, local_channel);
-    if (cpvt) {
-        channel = ast_channel_alloc(1, ast_state, cid_num, PVT_ID(pvt), NULL, dnid, CONF_SHARED(pvt, context), assignedids, requestor, 0, "%s/%s-%02u%08lx",
-                                    channel_tech.type, PVT_ID(pvt), call_idx, pvt->channel_instance);
-        if (channel) {
-            cpvt->channel = channel;
-            pvt->channel_instance++;
+    if (!cpvt) {
+        return NULL;
+    }
 
-            ast_channel_tech_pvt_set(channel, cpvt);
-            ast_channel_tech_set(channel, &channel_tech);
+    channel = ast_channel_alloc(1, ast_state, cid_num, PVT_ID(pvt), NULL, dnid, CONF_SHARED(pvt, context), assignedids, requestor, 0, "%s/%s-%02u%08lx",
+                                channel_tech.type, PVT_ID(pvt), call_idx, pvt->channel_instance);
 
-            if (local_channel) {
-                struct ast_format_cap* const cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
-                ast_format_cap_append_by_type(cap, AST_MEDIA_TYPE_TEXT);
-                ast_channel_nativeformats_set(channel, cap);
-            } else {
-                struct ast_format* const fmt = (struct ast_format*)pvt_get_audio_format(pvt);
-#if PTIME_USE_DEFAULT
-                const unsigned int ms = ast_format_get_default_ms(fmt);
-#else
-                static const unsigned int ms = PTIME_CAPTURE;
-#endif
-                struct ast_format_cap* const cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
-                ast_format_cap_append(cap, fmt, ms);
-                ast_format_cap_set_framing(cap, ms);
-                ast_channel_nativeformats_set(channel, cap);
-
-                ast_channel_set_rawreadformat(channel, fmt);
-                ast_channel_set_rawwriteformat(channel, fmt);
-                ast_channel_set_writeformat(channel, fmt);
-                ast_channel_set_readformat(channel, fmt);
-            }
-
-            ast_channel_set_fd(channel, 0, pvt->audio_fd);
-            if (pvt->a_timer) {
-                ast_channel_set_fd(channel, 1, ast_timer_fd(pvt->a_timer));
-                ast_timer_set_rate(pvt->a_timer, 50);
-            }
-
-            set_channel_vars(pvt, channel);
-
-            if (!ast_strlen_zero(dnid)) {
-                setvar_helper(pvt, channel, "CALLERID(dnid)", dnid);
-            }
-
-            if (state != CALL_STATE_INIT) {
-                change_channel_state(cpvt, state, AST_CAUSE_NORMAL_UNSPECIFIED);
-            }
-
-            ast_module_ref(self_module());
-
-            /* commit e2630fcd516b8f794bf342d9fd267b0c905e79ce
-             * Date:   Wed Dec 18 19:28:05 2013 +0000a
-             * ast_channel_alloc() returns allocated channels locked. */
-            ast_channel_unlock(channel);
-
-            return channel;
-        }
+    if (!channel) {
         cpvt_free(cpvt);
+        return NULL;
     }
-    return NULL;
-}
 
-/* NOTE: bg: hmm ast_queue_control() say no need channel lock, trylock got deadlock up to 30 seconds here */
-/* NOTE: called from device and current levels with pvt locked */
-int queue_control_channel(struct cpvt* cpvt, enum ast_control_frame_type control)
-{
-    /*
-        for (;;)
-        {
-    */
-    if (cpvt->channel) {
-        /*
-                    if (ast_channel_trylock (cpvt->channel))
-                    {
-                        DEADLOCK_AVOIDANCE (&cpvt->pvt->lock);
-                    }
-                    else
-                    {
-        */
-        ast_queue_control(cpvt->channel, control);
-        /*
-                        ast_channel_unlock (cpvt->channel);
-                        break;
-                    }
-        */
+    cpvt->channel = channel;
+    pvt->channel_instance++;
+
+    ast_channel_tech_pvt_set(channel, cpvt);
+    ast_channel_tech_set(channel, &channel_tech);
+
+    if (local_channel) {
+        struct ast_format_cap* const cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+        ast_format_cap_append_by_type(cap, AST_MEDIA_TYPE_TEXT);
+        ast_channel_nativeformats_set(channel, cap);
+    } else {
+        struct ast_format* const fmt = (struct ast_format*)pvt_get_audio_format(pvt);
+#if PTIME_USE_DEFAULT
+        const unsigned int ms = ast_format_get_default_ms(fmt);
+#else
+        static const unsigned int ms = PTIME_CAPTURE;
+#endif
+        struct ast_format_cap* const cap = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT);
+        ast_format_cap_append(cap, fmt, ms);
+        ast_format_cap_set_framing(cap, ms);
+        ast_channel_nativeformats_set(channel, cap);
+
+        ast_channel_set_rawreadformat(channel, fmt);
+        ast_channel_set_rawwriteformat(channel, fmt);
+        ast_channel_set_writeformat(channel, fmt);
+        ast_channel_set_readformat(channel, fmt);
     }
-    /*
-            else
-            {
-                break;
-            }
-        }
-    */
-    return 0;
+
+    ast_channel_set_fd(channel, 0, pvt->audio_fd);
+    if (pvt->a_timer) {
+        ast_channel_set_fd(channel, 1, ast_timer_fd(pvt->a_timer));
+        ast_timer_set_rate(pvt->a_timer, 50);
+    }
+
+    set_channel_vars(pvt, channel);
+
+    if (!ast_strlen_zero(dnid)) {
+        setvar_helper(pvt, channel, "CALLERID(dnid)", dnid);
+    }
+
+    if (state != CALL_STATE_INIT) {
+        cpvt_change_state(cpvt, state, AST_CAUSE_NORMAL_UNSPECIFIED);
+    }
+
+    ast_module_ref(self_module());
+
+    /* commit e2630fcd516b8f794bf342d9fd267b0c905e79ce
+     * Date:   Wed Dec 18 19:28:05 2013 +0000a
+     * ast_channel_alloc() returns allocated channels locked. */
+    ast_channel_unlock(channel);
+
+    return channel;
 }
 
 /* NOTE: bg: hmm ast_queue_hangup() say no need channel lock before call, trylock got deadlock up to 30 seconds here */

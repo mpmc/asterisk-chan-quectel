@@ -10,9 +10,9 @@
 
 #include <asterisk/frame.h>       /* AST_FRIENDLY_OFFSET */
 #include <asterisk/linkedlists.h> /* AST_LIST_ENTRY() */
+#include <asterisk/utils.h>
 
 #include "mixbuffer.h" /* struct mixstream */
-#include "mutils.h"    /* enum2str() ITEMS_OF() */
 
 typedef enum {
     CALL_STATE_MIN = 0,
@@ -31,6 +31,8 @@ typedef enum {
 } call_state_t;
 
 #define CALL_STATES_NUMBER (CALL_STATE_MAX - CALL_STATE_MIN + 1)
+
+const char* call_state2str(call_state_t state);
 
 typedef enum {
     CALL_FLAG_NONE          = 0,
@@ -96,29 +98,17 @@ typedef struct cpvt {
 struct cpvt* cpvt_alloc(struct pvt* pvt, int call_idx, unsigned dir, call_state_t statem, unsigned local_channel);
 void cpvt_free(struct cpvt* cpvt);
 
-struct cpvt* pvt_find_cpvt(struct pvt* pvt, int call_idx);
-struct cpvt* active_cpvt(struct pvt* pvt);
-struct cpvt* last_initialized_cpvt(struct pvt* pvt);
-const char* pvt_call_dir(const struct pvt* pvt);
+void cpvt_lock(struct cpvt* const);
+void cpvt_try_lock(struct cpvt* const);
+void cpvt_unlock(struct cpvt* const);
 
-#/* */
+void cpvt_call_activate(struct cpvt* const cpvt);
+void cpvt_call_disactivate(struct cpvt* const cpvt);
 
-static inline const char* call_state2str(call_state_t state)
-{
-    static const char* const states[] = {/* real device states */
-                                         "active", "held", "dialing", "alerting", "incoming", "waiting",
+int cpvt_control(const struct cpvt* const cpvt, enum ast_control_frame_type control);
+int cpvt_change_state(struct cpvt* const cpvt, call_state_t newstate, int cause);
 
-                                         /* pseudo states */
-                                         "released", "init"};
-
-    return enum2str(state, states, ITEMS_OF(states));
-}
-
-void lock_cpvt(struct cpvt* const);
-void try_lock_cpvt(struct cpvt* const);
-void unlock_cpvt(struct cpvt* const);
-
-#define SCOPED_CPVT(varname, lock) SCOPED_LOCK(varname, lock, lock_cpvt, unlock_cpvt)
-#define SCOPED_CPVT_TL(varname, lock) SCOPED_LOCK(varname, lock, try_lock_cpvt, unlock_cpvt)
+#define SCOPED_CPVT(varname, lock) SCOPED_LOCK(varname, lock, cpvt_lock, cpvt_unlock)
+#define SCOPED_CPVT_TL(varname, lock) SCOPED_LOCK(varname, lock, cpvt_try_lock, cpvt_unlock)
 
 #endif /* CHAN_QUECTEL_CPVT_H_INCLUDED */

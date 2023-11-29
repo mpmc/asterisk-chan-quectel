@@ -50,7 +50,7 @@ int at_wait(int fd, int* ms)
 
 #/* return number of bytes read */
 
-ssize_t at_read(int fd, const char* dev, struct ringbuffer* rb)
+ssize_t at_read(const char* dev, int fd, struct ringbuffer* rb)
 {
     struct iovec iov[2];
     ssize_t n = -1;
@@ -88,6 +88,23 @@ ssize_t at_read(int fd, const char* dev, struct ringbuffer* rb)
         ast_log(LOG_ERROR, "[%s] at cmd receive buffer overflow\n", dev);
     }
     return n;
+}
+
+/* anybody wrote some to device before me, and not read results, clean pending results here */
+void at_clean_data(const char* dev, int fd, struct ringbuffer* const rb)
+{
+    rb_reset(rb);
+    for (int t = 0; at_wait(fd, &t); t = 0) {
+        const int iovcnt = at_read(dev, fd, rb);
+        if (iovcnt) {
+            ast_debug(4, "[%s] Drop %u bytes of pending data\n", dev, (unsigned)rb_used(rb));
+        }
+        /* drop read */
+        rb_reset(rb);
+        if (!iovcnt) {
+            break;
+        }
+    }
 }
 
 size_t attribute_pure at_get_iov_size(const struct iovec* iov) { return iov[0].iov_len + iov[1].iov_len; }

@@ -118,8 +118,4 @@ int at_queue_run_immediately(struct pvt* pvt);
 
 static inline const at_queue_cmd_t* at_queue_task_cmd(const at_queue_task_t* task) { return task ? &task->cmds[task->at_once ? 0u : task->cindex] : NULL; }
 
-/* direct device write, dangerouse */
-/* TODO: move */
-int at_write(struct pvt* pvt, const char* buf, size_t count);
-size_t write_all(int fd, const char* buf, size_t count);
 #endif /* CHAN_QUECTEL_AT_CMD_QUEUE_H_INCLUDED */

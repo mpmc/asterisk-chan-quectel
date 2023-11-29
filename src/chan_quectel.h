@@ -12,25 +12,20 @@
 #ifndef CHAN_QUECTEL_H_INCLUDED
 #define CHAN_QUECTEL_H_INCLUDED
 
-#include <alsa/asoundlib.h>
-#include <fcntl.h>
-#include <sys/ioctl.h>
 #include <sys/time.h>
 
 #include "ast_config.h"
 
 #include <asterisk/linkedlists.h>
 #include <asterisk/lock.h>
+#include <asterisk/strings.h>
 #include <asterisk/threadpool.h>
-
-#include "mixbuffer.h" /* struct mixbuffer */
-// #include "ringbuffer.h"				/* struct ringbuffer */
 
 #include "at_command.h"
 #include "cpvt.h"      /* struct cpvt */
 #include "dc_config.h" /* pvt_config_t */
-
-static const snd_pcm_format_t pcm_format = SND_PCM_FORMAT_S16_LE;
+#include "mixbuffer.h" /* struct mixbuffer */
+#include "pcm.h"
 
 #define MAX_BUFFER_SIZE 100
 #define MODULE_DESCRIPTION "Channel Driver for Mobile Telephony"
@@ -209,16 +204,13 @@ typedef struct public_state {
 
 extern public_state_t* gpublic;
 
-void clean_read_data(const char* devname, int fd, struct ringbuffer* const rb);
 int pvt_get_pseudo_call_idx(const struct pvt* pvt);
-int ready4voice_call(const struct pvt* pvt, const struct cpvt* current_cpvt, int opts);
-int is_dial_possible(const struct pvt* pvt, int opts);
+int pvt_ready4voice_call(const struct pvt* pvt, const struct cpvt* current_cpvt, int opts);
+int pvt_is_dial_possible(const struct pvt* pvt, int opts);
 
 const char* pvt_str_state(const struct pvt* pvt);
 struct ast_str* pvt_str_state_ex(const struct pvt* pvt);
-const char* GSM_regstate2str(int gsm_reg_status);
-const char* sys_act2str(int sys_submode);
-const char* rssi2dBm(int rssi, char* buf, size_t len);
+const char* pvt_str_call_dir(const struct pvt* pvt);
 
 void pvt_on_create_1st_channel(struct pvt* pvt);
 void pvt_on_remove_last_channel(struct pvt* pvt);
@@ -231,24 +223,30 @@ const struct ast_format* pvt_get_audio_format(const struct pvt* const);
 size_t pvt_get_audio_frame_size(unsigned int, const struct ast_format* const);
 void* pvt_get_silence_buffer(struct pvt* const);
 
+/* direct device write, dangerouse */
+int pvt_direct_write(struct pvt* pvt, const char* buf, size_t count);
+
+static inline int pvt_direct_write_str(struct pvt* pvt, struct ast_str* str) { return pvt_direct_write(pvt, ast_str_buffer(str), ast_str_strlen(str)); }
+
 void pvt_disconnect(struct pvt* pvt);
 
-int opentty(const char* dev, int typ);
-void closetty_lck(const char* dev, int fd, int exclusive, int flck);
-void closetty(const char* dev, int fd);
+struct pvt* pvt_find_ex(struct public_state* state, const char* name);
 
-struct pvt* find_device_ex(struct public_state* state, const char* name);
+static inline struct pvt* pvt_find(const char* name) { return pvt_find_ex(gpublic, name); }
 
-static inline struct pvt* find_device(const char* name) { return find_device_ex(gpublic, name); }
+struct pvt* pvt_find_by_ext(const char* name);
+struct pvt* pvt_find_by_resource_ex(struct public_state* state, const char* resource, int opts, const struct ast_channel* requestor, int* exists);
 
-struct pvt* find_device_ext(const char* name);
-struct pvt* find_device_by_resource_ex(struct public_state* state, const char* resource, int opts, const struct ast_channel* requestor, int* exists);
-void unlock_pvt(struct pvt* const pvt);
-
-static inline struct pvt* find_device_by_resource(const char* resource, int opts, const struct ast_channel* requestor, int* exists)
+static inline struct pvt* pvt_find_by_resource(const char* resource, int opts, const struct ast_channel* requestor, int* exists)
 {
-    return find_device_by_resource_ex(gpublic, resource, opts, requestor, exists);
+    return pvt_find_by_resource_ex(gpublic, resource, opts, requestor, exists);
 }
+
+struct cpvt* pvt_channel_find_by_call_idx(struct pvt* pvt, int call_idx);
+struct cpvt* pvt_channel_find_active(struct pvt* pvt);
+struct cpvt* pvt_channel_find_last_initialized(struct pvt* pvt);
+
+void pvt_unlock(struct pvt* const pvt);
 
 int pvt_taskproc_trylock_and_execute(struct pvt* pvt, void (*task_exe)(struct pvt* pvt), const char* task_name);
 #define PVT_TASKPROC_TRYLOCK_AND_EXECUTE(p, t) pvt_taskproc_trylock_and_execute(p, t, #t)
@@ -263,16 +261,5 @@ int pvt_taskproc_lock_and_execute(struct pvt_taskproc_data* ptd, void (*task_exe
 struct ast_module* self_module();
 
 #define PVT_NO_CHANS(pvt) (!PVT_STATE(pvt, chansno))
-
-void _show_alsa_state(int attribute_unused lvl, const char* file, int line, const char* function, const char* const pcm_desc, const char* const pvt_id,
-                      snd_pcm_t* const pcm);
-
-#define show_alsa_state(level, ...)                       \
-    do {                                                  \
-        if (DEBUG_ATLEAST(level)) {                       \
-            _show_alsa_state(AST_LOG_DEBUG, __VA_ARGS__); \
-        }                                                 \
-    } while (0)
-
 
 #endif /* CHAN_QUECTEL_H_INCLUDED */

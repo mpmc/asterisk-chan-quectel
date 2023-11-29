@@ -15,6 +15,7 @@
 #include "ast_config.h"
 
 #include <asterisk/causes.h> /* AST_CAUSE_... definitions */
+#include <asterisk/channel.h>
 #include <asterisk/json.h>
 #include <asterisk/logger.h> /* ast_debug() */
 #include <asterisk/pbx.h>    /* ast_pbx_start() */
@@ -356,7 +357,7 @@ static int at_response_ok(struct pvt* const pvt, const at_res_t at_res, const at
 
         case CMD_AT_D:
             pvt->dialing = 1;
-            change_channel_state(task->cpvt, CALL_STATE_DIALING, 0);
+            cpvt_change_state(task->cpvt, CALL_STATE_DIALING, 0);
         /* fall through */
         case CMD_AT_A:
         case CMD_AT_CHLD_2x:
@@ -747,7 +748,7 @@ static int at_response_error(struct pvt* const pvt, const at_res_t at_res, const
             /* fall through */
         case CMD_AT_D:
             at_err_response_err(pvt, ecmd, "Dial failed");
-            queue_control_channel(task->cpvt, AST_CONTROL_CONGESTION);
+            cpvt_control(task->cpvt, AST_CONTROL_CONGESTION);
             break;
 
         case CMD_AT_CPCMREG1:
@@ -973,7 +974,7 @@ static int start_pbx(struct pvt* const pvt, const char* const number, const int 
 static void handle_clcc(struct pvt* const pvt, const unsigned int call_idx, const unsigned int dir, const unsigned int state, const unsigned int mode,
                         const tristate_bool_t mpty, const char* const number, const unsigned int type)
 {
-    struct cpvt* cpvt = pvt_find_cpvt(pvt, (int)call_idx);
+    struct cpvt* cpvt = pvt_channel_find_by_call_idx(pvt, (int)call_idx);
 
     if (cpvt) {
         /* cpvt alive */
@@ -999,16 +1000,14 @@ static void handle_clcc(struct pvt* const pvt, const unsigned int call_idx, cons
             }
         }
 
-        if (state != cpvt->state) {
-            change_channel_state(cpvt, state, 0);
-        } else {
+        if (!cpvt_change_state(cpvt, state, 0)) {
             return;
         }
     } else {
         switch (state) {
             case CALL_STATE_DIALING:
             case CALL_STATE_ALERTING:
-                cpvt = last_initialized_cpvt(pvt);
+                cpvt = pvt_channel_find_last_initialized(pvt);
                 if (mpty) {
                     if (!CONF_SHARED(pvt, multiparty)) {
                         if (!CPVT_TEST_FLAG(cpvt, CALL_FLAG_MULTIPARTY) && mpty > 0) {
@@ -1019,7 +1018,7 @@ static void handle_clcc(struct pvt* const pvt, const unsigned int call_idx, cons
 
                 if (cpvt) {
                     cpvt->call_idx = (short)call_idx;
-                    change_channel_state(cpvt, state, 0);
+                    cpvt_change_state(cpvt, state, 0);
                 } else {
                     at_enqueue_hangup(&pvt->sys_chan, call_idx, AST_CAUSE_CALL_REJECTED);
                     ast_log(LOG_ERROR, "[%s] Answered unexisting or multiparty incoming call - idx:%d, hanging up!\n", PVT_ID(pvt), call_idx);
@@ -1277,15 +1276,15 @@ static int at_response_qind(struct pvt* const pvt, const struct ast_str* const r
     switch (qind) {
         case QIND_CSQ: {
             int rssi;
-            char buf[40];
 
             const int res = at_parse_qind_csq(params, &rssi);
             if (res < 0) {
                 ast_debug(3, "[%s] Failed to parse CSQ - %s\n", PVT_ID(pvt), params);
                 break;
             }
-            ast_verb(3, "[%s] RSSI: %s\n", PVT_ID(pvt), rssi2dBm(rssi, buf, sizeof(buf)));
             pvt->rssi = rssi;
+            RAII_VAR(struct ast_str*, rssi_str, rssi2dBm(rssi), ast_free);
+            ast_verb(3, "[%s] RSSI: %s\n", PVT_ID(pvt), ast_str_buffer(rssi_str));
             return 0;
         }
 
@@ -1990,9 +1989,10 @@ static int at_response_csq(struct pvt* const pvt, const struct ast_str* const re
         return -1;
     }
 
-    char buf[40];
-    ast_verb(3, "[%s] RSSI: %s\n", PVT_ID(pvt), rssi2dBm(rssi, buf, sizeof(buf)));
     pvt->rssi = rssi;
+
+    RAII_VAR(struct ast_str*, rssi_str, rssi2dBm(rssi), ast_free);
+    ast_verb(3, "[%s] RSSI: %s\n", PVT_ID(pvt), ast_str_buffer(rssi_str));
     return 0;
 }
 
@@ -2005,10 +2005,11 @@ static int at_response_csqn(struct pvt* const pvt, const struct ast_str* const r
         return -1;
     }
 
-    char buf[40];
-    ast_verb(3, "[%s] RSSI: %s\n", PVT_ID(pvt), rssi2dBm(rssi, buf, sizeof(buf)));
-    ast_verb(4, "[%s] BER: %d\n", PVT_ID(pvt), ber);
     pvt->rssi = rssi;
+
+    RAII_VAR(struct ast_str*, rssi_str, rssi2dBm(rssi), ast_free);
+    ast_verb(3, "[%s] RSSI: %s\n", PVT_ID(pvt), ast_str_buffer(rssi_str));
+    ast_verb(4, "[%s] BER: %d\n", PVT_ID(pvt), ber);
     return 0;
 }
 
@@ -2305,7 +2306,7 @@ static void send_dtmf_frame(struct pvt* const pvt, char c)
         return;
     }
 
-    struct cpvt* const cpvt = active_cpvt(pvt);
+    struct cpvt* const cpvt = pvt_channel_find_active(pvt);
     if (cpvt && cpvt->channel) {
         struct ast_frame f = {
             AST_FRAME_DTMF,
