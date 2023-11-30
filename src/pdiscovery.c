@@ -15,7 +15,7 @@
 #include "at_read.h"      /* at_wait() at_read() at_read_result_iov() at_read_result_classification() */
 #include "chan_quectel.h" /* opentty() closetty() */
 #include "helpers.h"
-#include "mutils.h"     /* ITEMS_OF() */
+#include "mutils.h"     /* ARRAY_LEN() */
 #include "ringbuffer.h" /* struct ringbuffer */
 #include "tty.h"
 
@@ -78,7 +78,7 @@ static struct discovery_cache cache;
 
 static int ports_match(const struct pdiscovery_ports* p1, const struct pdiscovery_ports* p2)
 {
-    for (unsigned i = 0; i < ITEMS_OF(p1->ports); ++i) {
+    for (unsigned i = 0; i < ARRAY_LEN(p1->ports); ++i) {
         if (!p1->ports[i] || !p2->ports[i] || strcmp(p1->ports[i], p2->ports[i])) {
             return 0;
         }
@@ -91,7 +91,7 @@ static int ports_match(const struct pdiscovery_ports* p1, const struct pdiscover
 
 static int ports_copy(struct pdiscovery_ports* dst, const struct pdiscovery_ports* src)
 {
-    for (unsigned i = 0; i < ITEMS_OF(dst->ports); ++i) {
+    for (unsigned i = 0; i < ARRAY_LEN(dst->ports); ++i) {
         if (!src->ports[i]) {
             continue;
         }
@@ -109,7 +109,7 @@ static int ports_copy(struct pdiscovery_ports* dst, const struct pdiscovery_port
 
 static void ports_free(struct pdiscovery_ports* ports)
 {
-    for (unsigned i = 0; i < ITEMS_OF(ports->ports); ++i) {
+    for (unsigned i = 0; i < ARRAY_LEN(ports->ports); ++i) {
         if (!ports->ports[i]) {
             continue;
         }
@@ -402,7 +402,7 @@ static int pdiscovery_interfaces(const char* devname, const char* name, int len,
                 port = pdiscovery_find_port(name, len, dentry->d_name, &interface);
                 if (port) {
                     ast_debug(4, "[%s discovery] found InterfaceNumber %02x port %s\n", devname, interface, port);
-                    for (idx = 0; idx < (int)ITEMS_OF(device->interfaces); idx++) {
+                    for (idx = 0; idx < (int)ARRAY_LEN(device->interfaces); idx++) {
                         if (device->interfaces[idx] == interface) {
                             if (ports->ports[idx] == NULL) {
                                 ports->ports[idx] = port;
@@ -434,7 +434,7 @@ static const struct pdiscovery_device* pdiscovery_lookup_ids(const char* devname
 
     if (pdiscovery_get_id(name, len, "idVendor", &vid) == 1 && pdiscovery_get_id(name, len, "idProduct", &pid) == 1) {
         ast_debug(4, "[%s discovery] found %s is idVendor %04x idProduct %04x\n", devname, name, vid, pid);
-        for (idx = 0; idx < ITEMS_OF(device_ids); idx++) {
+        for (idx = 0; idx < ARRAY_LEN(device_ids); idx++) {
             if (device_ids[idx].vendor_id == vid && device_ids[idx].product_id == pid) {
                 return &device_ids[idx];
             }

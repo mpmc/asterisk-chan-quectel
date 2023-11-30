@@ -44,7 +44,7 @@ const char* at_cmd2str(at_cmd_t cmd)
 {
     static const char* const cmds[] = {AT_COMMANDS_TABLE(AT_CMD_AS_STRING)};
 
-    return enum2str_def(cmd, cmds, ITEMS_OF(cmds), "UNDEFINED");
+    return enum2str_def(cmd, cmds, ARRAY_LEN(cmds), "UNDEFINED");
 }
 
 /*!
@@ -195,12 +195,12 @@ int at_enqueue_initialization(struct cpvt* cpvt)
 
     unsigned in, out;
     struct pvt* const pvt = cpvt->pvt;
-    at_queue_cmd_t cmds[ITEMS_OF(st_cmds)];
+    at_queue_cmd_t cmds[ARRAY_LEN(st_cmds)];
     at_queue_cmd_t dyn_cmd;
     int dyn_handled;
 
     /* customize list */
-    for (in = out = 0; in < ITEMS_OF(st_cmds); ++in) {
+    for (in = out = 0; in < ARRAY_LEN(st_cmds); ++in) {
         if (st_cmds[in].cmd == CMD_AT_Z && !CONF_SHARED(pvt, resetquectel)) {
             continue;
         }
@@ -341,7 +341,7 @@ int at_enqueue_initialization_quectel(struct cpvt* cpvt, unsigned int dsci)
         ATQ_CMD_DECLARE_ST(CMD_AT_FINAL, at),
     };
 
-    return at_queue_insert_const(cpvt, cmds, ITEMS_OF(cmds), 0);
+    return at_queue_insert_const(cpvt, cmds, ARRAY_LEN(cmds), 0);
 }
 
 int at_enqueue_initialization_simcom(struct cpvt* cpvt)
@@ -382,7 +382,7 @@ int at_enqueue_initialization_simcom(struct cpvt* cpvt)
         ATQ_CMD_DECLARE_ST(CMD_AT_FINAL, at),
     };
 
-    return at_queue_insert_const(cpvt, cmds, ITEMS_OF(cmds), 0);
+    return at_queue_insert_const(cpvt, cmds, ARRAY_LEN(cmds), 0);
 }
 
 int at_enqueue_initialization_other(struct cpvt* cpvt)
@@ -405,7 +405,7 @@ int at_enqueue_cspn_cops(struct cpvt* cpvt)
 
     static at_queue_cmd_t cmds[] = {ATQ_CMD_DECLARE_STI(CMD_AT_CSPN, cspn), ATQ_CMD_DECLARE_STI(CMD_AT_COPS, cops)};
 
-    if (at_queue_insert_const(cpvt, cmds, ITEMS_OF(cmds), 0)) {
+    if (at_queue_insert_const(cpvt, cmds, ARRAY_LEN(cmds), 0)) {
         chan_quectel_err = E_QUEUE;
         return -1;
     }
@@ -423,7 +423,7 @@ int at_enqueue_qspn_qnwinfo(struct cpvt* cpvt)
         ATQ_CMD_DECLARE_STI(CMD_AT, qnwinfo),
     };
 
-    if (at_queue_insert_const_at_once(cpvt, cmds, ITEMS_OF(cmds), 0)) {
+    if (at_queue_insert_const_at_once(cpvt, cmds, ARRAY_LEN(cmds), 0)) {
         chan_quectel_err = E_QUEUE;
         return -1;
     }
@@ -745,7 +745,7 @@ int at_enqueue_set_ccwa(struct cpvt* cpvt, unsigned call_waiting)
         ATQ_CMD_DECLARE_STIT(CMD_AT_CCWA_STATUS, ccwa_get, ATQ_CMD_TIMEOUT_MEDIUM, 0),
     };
     at_queue_cmd_t* pcmd = cmds;
-    unsigned cnt         = ITEMS_OF(cmds);
+    unsigned cnt         = ARRAY_LEN(cmds);
 
     if (call_waiting == CALL_WAITING_DISALLOWED || call_waiting == CALL_WAITING_ALLOWED) {
         cw            = call_waiting;
@@ -857,7 +857,7 @@ int at_enqueue_answer(struct cpvt* cpvt)
     at_queue_cmd_t cmds[] = {
         ATQ_CMD_DECLARE_DYN(CMD_AT_A),
     };
-    unsigned int cnt = ITEMS_OF(cmds);
+    unsigned int cnt = ARRAY_LEN(cmds);
     const char* fmt;
 
     switch (cpvt->state) {
@@ -1219,7 +1219,7 @@ static int at_enqueue_msg_ack_n(struct cpvt *cpvt, int n, int uid)
 	at_cmds[1].length = 1;
 	at_cmds[1].data = (void*)ctrl_z;
 
-	if (at_queue_insert_uid(cpvt, at_cmds, ITEMS_OF(at_cmds), 1, uid)) {
+	if (at_queue_insert_uid(cpvt, at_cmds, ARRAY_LEN(at_cmds), 1, uid)) {
 		chan_quectel_err = E_QUEUE;
 		return -1;
 	}
@@ -1332,7 +1332,7 @@ int at_enqueue_volsync(struct cpvt* cpvt)
         ATQ_CMD_DECLARE_ST(CMD_AT_CLVL, cmd2),
     };
 
-    if (at_queue_insert_const(cpvt, cmds, ITEMS_OF(cmds), 1)) {
+    if (at_queue_insert_const(cpvt, cmds, ARRAY_LEN(cmds), 1)) {
         chan_quectel_err = E_QUEUE;
         return -1;
     }
@@ -1478,7 +1478,7 @@ int at_enqueue_uac_apply(struct cpvt* cpvt)
         ATQ_CMD_DECLARE_ST(CMD_AT_QRXGAIN, cfun),
     };
 
-    if (at_queue_insert_const_at_once(cpvt, cmds, ITEMS_OF(cmds), 0)) {
+    if (at_queue_insert_const_at_once(cpvt, cmds, ARRAY_LEN(cmds), 0)) {
         chan_quectel_err = E_QUEUE;
         return -1;
     }
@@ -1541,7 +1541,7 @@ int at_enqueue_query_qgains(struct cpvt* cpvt)
         ATQ_CMD_DECLARE_ST(CMD_AT_QRXGAIN, qrxgain),
     };
 
-    if (at_queue_insert_const_at_once(cpvt, cmds, ITEMS_OF(cmds), 0)) {
+    if (at_queue_insert_const_at_once(cpvt, cmds, ARRAY_LEN(cmds), 0)) {
         chan_quectel_err = E_QUEUE;
         return -1;
     }
@@ -1599,7 +1599,7 @@ int at_enqueue_query_cgains(struct cpvt* cpvt)
         ATQ_CMD_DECLARE_ST(CMD_AT_CMICGAIN, cmicgain),
     };
 
-    if (at_queue_insert_const_at_once(cpvt, cmds, ITEMS_OF(cmds), 0)) {
+    if (at_queue_insert_const_at_once(cpvt, cmds, ARRAY_LEN(cmds), 0)) {
         chan_quectel_err = E_QUEUE;
         return -1;
     }

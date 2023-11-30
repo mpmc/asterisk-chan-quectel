@@ -644,7 +644,7 @@ const char* gsm_regstate2str(int gsm_reg_status)
     static const char* const gsm_states[] = {
         "Not registered, not searching", "Registered, home network", "Not registered, but searching", "Registration denied", "Unknown", "Registered, roaming",
     };
-    return enum2str_def(gsm_reg_status, gsm_states, ITEMS_OF(gsm_states), "Unknown");
+    return enum2str_def(gsm_reg_status, gsm_states, ARRAY_LEN(gsm_states), "Unknown");
 }
 
 #/* */
@@ -679,7 +679,7 @@ const char* sys_act2str(int act)
         "CDMA and Ehrpd",
     };
 
-    return enum2str_def(act, sys_acts, ITEMS_OF(sys_acts), "Unknown");
+    return enum2str_def(act, sys_acts, ARRAY_LEN(sys_acts), "Unknown");
 }
 
 #/* BUGFIX of https://code.google.com/p/asterisk-chan-quectel/issues/detail?id=118 */

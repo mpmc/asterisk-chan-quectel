@@ -146,13 +146,13 @@ static size_t get_2ndeol_pos(const struct ringbuffer* const rb, struct iovec* io
     const size_t len    = at_combine_iov(buf, iov, iovcnt);
     const char* const b = ast_str_buffer(buf);
 
-    const char* pos = (const char*)memmem(b, len, EOL, ITEMS_OF(EOL));
+    const char* pos = (const char*)memmem(b, len, EOL, ARRAY_LEN(EOL));
     if (!pos) {
         return 0u;
     }
 
-    const size_t shift = (pos - b) + ITEMS_OF(EOL);
-    pos                = (const char*)memmem(b + shift, len - shift, EOL, ITEMS_OF(EOL));
+    const size_t shift = (pos - b) + ARRAY_LEN(EOL);
+    pos                = (const char*)memmem(b + shift, len - shift, EOL, ARRAY_LEN(EOL));
     if (!pos) {
         return 0u;
     }
@@ -267,38 +267,4 @@ int at_read_result_iov(const char* dev, int* read_result, size_t* skip, struct r
     }
 
     return 0;
-}
-
-at_res_t at_str2res(const struct ast_str* const result)
-{
-    at_res_t at_res  = RES_UNKNOWN;
-    const size_t len = ast_str_strlen(result);
-    if (!len) {
-        return at_res;
-    }
-    const char* const buf = ast_str_buffer(result);
-
-    for (unsigned i = at_responses.ids_first; i < at_responses.ids; ++i) {
-        if (at_responses.responses[i].idlen) {
-            const at_response_t* const resp = &at_responses.responses[i];
-            const size_t idlen1             = resp->idlen - 1;
-            const char lc                   = buf[len - 1];
-            if (resp->id[idlen1] == '\r' && lc != '\r') {
-                if (idlen1 != len || memcmp(buf, resp->id, idlen1)) {
-                    continue;
-                }
-                at_res = resp->res;
-                break;
-            }
-        }
-
-        if (len < at_responses.responses[i].idlen || memcmp(buf, at_responses.responses[i].id, at_responses.responses[i].idlen)) {
-            continue;
-        }
-
-        at_res = at_responses.responses[i].res;
-        break;
-    }
-
-    return at_res;
 }

@@ -12,7 +12,7 @@ const static long DEF_DTMF_DURATION = 120;
 const char* dc_cw_setting2str(call_waiting_t cw)
 {
     static const char* const options[] = {"disabled", "allowed", "auto"};
-    return enum2str(cw, options, ITEMS_OF(options));
+    return enum2str(cw, options, ARRAY_LEN(options));
 }
 
 tristate_bool_t dc_str23stbool(const char* str)
@@ -69,7 +69,7 @@ const char* dc_3stbool2str(int v)
     static const char* const strs[] = {"off", "none", "on"};
 
     const unsigned b = int23statebool(v);
-    return enum2str_def(b, strs, ITEMS_OF(strs), "none");
+    return enum2str_def(b, strs, ARRAY_LEN(strs), "none");
 }
 
 const char* dc_3stbool2str_ex(int v, const char* none_val)
@@ -77,7 +77,7 @@ const char* dc_3stbool2str_ex(int v, const char* none_val)
     const char* const strs[] = {"off", S_OR(none_val, "none"), "on"};
 
     const unsigned b = int23statebool(v);
-    return enum2str_def(b, strs, ITEMS_OF(strs), S_OR(none_val, "none"));
+    return enum2str_def(b, strs, ARRAY_LEN(strs), S_OR(none_val, "none"));
 }
 
 const char* dc_3stbool2str_capitalized(int v)
@@ -85,7 +85,7 @@ const char* dc_3stbool2str_capitalized(int v)
     static const char* const strs[] = {"Off", "None", "On"};
 
     unsigned b = int23statebool(v);
-    return enum2str_def(b, strs, ITEMS_OF(strs), "None");
+    return enum2str_def(b, strs, ARRAY_LEN(strs), "None");
 }
 
 static unsigned int parse_on_off(const char* const name, const char* const value, unsigned int defval)
@@ -108,14 +108,14 @@ static const char* const msgstor_strs[] = {"AUTO", "SM", "ME", "MT", "SR"};
 
 message_storage_t dc_str2msgstor(const char* stor)
 {
-    const int res = str2enum(stor, msgstor_strs, ITEMS_OF(msgstor_strs));
+    const int res = str2enum(stor, msgstor_strs, ARRAY_LEN(msgstor_strs));
     if (res < 0) {
         return MESSAGE_STORAGE_AUTO;
     }
     return (message_storage_t)res;
 }
 
-const char* dc_msgstor2str(message_storage_t stor) { return enum2str_def(stor, msgstor_strs, ITEMS_OF(msgstor_strs), "AUTO"); }
+const char* dc_msgstor2str(message_storage_t stor) { return enum2str_def(stor, msgstor_strs, ARRAY_LEN(msgstor_strs), "AUTO"); }
 
 #/* assume config is zerofill */
 

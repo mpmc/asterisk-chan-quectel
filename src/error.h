@@ -71,7 +71,7 @@ static inline const char* error2str(int err)
         "Fail to format AT command",
         "Unable to allocate memory",
     };
-    return enum2str(err, errors, ITEMS_OF(errors));
+    return enum2str(err, errors, ARRAY_LEN(errors));
 }
 
 extern __thread int chan_quectel_err;

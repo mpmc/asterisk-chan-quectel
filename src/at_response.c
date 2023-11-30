@@ -63,7 +63,7 @@ static const at_response_t at_responses_list[] = {
 };
 
 
-const at_responses_t at_responses = {at_responses_list, 3, ITEMS_OF(at_responses_list), RES_MIN, RES_MAX};
+const at_responses_t at_responses = {at_responses_list, 3, ARRAY_LEN(at_responses_list), RES_MIN, RES_MAX};
 
 /*!
  * \brief Get the string representation of the given AT response
@@ -77,6 +77,40 @@ const char* at_res2str(at_res_t res)
         return at_responses.responses[res - at_responses.name_first].name;
     }
     return "UNDEFINED";
+}
+
+at_res_t at_str2res(const struct ast_str* const result)
+{
+    at_res_t at_res  = RES_UNKNOWN;
+    const size_t len = ast_str_strlen(result);
+    if (!len) {
+        return at_res;
+    }
+    const char* const buf = ast_str_buffer(result);
+
+    for (unsigned i = at_responses.ids_first; i < at_responses.ids; ++i) {
+        if (at_responses.responses[i].idlen) {
+            const at_response_t* const resp = &at_responses.responses[i];
+            const size_t idlen1             = resp->idlen - 1;
+            const char lc                   = buf[len - 1];
+            if (resp->id[idlen1] == '\r' && lc != '\r') {
+                if (idlen1 != len || memcmp(buf, resp->id, idlen1)) {
+                    continue;
+                }
+                at_res = resp->res;
+                break;
+            }
+        }
+
+        if (len < at_responses.responses[i].idlen || memcmp(buf, at_responses.responses[i].id, at_responses.responses[i].idlen)) {
+            continue;
+        }
+
+        at_res = at_responses.responses[i].res;
+        break;
+    }
+
+    return at_res;
 }
 
 static int safe_task_uid(const at_queue_task_t* const task) { return task ? task->uid : -1; }
@@ -1856,11 +1890,11 @@ static int at_response_cusd(struct pvt* const pvt, const struct ast_str* const r
         return -1;
     }
 
-    if (type < 0 || type >= (int)ITEMS_OF(types)) {
+    if (type < 0 || type >= (int)ARRAY_LEN(types)) {
         ast_log(LOG_WARNING, "[%s] Unknown CUSD type: %d\n", PVT_ID(pvt), type);
     }
 
-    const char* typedesc = enum2str(type, types, ITEMS_OF(types));
+    const char* typedesc = enum2str(type, types, ARRAY_LEN(types));
     RAII_VAR(struct ast_str*, cusd_str, NULL, ast_free);
 
     if (dcs >= 0) {
@@ -2421,7 +2455,7 @@ static void at_response_dtmf(struct pvt* const pvt, const struct ast_str* const 
 static const char* qpcmv2str(int qpcmv)
 {
     const char* const names[3] = {"USB NMEA port", "Debug UART", "USB sound card"};
-    return enum2str_def((unsigned)qpcmv, names, ITEMS_OF(names), "Unknown");
+    return enum2str_def((unsigned)qpcmv, names, ARRAY_LEN(names), "Unknown");
 }
 
 static void at_response_qpcmv(struct pvt* const pvt, const struct ast_str* const response)
@@ -2565,7 +2599,7 @@ static int at_response_qaudmod(struct pvt* const pvt, const struct ast_str* cons
         return -1;
     }
 
-    ast_verb(1, "[%s] Audio mode is %s\n", PVT_ID(pvt), enum2str_def((unsigned)amode, amodes, ITEMS_OF(amodes), "unknown"));
+    ast_verb(1, "[%s] Audio mode is %s\n", PVT_ID(pvt), enum2str_def((unsigned)amode, amodes, ARRAY_LEN(amodes), "unknown"));
     return 0;
 }
 

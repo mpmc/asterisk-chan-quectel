@@ -14,7 +14,7 @@
 #include "at_queue.h"     /* struct at_queue_task */
 #include "chan_quectel.h" /* struct pvt */
 #include "channel.h"
-#include "mutils.h" /* ITEMS_OF() */
+#include "mutils.h" /* ARRAY_LEN() */
 
 const char* call_state2str(call_state_t state)
 {
@@ -24,7 +24,7 @@ const char* call_state2str(call_state_t state)
                                          /* pseudo states */
                                          "released", "init"};
 
-    return enum2str(state, states, ITEMS_OF(states));
+    return enum2str(state, states, ARRAY_LEN(states));
 }
 
 // TODO: move to activation time, save resources

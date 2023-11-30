@@ -9,8 +9,8 @@
 #include "ast_config.h"
 
 #include <asterisk/strings.h>
+#include <asterisk/utils.h>
 
-#define ITEMS_OF(x) (sizeof(x) / sizeof((x)[0]))
 #define STRLEN(string) (sizeof(string) - 1u)
 
 #ifndef MIN

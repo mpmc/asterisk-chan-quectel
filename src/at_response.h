@@ -135,6 +135,7 @@ typedef struct at_responses_t {
 /*! responses description */
 extern const at_responses_t at_responses;
 const char* at_res2str(at_res_t res);
+at_res_t at_str2res(const struct ast_str* const);
 
 int at_response(struct pvt* const pvt, const struct ast_str* const response, const at_res_t at_res);
 

@@ -59,7 +59,7 @@
 #include "error.h"
 #include "helpers.h"
 #include "monitor_thread.h"
-#include "mutils.h" /* ITEMS_OF() */
+#include "mutils.h" /* ARRAY_LEN() */
 #include "pcm.h"
 #include "pdiscovery.h" /* pdiscovery_lookup() pdiscovery_init() pdiscovery_fini() */
 #include "smsdb.h"
@@ -69,7 +69,7 @@ static const char* const dev_state_strs[4] = {"stop", "restart", "remove", "star
 
 public_state_t* gpublic;
 
-const char* dev_state2str(dev_state_t state) { return enum2str(state, dev_state_strs, ITEMS_OF(dev_state_strs)); }
+const char* dev_state2str(dev_state_t state) { return enum2str(state, dev_state_strs, ARRAY_LEN(dev_state_strs)); }
 
 dev_state_t str2dev_state(const char* str)
 {
@@ -77,7 +77,7 @@ dev_state_t str2dev_state(const char* str)
         return DEV_STATE_STOPPED;
     }
 
-    const int res = str2enum(str, dev_state_strs, ITEMS_OF(dev_state_strs));
+    const int res = str2enum(str, dev_state_strs, ARRAY_LEN(dev_state_strs));
     if (res < 0) {
         return DEV_STATE_STOPPED;
     } else {
@@ -88,7 +88,7 @@ dev_state_t str2dev_state(const char* str)
 const char* dev_state2str_msg(dev_state_t state)
 {
     static const char* const states[] = {"Stop scheduled", "Restart scheduled", "Removal scheduled", "Start scheduled"};
-    return enum2str(state, states, ITEMS_OF(states));
+    return enum2str(state, states, ARRAY_LEN(states));
 }
 
 static int soundcard_init(struct pvt* pvt)
@@ -766,7 +766,7 @@ struct pvt* pvt_find_by_resource_ex(struct public_state* state, const char* reso
         group = (int)strtol(&resource[1], (char**)NULL, 10);
         if (errno != EINVAL) {
             /* Generate a list of all available devices */
-            j         = ITEMS_OF(round_robin);
+            j         = ARRAY_LEN(round_robin);
             c         = 0;
             last_used = 0;
             AST_RWLIST_TRAVERSE(&state->devices, pvt, entry) {
@@ -806,7 +806,7 @@ struct pvt* pvt_find_by_resource_ex(struct public_state* state, const char* reso
         }
     } else if (((resource[0] == 'p') || (resource[0] == 'P')) && resource[1] == ':') {
         /* Generate a list of all available devices */
-        j         = ITEMS_OF(round_robin);
+        j         = ARRAY_LEN(round_robin);
         c         = 0;
         last_used = 0;
         AST_RWLIST_TRAVERSE(&state->devices, pvt, entry) {
@@ -845,7 +845,7 @@ struct pvt* pvt_find_by_resource_ex(struct public_state* state, const char* reso
         }
     } else if (((resource[0] == 's') || (resource[0] == 'S')) && resource[1] == ':') {
         /* Generate a list of all available devices */
-        j         = ITEMS_OF(round_robin);
+        j         = ARRAY_LEN(round_robin);
         c         = 0;
         last_used = 0;
         i         = strlen(&resource[2]);

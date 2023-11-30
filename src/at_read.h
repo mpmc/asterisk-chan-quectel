@@ -4,8 +4,6 @@
 #ifndef CHAN_QUECTEL_AT_READ_H_INCLUDED
 #define CHAN_QUECTEL_AT_READ_H_INCLUDED
 
-#include "at_response.h" /* at_res_t */
-
 struct pvt;
 struct ringbuffer;
 struct iovec;
@@ -20,6 +18,5 @@ size_t at_get_iov_size_n(const struct iovec* iov, int iovcnt);
 size_t at_combine_iov(struct ast_str* const, const struct iovec* const, int);
 
 int at_read_result_iov(const char* dev, int* read_result, size_t* skip, struct ringbuffer* rb, struct iovec* iov, struct ast_str* buf);
-at_res_t at_str2res(const struct ast_str* const);
 
 #endif /* CHAN_QUECTEL_AT_READ_H_INCLUDED */

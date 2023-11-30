@@ -19,7 +19,7 @@
 #include "chan_quectel.h"
 #include "error.h"
 #include "memmem.h"
-#include "mutils.h" /* ITEMS_OF() */
+#include "mutils.h" /* ARRAY_LEN() */
 #include "pdu.h"    /* pdu_parse() */
 
 #/* */
@@ -62,7 +62,7 @@ static char* trim_blanks(char* str)
 const char* at_qind2str(qind_t qind)
 {
     static const char* qind_names[] = {"NONE", "CSQ", "ACT", "CCINFO"};
-    return enum2str_def(qind, qind_names, ITEMS_OF(qind_names), "UNK");
+    return enum2str_def(qind, qind_names, ARRAY_LEN(qind_names), "UNK");
 }
 
 /*!
@@ -87,11 +87,11 @@ char* at_parse_cnum(char* str)
     char* marks[STRLEN(delimiters)];
 
     /* parse URC only here */
-    if (mark_line(str, delimiters, marks) != ITEMS_OF(marks)) {
+    if (mark_line(str, delimiters, marks) != ARRAY_LEN(marks)) {
         return NULL;
     }
 
-    trim_line(marks, ITEMS_OF(marks));
+    trim_line(marks, ARRAY_LEN(marks));
     return strip_quoted(marks[1] + 1);
 }
 
@@ -154,7 +154,7 @@ int at_parse_qspn(char* str, char** fnn, char** snn, char** spn)
     char* marks[STRLEN(delimiters)];
 
     /* parse URC only here */
-    if (mark_line(str, delimiters, marks) == ITEMS_OF(marks)) {
+    if (mark_line(str, delimiters, marks) == ARRAY_LEN(marks)) {
         marks[0]++;
         if (marks[0][0] == ' ') {
             marks[0]++;
@@ -186,7 +186,7 @@ int at_parse_cspn(char* str, char** spn)
     static const char delimiters[] = ":,";
     char* marks[STRLEN(delimiters)];
 
-    if (mark_line(str, delimiters, marks) == ITEMS_OF(marks)) {
+    if (mark_line(str, delimiters, marks) == ARRAY_LEN(marks)) {
         marks[0]++;
 
         marks[1][0] = '\000';
@@ -230,7 +230,7 @@ static int act2int(const char* act)
         {"HDR-EHRPD",        24},
     };
 
-    for (size_t idx = 0; idx < ITEMS_OF(ACTS); ++idx) {
+    for (size_t idx = 0; idx < ARRAY_LEN(ACTS); ++idx) {
         if (!strcmp(ACTS[idx].act, act)) {
             return ACTS[idx].val;
         }
@@ -253,7 +253,7 @@ int at_parse_qnwinfo(char* str, int* act, int* oper, char** band, int* channel)
 
     /* parse URC only here */
     const int nmarks = mark_line(str, delimiters, marks);
-    if (nmarks == ITEMS_OF(marks)) {
+    if (nmarks == ARRAY_LEN(marks)) {
         marks[0]++;
         if (marks[0][0] == ' ') {
             marks[0]++;
@@ -564,7 +564,7 @@ int at_parse_cmgr(char* str, size_t len, int* tpdu_type, char* sca, size_t sca_l
     char* marks[STRLEN(delimiters)];
     char* end;
 
-    if (mark_line(str, delimiters, marks) != ITEMS_OF(marks)) {
+    if (mark_line(str, delimiters, marks) != ARRAY_LEN(marks)) {
         chan_quectel_err = E_PARSE_CMGR_LINE;
         return -1;
     }
@@ -606,7 +606,7 @@ int at_parse_cmt(char* str, size_t len, int* tpdu_type, char* sca, size_t sca_le
     char* marks[STRLEN(delimiters)];
     char* end;
 
-    if (mark_line(str, delimiters, marks) != ITEMS_OF(marks)) {
+    if (mark_line(str, delimiters, marks) != ARRAY_LEN(marks)) {
         chan_quectel_err = E_PARSE_CMGR_LINE;
         return -1;
     }
@@ -652,7 +652,7 @@ int at_parse_cbm(char* str, size_t len, int* tpdu_type, char* sca, size_t sca_le
     char* marks[STRLEN(delimiters)];
     char* end;
 
-    if (mark_line(str, delimiters, marks) != ITEMS_OF(marks)) {
+    if (mark_line(str, delimiters, marks) != ARRAY_LEN(marks)) {
         chan_quectel_err = E_PARSE_CMGR_LINE;
         return -1;
     }
@@ -698,7 +698,7 @@ int at_parse_cds(char* str, size_t len, int* tpdu_type, char* sca, size_t sca_le
     char* marks[STRLEN(delimiters)];
     char* end;
 
-    if (mark_line(str, delimiters, marks) != ITEMS_OF(marks)) {
+    if (mark_line(str, delimiters, marks) != ARRAY_LEN(marks)) {
         chan_quectel_err = E_PARSE_CMGR_LINE;
         return -1;
     }
@@ -752,7 +752,7 @@ int at_parse_cmgl(char* str, size_t len, int* idx, int* tpdu_type, char* sca, si
     char* marks[STRLEN(delimiters)];
     char* end;
 
-    if (mark_line(str, delimiters, marks) != ITEMS_OF(marks)) {
+    if (mark_line(str, delimiters, marks) != ARRAY_LEN(marks)) {
         chan_quectel_err = E_PARSE_CMGR_LINE;
         return -1;
     }
@@ -865,7 +865,7 @@ int at_parse_cpin(const char* str, const size_t len)
         {"SIM PUK", 7},
     };
 
-    for (unsigned int idx = 0; idx < ITEMS_OF(resp); ++idx) {
+    for (unsigned int idx = 0; idx < ARRAY_LEN(resp); ++idx) {
         if (memmem(str, len, resp[idx].value, resp[idx].length)) {
             return (int)idx;
         }
@@ -937,7 +937,7 @@ int at_parse_qind(char* str, qind_t* qind, char** params)
     static const char delimiters[] = "\"\",";
     char* marks[STRLEN(delimiters)];
 
-    if (mark_line(str, delimiters, marks) == ITEMS_OF(marks)) {
+    if (mark_line(str, delimiters, marks) == ARRAY_LEN(marks)) {
         const char* qind_str = marks[0] + 1;
         marks[1][0]          = '\000';
 
@@ -1092,7 +1092,7 @@ int at_parse_clcc(char* str, unsigned* call_idx, unsigned* dir, unsigned* state,
     static const char delimiters[] = ":,,,,,,";
     char* marks[STRLEN(delimiters)];
 
-    if (mark_line(str, delimiters, marks) == ITEMS_OF(marks)) {
+    if (mark_line(str, delimiters, marks) == ARRAY_LEN(marks)) {
         if (sscanf(marks[0] + 1, "%u", call_idx) == 1 && sscanf(marks[1] + 1, "%u", dir) == 1 && sscanf(marks[2] + 1, "%u", state) == 1 &&
             sscanf(marks[3] + 1, "%u", mode) == 1 && sscanf(marks[4] + 1, "%u", mpty) == 1 && sscanf(marks[6] + 1, "%u", toa) == 1) {
             marks[5]++;
@@ -1134,7 +1134,7 @@ int at_parse_ccwa(char* str, ccwa_variant_t* variant, unsigned int* status /* or
     /* parse URC only here */
     const int res = mark_line(str, delimiters, marks);
     switch (res) {
-        case ITEMS_OF(marks):
+        case ARRAY_LEN(marks):
             trim_line(marks, res);
             if (!sscanf(marks[1] + 1, "%u", status) || !sscanf(marks[2] + 1, "%u", class)) {
                 return -1;
@@ -1142,7 +1142,7 @@ int at_parse_ccwa(char* str, ccwa_variant_t* variant, unsigned int* status /* or
             *variant = CCWA_VARIANT_URC;
             break;
 
-        case ITEMS_OF(marks) - 1u:
+        case ARRAY_LEN(marks) - 1u:
             trim_line(marks, res);
             if (!sscanf(marks[0] + 1, "%u", status) || !sscanf(marks[1] + 1, "%u", class)) {
                 return -1;
@@ -1150,7 +1150,7 @@ int at_parse_ccwa(char* str, ccwa_variant_t* variant, unsigned int* status /* or
             *variant = CCWA_VARIANT_STATUS_AND_CLASS;
             break;
 
-        case ITEMS_OF(marks) - 2u:
+        case ARRAY_LEN(marks) - 2u:
             trim_line(marks, res);
             if (!sscanf(marks[0] + 1, "%u", status)) {
                 return -1;
@@ -1418,7 +1418,7 @@ int at_parse_psnwid(char* str, int* mcc, int* mnc, char** fnn, char** snn)
     static char delimiters[] = ":,,,,,";
     char* marks[STRLEN(delimiters)];
 
-    if (mark_line(str, delimiters, marks) != ITEMS_OF(marks)) {
+    if (mark_line(str, delimiters, marks) != ARRAY_LEN(marks)) {
         return -1;
     }
 
@@ -1465,11 +1465,11 @@ int at_parse_ciev_10(char* str, int* plmn, char** fnn, char** snn)
     static char delimiters[] = ":,,,,,";
     char* marks[STRLEN(delimiters)];
 
-    if (mark_line(str, delimiters, marks) != ITEMS_OF(marks)) {
+    if (mark_line(str, delimiters, marks) != ARRAY_LEN(marks)) {
         return -1;
     }
 
-    trim_line(marks, ITEMS_OF(marks));
+    trim_line(marks, ARRAY_LEN(marks));
 
     char* ind_str = ast_skip_blanks(marks[0] + 1);
     ind_str       = strip_quoted(ind_str);
@@ -1513,7 +1513,7 @@ int at_parse_psuttz(char* str, int* year, int* month, int* day, int* hour, int* 
     static char delimiters[] = ":,,,,,,,";
     char* marks[STRLEN(delimiters)];
 
-    if (mark_line(str, delimiters, marks) != ITEMS_OF(marks)) {
+    if (mark_line(str, delimiters, marks) != ARRAY_LEN(marks)) {
         return -1;
     }
 

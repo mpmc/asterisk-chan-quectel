@@ -660,7 +660,7 @@ static int channel_write_tty(struct ast_channel* channel, struct ast_frame* f, s
 
         gains[0] = 0;
 
-        for (size_t count = 0; count < ITEMS_OF(gains); ++count) {
+        for (size_t count = 0; count < ARRAY_LEN(gains); ++count) {
             if (gains[count] > 1 || gains[count] < -1) {
                 if (ast_frame_adjust_volume(f, gains[count]) == -1) {
                     ast_debug(1, "[%s] Volume could not be adjusted!\n", PVT_ID(pvt));

@@ -19,7 +19,7 @@
 
 #include "chan_quectel.h" /* devices */
 #include "error.h"
-#include "helpers.h"    /* ITEMS_OF() send_ccwa_set() send_reset() send_sms() send_ussd() */
+#include "helpers.h"    /* ARRAY_LEN() send_ccwa_set() send_reset() send_sms() send_ussd() */
 #include "pdiscovery.h" /* pdiscovery_list_begin() pdiscovery_list_next() pdiscovery_list_end() */
 
 #define CLI_ALIASES(fn, cmdd, usage1, usage2)                                           \
@@ -734,7 +734,7 @@ static const char* const a_choices2[] = {"convenient", NULL};
 static const char* restate2str_msg(restate_time_t when)
 {
     static const char* const choices[] = {"now", "gracefully", "when convenient"};
-    return enum2str(when, choices, ITEMS_OF(choices));
+    return enum2str(when, choices, ARRAY_LEN(choices));
 }
 
 #/* */
@@ -1190,13 +1190,13 @@ static struct ast_cli_entry cli[] = {
 #/* */
 void cli_register()
 {
-	ast_cli_register_multiple(cli, ITEMS_OF(cli));
+	ast_cli_register_multiple(cli, ARRAY_LEN(cli));
 }
 
 #/* */
 void cli_unregister()
 {
-	ast_cli_unregister_multiple(cli, ITEMS_OF(cli));
+	ast_cli_unregister_multiple(cli, ARRAY_LEN(cli));
 }
 
 /*
