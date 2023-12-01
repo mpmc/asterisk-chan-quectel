@@ -15,6 +15,7 @@ typedef struct channel_var {
 
 struct pvt;
 struct cpvt;
+struct ast_json;
 
 typedef enum local_report_direction { LOCAL_REPORT_DIRECTION_UNKNOWN, LOCAL_REPORT_DIRECTION_INCOMING, LOCAL_REPORT_DIRECTION_OUTGOING } local_report_direction;
 
@@ -27,7 +28,8 @@ int channels_loop(struct pvt* pvt, const struct ast_channel* requestor);
 
 int queue_hangup(struct ast_channel* channel, int hangupcause);
 
-void start_local_channel(struct pvt* pvt, const char* exten, const char* number, const channel_var_t* vars);
+void start_local_channel(struct pvt* pvt, const char* exten, const char* number, const channel_var_t* const vars, const size_t varscnt);
+void start_local_channel_json(struct pvt* pvt, const char* exten, const char* number, const char* const jname, const struct ast_json* const jvar);
 void start_local_report_channel(struct pvt* pvt, const char* subject, local_report_direction direction, const char* number, const char* ts, const char* dt,
                                 int success, struct ast_json* const report);
 

@@ -1118,17 +1118,12 @@ void start_local_report_channel(struct pvt* pvt, const char* subject, local_repo
         ast_json_object_set(rprt, "report", ast_json_copy(report));
     }
 
-    RAII_VAR(char*, jrprt, ast_json_dump_string(rprt), ast_json_free);
-    const channel_var_t vars[] = {
-        {"REPORT", jrprt},
-        {NULL,     NULL },
-    };
-    start_local_channel(pvt, "report", number, vars);
+    start_local_channel_json(pvt, "report", number, "REPORT", rprt);
 }
 
 #/* NOTE: bg: called from device level with pvt locked */
 
-void start_local_channel(struct pvt* pvt, const char* exten, const char* number, const channel_var_t* vars)
+void start_local_channel(struct pvt* pvt, const char* exten, const char* number, const channel_var_t* const vars, const size_t varscnt)
 {
     static const ssize_t CN_DEF_LEN = 64;
 
@@ -1147,8 +1142,8 @@ void start_local_channel(struct pvt* pvt, const char* exten, const char* number,
     set_channel_vars(pvt, channel);
     ast_set_callerid(channel, number, PVT_ID(pvt), number);
 
-    for (; !ast_strlen_zero(vars->name); ++vars) {
-        setvar_helper(pvt, channel, vars->name, vars->value);
+    for (size_t i = 0; i < varscnt; ++i) {
+        setvar_helper(pvt, channel, vars[i].name, vars[i].value);
     }
 
     cause = ast_pbx_start(channel);
@@ -1156,6 +1151,13 @@ void start_local_channel(struct pvt* pvt, const char* exten, const char* number,
         ast_hangup(channel);
         ast_log(LOG_ERROR, "[%s] Unable to start pbx on channel Local/%s\n", PVT_ID(pvt), ast_str_buffer(channel_name));
     }
+}
+
+void start_local_channel_json(struct pvt* pvt, const char* exten, const char* number, const char* const jname, const struct ast_json* const jvar)
+{
+    RAII_VAR(char* const, jstr, ast_json_dump_string((struct ast_json*)jvar), ast_json_free);
+    const channel_var_t var = {jname, jstr};
+    start_local_channel(pvt, exten, number, &var, 1);
 }
 
 #/* */

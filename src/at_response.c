@@ -1762,12 +1762,7 @@ receive_as_is:
                 ast_verb(1, "[%s][SMS:%d PARTS:%d TS:%s] Got empty message from %s\n", PVT_ID(pvt), (int)udh.ref, (int)udh.parts, scts, ast_str_buffer(oa));
             }
 
-            RAII_VAR(char* const, jsms, ast_json_dump_string(sms), ast_json_free);
-            const channel_var_t vars[] = {
-                {"SMS", jsms},
-                {NULL,  NULL},
-            };
-            start_local_channel(pvt, "sms", ast_str_buffer(oa), vars);
+            start_local_channel_json(pvt, "sms", ast_str_buffer(oa), "SMS", sms);
             break;
         }
     }
@@ -1974,12 +1969,7 @@ static int at_response_cusd(struct pvt* const pvt, const struct ast_str* const r
         ast_json_object_set(ussd, "ussd", ast_json_string_create(ast_str_buffer(cusd_str)));
     }
 
-    RAII_VAR(char*, jussd, ast_json_dump_string(ussd), ast_json_free);
-    const channel_var_t vars[] = {
-        {"USSD", jussd},
-        {NULL,   NULL },
-    };
-    start_local_channel(pvt, "ussd", "ussd", vars);
+    start_local_channel_json(pvt, "ussd", "ussd", "USSD", ussd);
     return 0;
 }
 
