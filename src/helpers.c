@@ -12,8 +12,6 @@
 
 #include "ast_config.h"
 
-#include <asterisk/callerid.h> /*  AST_PRES_* */
-
 #include "helpers.h"
 
 #include "at_command.h"
@@ -48,43 +46,6 @@ int is_valid_phone_number(const char* number)
         return 0;
     }
     return 1;
-}
-
-#/* */
-
-int get_at_clir_value(struct pvt* pvt, int clir)
-{
-    int res = 0;
-
-    switch (clir) {
-        case AST_PRES_ALLOWED_NETWORK_NUMBER:
-        case AST_PRES_ALLOWED_USER_NUMBER_FAILED_SCREEN:
-        case AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED:
-        case AST_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN:
-        case AST_PRES_NUMBER_NOT_AVAILABLE:
-            ast_debug(2, "[%s] callingpres: %s\n", PVT_ID(pvt), ast_describe_caller_presentation(clir));
-            res = 2;
-            break;
-
-        case AST_PRES_PROHIB_NETWORK_NUMBER:
-        case AST_PRES_PROHIB_USER_NUMBER_FAILED_SCREEN:
-        case AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED:
-        case AST_PRES_PROHIB_USER_NUMBER_PASSED_SCREEN:
-            ast_debug(2, "[%s] callingpres: %s\n", PVT_ID(pvt), ast_describe_caller_presentation(clir));
-            res = 1;
-            break;
-
-        default:
-            ast_log(LOG_WARNING, "[%s] Unsupported callingpres: %d\n", PVT_ID(pvt), clir);
-            if ((clir & AST_PRES_RESTRICTION) != AST_PRES_ALLOWED) {
-                res = 0;
-            } else {
-                res = 2;
-            }
-            break;
-    }
-
-    return res;
 }
 
 static struct pvt* get_pvt(const char* dev_name, int online)

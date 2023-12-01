@@ -15,6 +15,7 @@
 
 #include "ast_config.h"
 
+#include <asterisk/callerid.h> /*  AST_PRES_* */
 #include <asterisk/causes.h>
 #include <asterisk/format_cache.h>
 #include <asterisk/json.h>
@@ -182,21 +183,52 @@ static struct ast_channel* channel_request(attribute_unused const char* type, st
     return channel;
 }
 
+static int attribute_const get_at_clir_value(const int clir)
+{
+    int res = 0;
+
+    switch (clir) {
+        case AST_PRES_ALLOWED_NETWORK_NUMBER:
+        case AST_PRES_ALLOWED_USER_NUMBER_FAILED_SCREEN:
+        case AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED:
+        case AST_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN:
+        case AST_PRES_NUMBER_NOT_AVAILABLE:
+            res = 2;
+            break;
+
+        case AST_PRES_PROHIB_NETWORK_NUMBER:
+        case AST_PRES_PROHIB_USER_NUMBER_FAILED_SCREEN:
+        case AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED:
+        case AST_PRES_PROHIB_USER_NUMBER_PASSED_SCREEN:
+            res = 1;
+            break;
+
+        default:
+            if ((clir & AST_PRES_RESTRICTION) != AST_PRES_ALLOWED) {
+                res = 0;
+            } else {
+                res = 2;
+            }
+            break;
+    }
+
+    return res;
+}
+
 static int channel_call(struct ast_channel* channel, const char* dest, attribute_unused int timeout)
 {
     struct cpvt* const cpvt = ast_channel_tech_pvt(channel);
 
-    const char* dest_num;
-    int clir = 0;
-    int opts;
-
     if (!cpvt || cpvt->channel != channel || !cpvt->pvt) {
-        ast_log(LOG_WARNING, "call on unreferenced %s\n", ast_channel_name(channel));
+        ast_log(LOG_WARNING, "Call on unreferenced %s\n", ast_channel_name(channel));
         return -1;
     }
 
     struct pvt* const pvt = cpvt->pvt;
     char* const dest_dev  = ast_strdupa(dest);
+
+    const char* dest_num;
+    int opts;
 
     if (parse_dial_string(dest_dev, &dest_num, &opts)) {
         return -1;
@@ -218,6 +250,8 @@ static int channel_call(struct ast_channel* channel, const char* dest, attribute
     CPVT_SET_FLAGS(cpvt, opts);
     ast_debug(1, "[%s] Calling %s on %s\n", PVT_ID(pvt), dest, ast_channel_name(channel));
 
+    int clir = 0;
+
     if (CONF_SHARED(pvt, usecallingpres)) {
         if (CONF_SHARED(pvt, callingpres) < 0) {
             clir = ast_channel_connected(channel)->id.number.presentation;
@@ -225,7 +259,8 @@ static int channel_call(struct ast_channel* channel, const char* dest, attribute
             clir = CONF_SHARED(pvt, callingpres);
         }
 
-        clir = get_at_clir_value(pvt, clir);
+        ast_debug(4, "[%s] Caller presentation: %s [%d]\n", PVT_ID(pvt), ast_describe_caller_presentation(clir), clir);
+        clir = get_at_clir_value(clir);
     } else {
         clir = -1;
     }
@@ -309,7 +344,7 @@ static int channel_digit_begin(struct ast_channel* channel, char digit)
     struct cpvt* const cpvt = ast_channel_tech_pvt(channel);
 
     if (!cpvt || cpvt->channel != channel || !cpvt->pvt) {
-        ast_log(LOG_WARNING, "call on unreferenced %s\n", ast_channel_name(channel));
+        ast_log(LOG_WARNING, "Call on unreferenced %s\n", ast_channel_name(channel));
         return -1;
     }
     struct pvt* const pvt = cpvt->pvt;
@@ -334,7 +369,7 @@ static int channel_digit_begin(struct ast_channel* channel, char digit)
 
 static int channel_digit_end(attribute_unused struct ast_channel* channel, attribute_unused char digit, attribute_unused unsigned int duration) { return 0; }
 
-static ssize_t get_iov_total_len(const struct iovec* const iov, int iovcnt)
+static ssize_t attribute_const get_iov_total_len(const struct iovec* const iov, int iovcnt)
 {
     ssize_t len = 0;
 

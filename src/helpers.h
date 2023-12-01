@@ -9,8 +9,6 @@
 #include "chan_quectel.h" /* restate_time_t */
 #include "dc_config.h"    /* call_waiting_t */
 
-int get_at_clir_value(struct pvt* pvt, int clir);
-
 /* return status string of sending, status arg is optional */
 int send_ussd(const char* dev_name, const char* ussd);
 int send_sms(const char* const dev_name, const char* const number, const char* const message, int validity, int report);

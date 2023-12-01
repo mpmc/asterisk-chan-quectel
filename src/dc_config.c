@@ -7,6 +7,13 @@
 
 #include "helpers.h"
 
+static const char DEFAULT_ALSADEV[]       = "hw:Android";
+static const char DEFAULT_ALSADEV_EXT[]   = "hw:0";
+static const int DEFAULT_DISCOVERY_INT    = 60;
+static const char DEFAULT_SMS_DB[]        = ":memory:";
+static const char DEFAULT_SMS_BACKUP_DB[] = "/var/lib/asterisk/smsdb-backup";
+static const int DEFAULT_CSMS_TTL         = 600;
+
 const static long DEF_DTMF_DURATION = 120;
 
 const char* attribute_const dc_cw_setting2str(call_waiting_t cw)
@@ -20,6 +27,7 @@ tristate_bool_t attribute_const dc_str23stbool(const char* str)
     if (!str) {
         return TRIBOOL_NONE;
     }
+
     if (!strcasecmp(str, "on") || !strcasecmp(str, "true")) {
         return TRIBOOL_TRUE;
     } else if (!strcasecmp(str, "off") || !strcasecmp(str, "false")) {
@@ -121,28 +129,22 @@ const char* attribute_const dc_msgstor2str(message_storage_t stor) { return enum
 
 static int dc_uconfig_fill(struct ast_config* cfg, const char* cat, struct dc_uconfig* config)
 {
-    const char* audio_tty;
-    const char* data_tty;
-    const char* imei;
-    const char* imsi;
-    const char* slin16_str;
-    const char* uac_str;
-    tristate_bool_t uac;
-    const char* alsadev;
-    int slin16;
+    tristate_bool_t uac = TRIBOOL_FALSE;
+    int slin16          = 0;
 
-    audio_tty  = ast_variable_retrieve(cfg, cat, "audio");
-    data_tty   = ast_variable_retrieve(cfg, cat, "data");
-    imei       = ast_variable_retrieve(cfg, cat, "imei");
-    imsi       = ast_variable_retrieve(cfg, cat, "imsi");
-    uac_str    = ast_variable_retrieve(cfg, cat, "uac");
-    alsadev    = ast_variable_retrieve(cfg, cat, "alsadev");
-    slin16_str = ast_variable_retrieve(cfg, cat, "slin16");
+    const char* const audio_tty  = ast_variable_retrieve(cfg, cat, "audio");
+    const char* const data_tty   = ast_variable_retrieve(cfg, cat, "data");
+    const char* const alsadev    = ast_variable_retrieve(cfg, cat, "alsadev");
+    const char* imei             = ast_variable_retrieve(cfg, cat, "imei");
+    const char* imsi             = ast_variable_retrieve(cfg, cat, "imsi");
+    const char* const uac_str    = ast_variable_retrieve(cfg, cat, "uac");
+    const char* const slin16_str = ast_variable_retrieve(cfg, cat, "slin16");
 
     if (imei && strlen(imei) != IMEI_SIZE) {
         ast_log(LOG_WARNING, "[%s] Ignore invalid IMEI value '%s'\n", cat, imei);
         imei = NULL;
     }
+
     if (imsi && strlen(imsi) != IMSI_SIZE) {
         ast_log(LOG_WARNING, "[%s] Ignore invalid IMSI value '%s'\n", cat, imsi);
         imsi = NULL;
@@ -153,14 +155,10 @@ static int dc_uconfig_fill(struct ast_config* cfg, const char* cat, struct dc_uc
             ast_log(LOG_WARNING, "[%s] Ignore invalid value of UAC mode '%s'\n", cat, uac_str);
             uac = TRIBOOL_FALSE;
         }
-    } else {
-        uac = TRIBOOL_FALSE;
     }
 
     if (slin16_str) {
         slin16 = parse_on_off("slin16", slin16_str, 0u);
-    } else {
-        slin16 = 0;
     }
 
     if (!data_tty && !imei && !imsi) {

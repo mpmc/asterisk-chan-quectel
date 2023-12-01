@@ -98,14 +98,9 @@ typedef struct dc_sconfig {
 /* Global settings */
 typedef struct dc_gconfig {
     int discovery_interval; /*!< The device discovery interval */
-#define DEFAULT_DISCOVERY_INT 60
     char sms_db[PATHLEN];
     char sms_backup_db[PATHLEN];
-#define DEFAULT_SMS_DB ":memory:"
-#define DEFAULT_SMS_BACKUP_DB "/var/lib/asterisk/smsdb-backup"
     int csms_ttl;
-#define DEFAULT_CSMS_TTL 600
-
 } dc_gconfig_t;
 
 /* Local required (unique) settings */
@@ -120,9 +115,6 @@ typedef struct dc_uconfig {
     tristate_bool_t uac;        /*!< handle audio by audio device (UAC) */
     unsigned int slin16:1;      /*!< SLIN16 audio format */
 } dc_uconfig_t;
-
-#define DEFAULT_ALSADEV "hw:Android"
-#define DEFAULT_ALSADEV_EXT "hw:0"
 
 /* all Config settings join in one place */
 typedef struct pvt_config {
