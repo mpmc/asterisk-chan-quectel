@@ -107,9 +107,9 @@ void at_clean_data(const char* dev, int fd, struct ringbuffer* const rb)
     }
 }
 
-size_t attribute_pure at_get_iov_size(const struct iovec* iov) { return iov[0].iov_len + iov[1].iov_len; }
+size_t attribute_const at_get_iov_size(const struct iovec* iov) { return iov[0].iov_len + iov[1].iov_len; }
 
-size_t attribute_pure at_get_iov_size_n(const struct iovec* iov, int iovcnt)
+size_t attribute_const at_get_iov_size_n(const struct iovec* iov, int iovcnt)
 {
     size_t res = 0u;
     for (int i = 0; i < iovcnt; ++i) {

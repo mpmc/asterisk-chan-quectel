@@ -31,9 +31,9 @@
 #define MODULE_DESCRIPTION "Channel Driver for Mobile Telephony"
 #define MAXQUECTELDEVICES 128
 
-const char* dev_state2str(dev_state_t state);
-dev_state_t str2dev_state(const char*);
-const char* dev_state2str_msg(dev_state_t state);
+const char* attribute_const dev_state2str(dev_state_t state);
+dev_state_t attribute_const str2dev_state(const char*);
+const char* attribute_const dev_state2str_msg(dev_state_t state);
 
 typedef enum {
     RESTATE_TIME_NOW = 0,

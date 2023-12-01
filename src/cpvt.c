@@ -16,7 +16,7 @@
 #include "channel.h"
 #include "mutils.h" /* ARRAY_LEN() */
 
-const char* call_state2str(call_state_t state)
+const char* attribute_const call_state2str(call_state_t state)
 {
     static const char* const states[] = {/* real device states */
                                          "active", "held", "dialing", "alerting", "incoming", "waiting",

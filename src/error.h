@@ -38,7 +38,7 @@ enum error {
     E_MALLOC
 };
 
-static inline const char* error2str(int err)
+static inline const char* attribute_const error2str(int err)
 {
     static const char* const errors[] = {
         "Unknown error",

@@ -16,7 +16,7 @@ typedef enum { QIND_NONE = 0, QIND_CSQ, QIND_ACT, QIND_CCINFO } qind_t;
 
 typedef enum { CCWA_VARIANT_PRESENTATION_FLAG, CCWA_VARIANT_STATUS_AND_CLASS, CCWA_VARIANT_URC } ccwa_variant_t;
 
-const char* at_qind2str(qind_t);
+const char* attribute_const at_qind2str(qind_t);
 
 char* at_parse_cnum(char* str);
 char* at_parse_cops(char* str);

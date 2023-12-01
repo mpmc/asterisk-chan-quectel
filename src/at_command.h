@@ -131,7 +131,7 @@ enum msg_status_t { MSG_STAT_REC_UNREAD, MSG_STAT_REC_READ, MSG_STAT_STO_UNSENT,
 struct pvt;
 struct cpvt;
 
-const char* at_cmd2str(at_cmd_t cmd);
+const char* attribute_const at_cmd2str(at_cmd_t cmd);
 int at_enqueue_at(struct cpvt* cpvt);
 int at_enqueue_initialization(struct cpvt* cpvt);
 int at_enqueue_initialization_quectel(struct cpvt*, unsigned int);

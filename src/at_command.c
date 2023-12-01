@@ -40,7 +40,7 @@ DECLARE_AT_CMD(chld2, "+CHLD=2");
  * \return a string describing the given command
  */
 
-const char* at_cmd2str(at_cmd_t cmd)
+const char* attribute_const at_cmd2str(at_cmd_t cmd)
 {
     static const char* const cmds[] = {AT_COMMANDS_TABLE(AT_CMD_AS_STRING)};
 
@@ -677,14 +677,6 @@ int at_enqueue_ussd(struct cpvt* cpvt, const char* code, int gsm7)
     return 0;
 }
 
-static attribute_pure char cup(char digit)
-{
-    char d  = 'A';
-    d      += digit - 'a';
-
-    return d;
-}
-
 /*!
  * \brief Enqueue a DTMF command
  * \param cpvt -- cpvt structure
@@ -701,7 +693,7 @@ int at_enqueue_dtmf(struct cpvt* cpvt, char digit)
         case 'b':
         case 'c':
         case 'd':
-            return at_enqueue_generic(cpvt, CMD_AT_DTMF, 1, AT_CMD(vts), cup(digit));
+            return at_enqueue_generic(cpvt, CMD_AT_DTMF, 1, AT_CMD(vts), toupper(digit));
 
         case 'A':
         case 'B':
