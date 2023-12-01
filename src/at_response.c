@@ -1009,6 +1009,7 @@ static void handle_clcc(struct pvt* const pvt, const unsigned int call_idx, cons
                         const tristate_bool_t mpty, const char* const number, const unsigned int type)
 {
     struct cpvt* cpvt = pvt_channel_find_by_call_idx(pvt, (int)call_idx);
+    int process_state = 1;
 
     if (cpvt) {
         /* cpvt alive */
@@ -1030,21 +1031,23 @@ static void handle_clcc(struct pvt* const pvt, const unsigned int call_idx, cons
                 if (!CPVT_TEST_FLAG(cpvt, CALL_FLAG_MULTIPARTY) && mpty > 0) {
                     ast_log(LOG_ERROR, "[%s] Rejecting multiparty call - idx:%d\n", PVT_ID(pvt), call_idx);
                     at_enqueue_hangup(&pvt->sys_chan, call_idx, AST_CAUSE_CALL_REJECTED);
+                    process_state = 0;
                 }
             }
         }
 
-        if (!cpvt_change_state(cpvt, state, 0)) {
-            return;
+        if (process_state) {
+            process_state = cpvt_change_state(cpvt, state, 0);
         }
     } else {
         switch (state) {
             case CALL_STATE_DIALING:
             case CALL_STATE_ALERTING:
                 cpvt = pvt_channel_find_last_initialized(pvt);
+
                 if (mpty) {
                     if (!CONF_SHARED(pvt, multiparty)) {
-                        if (!CPVT_TEST_FLAG(cpvt, CALL_FLAG_MULTIPARTY) && mpty > 0) {
+                        if (cpvt && !CPVT_TEST_FLAG(cpvt, CALL_FLAG_MULTIPARTY) && mpty > 0) {
                             cpvt = NULL;
                         }
                     }
@@ -1052,14 +1055,18 @@ static void handle_clcc(struct pvt* const pvt, const unsigned int call_idx, cons
 
                 if (cpvt) {
                     cpvt->call_idx = (short)call_idx;
-                    cpvt_change_state(cpvt, state, 0);
+                    process_state  = cpvt_change_state(cpvt, state, 0);
                 } else {
                     at_enqueue_hangup(&pvt->sys_chan, call_idx, AST_CAUSE_CALL_REJECTED);
                     ast_log(LOG_ERROR, "[%s] Answered unexisting or multiparty incoming call - idx:%d, hanging up!\n", PVT_ID(pvt), call_idx);
-                    return;
+                    process_state = 0;
                 }
                 break;
         }
+    }
+
+    if (!process_state) {
+        return;
     }
 
     if (cpvt || state == CALL_STATE_INCOMING) {
@@ -1232,7 +1239,7 @@ static int at_response_clcc(struct pvt* const pvt, const struct ast_str* const r
     return 0;
 }
 
-static unsigned int map_dsci(const unsigned int dsci)
+static attribute_pure unsigned int map_dsci(const unsigned int dsci)
 {
     switch (dsci) {
         case 3u:  // connect
