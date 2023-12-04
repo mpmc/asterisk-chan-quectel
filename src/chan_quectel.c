@@ -48,6 +48,7 @@
 
 #include "chan_quectel.h"
 
+#include "app.h"
 #include "at_command.h" /* at_cmd2str() */
 #include "at_queue.h"   /* struct at_queue_task_cmd at_queue_head_cmd() */
 #include "at_read.h"
@@ -555,7 +556,7 @@ int pvt_get_pseudo_call_idx(const struct pvt* pvt)
 
 #/* */
 
-static int is_dial_possible2(const struct pvt* pvt, int opts, const struct cpvt* ignore_cpvt)
+static int is_dial_possible2(const struct pvt* pvt, unsigned int opts, const struct cpvt* ignore_cpvt)
 {
     struct cpvt* cpvt;
     int hold   = 0;
@@ -603,7 +604,7 @@ static int is_dial_possible2(const struct pvt* pvt, int opts, const struct cpvt*
 
 #/* */
 
-int pvt_is_dial_possible(const struct pvt* pvt, int opts) { return is_dial_possible2(pvt, opts, NULL); }
+int pvt_is_dial_possible(const struct pvt* pvt, unsigned int opts) { return is_dial_possible2(pvt, opts, NULL); }
 
 #/* */
 
@@ -614,7 +615,7 @@ int pvt_enabled(const struct pvt* pvt)
 
 #/* */
 
-int pvt_ready4voice_call(const struct pvt* pvt, const struct cpvt* current_cpvt, int opts)
+int pvt_ready4voice_call(const struct pvt* pvt, const struct cpvt* current_cpvt, unsigned int opts)
 {
     if (!pvt->connected || !pvt->initialized || !pvt->has_voice || !pvt->gsm_registered || !pvt_enabled(pvt)) {
         return 0;
@@ -625,12 +626,16 @@ int pvt_ready4voice_call(const struct pvt* pvt, const struct cpvt* current_cpvt,
 
 #/* */
 
-static int can_dial(struct pvt* pvt, int opts, const struct ast_channel* requestor)
+static int can_dial(struct pvt* pvt, unsigned int opts, const struct ast_channel* requestor)
 {
     /* not allow hold requester channel :) */
     /* FIXME: requestor may be just proxy/masquerade for real channel */
     //	use ast_bridged_channel(chan) ?
     //	use requestor->tech->get_base_channel() ?
+
+    if (opts & CALL_FLAG_INTERNAL_REQUEST) {
+        return 1;
+    }
 
     if ((opts & CALL_FLAG_HOLD_OTHER) == CALL_FLAG_HOLD_OTHER && channels_loop(pvt, requestor)) {
         return 0;
@@ -729,7 +734,7 @@ struct pvt* pvt_find_by_ext(const char* name)
 
 #/* like find_device but for resource spec; return locked! pvt or NULL */
 
-struct pvt* pvt_find_by_resource_ex(struct public_state* state, const char* resource, int opts, const struct ast_channel* requestor, int* exists)
+struct pvt* pvt_find_by_resource_ex(struct public_state* state, const char* resource, unsigned int opts, const struct ast_channel* requestor, int* exists)
 {
     int group;
     size_t i;
@@ -1083,6 +1088,41 @@ const char* pvt_str_call_dir(const struct pvt* pvt)
     }
 
     return dirs[index];
+}
+
+#define SET_PVT_STRING_FIELD(j, f) \
+    if (!ast_strlen_zero(pvt->f)) ast_json_object_set(j, #f, ast_json_string_create(pvt->f))
+
+static void set_state_str(const struct pvt* const pvt, struct ast_json* status)
+{
+    RAII_VAR(struct ast_str*, state_str, pvt_str_state_ex(pvt), ast_free);
+    ast_json_object_set(status, "state", ast_json_string_create(ast_str_buffer(state_str)));
+}
+
+void pvt_get_status(const struct pvt* const pvt, struct ast_json* status)
+{
+    ast_json_object_set(status, "name", ast_json_string_create(PVT_ID(pvt)));
+    set_state_str(pvt, status);
+    ast_json_object_set(status, "gsm", ast_json_string_create(gsm_regstate2str_json(pvt->gsm_reg_status)));
+
+    SET_PVT_STRING_FIELD(status, subscriber_number);
+    SET_PVT_STRING_FIELD(status, network_name);
+    SET_PVT_STRING_FIELD(status, short_network_name);
+    SET_PVT_STRING_FIELD(status, provider_name);
+    SET_PVT_STRING_FIELD(status, imei);
+    SET_PVT_STRING_FIELD(status, imsi);
+    SET_PVT_STRING_FIELD(status, iccid);
+    SET_PVT_STRING_FIELD(status, location_area_code);
+    SET_PVT_STRING_FIELD(status, cell_id);
+    SET_PVT_STRING_FIELD(status, band);
+
+    if (pvt->operator) {
+        struct ast_json* const plmn = ast_json_object_create();
+        ast_json_object_set(plmn, "value", ast_json_integer_create(pvt->operator));
+        ast_json_object_set(plmn, "mcc", ast_json_integer_create(pvt->operator/ 100));
+        ast_json_object_set(plmn, "mnc", ast_json_stringf("%02d", pvt->operator% 100));
+        ast_json_object_set(status, "plmn", plmn);
+    }
 }
 
 /* Module */
@@ -1454,15 +1494,18 @@ static int public_state_init(struct public_state* state)
             ast_format_cap_set_framing(channel_tech.capabilities, get_default_framing());
 
             /* register our channel type */
-            if (ast_channel_register(&channel_tech) == 0) {
-                smsdb_init();
-                cli_register();
-
-                return AST_MODULE_LOAD_SUCCESS;
-            } else {
+            if (ast_channel_register(&channel_tech)) {
                 ao2_cleanup(channel_tech.capabilities);
                 channel_tech.capabilities = NULL;
                 ast_log(LOG_ERROR, "Unable to register channel class %s\n", channel_tech.type);
+            } else {
+                smsdb_init();
+#ifdef BUILD_APPLICATIONS
+                app_register();
+#endif
+                cli_register();
+
+                return AST_MODULE_LOAD_SUCCESS;
             }
             discovery_stop(state);
         } else {
@@ -1488,6 +1531,10 @@ static void public_state_fini(struct public_state* state)
 
     /* Unregister the CLI */
     cli_unregister();
+
+#ifdef BUILD_APPLICATIONS
+    app_unregister();
+#endif
 
     discovery_stop(state);
     devices_destroy(state);

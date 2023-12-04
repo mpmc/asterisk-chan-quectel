@@ -3,6 +3,7 @@
 #
 
 SET(SOURCES
+    app.c
     at_command.c
     at_parse.c
     at_queue.c
@@ -28,6 +29,7 @@ SET(SOURCES
 )
 
 SET(HEADERS
+    app.h
     at_command.h
     at_parse.h
     at_queue.h

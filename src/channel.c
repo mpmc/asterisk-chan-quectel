@@ -985,44 +985,10 @@ static int channel_indicate(struct ast_channel* channel, int condition, const vo
 
 #/* */
 
-static struct ast_json* get_device_name(struct ast_channel* const channel)
-{
-    static const size_t DEVICE_NAME_DEF_LEN = 256;
-
-    RAII_VAR(char*, dn, ast_malloc(DEVICE_NAME_DEF_LEN), ast_free);
-    ast_channel_get_device_name(channel, dn, DEVICE_NAME_DEF_LEN);
-    return ast_json_string_create(dn);
-}
-
-#define SET_PVT_STRING_FIELD(j, f) \
-    if (!ast_strlen_zero(pvt->f)) ast_json_object_set(j, #f, ast_json_string_create(pvt->f))
-
 static void set_channel_vars(struct pvt* pvt, struct ast_channel* channel)
 {
     RAII_VAR(struct ast_json*, qdata, ast_json_object_create(), ast_json_unref);
-    ast_json_object_set(qdata, "name", ast_json_string_create(PVT_ID(pvt)));
-    ast_json_object_set(qdata, "device_name", get_device_name(channel));
-
-    SET_PVT_STRING_FIELD(qdata, subscriber_number);
-    SET_PVT_STRING_FIELD(qdata, network_name);
-    SET_PVT_STRING_FIELD(qdata, short_network_name);
-    SET_PVT_STRING_FIELD(qdata, provider_name);
-    SET_PVT_STRING_FIELD(qdata, imei);
-    SET_PVT_STRING_FIELD(qdata, imsi);
-    SET_PVT_STRING_FIELD(qdata, iccid);
-    SET_PVT_STRING_FIELD(qdata, location_area_code);
-    SET_PVT_STRING_FIELD(qdata, cell_id);
-    SET_PVT_STRING_FIELD(qdata, band);
-    SET_PVT_STRING_FIELD(qdata, sms_scenter);
-
-    if (pvt->operator) {
-        struct ast_json* const plmn = ast_json_object_create();
-        ast_json_object_set(plmn, "value", ast_json_integer_create(pvt->operator));
-        ast_json_object_set(plmn, "mcc", ast_json_integer_create(pvt->operator/ 100));
-        ast_json_object_set(plmn, "mnc", ast_json_stringf("%02d", pvt->operator% 100));
-        ast_json_object_set(qdata, "plmn", plmn);
-    }
-
+    pvt_get_status(pvt, qdata);
     setvar_helper_json(pvt, channel, "QUECTEL", qdata);
     ast_channel_language_set(channel, CONF_SHARED(pvt, language));
 }

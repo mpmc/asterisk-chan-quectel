@@ -28,8 +28,10 @@
 /* The Asterisk version */
 #cmakedefine ASTERISK_VERSION_NUM @ASTERISK_VERSION_NUM@
 
-/* clang-format on */
+/* Build applications flag */
+#cmakedefine BUILD_APPLICATIONS
 
+/* clang-format on */
 
 /* Revision of package */
 #define PACKAGE_REVISION "@PROJECT_VERSION_TWEAK@@CHAN_STATUS@"

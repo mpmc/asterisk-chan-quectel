@@ -63,6 +63,7 @@ const char* escape_str_ex(struct ast_str*, const struct ast_str* const);
 
 
 const char* attribute_const gsm_regstate2str(int gsm_reg_status);
+const char* attribute_const gsm_regstate2str_json(int gsm_reg_status);
 const char* attribute_const sys_act2str(int sys_submode);
 struct ast_str* rssi2dBm(int rssi);
 

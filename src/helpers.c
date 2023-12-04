@@ -608,6 +608,14 @@ const char* attribute_const gsm_regstate2str(int gsm_reg_status)
     return enum2str_def(gsm_reg_status, gsm_states, ARRAY_LEN(gsm_states), "Unknown");
 }
 
+const char* attribute_const gsm_regstate2str_json(int gsm_reg_status)
+{
+    static const char* const gsm_states[] = {
+        "not_registered_not_searching", "registered", "not_registered_searching", "registration_denied", "unknown", "registered_roaming",
+    };
+    return enum2str_def(gsm_reg_status, gsm_states, ARRAY_LEN(gsm_states), "unknown");
+}
+
 #/* */
 
 const char* attribute_const sys_act2str(int act)

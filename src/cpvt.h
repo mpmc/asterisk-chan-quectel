@@ -35,19 +35,22 @@ typedef enum {
 const char* attribute_const call_state2str(call_state_t state);
 
 typedef enum {
-    CALL_FLAG_NONE          = 0,
-    CALL_FLAG_HOLD_OTHER    = 1,   /*!< external, from channel_call() hold other calls and dial this number */
-    CALL_FLAG_NEED_HANGUP   = 2,   /*!< internal, require issue AT+CHUP or AT+CHLD=1x for call */
-    CALL_FLAG_ACTIVATED     = 4,   /*!< internal, fd attached to channel fds list */
-    CALL_FLAG_ALIVE         = 8,   /*!< internal, temporary, still listed in CLCC */
-    CALL_FLAG_CONFERENCE    = 16,  /*!< external, from dial() begin conference after activate this call */
-    CALL_FLAG_MASTER        = 32,  /*!< internal, channel fd[0] is pvt->audio_fd and  fd[1] is timer fd */
-    CALL_FLAG_BRIDGE_LOOP   = 64,  /*!< internal, found channel bridged to channel on same device */
-    CALL_FLAG_BRIDGE_CHECK  = 128, /*!< internal, we already do check for bridge loop */
-    CALL_FLAG_MULTIPARTY    = 256, /*!< internal, CLCC mpty is 1 */
-    CALL_FLAG_DIRECTION     = 512, /*!< call direction */
-    CALL_FLAG_LOCAL_CHANNEL = 1024 /*!< local channel flag */
-} call_flag_t;
+    CALL_FLAG_NONE             = 0,
+    CALL_FLAG_HOLD_OTHER       = 1,    /*!< external, from channel_call() hold other calls and dial this number */
+    CALL_FLAG_NEED_HANGUP      = 2,    /*!< internal, require issue AT+CHUP or AT+CHLD=1x for call */
+    CALL_FLAG_ACTIVATED        = 4,    /*!< internal, fd attached to channel fds list */
+    CALL_FLAG_ALIVE            = 8,    /*!< internal, temporary, still listed in CLCC */
+    CALL_FLAG_CONFERENCE       = 16,   /*!< external, from dial() begin conference after activate this call */
+    CALL_FLAG_MASTER           = 32,   /*!< internal, channel fd[0] is pvt->audio_fd and  fd[1] is timer fd */
+    CALL_FLAG_BRIDGE_LOOP      = 64,   /*!< internal, found channel bridged to channel on same device */
+    CALL_FLAG_BRIDGE_CHECK     = 128,  /*!< internal, we already do check for bridge loop */
+    CALL_FLAG_MULTIPARTY       = 256,  /*!< internal, CLCC mpty is 1 */
+    CALL_FLAG_DIRECTION        = 512,  /*!< call direction */
+    CALL_FLAG_LOCAL_CHANNEL    = 1024, /*!< local channel flag */
+    CALL_FLAG_INTERNAL_REQUEST = 2048  /*!< internal request */
+}
+
+call_flag_t;
 
 #define CALL_DIR_INCOMING 1u
 #define CALL_DIR_OUTGOING 0u

@@ -16,6 +16,7 @@
 
 #include "ast_config.h"
 
+#include <asterisk/json.h>
 #include <asterisk/linkedlists.h>
 #include <asterisk/lock.h>
 #include <asterisk/strings.h>
@@ -205,12 +206,14 @@ typedef struct public_state {
 extern public_state_t* gpublic;
 
 int pvt_get_pseudo_call_idx(const struct pvt* pvt);
-int pvt_ready4voice_call(const struct pvt* pvt, const struct cpvt* current_cpvt, int opts);
-int pvt_is_dial_possible(const struct pvt* pvt, int opts);
+int pvt_ready4voice_call(const struct pvt* pvt, const struct cpvt* current_cpvt, unsigned int opts);
+int pvt_is_dial_possible(const struct pvt* pvt, unsigned int opts);
 
 const char* pvt_str_state(const struct pvt* pvt);
 struct ast_str* pvt_str_state_ex(const struct pvt* pvt);
 const char* pvt_str_call_dir(const struct pvt* pvt);
+
+void pvt_get_status(const struct pvt* const pvt, struct ast_json* status);
 
 void pvt_on_create_1st_channel(struct pvt* pvt);
 void pvt_on_remove_last_channel(struct pvt* pvt);
@@ -235,9 +238,9 @@ struct pvt* pvt_find_ex(struct public_state* state, const char* name);
 static inline struct pvt* pvt_find(const char* name) { return pvt_find_ex(gpublic, name); }
 
 struct pvt* pvt_find_by_ext(const char* name);
-struct pvt* pvt_find_by_resource_ex(struct public_state* state, const char* resource, int opts, const struct ast_channel* requestor, int* exists);
+struct pvt* pvt_find_by_resource_ex(struct public_state* state, const char* resource, unsigned int opts, const struct ast_channel* requestor, int* exists);
 
-static inline struct pvt* pvt_find_by_resource(const char* resource, int opts, const struct ast_channel* requestor, int* exists)
+static inline struct pvt* pvt_find_by_resource(const char* resource, unsigned int opts, const struct ast_channel* requestor, int* exists)
 {
     return pvt_find_by_resource_ex(gpublic, resource, opts, requestor, exists);
 }
