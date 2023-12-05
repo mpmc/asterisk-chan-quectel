@@ -63,6 +63,27 @@ Supported modules:
     same => n,Goto(reportbye)
     same => n,Hangup
     ```
+  
+  * Renamed and reimplemented dialplan functions (applications).
+
+    * `QuectelStatus` application renamed to `QUECTEL_STATUS` **function**.
+
+        ```ini
+        same => n,Set(QSTATUS=${QUECTEL_STATUS(quectel0)})
+        same => Verbose(2,Device status: ${QSTATUS})
+        ```
+
+    * New `QUECTEL_STATUS_EX` **function**.
+
+        Returns device status as JSON.
+
+        ```ini
+        same => n,Set(QQSTATUS=${QUECTEL_STATUS_EX(quectel0)})
+        same => Verbose(2,Extended device status: ${QQSTATUS})
+        ```
+
+    * `QuectelSendSms` application renamed to `QUECTEL_SEND_SMS` one.
+    * `QuectelSendUssd` application renamed to `QUECTEL_SEND_USSD` one.
 
 ## Configuration
 
