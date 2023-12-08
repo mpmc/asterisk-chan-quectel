@@ -1,0 +1,11 @@
+
+ACTION=="remove", GOTO="modem_end"
+SUBSYSTEM!="tty", GOTO="modem_end"
+
+KERNEL!="ttyUSB[0-9]*|ttyACM[0-9]*", GOTO="modem_end"
+
+IMPORT{program}="/usr/bin/socat -t0 -T4 file:%N,ioctl-void=0x540c,flock-ex-nb,b115200,ignbrk=1,csize=3,cstopb=0,crtscts=0,clocal=1,cfmakeraw,crnl,group=dialout exec:/usr/lib/udev/read-modem-properties.sh,pipes,fdout=3"
+ENV{IMEI}=="?*", SYMLINK+="modem/by-imei/%E{IMEI}"
+ENV{IMSI}=="?*", SYMLINK+="modem/by-imsi/%E{IMSI}"
+
+LABEL="modem_end"
