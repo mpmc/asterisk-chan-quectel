@@ -281,7 +281,7 @@ static void fd_set_nonblock(const int fd)
     fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 }
 
-static void pvt_start(struct pvt* pvt)
+static void pvt_start(struct pvt* const pvt)
 {
     /* prevent start_monitor() multiple times and on turned off devices */
     if (pvt->connected || pvt->desired_state != DEV_STATE_STARTED) {
@@ -358,7 +358,7 @@ cleanup_datafd:
 
 #/* */
 
-static void pvt_free(struct pvt* pvt)
+static void pvt_free(struct pvt* const pvt)
 {
     at_queue_flush(pvt);
     ast_string_field_free_memory(pvt);
@@ -369,7 +369,7 @@ static void pvt_free(struct pvt* pvt)
 
 #/* */
 
-static void pvt_destroy(struct pvt* pvt)
+static void pvt_destroy(struct pvt* const pvt)
 {
     ast_mutex_lock(&pvt->lock);
     pvt_monitor_stop(pvt);
@@ -532,7 +532,7 @@ void pvt_on_remove_last_channel(struct pvt* pvt)
 
 int pvt_get_pseudo_call_idx(const struct pvt* pvt)
 {
-    struct cpvt* cpvt;
+    const struct cpvt* cpvt;
     int* bits;
     int dwords = ((MAX_CALL_IDX + sizeof(*bits) - 1) / sizeof(*bits));
 
@@ -558,7 +558,7 @@ int pvt_get_pseudo_call_idx(const struct pvt* pvt)
 
 static int is_dial_possible2(const struct pvt* pvt, unsigned int opts, const struct cpvt* ignore_cpvt)
 {
-    struct cpvt* cpvt;
+    const struct cpvt* cpvt;
     int hold   = 0;
     int active = 0;
     // FIXME: allow HOLD states for CONFERENCE
@@ -973,7 +973,7 @@ struct cpvt* pvt_channel_find_last_initialized(struct pvt* pvt)
 
 #/* */
 
-static const char* pvt_state_base(const struct pvt* pvt)
+static const char* pvt_state_base(const struct pvt* const pvt)
 {
     const char* state = NULL;
     // length is "AAAAAAAAAA"
@@ -1023,37 +1023,37 @@ const char* pvt_str_state(const struct pvt* pvt)
 
 struct ast_str* pvt_str_state_ex(const struct pvt* pvt)
 {
-    static const size_t DEF_STATE_LEN = 128;
+    static const size_t DEF_STATE_LEN = 64;
 
-    struct ast_str* buf = ast_str_create(DEF_STATE_LEN);
-    const char* state   = pvt_state_base(pvt);
+    struct ast_str* buf     = ast_str_create(DEF_STATE_LEN);
+    const char* const state = pvt_state_base(pvt);
 
     if (state) {
         ast_str_append(&buf, 0, "%s", state);
     } else {
         if (pvt->ring || PVT_STATE(pvt, chan_count[CALL_STATE_INCOMING])) {
-            ast_str_append(&buf, 0, "Ring ");
+            ast_str_append(&buf, 0, "Ring");
         }
 
         if (pvt->dialing || (PVT_STATE(pvt, chan_count[CALL_STATE_INIT]) + PVT_STATE(pvt, chan_count[CALL_STATE_DIALING]) +
                              PVT_STATE(pvt, chan_count[CALL_STATE_ALERTING])) > 0) {
-            ast_str_append(&buf, 0, "Dialing ");
+            ast_str_append(&buf, 0, "Dialing");
         }
 
         if (pvt->cwaiting || PVT_STATE(pvt, chan_count[CALL_STATE_WAITING])) {
-            ast_str_append(&buf, 0, "Waiting ");
+            ast_str_append(&buf, 0, "Waiting");
         }
 
         if (PVT_STATE(pvt, chan_count[CALL_STATE_ACTIVE]) > 0) {
-            ast_str_append(&buf, 0, "Active %u ", PVT_STATE(pvt, chan_count[CALL_STATE_ACTIVE]));
+            ast_str_append(&buf, 0, "Active %u", PVT_STATE(pvt, chan_count[CALL_STATE_ACTIVE]));
         }
 
         if (PVT_STATE(pvt, chan_count[CALL_STATE_ONHOLD]) > 0) {
-            ast_str_append(&buf, 0, "Held %u ", PVT_STATE(pvt, chan_count[CALL_STATE_ONHOLD]));
+            ast_str_append(&buf, 0, "Held %u", PVT_STATE(pvt, chan_count[CALL_STATE_ONHOLD]));
         }
 
         if (pvt->incoming_sms_index >= 0) {
-            ast_str_append(&buf, 0, "Incoming SMS ");
+            ast_str_append(&buf, 0, "Incoming SMS");
         }
 
         if (pvt->outgoing_sms) {
@@ -1061,7 +1061,7 @@ struct ast_str* pvt_str_state_ex(const struct pvt* pvt)
         }
 
         if (!ast_str_strlen(buf)) {
-            ast_str_append(&buf, 0, "%s", "Free");
+            ast_str_append(&buf, 0, "Free");
         }
     }
 
@@ -1077,7 +1077,7 @@ const char* pvt_str_call_dir(const struct pvt* pvt)
     static const char* dirs[] = {"Active", "Outgoing", "Incoming", "Both"};
 
     int index = 0;
-    struct cpvt* cpvt;
+    const struct cpvt* cpvt;
 
     AST_LIST_TRAVERSE(&pvt->chans, cpvt, entry) {
         if (CPVT_DIR_OUTGOING(cpvt)) {
@@ -1164,7 +1164,7 @@ static struct pvt* pvt_create(const pvt_config_t* settings)
 
 #/* */
 
-static int pvt_time4restate(const struct pvt* pvt)
+static int pvt_time4restate(const struct pvt* const pvt)
 {
     if (pvt->desired_state != pvt->current_state) {
         if (pvt->restart_time == RESTATE_TIME_NOW || (PVT_NO_CHANS(pvt) && !pvt->outgoing_sms && pvt->incoming_sms_index >= 0)) {

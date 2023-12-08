@@ -1220,7 +1220,7 @@ static int at_enqueue_msg_ack_n(struct cpvt *cpvt, int n, int uid)
 }
 #endif
 
-static int map_hangup_cause(int hangup_cause)
+static int attribute_const map_hangup_cause(int hangup_cause)
 {
     switch (hangup_cause) {
         // list of supported cause codes
