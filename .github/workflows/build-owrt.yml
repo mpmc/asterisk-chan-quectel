@@ -33,7 +33,7 @@ jobs:
         - owrt: 22.03.5
           gcc: 11.2.0
           ast: 181501
-        - owrt: 23.05.0
+        - owrt: 23.05.2
           gcc: 12.3.0
           ast: 200300
     steps:

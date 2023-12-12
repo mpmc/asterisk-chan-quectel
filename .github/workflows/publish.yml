@@ -13,7 +13,7 @@ on:
 
 env:
   BUILD_TYPE: Release
-  OWRTVER: 23.05.0
+  OWRTVER: 23.05.2
   UBUNTU_DISTRO: ubuntu22.04
 
 jobs:
@@ -263,7 +263,7 @@ jobs:
       run: ./scripts/feeds install asterisk-chan-quectel
     - name: Build OpenWRT packages
       working-directory: asterisk-modules/asterisk-chan-quectel/install/openwrt/${{ matrix.target }}
-      run: ./build-opk.sh default 200300
+      run: ./build-opk.sh
     - name: Archive IPK
       uses: actions/upload-artifact@v3
       with:
