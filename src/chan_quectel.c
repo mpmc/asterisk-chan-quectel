@@ -637,9 +637,10 @@ static int can_dial(struct pvt* pvt, unsigned int opts, const struct ast_channel
         return 1;
     }
 
-    if ((opts & CALL_FLAG_HOLD_OTHER) == CALL_FLAG_HOLD_OTHER && channels_loop(pvt, requestor)) {
+    if ((opts & CALL_FLAG_HOLD_OTHER) == CALL_FLAG_HOLD_OTHER && channel_self_request(pvt, requestor)) {
         return 0;
     }
+
     return pvt_ready4voice_call(pvt, NULL, opts);
 }
 

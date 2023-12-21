@@ -66,7 +66,7 @@ static void handle_expired_reports(struct pvt* pvt)
     ast_json_object_set(report, "uid", ast_json_integer_create(uid));
     ast_json_object_set(report, "expired", ast_json_integer_create(1));
     AST_JSON_OBJECT_SET(report, msg);
-    start_local_report_channel(pvt, "sms", LOCAL_REPORT_DIRECTION_OUTGOING, ast_str_buffer(dst), NULL, NULL, 0, report);
+    channel_start_local_report(pvt, "sms", LOCAL_REPORT_DIRECTION_OUTGOING, ast_str_buffer(dst), NULL, NULL, 0, report);
 }
 
 static int handle_expired_reports_taskproc(void* tpdata) { return PVT_TASKPROC_TRYLOCK_AND_EXECUTE(tpdata, handle_expired_reports); }

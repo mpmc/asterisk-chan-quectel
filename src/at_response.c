@@ -763,12 +763,12 @@ static int at_response_error(struct pvt* const pvt, const at_res_t at_res, const
         case CMD_AT_A:
         case CMD_AT_CHLD_2x:
             at_err_response_err(pvt, ecmd, "Answer failed for call idx:%d", task->cpvt->call_idx);
-            queue_hangup(task->cpvt->channel, AST_CAUSE_CALL_REJECTED);
+            channel_enqueue_hangup(task->cpvt->channel, AST_CAUSE_CALL_REJECTED);
             break;
 
         case CMD_AT_CHLD_3:
             at_err_response_err(pvt, ecmd, "Can't begin conference call idx:%d", task->cpvt->call_idx);
-            queue_hangup(task->cpvt->channel, AST_CAUSE_CALL_REJECTED);
+            channel_enqueue_hangup(task->cpvt->channel, AST_CAUSE_CALL_REJECTED);
             break;
 
         case CMD_AT_CLIR:
@@ -971,7 +971,7 @@ e_return:
 static int start_pbx(struct pvt* const pvt, const char* const number, const int call_idx, const call_state_t state)
 {
     /* TODO: pass also Subscriber number or other DID info for exten  */
-    struct ast_channel* channel = new_channel(pvt, AST_STATE_RING, number, call_idx, CALL_DIR_INCOMING, state,
+    struct ast_channel* channel = channel_new(pvt, AST_STATE_RING, number, call_idx, CALL_DIR_INCOMING, state,
                                               pvt->has_subscriber_number ? pvt->subscriber_number : CONF_SHARED(pvt, exten), NULL, NULL, 0);
 
     if (!channel) {
@@ -1518,7 +1518,7 @@ static int at_response_cmgs(struct pvt* const pvt, const struct ast_str* const r
         if (partcnt > 1) {
             ast_json_object_set(report, "parts", ast_json_integer_create(partcnt));
         }
-        start_local_report_channel(pvt, "sms", LOCAL_REPORT_DIRECTION_OUTGOING, ast_str_buffer(dst), NULL, NULL, 1, report);
+        channel_start_local_report(pvt, "sms", LOCAL_REPORT_DIRECTION_OUTGOING, ast_str_buffer(dst), NULL, NULL, 1, report);
     }
     return 0;
 }
@@ -1535,7 +1535,7 @@ static int at_response_cmgs_error(struct pvt* const pvt, const at_queue_task_t* 
         ast_json_object_set(report, "info", ast_json_string_create("Error sending message"));
         ast_json_object_set(report, "uid", ast_json_integer_create(task->uid));
         AST_JSON_OBJECT_SET(report, msg);
-        start_local_report_channel(pvt, "sms", LOCAL_REPORT_DIRECTION_OUTGOING, ast_str_buffer(dst), NULL, NULL, 0, report);
+        channel_start_local_report(pvt, "sms", LOCAL_REPORT_DIRECTION_OUTGOING, ast_str_buffer(dst), NULL, NULL, 0, report);
     } else {
         ast_verb(1, "[%s][SMS:%d] Error sending message\n", PVT_ID(pvt), task->uid);
     }
@@ -1705,7 +1705,7 @@ static int at_response_msg(struct pvt* const pvt, const struct ast_str* const re
                 msg_ack      = TRIBOOL_TRUE;
                 msg_ack_uid  = mr;
                 msg_complete = 1;
-                start_local_report_channel(pvt, "sms", LOCAL_REPORT_DIRECTION_INCOMING, ast_str_buffer(oa), scts, dt, success, report);
+                channel_start_local_report(pvt, "sms", LOCAL_REPORT_DIRECTION_INCOMING, ast_str_buffer(oa), scts, dt, success, report);
             }
 
             break;
@@ -1762,7 +1762,7 @@ receive_as_is:
                 ast_verb(1, "[%s][SMS:%d PARTS:%d TS:%s] Got empty message from %s\n", PVT_ID(pvt), (int)udh.ref, (int)udh.parts, scts, ast_str_buffer(oa));
             }
 
-            start_local_channel_json(pvt, "sms", ast_str_buffer(oa), "SMS", sms);
+            channel_start_local_json(pvt, "sms", ast_str_buffer(oa), "SMS", sms);
             break;
         }
     }
@@ -1969,7 +1969,7 @@ static int at_response_cusd(struct pvt* const pvt, const struct ast_str* const r
         ast_json_object_set(ussd, "ussd", ast_json_string_create(ast_str_buffer(cusd_str)));
     }
 
-    start_local_channel_json(pvt, "ussd", "ussd", "USSD", ussd);
+    channel_start_local_json(pvt, "ussd", "ussd", "USSD", ussd);
     return 0;
 }
 

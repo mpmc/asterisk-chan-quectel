@@ -328,7 +328,7 @@ static void change_state(struct cpvt* const cpvt, struct pvt* const pvt, struct 
             /* drop channel -> cpvt reference */
             ast_channel_tech_pvt_set(channel, NULL);
             cpvt_free(cpvt);
-            if (queue_hangup(channel, cause)) {
+            if (channel_enqueue_hangup(channel, cause)) {
                 ast_log(LOG_ERROR, "[%s] Error queueing hangup...\n", PVT_ID(pvt));
             }
             break;

@@ -104,7 +104,7 @@ static int parse_dial_string(char* dialstr, const char** number, int* opts)
 
 #/* */
 
-int channels_loop(struct pvt* pvt, const struct ast_channel* requestor)
+int channel_self_request(struct pvt* pvt, const struct ast_channel* requestor)
 {
     /* not allow hold requester channel :) */
     /* FIXME: requestor may be just proxy/masquerade for real channel */
@@ -169,7 +169,7 @@ static struct ast_channel* channel_request(attribute_unused const char* type, st
     }
 
     if (pvt) {
-        channel = new_channel(pvt, AST_STATE_DOWN, NULL, pvt_get_pseudo_call_idx(pvt), CALL_DIR_OUTGOING, CALL_STATE_INIT, NULL, assignedids, requestor,
+        channel = channel_new(pvt, AST_STATE_DOWN, NULL, pvt_get_pseudo_call_idx(pvt), CALL_DIR_OUTGOING, CALL_STATE_INIT, NULL, assignedids, requestor,
                               local_channel);
         if (!channel) {
             ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
@@ -401,14 +401,16 @@ static ssize_t iov_write(struct pvt* pvt, int fd, const struct iovec* const iov,
     return w;
 }
 
-static inline void change_audio_endianness_to_le(attribute_unused struct iovec* iov, attribute_unused int iovcnt)
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+static inline void change_audio_endianness_to_le(attribute_unused struct iovec* iov, attribute_unused int iovcnt) {}
+#else
+static void change_audio_endianness_to_le(struct iovec* iov, int iovcnt)
 {
-#if __BYTE_ORDER == __BIG_ENDIAN
     for (; iovcnt-- > 0; ++iov) {
         ast_swapcopy_samples(iov->iov_base, iov->iov_base, iov->iov_len / 2);
     }
-#endif
 }
+#endif
 
 #/* */
 
@@ -890,7 +892,7 @@ static int channel_devicestate(const char* data)
 {
     int res = AST_DEVICE_INVALID;
 
-    const char* const device = ast_strdupa(data ? data : "");
+    const char* const device = ast_strdupa(S_OR(data, ""));
     ast_debug(1, "[%s] Checking device state\n", device);
 
 
@@ -994,20 +996,16 @@ static void set_channel_vars(struct pvt* pvt, struct ast_channel* channel)
 }
 
 /* NOTE: called from device and current levels with locked pvt */
-struct ast_channel* new_channel(struct pvt* pvt, int ast_state, const char* cid_num, int call_idx, unsigned dir, call_state_t state, const char* dnid,
+struct ast_channel* channel_new(struct pvt* pvt, int ast_state, const char* cid_num, int call_idx, unsigned dir, call_state_t state, const char* dnid,
                                 const struct ast_assigned_ids* assignedids, attribute_unused const struct ast_channel* requestor, unsigned local_channel)
 {
-    struct ast_channel* channel;
-    struct cpvt* cpvt;
-
-    cpvt = cpvt_alloc(pvt, call_idx, dir, CALL_STATE_INIT, local_channel);
+    struct cpvt* const cpvt = cpvt_alloc(pvt, call_idx, dir, CALL_STATE_INIT, local_channel);
     if (!cpvt) {
         return NULL;
     }
 
-    channel = ast_channel_alloc(1, ast_state, cid_num, PVT_ID(pvt), NULL, dnid, CONF_SHARED(pvt, context), assignedids, requestor, 0, "%s/%s-%02u%08lx",
-                                channel_tech.type, PVT_ID(pvt), call_idx, pvt->channel_instance);
-
+    struct ast_channel* const channel = ast_channel_alloc(1, ast_state, cid_num, PVT_ID(pvt), NULL, dnid, CONF_SHARED(pvt, context), assignedids, requestor, 0,
+                                                          "%s/%s-%02u%08lx", channel_tech.type, PVT_ID(pvt), call_idx, pvt->channel_instance);
     if (!channel) {
         cpvt_free(cpvt);
         return NULL;
@@ -1069,7 +1067,7 @@ struct ast_channel* new_channel(struct pvt* pvt, int ast_state, const char* cid_
 
 /* NOTE: bg: hmm ast_queue_hangup() say no need channel lock before call, trylock got deadlock up to 30 seconds here */
 /* NOTE: bg: called from device level and change_channel_state() with pvt locked */
-int queue_hangup(struct ast_channel* channel, int hangupcause)
+int channel_enqueue_hangup(struct ast_channel* channel, int hangupcause)
 {
     if (!channel) {
         return -1;
@@ -1082,7 +1080,7 @@ int queue_hangup(struct ast_channel* channel, int hangupcause)
     return ast_queue_hangup(channel);
 }
 
-void start_local_report_channel(struct pvt* pvt, const char* subject, local_report_direction direction, const char* number, const char* ts, const char* dt,
+void channel_start_local_report(struct pvt* pvt, const char* subject, local_report_direction direction, const char* number, const char* ts, const char* dt,
                                 int success, struct ast_json* const report)
 {
     RAII_VAR(struct ast_json*, rprt, ast_json_object_create(), ast_json_unref);
@@ -1119,12 +1117,12 @@ void start_local_report_channel(struct pvt* pvt, const char* subject, local_repo
         ast_json_object_set(rprt, "report", ast_json_copy(report));
     }
 
-    start_local_channel_json(pvt, "report", number, "REPORT", rprt);
+    channel_start_local_json(pvt, "report", number, "REPORT", rprt);
 }
 
 #/* NOTE: bg: called from device level with pvt locked */
 
-void start_local_channel(struct pvt* pvt, const char* exten, const char* number, const channel_var_t* const vars, const size_t varscnt)
+void channel_start_local(struct pvt* pvt, const char* exten, const char* number, const channel_var_t* const vars, const size_t varscnt)
 {
     static const ssize_t CN_DEF_LEN = 64;
 
@@ -1154,11 +1152,11 @@ void start_local_channel(struct pvt* pvt, const char* exten, const char* number,
     }
 }
 
-void start_local_channel_json(struct pvt* pvt, const char* exten, const char* number, const char* const jname, const struct ast_json* const jvar)
+void channel_start_local_json(struct pvt* pvt, const char* exten, const char* number, const char* const jname, const struct ast_json* const jvar)
 {
     RAII_VAR(char* const, jstr, ast_json_dump_string((struct ast_json*)jvar), ast_json_free);
     const channel_var_t var = {jname, jstr};
-    start_local_channel(pvt, exten, number, &var, 1);
+    channel_start_local(pvt, exten, number, &var, 1);
 }
 
 #/* */

@@ -586,7 +586,7 @@ int at_enqueue_sms(struct cpvt* cpvt, const char* destination, const char* msg, 
     if (pdus_len > 1) {
         ast_json_object_set(report, "parts", ast_json_integer_create(pdus_len));
     }
-    start_local_report_channel(pvt, "sms", LOCAL_REPORT_DIRECTION_OUTGOING, destination, NULL, NULL, 1, report);
+    channel_start_local_report(pvt, "sms", LOCAL_REPORT_DIRECTION_OUTGOING, destination, NULL, NULL, 1, report);
 
     return 0;
 }
@@ -610,7 +610,7 @@ int at_enqueue_ussd(struct cpvt* cpvt, const char* code, int gsm7)
         return -1;
     }
 
-    ast_str_append(&buf, 0, at_cmd);
+    ast_str_set(&buf, 0, at_cmd);
 
     const size_t code_len = strlen(code);
 
@@ -663,7 +663,7 @@ int at_enqueue_ussd(struct cpvt* cpvt, const char* code, int gsm7)
     at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_CUSD);
 
     cmd.length = ast_str_strlen(buf);
-    cmd.data   = ast_strdup(ast_str_buffer(buf));
+    cmd.data   = ast_strndup(ast_str_buffer(buf), ast_str_strlen(buf));
     if (!cmd.data) {
         chan_quectel_err = E_MALLOC;
         return -1;
@@ -843,13 +843,10 @@ int at_enqueue_dial(struct cpvt* cpvt, const char* number, int clir)
  */
 int at_enqueue_answer(struct cpvt* cpvt)
 {
-    DECLARE_AT_CMD(a, "A");
-    DECLARE_AT_CMD(chld, "+CHLD=2%d");
+    DECLARE_AT_CMDNT(a, "A");
+    DECLARE_AT_CMDNT(chld, "+CHLD=2%d");
 
-    at_queue_cmd_t cmds[] = {
-        ATQ_CMD_DECLARE_DYN(CMD_AT_A),
-    };
-    unsigned int cnt = ARRAY_LEN(cmds);
+    at_queue_cmd_t cmd = ATQ_CMD_DECLARE_DYN(CMD_AT_A);
     const char* fmt;
 
     switch (cpvt->state) {
@@ -858,10 +855,9 @@ int at_enqueue_answer(struct cpvt* cpvt)
             break;
 
         case CALL_STATE_WAITING:
-            cmds[0].cmd = CMD_AT_CHLD_2x;
-            fmt         = AT_CMD(chld);
+            cmd.cmd = CMD_AT_CHLD_2x;
+            fmt     = AT_CMD(chld);
             /* no need CMD_AT_DDSETEX in this case? */
-            cnt--;
             break;
 
         default:
@@ -870,12 +866,12 @@ int at_enqueue_answer(struct cpvt* cpvt)
             return -1;
     }
 
-    if (at_fill_generic_cmd(&cmds[0], fmt, cpvt->call_idx)) {
+    if (at_fill_generic_cmd(&cmd, fmt, cpvt->call_idx)) {
         chan_quectel_err = E_CMD_FORMAT;
         return -1;
     }
 
-    if (at_queue_insert(cpvt, cmds, cnt, 1u)) {
+    if (at_queue_insert(cpvt, &cmd, 1u, 1)) {
         chan_quectel_err = E_QUEUE;
         return -1;
     }
