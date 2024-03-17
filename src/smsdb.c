@@ -100,6 +100,11 @@ static int bind_ast_str(sqlite3_stmt* stmt, int colno, const struct ast_str* con
     return sqlite3_bind_text(stmt, colno, ast_str_buffer(str), ast_str_strlen(str), SQLITE_TRANSIENT);
 }
 
+#if SQLITE_VERSION_NUMBER >= 3020000
+
+//
+// sqlite3_prepare_v3 function was introduced in version 3.20.0 (2017-08-01) of SQLite
+//
 static int init_stmt(sqlite3_stmt** stmt, const char* sql, size_t len)
 {
     if (sqlite3_prepare_v3(smsdb, sql, len, SQLITE_PREPARE_PERSISTENT, stmt, NULL) != SQLITE_OK) {
@@ -109,6 +114,23 @@ static int init_stmt(sqlite3_stmt** stmt, const char* sql, size_t len)
 
     return 0;
 }
+
+#else
+
+//
+// sqlite3_prepare_v3 function was introduced in version 3.3.9 (2007-01-04) of SQLite
+//
+static int init_stmt(sqlite3_stmt** stmt, const char* sql, size_t len)
+{
+    if (sqlite3_prepare_v2(smsdb, sql, len, stmt, NULL) != SQLITE_OK) {
+        ast_log(LOG_WARNING, "Couldn't prepare statement '%s': %s\n", sql, sqlite3_errmsg(smsdb));
+        return -1;
+    }
+
+    return 0;
+}
+
+#endif
 
 #define INIT_STMT(s) init_stmt(&s##_stmt, s##_sql, sizeof(s##_sql))
 
