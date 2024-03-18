@@ -69,11 +69,15 @@ DEFINE_SQL_STATEMENT(get_all_status, "SELECT status FROM outgoing_part WHERE msg
 
 // OPER: outgoing_msg, outgoing_part
 DEFINE_SQL_STATEMENT(cnt_outgoingpart,
-                     "SELECT m.cnt, (SELECT COUNT(p.rowid) FROM outgoing_part p WHERE p.msg = m.rowid AND (p.status & 64 != 0 OR "
-                     "p.status & 32 = 0)) FROM outgoing_msg m WHERE m.rowid = ?")
+                     "SELECT m.cnt, (SELECT COUNT(p.rowid) FROM outgoing_part p "
+                     "               WHERE p.msg = m.rowid AND "
+                     "               (p.status & 64 != 0 OR p.status & 32 = 0)) "
+                     "FROM outgoing_msg m WHERE m.rowid = ?")
 DEFINE_SQL_STATEMENT(cnt_all_outgoingpart,
-                     "SELECT m.cnt, (SELECT COUNT(p.rowid) FROM outgoing_part p WHERE p.msg = m.uid) FROM outgoing_msg "
-                     "m WHERE m.uid = ?")
+                     "SELECT m.cnt, (SELECT COUNT(p.rowid) FROM outgoing_part p "
+                     "               WHERE p.msg = m.uid) "
+                     "FROM outgoing_msg m "
+                     "WHERE m.uid = ?")
 
 static sqlite3* smsdb;
 
@@ -135,6 +139,7 @@ static int init_stmt(sqlite3_stmt** stmt, const char* sql, size_t len)
 #endif
 
 #define INIT_STMT(s) init_stmt(&s##_stmt, s##_sql, sizeof(s##_sql))
+#define INIT_VSTMT(s) const int s##_res = init_stmt(&s##_stmt, s##_sql, sizeof(s##_sql))
 
 /* We purposely don't lock around the sqlite3 call because the transaction
  * calls will be called with the database lock held. For any other use, make
@@ -155,6 +160,7 @@ static int execute_sql(const char* sql, int (*callback)(void*, int, char**, char
 static int execute_ast_str(const struct ast_str* const str) { return execute_sql(ast_str_buffer(str), NULL, NULL); }
 
 #define EXECUTE_STMT(s) execute_sql(s##_sql, NULL, NULL)
+#define EXECUTE_VSTMT(s) const int s##_res = execute_sql(s##_sql, NULL, NULL)
 
 /*! \internal
  * \brief Clean up the prepared SQLite3 statement
@@ -265,19 +271,46 @@ static int db_create(void)
 
     SCOPED_TRANSACTION(dbtrans);
 
-    return EXECUTE_STMT(create_incomingmsg) || EXECUTE_STMT(create_incomingmsg_index) || EXECUTE_STMT(create_outgoingmsg) || EXECUTE_STMT(create_outgoingref) ||
-           EXECUTE_STMT(create_outgoingpart) || EXECUTE_STMT(create_outgoingpart_index);
+    EXECUTE_VSTMT(create_incomingmsg);
+    EXECUTE_VSTMT(create_incomingmsg_index);
+    EXECUTE_VSTMT(create_outgoingmsg);
+    EXECUTE_VSTMT(create_outgoingref);
+    EXECUTE_VSTMT(create_outgoingpart);
+    EXECUTE_VSTMT(create_outgoingpart_index);
+
+    return create_incomingmsg_res || create_incomingmsg_index_res || create_outgoingmsg_res || create_outgoingref_res || create_outgoingpart_res ||
+           create_outgoingpart_index_res;
 }
 
 static int db_init_statements(void)
 {
     /* Don't initialize create_smsdb_statement here as the smsdb table needs to exist
      * brefore these statements can be initialized */
-    return INIT_STMT(get_incomingmsg) || INIT_STMT(put_incomingmsg) || INIT_STMT(del_incomingmsg) || INIT_STMT(get_incomingmsg_cnt) ||
-           INIT_STMT(put_outgoingref) || INIT_STMT(set_outgoingref) || INIT_STMT(get_outgoingref) || INIT_STMT(put_outgoingmsg) ||
-           INIT_STMT(put_outgoingpart) || INIT_STMT(del_outgoingmsg) || INIT_STMT(del_outgoingpart) || INIT_STMT(get_outgoingmsg_key) ||
-           INIT_STMT(get_outgoingpart) || INIT_STMT(set_outgoingpart) || INIT_STMT(cnt_outgoingpart) || INIT_STMT(cnt_all_outgoingpart) ||
-           INIT_STMT(get_outgoingmsg) || INIT_STMT(get_all_status) || INIT_STMT(get_outgoingmsg_expired);
+
+    INIT_VSTMT(get_incomingmsg);
+    INIT_VSTMT(put_incomingmsg);
+    INIT_VSTMT(del_incomingmsg);
+    INIT_VSTMT(get_incomingmsg_cnt);
+    INIT_VSTMT(put_outgoingref);
+    INIT_VSTMT(set_outgoingref);
+    INIT_VSTMT(get_outgoingref);
+    INIT_VSTMT(put_outgoingmsg);
+    INIT_VSTMT(put_outgoingpart);
+    INIT_VSTMT(del_outgoingmsg);
+    INIT_VSTMT(del_outgoingpart);
+    INIT_VSTMT(get_outgoingmsg_key);
+    INIT_VSTMT(get_outgoingpart);
+    INIT_VSTMT(set_outgoingpart);
+    INIT_VSTMT(cnt_outgoingpart);
+    INIT_VSTMT(cnt_all_outgoingpart);
+    INIT_VSTMT(get_outgoingmsg);
+    INIT_VSTMT(get_all_status);
+    INIT_VSTMT(get_outgoingmsg_expired);
+
+    return get_incomingmsg_res || put_incomingmsg_res || del_incomingmsg_res || get_incomingmsg_cnt_res || put_outgoingref_res || set_outgoingref_res ||
+           get_outgoingref_res || put_outgoingmsg_res || put_outgoingpart_res || del_outgoingmsg_res || del_outgoingpart_res || get_outgoingmsg_key_res ||
+           get_outgoingpart_res || set_outgoingpart_res || cnt_outgoingpart_res || cnt_all_outgoingpart_res || get_outgoingmsg_res || get_all_status_res ||
+           get_outgoingmsg_expired_res;
 }
 
 static void db_clean_statements(void)
