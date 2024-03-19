@@ -1507,8 +1507,8 @@ static int at_response_cmgs(struct pvt* const pvt, const struct ast_str* const r
 
     RAII_VAR(struct ast_str*, dst, (partno == partcnt) ? ast_str_create(DST_DEF_LEN) : NULL, ast_free);
     RAII_VAR(struct ast_str*, msg, (partno == partcnt) ? ast_str_create(DST_DEF_LEN) : NULL, ast_free);
-    const ssize_t res = smsdb_outgoing_part_put(task->uid, refid, &dst, &msg);
-    if (res >= 0) {
+
+    if (!smsdb_outgoing_part_put(task->uid, refid, &dst, &msg)) {
         ast_verb(3, "[%s][SMS:%d %s] SMS: [%s]\n", PVT_ID(pvt), task->uid, ast_str_buffer(dst), ast_str_buffer(msg));
         RAII_VAR(struct ast_json*, report, ast_json_object_create(), ast_json_unref);
         ast_json_object_set(report, "info", ast_json_string_create("Message send"));
@@ -1528,8 +1528,7 @@ static int at_response_cmgs_error(struct pvt* const pvt, const at_queue_task_t* 
     RAII_VAR(struct ast_str*, dst, ast_str_create(DST_DEF_LEN), ast_free);
     RAII_VAR(struct ast_str*, msg, ast_str_create(DST_DEF_LEN), ast_free);
 
-    const ssize_t dst_len = smsdb_outgoing_clear(task->uid, &dst, &msg);
-    if (dst_len >= 0) {
+    if (!smsdb_outgoing_clear(task->uid, &dst, &msg)) {
         ast_verb(1, "[%s][SMS:%d] Error sending message: [%s]\n", PVT_ID(pvt), task->uid, ast_str_buffer(dst));
         RAII_VAR(struct ast_json*, report, ast_json_object_create(), ast_json_unref);
         ast_json_object_set(report, "info", ast_json_string_create("Error sending message"));
@@ -1685,8 +1684,7 @@ static int at_response_msg(struct pvt* const pvt, const struct ast_str* const re
             ast_verb(1, "[%s][SMS:%d] Got status report from %s and status code %d\n", PVT_ID(pvt), mr, ast_str_buffer(oa), st);
 
             RAII_VAR(int*, status_report, ast_calloc(sizeof(int), 256), ast_free);
-            const ssize_t pres = smsdb_outgoing_part_status(pvt->imsi, ast_str_buffer(oa), mr, st, status_report);
-            if (pres >= 0) {
+            if (!smsdb_outgoing_part_status(pvt->imsi, ast_str_buffer(oa), mr, st, status_report)) {
                 RAII_VAR(struct ast_json*, report, ast_json_object_create(), ast_json_unref);
                 ast_json_object_set(report, "info", ast_json_stringf("SMS Status"));
                 if (st) {

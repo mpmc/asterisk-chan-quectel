@@ -54,8 +54,7 @@ static void handle_expired_reports(struct pvt* pvt)
 
     int uid;
 
-    const ssize_t res = smsdb_outgoing_purge_one(&uid, &dst, &msg);
-    if (res < 0) {
+    if (smsdb_outgoing_purge_one(&uid, &dst, &msg)) {
         return;
     }
 
