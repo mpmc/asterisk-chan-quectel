@@ -228,25 +228,25 @@ static void stmt_end(sqlite3_stmt* stmt)
 
 #define SCOPED_STMT(s) SCOPED_LOCK(s, s##_stmt, stmt_begin, stmt_end)
 
-static void db_lock(sqlite3* db)
+static sqlite3_mutex* db_lock(sqlite3* db)
 {
     sqlite3_mutex* const mtx = sqlite3_db_mutex(db);
     if (!mtx) {
-        return;
+        return NULL;
     }
     sqlite3_mutex_enter(mtx);
+    return mtx;
 }
 
-static void db_unlock(sqlite3* db)
+static void db_unlock(sqlite3_mutex* const mtx)
 {
-    sqlite3_mutex* const mtx = sqlite3_db_mutex(db);
     if (!mtx) {
         return;
     }
     sqlite3_mutex_leave(mtx);
 }
 
-#define SCOPED_DB(d) SCOPED_LOCK(d##_mtx, d, db_lock, db_unlock)
+#define SCOPED_DB(d) RAII_VAR(sqlite3_mutex*, d##_mtx, db_lock(d), db_unlock)
 
 static int db_create(void)
 {
@@ -269,6 +269,7 @@ static int db_create(void)
                                   "CREATE TABLE IF NOT EXISTS outgoing_part (key VARCHAR(256), msg INTEGER, status INTEGER, PRIMARY KEY(key))")
     DEFINE_INTERNAL_SQL_STATEMENT(create_outgoingpart_index, "CREATE INDEX IF NOT EXISTS outgoing_part_msg ON outgoing_part(msg)")
 
+    SCOPED_DB(smsdb);
     SCOPED_TRANSACTION(dbtrans);
 
     EXECUTE_VSTMT(create_incomingmsg);
@@ -405,6 +406,7 @@ static int put_incmsg(const struct ast_str* const fullkey, int order, const char
     int res;
     const int ttl = CONF_GLOBAL(csms_ttl);
 
+    SCOPED_DB(smsdb);
     SCOPED_STMT(put_incomingmsg);
 
     if ((res = bind_ast_str(put_incomingmsg, 1, fullkey)) != SQLITE_OK) {
@@ -439,6 +441,7 @@ static int get_incmsg_cnt(const struct ast_str* const fullkey)
 {
     int res;
 
+    SCOPED_DB(smsdb);
     SCOPED_STMT(get_incomingmsg_cnt);
 
     if ((res = bind_ast_str(get_incomingmsg_cnt, 1, fullkey)) != SQLITE_OK) {
@@ -458,6 +461,7 @@ static int get_incmsg(const struct ast_str* const fullkey, struct ast_str** out)
 {
     int res;
 
+    SCOPED_DB(smsdb);
     SCOPED_STMT(get_incomingmsg);
 
     if ((res = bind_ast_str(get_incomingmsg, 1, fullkey)) != SQLITE_OK) {
@@ -476,6 +480,7 @@ static int del_incmsg(const struct ast_str* const fullkey)
 {
     int res;
 
+    SCOPED_DB(smsdb);
     SCOPED_STMT(del_incomingmsg);
 
     if ((res = bind_ast_str(del_incomingmsg, 1, fullkey)) != SQLITE_OK) {
@@ -512,7 +517,6 @@ int smsdb_put(const char* id, const char* addr, int ref, int parts, int order, c
     }
 
     int res;
-    SCOPED_DB(smsdb);
     SCOPED_TRANSACTION(dbtrans);
 
     if ((res = put_incmsg(fullkey, order, msg))) {
@@ -532,6 +536,7 @@ static int get_refid(const struct ast_str* const fullkey)
 {
     int res;
 
+    SCOPED_DB(smsdb);
     SCOPED_STMT(get_outgoingref);
 
     if ((res = bind_ast_str(get_outgoingref, 1, fullkey)) != SQLITE_OK) {
@@ -556,6 +561,8 @@ static int inc_refid(const struct ast_str* const fullkey, int use_insert)
     int res;
 
     sqlite3_stmt* const outgoingref_stmt = use_insert ? put_outgoingref_stmt : set_outgoingref_stmt;
+
+    SCOPED_DB(smsdb);
     SCOPED_STMT(outgoingref);
 
     if ((res = bind_ast_str(outgoingref, 1, fullkey)) != SQLITE_OK) {
@@ -580,7 +587,6 @@ int smsdb_get_refid(const char* id, const char* addr)
 
     int res, use_insert = 0;
 
-    SCOPED_DB(smsdb);
     SCOPED_TRANSACTION(dbtrans);
 
     if ((res = get_refid(fullkey)) == -2) {
@@ -600,6 +606,7 @@ int smsdb_outgoing_add(const char* id, const char* addr, const char* msg, int cn
 {
     int res;
 
+    SCOPED_DB(smsdb);
     SCOPED_TRANSACTION(dbtrans);
     SCOPED_STMT(put_outgoingmsg);
 
@@ -644,6 +651,7 @@ static int get_outmsg(int uid, struct ast_str** dst, struct ast_str** msg)
 {
     int res;
 
+    SCOPED_DB(smsdb);
     SCOPED_STMT(get_outgoingmsg);
 
     if ((res = sqlite3_bind_int(get_outgoingmsg, 1, uid)) != SQLITE_OK) {
@@ -665,6 +673,7 @@ static int del_outmsg(int uid)
 {
     int res;
 
+    SCOPED_DB(smsdb);
     SCOPED_STMT(del_outgoingmsg);
 
     if ((res = sqlite3_bind_int(del_outgoingmsg, 1, uid)) != SQLITE_OK) {
@@ -683,6 +692,7 @@ static int del_outpart(int uid)
 {
     int res;
 
+    SCOPED_DB(smsdb);
     SCOPED_STMT(del_outgoingpart);
 
     if ((res = sqlite3_bind_int(del_outgoingpart, 1, uid)) != SQLITE_OK) {
@@ -729,6 +739,7 @@ static int get_outmsg_key(int uid, int refid, struct ast_str** fullkey, int* srr
 {
     int res;
 
+    SCOPED_DB(smsdb);
     SCOPED_STMT(get_outgoingmsg_key);
 
     if ((res = sqlite3_bind_int(get_outgoingmsg_key, 1, uid)) != SQLITE_OK) {
@@ -756,6 +767,7 @@ static int put_outpart(const struct ast_str* const fullkey, int uid)
 {
     int res;
 
+    SCOPED_DB(smsdb);
     SCOPED_STMT(put_outgoingpart);
 
     if ((res = bind_ast_str(put_outgoingpart, 1, fullkey)) != SQLITE_OK) {
@@ -779,6 +791,7 @@ static int cnt_all_outpart(int uid)
 {
     int res;
 
+    SCOPED_DB(smsdb);
     SCOPED_STMT(cnt_all_outgoingpart);
 
     if ((res = sqlite3_bind_int(cnt_all_outgoingpart, 1, uid)) != SQLITE_OK) {
@@ -840,6 +853,7 @@ static int get_outpart(const struct ast_str* const fullkey, int* partid, int* ui
 {
     int res;
 
+    SCOPED_DB(smsdb);
     SCOPED_STMT(get_outgoingpart);
 
     if ((res = bind_ast_str(get_outgoingpart, 1, fullkey)) != SQLITE_OK) {
@@ -860,6 +874,7 @@ static int set_outpart(int st, int partid)
 {
     int res;
 
+    SCOPED_DB(smsdb);
     SCOPED_STMT(set_outgoingpart);
 
     if ((res = sqlite3_bind_int(set_outgoingpart, 1, st)) != SQLITE_OK) {
@@ -883,6 +898,7 @@ static int cnt_outpart(int uid)
 {
     int res;
 
+    SCOPED_DB(smsdb);
     SCOPED_STMT(cnt_outgoingpart);
 
     if ((res = sqlite3_bind_int(cnt_outgoingpart, 1, uid)) != SQLITE_OK) {
@@ -907,6 +923,7 @@ static int get_all_stats(int uid, int* status_all)
 {
     int res, i = 0;
 
+    SCOPED_DB(smsdb);
     SCOPED_STMT(get_all_status);
 
     if ((res = sqlite3_bind_int(get_all_status, 1, uid)) != SQLITE_OK) {
