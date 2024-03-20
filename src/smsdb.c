@@ -107,7 +107,7 @@ static int bind_ast_str(sqlite3_stmt* stmt, int colno, const struct ast_str* con
 #if SQLITE_VERSION_NUMBER >= 3020000
 
 //
-// sqlite3_prepare_v3 function was introduced in version 3.20.0 (2017-08-01) of SQLite
+// sqlite3_prepare_v3 function have been introduced in version 3.20.0 (2017-08-01) of SQLite
 //
 static int init_stmt(sqlite3_stmt** stmt, const char* sql, size_t len)
 {
@@ -123,7 +123,7 @@ static int init_stmt(sqlite3_stmt** stmt, const char* sql, size_t len)
 #else
 
 //
-// sqlite3_prepare_v3 function was introduced in version 3.3.9 (2007-01-04) of SQLite
+// sqlite3_prepare_v2 function have been introduced in version 3.3.9 (2007-01-04) of SQLite
 //
 static int init_stmt(sqlite3_stmt** stmt, const char* sql, size_t len)
 {
@@ -230,6 +230,9 @@ static void stmt_end(sqlite3_stmt* stmt)
 
 static sqlite3_mutex* db_lock(sqlite3* db)
 {
+    //
+    // sqlite3_db_mutex function have been introduced in version 3.6.5 (2008-11-12) of SQLite
+    //
     sqlite3_mutex* const mtx = sqlite3_db_mutex(db);
     if (!mtx) {
         return NULL;
@@ -363,7 +366,15 @@ static int db_name_temporary(const char* db)
 
 static int db_open_url(const char* url)
 {
-    const int res = sqlite3_open(url, &smsdb);
+    //
+    // sqlite3_open_v2 function have been introduced in version 3.5.0 (2007-09-04) of SQLite
+    // SQLITE_OPEN_NOFOLLOW flag have been introduced in version 3.31.0 (2020-01-22) of SQLite
+    //
+#if SQLITE_VERSION_NUMBER >= 3031000
+    const int res = sqlite3_open_v2(url, &smsdb, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_NOFOLLOW, NULL);
+#else
+    const int res = sqlite3_open_v2(url, &smsdb, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX, NULL);
+#endif
     if (res != SQLITE_OK) {
         ast_log(LOG_WARNING, "Unable to open database '%s': [%d] %s\n", url, res, sqlite3_errmsg(smsdb));
         sqlite3_close(smsdb);
