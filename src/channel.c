@@ -996,7 +996,7 @@ static void set_channel_vars(struct pvt* pvt, struct ast_channel* channel)
 }
 
 /* NOTE: called from device and current levels with locked pvt */
-struct ast_channel* channel_new(struct pvt* pvt, int ast_state, const char* cid_num, int call_idx, unsigned dir, call_state_t state, const char* dnid,
+struct ast_channel* channel_new(struct pvt* pvt, int ast_state, const char* cid_num, int call_idx, unsigned dir, int state, const char* dnid,
                                 const struct ast_assigned_ids* assignedids, attribute_unused const struct ast_channel* requestor, unsigned local_channel)
 {
     struct cpvt* const cpvt = cpvt_alloc(pvt, call_idx, dir, CALL_STATE_INIT, local_channel);
@@ -1052,7 +1052,7 @@ struct ast_channel* channel_new(struct pvt* pvt, int ast_state, const char* cid_
     }
 
     if (state != CALL_STATE_INIT) {
-        cpvt_change_state(cpvt, state, AST_CAUSE_NORMAL_UNSPECIFIED);
+        cpvt_change_state(cpvt, (call_state_t)state, AST_CAUSE_NORMAL_UNSPECIFIED);
     }
 
     ast_module_ref(self_module());

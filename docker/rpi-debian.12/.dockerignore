@@ -1,0 +1,3 @@
+# .dockerignore
+package
+build-chan-quectel.sh

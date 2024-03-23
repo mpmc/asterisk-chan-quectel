@@ -48,9 +48,7 @@ typedef enum {
     CALL_FLAG_DIRECTION        = 512,  /*!< call direction */
     CALL_FLAG_LOCAL_CHANNEL    = 1024, /*!< local channel flag */
     CALL_FLAG_INTERNAL_REQUEST = 2048  /*!< internal request */
-}
-
-call_flag_t;
+} call_flag_t;
 
 #define CALL_DIR_INCOMING 1u
 #define CALL_DIR_OUTGOING 0u

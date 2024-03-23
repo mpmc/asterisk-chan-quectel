@@ -21,7 +21,7 @@ typedef enum local_report_direction { LOCAL_REPORT_DIRECTION_UNKNOWN, LOCAL_REPO
 
 extern struct ast_channel_tech channel_tech;
 
-struct ast_channel* channel_new(struct pvt* pvt, int ast_state, const char* cid_num, int call_idx, unsigned dir, unsigned state, const char* exten,
+struct ast_channel* channel_new(struct pvt* pvt, int ast_state, const char* cid_num, int call_idx, unsigned dir, int state, const char* exten,
                                 const struct ast_assigned_ids* assignedids, const struct ast_channel* requestor, unsigned local_channel);
 
 int channel_self_request(struct pvt* pvt, const struct ast_channel* requestor);

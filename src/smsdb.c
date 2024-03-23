@@ -826,7 +826,7 @@ static int cnt_all_outpart(int uid)
 
 int smsdb_outgoing_part_put(int uid, int refid, struct ast_str** dst, struct ast_str** msg)
 {
-    int srr;
+    int srr = -1;
 
     RAII_VAR(struct ast_str*, fullkey, ast_str_create(DBKEY_DEF_LEN), ast_free);
 
@@ -951,7 +951,7 @@ static int get_all_stats(int uid, int* status_all)
 
 int smsdb_outgoing_part_status(const char* id, const char* addr, int mr, int st, int* status_all)
 {
-    int partid, uid;
+    int partid = -1, uid = -1;
 
     RAII_VAR(struct ast_str*, fullkey, ast_str_create(DBKEY_DEF_LEN), ast_free);
     if (ast_str_set(&fullkey, 0, "%s/%s/%d", id, addr, mr) < 0) {
