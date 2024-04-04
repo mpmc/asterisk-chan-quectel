@@ -13,7 +13,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 
 apt-get -qq update -y
 apt-get -qq install -y --no-install-recommends \
-    file ca-certificates \
+    file ca-certificates jq \
     libsqlite3-dev libssl3
 EOF
 
@@ -27,9 +27,8 @@ chown -R nobody:nogroup /build
 EOF
 
 FROM base AS chan-quectel-base
-
-# git branch
 ARG BRANCH=master
+ARG SKIPCACHE_URL=https://www.random.org/cgi-bin/randbyte?nbytes=10&format=h
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked <<-EOF
@@ -37,19 +36,30 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 
 apt-get -qq update -y
 apt-get -qq install -y --no-install-recommends \
-    cmake \
+    cmake dpkg-dev \
     libasound2-dev asterisk-dev
 EOF
 
 WORKDIR /build
-USER nobody:nogroup
-RUN git clone -q --branch=${BRANCH} http://github.com/RoEdAl/asterisk-chan-quectel.git chan-quectel
+COPY --chown=nobody:nogroup --chmod=750 <<EOF git-clone.sh
+#!/bin/bash -e
 
-USER root
+git clone -q --branch=${BRANCH} http://github.com/RoEdAl/asterisk-chan-quectel.git chan-quectel
+EOF
 
 FROM chan-quectel-base AS chan-quectel
 
-WORKDIR /build/chan-quectel
 USER nobody:nogroup
-RUN --network=none cmake -DASTERISK_VERSION_NUM=200100 --preset=default
-RUN --network=none cmake --build --preset=package
+WORKDIR /build
+ADD ${SKIPCACHE_URL} skipcache
+RUN ./git-clone.sh
+
+WORKDIR /build/chan-quectel
+RUN --network=none \
+    --mount=type=tmpfs,target=/build/chan-quectel/build <<-EOF
+#!/bin/bash -e
+
+./get-build-flags.sh deb > CMakeUserPresets.json
+cmake --preset=deb -DASTERISK_VERSION_NUM=200100
+cmake --build --preset=package-deb
+EOF

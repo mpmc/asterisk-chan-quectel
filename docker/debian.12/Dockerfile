@@ -63,7 +63,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 apt-get -qq update -y
 apt-get -qq install -y --no-install-recommends \
     file build-essential \
-    ca-certificates jq\
+    ca-certificates jq \
     libsqlite3-dev libssl3
 EOF
 
@@ -115,7 +115,7 @@ RUN --network=none DESTDIR=/build/install make install-headers
 
 FROM base as chan-quectel-base
 ARG BRANCH=master
-ARG SKIPCACHE_URL=http://www.random.org/cgi-bin/randbyte?nbytes=10&format=h
+ARG SKIPCACHE_URL=https://www.random.org/cgi-bin/randbyte?nbytes=10&format=h
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked <<-EOF

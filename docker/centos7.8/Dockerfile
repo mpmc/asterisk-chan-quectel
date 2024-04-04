@@ -124,7 +124,7 @@ ADD --chmod=755 http://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-
 WORKDIR /build
 USER nobody:nobody
 
-ADD "http://www.random.org/cgi-bin/randbyte?nbytes=10&format=h" skipcache
+ADD "https://www.random.org/cgi-bin/randbyte?nbytes=10&format=h" skipcache
 RUN git clone -q --branch=${BRANCH} http://github.com/RoEdAl/asterisk-chan-quectel.git chan-quectel
 
 USER root
