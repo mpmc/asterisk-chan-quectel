@@ -28,9 +28,9 @@ tristate_bool_t attribute_const dc_str23stbool(const char* str)
         return TRIBOOL_NONE;
     }
 
-    if (!strcasecmp(str, "on") || !strcasecmp(str, "true")) {
+    if (!strcasecmp(str, "on") || !strcasecmp(str, "true") || !strcasecmp(str, "yes")) {
         return TRIBOOL_TRUE;
-    } else if (!strcasecmp(str, "off") || !strcasecmp(str, "false")) {
+    } else if (!strcasecmp(str, "off") || !strcasecmp(str, "false") || !strcasecmp(str, "no")) {
         return TRIBOOL_FALSE;
     } else {
         return TRIBOOL_NONE;
@@ -49,10 +49,10 @@ int attribute_const dc_str23stbool_ex(const char* str, tristate_bool_t* res, con
         return -3;
     }
 
-    if (!strcasecmp(str, "on") || !strcasecmp(str, "true")) {
+    if (!strcasecmp(str, "on") || !strcasecmp(str, "true") || !strcasecmp(str, "yes")) {
         *res = TRIBOOL_TRUE;
         return 0;
-    } else if (!strcasecmp(str, "off") || !strcasecmp(str, "false")) {
+    } else if (!strcasecmp(str, "off") || !strcasecmp(str, "false") || !strcasecmp(str, "no")) {
         *res = TRIBOOL_FALSE;
         return 0;
     } else if (!strcasecmp(str, none_val)) {
