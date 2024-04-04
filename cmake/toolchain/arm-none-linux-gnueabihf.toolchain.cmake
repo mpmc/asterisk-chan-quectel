@@ -25,22 +25,22 @@ set(CMAKE_SIZE                      ${gccbase}/bin/${triple}-size${CMAKE_EXECUTA
 set(CMAKE_STRIP                     ${gccbase}/bin/${triple}-strip${CMAKE_EXECUTABLE_SUFFIX} CACHE INTERNAL "")
 set(CMAKE_GCOV                      ${gccbase}/bin/${triple}-gcov${CMAKE_EXECUTABLE_SUFFIX} CACHE INTERNAL "")
 
-function(set_rpi_cxx_flags rpi)
+function(set_cxx_init_flags cflags)
+    set(CMAKE_C_FLAGS_INIT "${cflags}" CACHE INTERNAL "")
+    set(CMAKE_CXX_FLAGS_INIT "${cflags}" CACHE INTERNAL "")
+endfunction()
+
+function(set_rpi_cxx_init_flags rpi)
     if (${rpi} EQUAL 1)
-        set(CMAKE_C_FLAGS_INIT "-marm -mlibarch=armv6+fp -march=armv6+fp -mfpu=vfp -mfloat-abi=hard -mtune=arm1176jzf-s" CACHE INTERNAL "")
-        set(CMAKE_CXX_FLAGS_INIT "-marm -mlibarch=armv6+fp -march=armv6+fp -mfpu=vfp -mfloat-abi=hard -mtune=arm1176jzf-s" CACHE INTERNAL "")
+        set_cxx_init_flags("-marm -march=armv6+fp -mfpu=vfp -mfloat-abi=hard -mtune=arm1176jzf-s")
     elseif(${rpi} EQUAL 2)
-        set(CMAKE_C_FLAGS_INIT "-march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard -mtune=cortex-a7" CACHE INTERNAL "")
-        set(CMAKE_CXX_FLAGS_INIT "-march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard -mtune=cortex-a7" CACHE INTERNAL "")
+        set_cxx_init_flags("-march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard -mtune=cortex-a7")
     elseif(${rpi} EQUAL 3)
-        set(CMAKE_C_FLAGS_INIT "-march=armv8-a+crc -mcpu=cortex-a53 -mfpu=crypto-neon-fp-armv8 -mfloat-abi=hard" CACHE INTERNAL "")
-        set(CMAKE_CXX_FLAGS_INIT "-march=armv8-a+crc -mcpu=cortex-a53 -mfpu=crypto-neon-fp-armv8 -mfloat-abi=hard" CACHE INTERNAL "")
+        set_cxx_init_flags("-march=armv8-a+crc -mcpu=cortex-a53 -mfpu=crypto-neon-fp-armv8 -mfloat-abi=hard")
     elseif(${rpi} EQUAL 4)
-        set(CMAKE_C_FLAGS_INIT "-march=armv8-a+crc -mcpu=cortex-a72 -mfpu=crypto-neon-fp-armv8 -mfloat-abi=hard" CACHE INTERNAL "")
-        set(CMAKE_CXX_FLAGS_INIT "-march=armv8-a+crc -mcpu=cortex-a72 -mfpu=crypto-neon-fp-armv8 -mfloat-abi=hard" CACHE INTERNAL "")
+        set_cxx_init_flags("-march=armv8-a+crc -mcpu=cortex-a72 -mfpu=crypto-neon-fp-armv8 -mfloat-abi=hard")
     elseif(${rpi} EQUAL 5)
-        set(CMAKE_C_FLAGS_INIT "-march=armv8-a+crc+crypto -mtune=cortex-a76 -mfpu=crypto-neon-fp-armv8 -mfloat-abi=hard" CACHE INTERNAL "")
-        set(CMAKE_CXX_FLAGS_INIT "-march=armv8-a+crc+crypto -mtune=cortex-a76 -mfpu=crypto-neon-fp-armv8 -mfloat-abi=hard" CACHE INTERNAL "")        
+        set_cxx_init_flags("-march=armv8-a+crc+crypto -mtune=cortex-a76 -mfpu=crypto-neon-fp-armv8 -mfloat-abi=hard")
     elseif(${rpi} GREATER 5)
         message(FATAL_ERROR "Version ${rpi} of Raspberry Pi is not supported.")
     else()
@@ -49,92 +49,47 @@ function(set_rpi_cxx_flags rpi)
 endfunction()
 
 if(DEFINED ENV{TOOLSET_TARGET_RPI})
-    set_rpi_cxx_flags($ENV{TOOLSET_TARGET_RPI})
+    set_rpi_cxx_init_flags($ENV{TOOLSET_TARGET_RPI})
     set(rpidir /build/rpi)
     set(CMAKE_FIND_ROOT_PATH ${rpidir})
 
-    set(CMAKE_C_STANDARD_INCLUDE_DIRECTORIES 
-        ${rpidir}/usr/include/${btriple}
-        ${rpidir}/usr/include
-        ${rpidir}/usr/local/include/${btriple}
-        ${rpidir}/usr/local/include
-    )
-    set(CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES 
-        ${rpidir}/usr/include/${btriple}
-        ${rpidir}/usr/include
-        ${rpidir}/usr/local/include/${btriple}
-        ${rpidir}/usr/local/include
-    )
-    set(CMAKE_SHARED_LINKER_FLAGS_INIT
-        -Wl,-L${rpidir}/usr/local/lib/${btriple}
-        -Wl,-L${rpidir}/usr/local/lib
-        -Wl,-L${rpidir}/usr/lib/${btriple}
-        -Wl,-L${rpidir}/usr/lib
-    )
+    foreach(i C CXX)
+        set("CMAKE_${i}_STANDARD_INCLUDE_DIRECTORIES"
+            ${rpidir}/usr/include/${btriple}
+            ${rpidir}/usr/include
+            ${rpidir}/usr/local/include/${btriple}
+            ${rpidir}/usr/local/include
+        )
+    endforeach()
 
-    set(CMAKE_STATIC_LINKER_FLAGS_INIT
-        -Wl,-L${rpidir}/usr/local/lib/${btriple}
-        -Wl,-L${rpidir}/usr/local/lib
-        -Wl,-L${rpidir}/usr/lib/${btriple}
-        -Wl,-L${rpidir}/usr/lib
-    )
-
-    set(CMAKE_MODULE_LINKER_FLAGS_INIT
-        -Wl,-L${rpidir}/usr/local/lib/${btriple}
-        -Wl,-L${rpidir}/usr/local/lib
-        -Wl,-L${rpidir}/usr/lib/${btriple}
-        -Wl,-L${rpidir}/usr/lib
-    )
-
-    set(CMAKE_EXE_LINKER_FLAGS_INIT
-        -Wl,-L${rpidir}/usr/local/lib/${btriple}
-        -Wl,-L${rpidir}/usr/local/lib
-        -Wl,-L${rpidir}/usr/lib/${btriple}
-        -Wl,-L${rpidir}/usr/lib
-    )    
+    foreach(i SHARED STATIC MODULE EXE)
+        set("CMAKE_${i}_LINKER_FLAGS_INIT"
+            -Wl,-L${rpidir}/usr/local/lib/${btriple}
+            -Wl,-L${rpidir}/usr/local/lib
+            -Wl,-L${rpidir}/usr/lib/${btriple}
+            -Wl,-L${rpidir}/usr/lib
+        )
+    endforeach()
 else()
-    set(CMAKE_C_FLAGS_INIT          "-march=armv7-a -mfloat-abi=hard -mfpu=neon" CACHE INTERNAL "")
-    set(CMAKE_CXX_FLAGS_INIT        "-march=armv7-a -mfloat-abi=hard -mfpu=neon" CACHE INTERNAL "")
+    set_cxx_init_flags("-march=armv7-a -mfloat-abi=hard -mfpu=neon")
 
-    set(CMAKE_C_STANDARD_INCLUDE_DIRECTORIES 
-        /usr/include/${btriple}
-        /usr/include
-        /usr/local/include/${btriple}
-        /usr/local/include
-    )
-    set(CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES 
-        /usr/include/${btriple}
-        /usr/include
-        /usr/local/include/${btriple}
-        /usr/local/include
-    )
-    set(CMAKE_SHARED_LINKER_FLAGS_INIT
-        -Wl,-L/usr/local/lib/${btriple}
-        -Wl,-L/usr/local/lib
-        -Wl,-L/usr/lib/${btriple}
-        -Wl,-L/usr/lib
-    )
+    foreach(i C CXX)
+        set("CMAKE_${i}_STANDARD_INCLUDE_DIRECTORIES"
+            /usr/include/${btriple}
+            /usr/include
+            /usr/local/include/${btriple}
+            /usr/local/include
+        )
+    endforeach()
 
-    set(CMAKE_STATIC_LINKER_FLAGS_INIT
-        -Wl,-L/usr/local/lib/${btriple}
-        -Wl,-L/usr/local/lib
-        -Wl,-L/usr/lib/${btriple}
-        -Wl,-L/usr/lib
-    )
-
-    set(CMAKE_MODULE_LINKER_FLAGS_INIT
-        -Wl,-L/usr/local/lib/${btriple}
-        -Wl,-L/usr/local/lib
-        -Wl,-L/usr/lib/${btriple}
-        -Wl,-L/usr/lib
-    )
-
-    set(CMAKE_EXE_LINKER_FLAGS_INIT
-        -Wl,-L/usr/local/lib/${btriple}
-        -Wl,-L/usr/local/lib
-        -Wl,-L/usr/lib/${btriple}
-        -Wl,-L/usr/lib
-    )
+    foreach(i SHARED STATIC MODULE EXE)
+        set("CMAKE_${i}_LINKER_FLAGS_INIT"
+            -Wl,-L/usr/local/lib/${btriple}
+            -Wl,-L/usr/local/lib
+            -Wl,-L/usr/lib/${btriple}
+            -Wl,-L/usr/lib
+        )
+    endforeach()
 endif()
 
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
