@@ -42,7 +42,7 @@ readonly JQ_RPI_SCRIPT='
     version: 3, cmakeMinimumRequired: {major: 3,minor: 22, patch: 1},
     configurePresets: [
         {
-            name: "deb-internal",
+            name: "rpi-internal",
             hidden: true,
             cacheVariables: {
                 "CPACK_DEBIAN_PACKAGE_SHLIBDEPS": {
@@ -65,24 +65,22 @@ readonly JQ_RPI_SCRIPT='
             }
         },
         {
-            name: "deb",
-            inherits: ["deb-internal", "default"]
+            name: "rpi",
+            inherits: ["rpi-internal", "default"]
         }
     ],
     buildPresets: [
         {
-            name: "deb",
+            name: "rpi",
             inherits: "default",
-            configurePreset: "deb",
-            inheritConfigureEnvironment: true
+            configurePreset: "rpi"
         },
         {
-            name: "package-deb",
-            configurePreset: "deb",
+            name: "package-rpi",
+            configurePreset: "rpi",
             jobs: 0,
             cleanFirst: true,
-            targets: "package",
-            inheritConfigureEnvironment: true
+            targets: "package"
         }
     ]
 }'

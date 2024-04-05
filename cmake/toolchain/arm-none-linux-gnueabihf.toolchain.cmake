@@ -70,15 +70,16 @@ if(DEFINED ENV{TOOLSET_TARGET_RPI})
             -Wl,-L${rpidir}/usr/lib
         )
     endforeach()
+    set(CMAKE_CROSSCOMPILING_EMULATOR /usr/bin/qemu-arm-static;-L;${rpidir}/usr/lib/armhf-linux-gnu CACHE INTERNAL "")
 else()
     set_cxx_init_flags("-march=armv7-a -mfloat-abi=hard -mfpu=neon")
 
     foreach(i C CXX)
         set("CMAKE_${i}_STANDARD_INCLUDE_DIRECTORIES"
-            /usr/include/${btriple}
-            /usr/include
             /usr/local/include/${btriple}
             /usr/local/include
+            /usr/include/${btriple}
+            /usr/include
         )
     endforeach()
 
@@ -90,6 +91,7 @@ else()
             -Wl,-L/usr/lib
         )
     endforeach()
+    set(CMAKE_CROSSCOMPILING_EMULATOR /usr/bin/qemu-arm-static;-L;/usr/lib/armhf-linux-gnu CACHE INTERNAL "")
 endif()
 
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)

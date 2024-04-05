@@ -25,40 +25,30 @@ set(CMAKE_SIZE                      ${gccbase}/bin/${triple}-size${CMAKE_EXECUTA
 set(CMAKE_STRIP                     ${gccbase}/bin/${triple}-strip${CMAKE_EXECUTABLE_SUFFIX} CACHE INTERNAL "")
 set(CMAKE_GCOV                      ${gccbase}/bin/${triple}-gcov${CMAKE_EXECUTABLE_SUFFIX} CACHE INTERNAL "")
 
-set(CMAKE_C_FLAGS_INIT              "-march=armv8-a" CACHE INTERNAL "")
-set(CMAKE_CXX_FLAGS_INIT            "-march=armv8-a" CACHE INTERNAL "")
+function(set_cxx_init_flags cflags)
+    set(CMAKE_C_FLAGS_INIT "${cflags}" CACHE INTERNAL "")
+    set(CMAKE_CXX_FLAGS_INIT "${cflags}" CACHE INTERNAL "")
+endfunction()
 
-set(CMAKE_C_STANDARD_INCLUDE_DIRECTORIES 
-    /usr/include/${btriple}
-    /usr/include
-    /usr/local/include/${btriple}
-    /usr/local/include
-)
-set(CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES 
-    /usr/include/${btriple}
-    /usr/include
-    /usr/local/include/${btriple}
-    /usr/local/include
-)
-set(CMAKE_SHARED_LINKER_FLAGS_INIT
-    -Wl,-L/usr/local/lib/${btriple}
-    -Wl,-L/usr/lib/${btriple}
-)
+set_cxx_init_flags("-march=armv8-a")
 
-set(CMAKE_STATIC_LINKER_FLAGS_INIT
-    -Wl,-L/usr/local/lib/${btriple}
-    -Wl,-L/usr/lib/${btriple}
-)
+foreach(i C CXX)
+    set("CMAKE_${i}_STANDARD_INCLUDE_DIRECTORIES"
+       /usr/local/include/${btriple}
+        /usr/local/include
+        /usr/include/${btriple}
+        /usr/include
+    )
+endforeach()
 
-set(CMAKE_MODULE_LINKER_FLAGS_INIT
-    -Wl,-L/usr/local/lib/${btriple}
-    -Wl,-L/usr/lib/${btriple}
-)
-
-set(CMAKE_EXE_LINKER_FLAGS_INIT
-    -Wl,-L/usr/local/lib/${btriple}
-    -Wl,-L/usr/lib/${btriple}
-)
+foreach(i SHARED STATIC MODULE EXE)
+    set("CMAKE_${i}_LINKER_FLAGS_INIT"
+        -Wl,-L/usr/local/lib/${btriple}
+        -Wl,-L/usr/local/lib
+        -Wl,-L/usr/lib/${btriple}
+        -Wl,-L/usr/lib
+    )
+endforeach()
 
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
@@ -66,3 +56,4 @@ set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 
 set(CPACK_PACKAGE_ARCHITECTURE arm64)
+set(CMAKE_CROSSCOMPILING_EMULATOR /usr/bin/qemu-aarch64-static;-L;/usr/lib/aarch64-linux-gnu CACHE INTERNAL "")
