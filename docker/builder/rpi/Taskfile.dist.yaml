@@ -1,0 +1,48 @@
+version: '3'
+
+tasks:
+  build-img:
+    desc: Build development environment
+    requires:
+      vars: [IMG_NAME, TARGET, IID_FILE, CC_TARGET, CC_TOOLCHAIN]
+    status:
+      - >-
+        test -n "$(docker images -q {{.IMG_NAME}})" &&
+        test "{{if .DOCKER_IMAGE_ENV_BUILD|default 0|int|ge 0}}true{{end}}" == "true"
+    cmds:
+      - cmd: >-
+          docker image build
+          {{if .DOCKER_IMAGE_ENV_VERBOSITY|default "auto"|eq "none"}}-q{{end}}
+          {{if .DOCKER_IMAGE_ENV_BUILD|default 0|int|eq 2}}--no-cache{{end}}
+          --target={{.TARGET}}
+          --build-context task=../../task
+          --build-arg CC_TARGET={{.CC_TARGET}}
+          --build-arg CC_TOOLCHAIN={{.CC_TOOLCHAIN}}
+          {{if .DOCKER_IMAGE_ENV_VERBOSITY|default "auto"|eq "plain"}}--progress plain{{end}}
+          -t {{.IMG_NAME}}
+          --iidfile {{.IID_FILE}}
+          .
+          {{if .DOCKER_IMAGE_ENV_VERBOSITY|default "auto"|eq "none"}}> /dev/null{{end}}
+
+  build:
+    desc: Build chan_quectel module
+    aliases: [default]
+    requires:
+      vars: [BASEIMG, PRESET, BRANCH, IID_FILE, CC_TARGET, CC_TOOLCHAIN, RPI_VERSION]
+    cmds:
+        - cmd: >-
+            docker image build
+            {{if .DOCKER_IMAGE_BUILDER_VERBOSITY|default "plain"|eq "none"}}-q{{end}}
+            --no-cache
+            --build-arg BASEIMG={{.BASEIMG}}
+            --build-arg PRESET={{.PRESET}}
+            --build-arg BRANCH={{.BRANCH}}
+            --build-arg CC_TARGET={{.CC_TARGET}}
+            --build-arg CC_TOOLCHAIN={{.CC_TOOLCHAIN}}
+            {{if .ASTERISK_VERSION_NUM}}--build-arg ASTERISK_VERSION_NUM={{.ASTERISK_VERSION_NUM}}{{end}}
+            {{if .DOCKER_IMAGE_BUILDER_VERBOSITY|default "plain"|eq "plain"}}--progress plain{{end}}
+            --build-arg RPI_VERSION={{.RPI_VERSION}}
+            -f ../../builder/rpi/Dockerfile
+            --iidfile {{.IID_FILE}}
+            .
+            {{if .DOCKER_IMAGE_BUILDER_VERBOSITY|default "plain"|eq "none"}}> /dev/null{{end}}

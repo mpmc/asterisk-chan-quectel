@@ -1,0 +1,77 @@
+version: '3'
+
+includes:
+  builder:
+    taskfile: ../../../builder
+    dir: ../../../ubuntu/24.04
+    internal: true
+
+vars:
+  UBUNTU_24_04_ASTERISK_VERSION_NUM: 200000
+
+tasks:
+  armhf:
+    desc: Build chan_quectel for ARM on Ubuntu 24.04 using GNU Toolchain
+    vars:
+      IMG_NAME: 'asterisk-dev/chan-quectel:ubuntu-24.04.cc-ext.armhf'
+      TMP_DIR:
+        sh: mktemp -d --suffix={{randInt 0 10}}
+      GIT_BRANCH:
+        sh: git branch --show-current
+    cmds:
+    - task: builder:cc:build-img
+      vars:
+        IMG_NAME: '{{.IMG_NAME}}'
+        TARGET: chan-quectel-cc-ext
+        IID_FILE: '{{.TMP_DIR}}/img-base.id'
+        CC_TARGET: armhf
+        CC_TOOLCHAIN: arm-none-linux-gnueabihf
+    - task: builder:cc:build
+      vars:
+        BASEIMG: '{{.IMG_NAME}}'
+        PRESET: deb
+        BRANCH: '{{.GIT_BRANCH}}'
+        IID_FILE: '{{.TMP_DIR}}/img.id'
+        CC_TARGET: armhf
+        CC_TOOLCHAIN: arm-none-linux-gnueabihf
+        ASTERISK_VERSION_NUM: '{{.UBUNTU_24_04_ASTERISK_VERSION_NUM}}'
+    - task: builder:copy-pkgs
+      vars:
+        DST_DIR: armhf
+        DOCKER_IMG:
+          sh: cat {{.TMP_DIR}}/img.id
+    - defer: rm -rf {{.TMP_DIR}}
+    - defer: docker image rm $(cat {{.TMP_DIR}}/img.id) > /dev/null
+
+  arm64:
+    desc: Build chan_quectel for ARM64 on Ubuntu 24.04 using GNU Toolchain
+    vars:
+      IMG_NAME: 'asterisk-dev/chan-quectel:ubuntu-24.04.cc-ext.arm64'
+      TMP_DIR:
+        sh: mktemp -d --suffix={{randInt 0 10}}
+      GIT_BRANCH:
+        sh: git branch --show-current
+    cmds:
+    - task: builder:cc:build-img
+      vars:
+        IMG_NAME: '{{.IMG_NAME}}'
+        TARGET: chan-quectel-cc-ext
+        IID_FILE: '{{.TMP_DIR}}/img-base.id'
+        CC_TARGET: arm64
+        CC_TOOLCHAIN: aarch64-none-linux-gnu
+    - task: builder:cc:build
+      vars:
+        BASEIMG: '{{.IMG_NAME}}'
+        PRESET: deb
+        BRANCH: '{{.GIT_BRANCH}}'
+        IID_FILE: '{{.TMP_DIR}}/img.id'
+        CC_TARGET: arm64
+        CC_TOOLCHAIN: aarch64-none-linux-gnu
+        ASTERISK_VERSION_NUM: '{{.UBUNTU_24_04_ASTERISK_VERSION_NUM}}'
+    - task: builder:copy-pkgs
+      vars:
+        DST_DIR: arm64
+        DOCKER_IMG:
+          sh: cat {{.TMP_DIR}}/img.id
+    - defer: rm -rf {{.TMP_DIR}}
+    - defer: docker image rm $(cat {{.TMP_DIR}}/img.id) > /dev/null

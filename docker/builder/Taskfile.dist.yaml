@@ -1,0 +1,36 @@
+version: '3'
+
+includes:
+  native: native
+  cc: cc
+  rpi: rpi
+  centos: centos
+
+tasks:
+  rm-cpack-dir:
+    internal: true
+    requires:
+      vars: [PKG_DIR]
+    status:
+    - test ! -d {{.PKG_DIR}}/_CPack_Packages
+    cmds:
+    - rm -rf {{.PKG_DIR}}/_CPack_Packages
+
+  copy-pkgs:
+    desc: Copy packages from Docker image to host
+    requires:
+      vars: [DOCKER_IMG, DST_DIR]
+    vars:
+      CONTAINER_ID:
+        sh: docker container create {{if .DOCKER_PLATFORM}}--platform {{.DOCKER_PLATFORM}}{{end}} {{.DOCKER_IMG}}
+    cmds:
+    - mkdir -p package
+    - >-
+      docker container cp
+      {{if .DOCKER_QUIET|default 0|int|ne 0}}-q{{end}}
+      {{.CONTAINER_ID}}:/build/chan-quectel/package/.
+      package{{if .DST_DIR}}/{{.DST_DIR}}{{end}}
+    - defer: docker container rm {{.CONTAINER_ID}} {{if .DOCKER_QUIET|default 0|int|ne 0}}> /dev/null{{end}}
+    - task: rm-cpack-dir
+      vars:
+        PKG_DIR: 'package{{if .DST_DIR}}/{{.DST_DIR}}{{end}}'

@@ -1,0 +1,47 @@
+version: '3'
+
+includes:
+  builder:
+    taskfile: ../../builder
+    internal: true
+
+vars:
+  CENTOS_ASTERISK_VERSION_NUM: 180000
+
+tasks:
+  clean:
+    desc: Remove package directory
+    status:
+    - test ! -d package
+    cmds:
+    - rm -rf package
+
+  native:
+    desc: Build chan_quectel on CentOS 7.8
+    aliases: [default]
+    vars:
+      IMG_NAME: 'asterisk-dev/chan-quectel:centos7.8'
+      TMP_DIR:
+        sh: mktemp -d --suffix={{randInt 0 1000}}
+      GIT_BRANCH:
+        sh: git branch --show-current
+    cmds:
+    - task: builder:centos:build-img
+      vars:
+        TARGET: chan-quectel
+        IMG_NAME: '{{.IMG_NAME}}'
+        IID_FILE: '{{.TMP_DIR}}/img-base.id'
+    - task: builder:centos:build
+      vars:
+        BASEIMG: '{{.IMG_NAME}}'
+        PRESET: rpm
+        BRANCH: '{{.GIT_BRANCH}}'
+        IID_FILE: '{{.TMP_DIR}}/img.id'
+        ASTERISK_VERSION_NUM: '{{.CENTOS_ASTERISK_VERSION_NUM}}'
+    - task: builder:copy-pkgs
+      vars:
+        DST_DIR: ''
+        DOCKER_IMG:
+          sh: cat {{.TMP_DIR}}/img.id
+    - defer: rm -rf {{.TMP_DIR}}
+    - defer: docker image rm $(cat {{.TMP_DIR}}/img.id) > /dev/null

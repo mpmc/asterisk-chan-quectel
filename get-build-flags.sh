@@ -11,8 +11,8 @@ readonly JQ_DEB_SCRIPT='
             name: "deb-internal",
             hidden: true,
             environment: {
-                CFLAGS: "\(env.CFLAGS) \(env.CPPFLAGS)",
-                CXXFLAGS: "\(env.CXXFLAGS) \(env.CPPFLAGS)",
+                CFLAGS: (if env.CPPFLAGS then ([ env.CFLAGS, env.CPPFLAGS] | join(" ")) else env.CFLAGS // "" end),
+                CXXFLAGS: (if env.CPPFLAGS then ([ env.CXXFLAGS, env.CPPFLAGS] | join(" ")) else env.CXXFLAGS // "" end),
                 LDFLAGS: env.LDFLAGS
             }
         },
@@ -59,8 +59,8 @@ readonly JQ_RPI_SCRIPT='
                 }
             },
             environment: {
-                CFLAGS: "\(env.CFLAGS) \(env.CPPFLAGS)",
-                CXXFLAGS: "\(env.CXXFLAGS) \(env.CPPFLAGS)",
+                CFLAGS: (if env.CPPFLAGS then ([ env.CFLAGS, env.CPPFLAGS] | join(" ")) else env.CFLAGS // "" end),
+                CXXFLAGS: (if env.CPPFLAGS then ([ env.CXXFLAGS, env.CPPFLAGS] | join(" ")) else env.CXXFLAGS // "" end),
                 LDFLAGS: env.LDFLAGS
             }
         },
@@ -93,9 +93,16 @@ readonly JQ_RPM_SCRIPT='
         {
             name: "rpm-internal",
             hidden: true,
+            cacheVariables: {
+                "CPACK_GENERATOR": {
+                    type: "STRING",
+                    value: "TGZ;7Z"
+                }
+            },
             environment: {
-                CFLAGS: env.CFLAGS,
-                LDFLAGS: env.LDFLAGS
+                CFLAGS: (env.CFLAGS // ""),
+                CXXFLAGS: (env.CFLAGS // ""),
+                LDFLAGS: (env.LDFLAGS // "")
             }
         },
         {
@@ -125,14 +132,26 @@ case $1 in
     jq -n "$JQ_DEB_SCRIPT"
     ;;
 
+    deb-env)
+    jq -n "$JQ_DEB_SCRIPT"
+    ;;    
+
     rpi)
     eval "$(env 'DEB_BUILD_OPTIONS=reproducible=-fixfilepath,-fixdebugpath' dpkg-buildflags --export=sh)"
     jq -n "$JQ_RPI_SCRIPT"    
     ;;
 
+    rpi-env)
+    jq -n "$JQ_RPI_SCRIPT"    
+    ;;    
+
     rpm)
-    env "CFLAGS=$(rpm -E '%optflags')" "LDFLAGS=$(rpm -E '%__global_ldflags')" jq -n "$JQ_RPM_SCRIPT"
+    env "CFLAGS=$(rpm -E '%optflags')" "CXXFLAGS=$(rpm -E '%optflags')" "LDFLAGS=$(rpm -E '%__global_ldflags')" jq -n "$JQ_RPM_SCRIPT"
     ;;
+
+    rpm-env)
+    jq -n "$JQ_RPM_SCRIPT"
+    ;;    
 
     *)
     echoerr Unknown package manager

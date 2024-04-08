@@ -1,0 +1,149 @@
+version: '3'
+
+includes:
+  builder:
+    taskfile: ../../builder
+    internal: true
+
+vars:
+  DEBIAN_10_ASTERISK_VERSION_NUM: 163000
+
+tasks:
+  clean:
+    desc: Remove package directory
+    status:
+    - test ! -d package
+    cmds:
+    - rm -rf package
+
+  native:
+    desc: Build chan_quectel on Debian Buster
+    aliases: [default]
+    vars:
+      IMG_NAME: 'asterisk-dev/chan-quectel:debian-10'
+      TMP_DIR:
+        sh: mktemp -d --suffix={{randInt 0 1000}}
+      GIT_BRANCH:
+        sh: git branch --show-current
+    cmds:
+    - task: builder:native:build-img
+      vars:
+        TARGET: chan-quectel
+        IMG_NAME: '{{.IMG_NAME}}'
+        IID_FILE: '{{.TMP_DIR}}/img-base.id'
+    - task: builder:native:build
+      vars:
+        BASEIMG: '{{.IMG_NAME}}'
+        PRESET: deb
+        BRANCH: '{{.GIT_BRANCH}}'
+        IID_FILE: '{{.TMP_DIR}}/img.id'
+        ASTERISK_VERSION_NUM: '{{.DEBIAN_10_ASTERISK_VERSION_NUM}}'
+    - task: builder:copy-pkgs
+      vars:
+        DST_DIR: ''
+        DOCKER_IMG:
+          sh: cat {{.TMP_DIR}}/img.id
+    - defer: rm -rf {{.TMP_DIR}}
+    - defer: docker image rm $(cat {{.TMP_DIR}}/img.id) > /dev/null
+
+  armhf:
+    desc: Build chan_quectel for ARM on Debian Buster 
+    vars:
+      IMG_NAME: 'asterisk-dev/chan-quectel:debian-10.cc.armhf'
+      TMP_DIR:
+        sh: mktemp -d --suffix={{randInt 0 1000}}
+      GIT_BRANCH:
+        sh: git branch --show-current
+    cmds:
+    - task: builder:cc:build-img
+      vars:
+        IMG_NAME: '{{.IMG_NAME}}'
+        TARGET: chan-quectel-cc
+        IID_FILE: '{{.TMP_DIR}}/img-base.id'
+        CC_TARGET: armhf
+        CC_TOOLCHAIN: arm-linux-gnueabihf
+    - task: builder:cc:build
+      vars:
+        BASEIMG: '{{.IMG_NAME}}'
+        PRESET: deb
+        BRANCH: '{{.GIT_BRANCH}}'
+        IID_FILE: '{{.TMP_DIR}}/img.id'
+        CC_TARGET: armhf
+        CC_TOOLCHAIN: arm-linux-gnueabihf
+        ASTERISK_VERSION_NUM: '{{.DEBIAN_10_ASTERISK_VERSION_NUM}}'
+    - task: builder:copy-pkgs
+      vars:
+        DST_DIR: armhf
+        DOCKER_IMG:
+          sh: cat {{.TMP_DIR}}/img.id
+    - defer: rm -rf {{.TMP_DIR}}
+    - defer: docker image rm $(cat {{.TMP_DIR}}/img.id) > /dev/null
+
+  rpi*:
+    desc: Build chan_quectel for Raspberry Pi on Debian Buster
+    vars:
+      RPI_VERSION: '{{index .MATCH 0|default 1}}'
+      IMG_NAME: 'asterisk-dev/chan-quectel:debian-10.cc.rpi'
+      TMP_DIR:
+        sh: mktemp -d --suffix={{randInt 0 1000}}
+      GIT_BRANCH:
+        sh: git branch --show-current
+    cmds:
+    - task: builder:rpi:build-img
+      vars:
+        IMG_NAME: '{{.IMG_NAME}}'
+        TARGET: chan-quectel-rpi
+        IID_FILE: '{{.TMP_DIR}}/img-base.id'
+        CC_TARGET: armhf
+        CC_TOOLCHAIN: arm-linux-gnueabihf
+    - task: builder:rpi:build
+      vars:
+        BASEIMG: '{{.IMG_NAME}}'
+        PRESET: rpi
+        BRANCH: '{{.GIT_BRANCH}}'
+        IID_FILE: '{{.TMP_DIR}}/img.id'
+        CC_TARGET: armhf
+        CC_TOOLCHAIN: arm-linux-gnueabihf
+        ASTERISK_VERSION_NUM: '{{.DEBIAN_10_ASTERISK_VERSION_NUM}}'
+        RPI_VERSION: '{{.RPI_VERSION}}'
+    - task: builder:copy-pkgs
+      vars:
+        DST_DIR: rpi{{.RPI_VERSION}}
+        DOCKER_IMG:
+          sh: cat {{.TMP_DIR}}/img.id
+    - defer: rm -rf {{.TMP_DIR}}
+    - defer: docker image rm $(cat {{.TMP_DIR}}/img.id) > /dev/null            
+
+  arm64:
+    desc: Build chan_quectel for ARM64 on Debian Buster
+    vars:
+      IMG_NAME: 'asterisk-dev/chan-quectel:debian-10.cc.arm64'
+      TMP_DIR:
+        sh: mktemp -d --suffix={{randInt 0 1000}}
+      GIT_BRANCH:
+        sh: git branch --show-current
+    cmds:
+    - task: builder:cc:build-img
+      vars:
+        IMG_NAME: '{{.IMG_NAME}}'
+        TARGET: chan-quectel-cc
+        IID_FILE: '{{.TMP_DIR}}/img-base.id'
+        CC_TARGET: arm64
+        CC_TOOLCHAIN: aarch64-linux-gnu
+    - task: builder:cc:build
+      vars:
+        BASEIMG: '{{.IMG_NAME}}'
+        PRESET: deb
+        BRANCH: '{{.GIT_BRANCH}}'
+        IID_FILE: '{{.TMP_DIR}}/img.id'
+        CC_TARGET: arm64
+        CC_TOOLCHAIN: aarch64-linux-gnu
+        ASTERISK_VERSION_NUM: '{{.DEBIAN_10_ASTERISK_VERSION_NUM}}'
+    - task: builder:copy-pkgs
+      vars:
+        DST_DIR: arm64
+        DOCKER_IMG:
+          sh: cat {{.TMP_DIR}}/img.id
+    - defer: rm -rf {{.TMP_DIR}}
+    - defer: docker image rm $(cat {{.TMP_DIR}}/img.id) > /dev/null
+
