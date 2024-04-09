@@ -60,6 +60,7 @@ IF(OPENWRT_PACKAGE_STANDALONE)
       PATTERN "tools" EXCLUDE
       PATTERN "install" EXCLUDE
       PATTERN "package" EXCLUDE
+      PATTERN "docker" EXCLUDE
       PATTERN "etc" EXCLUDE
       PATTERN "uac" EXCLUDE
       PATTERN "doc" EXCLUDE
@@ -71,6 +72,7 @@ IF(OPENWRT_PACKAGE_STANDALONE)
       PATTERN "clang-*.cmake" EXCLUDE
       PATTERN ".clang-format" EXCLUDE
       PATTERN "diffconfig.in" EXCLUDE
+      PATTERN "get-build-flags.sh" EXCLUDE
   )
 
   CONFIGURE_FILE(pkg-vars.cmake.in pkg-vars.cmake @ONLY)
