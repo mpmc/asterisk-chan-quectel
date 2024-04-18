@@ -10,6 +10,12 @@ readonly JQ_DEB_SCRIPT='
         {
             name: "deb-internal",
             hidden: true,
+            cacheVariables: {
+                "CHECK_SOURCE_DATE_EPOCH": {
+                    "type": "BOOL",
+                    "value": true
+                }
+            },
             environment: {
                 CFLAGS: (if env.CPPFLAGS then ([ env.CFLAGS, env.CPPFLAGS] | join(" ")) else env.CFLAGS // "" end),
                 CXXFLAGS: (if env.CPPFLAGS then ([ env.CXXFLAGS, env.CPPFLAGS] | join(" ")) else env.CXXFLAGS // "" end),
@@ -45,6 +51,10 @@ readonly JQ_RPI_SCRIPT='
             name: "rpi-internal",
             hidden: true,
             cacheVariables: {
+                "CHECK_SOURCE_DATE_EPOCH": {
+                    "type": "BOOL",
+                    "value": true
+                },
                 "CPACK_DEBIAN_PACKAGE_SHLIBDEPS": {
                     type: "BOOL",
                     value: true
@@ -94,6 +104,10 @@ readonly JQ_RPM_SCRIPT='
             name: "rpm-internal",
             hidden: true,
             cacheVariables: {
+                "CHECK_SOURCE_DATE_EPOCH": {
+                    "type": "BOOL",
+                    "value": true
+                },
                 "CPACK_GENERATOR": {
                     type: "STRING",
                     value: "TGZ;7Z"
