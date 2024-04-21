@@ -62,13 +62,14 @@ if(DEFINED ENV{TOOLSET_TARGET_RPI})
         )
     endforeach()
 
+    string(JOIN " " LINKER_FLAGS_INIT
+        -Wl,-L${rpidir}/usr/local/lib/${btriple}
+        -Wl,-L${rpidir}/usr/local/lib
+        -Wl,-L${rpidir}/usr/lib/${btriple}
+        -Wl,-L${rpidir}/usr/lib
+    )
     foreach(i SHARED STATIC MODULE EXE)
-        set("CMAKE_${i}_LINKER_FLAGS_INIT"
-            -Wl,-L${rpidir}/usr/local/lib/${btriple}
-            -Wl,-L${rpidir}/usr/local/lib
-            -Wl,-L${rpidir}/usr/lib/${btriple}
-            -Wl,-L${rpidir}/usr/lib
-        )
+        set("CMAKE_${i}_LINKER_FLAGS_INIT" "${LINKER_FLAGS_INIT}")
     endforeach()
     set(CMAKE_CROSSCOMPILING_EMULATOR /usr/bin/qemu-arm-static;-L;${rpidir}/usr/lib/armhf-linux-gnu CACHE INTERNAL "")
 else()
@@ -83,13 +84,14 @@ else()
         )
     endforeach()
 
+    string(JOIN " " LINKER_FLAGS_INIT
+        -Wl,-L/usr/local/lib/${btriple}
+        -Wl,-L/usr/local/lib
+        -Wl,-L/usr/lib/${btriple}
+        -Wl,-L/usr/lib
+    )
     foreach(i SHARED STATIC MODULE EXE)
-        set("CMAKE_${i}_LINKER_FLAGS_INIT"
-            -Wl,-L/usr/local/lib/${btriple}
-            -Wl,-L/usr/local/lib
-            -Wl,-L/usr/lib/${btriple}
-            -Wl,-L/usr/lib
-        )
+        set("CMAKE_${i}_LINKER_FLAGS_INIT" "${LINKER_FLAGS_INIT}")
     endforeach()
     set(CMAKE_CROSSCOMPILING_EMULATOR /usr/bin/qemu-arm-static;-L;/usr/lib/armhf-linux-gnu CACHE INTERNAL "")
 endif()

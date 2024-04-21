@@ -41,13 +41,14 @@ foreach(i C CXX)
     )
 endforeach()
 
+string(JOIN " " LINKER_FLAGS_INIT
+    -Wl,-L/usr/local/lib/${btriple}
+    -Wl,-L/usr/local/lib
+    -Wl,-L/usr/lib/${btriple}
+    -Wl,-L/usr/lib
+)
 foreach(i SHARED STATIC MODULE EXE)
-    set("CMAKE_${i}_LINKER_FLAGS_INIT"
-        -Wl,-L/usr/local/lib/${btriple}
-        -Wl,-L/usr/local/lib
-        -Wl,-L/usr/lib/${btriple}
-        -Wl,-L/usr/lib
-    )
+    set("CMAKE_${i}_LINKER_FLAGS_INIT" "${LINKER_FLAGS_INIT}")
 endforeach()
 
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
