@@ -1,0 +1,38 @@
+version: '3'
+
+output: prefixed
+
+vars:
+  BUILD_DIR: /build
+
+dotenv:
+  - '{{.BUILD_DIR}}/.env'
+  - '.env'
+
+tasks:
+  create-directory:
+    desc: Create directory for ARM GNU Toolchains
+    status:
+      - test -d {{.BUILD_DIR}}/arm-gnu-toolchain
+    cmds:
+      - mkdir -p {{.BUILD_DIR}}/arm-gnu-toolchain
+      - cmd: chown -R nobody:nogroup {{.BUILD_DIR}}
+        ignore_error: true
+  
+  extract-*:
+    internal: true
+    vars:
+      TOOLCHAIN: '{{index .MATCH 0}}'
+    dir: '{{.BUILD_DIR}}/arm-gnu-toolchain/{{.TOOLCHAIN}}'
+    cmds:
+      - tar -xf {{.BUILD_DIR}}/download/arm-gnu-toolchain-{{.ARM_GNU_TOOLCHAIN_VER}}-x86_64-{{.TOOLCHAIN}}.tar.xz --strip-components=1
+
+  prepare:
+    desc: Prepare ARM GNU Toolchain package
+    preconditions:
+      - test -n "{{.ARM_GNU_TOOLCHAIN_VER}}"
+      - test -d "{{.BUILD_DIR}}/arm-gnu-toolchain"
+    deps:
+      - extract-arm-none-linux-gnueabihf
+      - extract-aarch64-none-linux-gnu
+

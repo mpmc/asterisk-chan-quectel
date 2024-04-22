@@ -11,6 +11,6 @@ ARG ASTERISK_VERSION_NUM
 ARG PRESET
 
 USER nobody:nogroup
-RUN task -d /build chan-quectel-clone
-RUN --network=none task -d /build chan-quectel-preset
-RUN --network=none task -d /build chan-quectel-package
+RUN task -d /build/task.d/chan-quectel clone
+RUN --network=none task -d /build/task.d/chan-quectel configure
+RUN --network=none task -d /build/task.d/chan-quectel build

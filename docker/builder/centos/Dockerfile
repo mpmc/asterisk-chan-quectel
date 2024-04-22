@@ -11,6 +11,6 @@ ARG ASTERISK_VERSION_NUM
 ARG PRESET=rpm
 
 USER nobody:nobody
-RUN task -d /build chan-quectel-clone
-RUN --network=none scl enable devtoolset-11 'task -d /build chan-quectel-preset'
-RUN --network=none scl enable devtoolset-11 'task -d /build chan-quectel-package'
+RUN task -d /build/task.d/chan-quectel clone
+RUN --network=none scl enable devtoolset-11 'task -d /build/task.d/chan-quectel configure'
+RUN --network=none scl enable devtoolset-11 'task -d /build/task.d/chan-quectel build'

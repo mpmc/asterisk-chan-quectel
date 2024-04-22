@@ -1,0 +1,49 @@
+version: '3'
+
+output: prefixed
+
+vars:
+  BUILD_DIR: /build
+
+dotenv:
+  - '{{.BUILD_DIR}}/.env'
+  - '.env'
+
+tasks:
+  install-pkgs:
+    desc: Install specified packages (DEB)
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    cmds:
+    - cmd: apt-get -qq update -y
+      silent: true
+    - apt-get -qq install -y --no-install-recommends {{.CLI_ARGS}}
+
+  install-pkgs-arch:
+    desc: Adds architecture and install specified packages
+    preconditions:
+      - test -n "{{.CC_TARGET}}"
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    cmds:
+    - dpkg --add-architecture {{.CC_TARGET}}
+    - cmd: apt-get -qq update -y
+      silent: true
+    - apt-get -qq install -y --no-install-recommends {{.CLI_ARGS}}    
+
+  create-dotenv:
+    desc: Create .env file
+    aliases: [deb-create-dotenv]
+    status:
+      - test -f {{.BUILD_DIR}}/.env
+    env:
+        DEB_BUILD_OPTIONS: reproducible=-fixfilepath,-fixdebugpath
+    cmds:
+    - cmd: |
+        eval "$(env dpkg-buildflags --export=sh)"
+        {
+          echo "CFLAGS='${CFLAGS} ${CPPFLAGS}'"
+          echo "CXXFLAGS='${CXXFLAGS} ${CPPFLAGS}'"
+          echo "LDFLAGS='${LDFLAGS}'"
+        } > {{.BUILD_DIR}}/.env
+      silent: true

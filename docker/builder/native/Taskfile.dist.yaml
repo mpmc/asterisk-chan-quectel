@@ -38,7 +38,7 @@ tasks:
             --build-arg BRANCH={{.BRANCH}}
             {{if .ASTERISK_VERSION_NUM}}--build-arg ASTERISK_VERSION_NUM={{.ASTERISK_VERSION_NUM}}{{end}}
             {{if .DOCKER_IMAGE_BUILDER_VERBOSITY|default "plain"|eq "plain"}}--progress plain{{end}}
-            -f ../../builder/native/Dockerfile
+            -f ../../builder/{{or .BUILDER_DIR "native"}}/Dockerfile
             --iidfile {{.IID_FILE}}
             .
             {{if .DOCKER_IMAGE_BUILDER_VERBOSITY|default "plain"|eq "none"}}> /dev/null{{end}}
