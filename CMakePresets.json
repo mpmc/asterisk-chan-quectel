@@ -155,5 +155,18 @@
         "DESTDIR": "${sourceDir}/install"
       }
     }
+  ],
+  "testPresets": [
+    {
+      "name": "default",
+      "configurePreset": "default",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "jobs": 0,
+        "timeout": 60
+      }
+    }
   ]
 }

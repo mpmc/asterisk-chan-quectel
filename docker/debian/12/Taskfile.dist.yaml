@@ -12,9 +12,9 @@ tasks:
   clean:
     desc: Remove package directory
     status:
-    - test ! -d package
-    deps:
-    - rm -rf package
+      - test ! -d package
+    cmds:
+      - rm -rf package
 
   native:
     desc: Build chan_quectel on Debian Bookworm

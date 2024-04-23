@@ -161,23 +161,18 @@ IF(CHECK_SOURCE_DATE_EPOCH)
     ADD_SUBDIRECTORY(cmake/source-date-epoch source-date-epoch)
 ENDIF()
 
-IF(BUILD_CHAN_QUECTEL_BINARY)
-    PROJECT(asterisk-chan-quectel
-        VERSION ${CHAN_VER_MAJOR}.${CHAN_VER_MINOR}.${CHAN_VER_PATCH}.${CHAN_VER_TWEAK}
-        HOMEPAGE_URL "http://github.com/RoEdAl/asterisk-chan-quectel"
-        DESCRIPTION "Asterisk channel driver for Quectel modules"
-        LANGUAGES C
-    )
-ELSE()
-    PROJECT(asterisk-chan-quectel
-        VERSION ${CHAN_VER_MAJOR}.${CHAN_VER_MINOR}.${CHAN_VER_PATCH}.${CHAN_VER_TWEAK}
-        HOMEPAGE_URL "http://github.com/RoEdAl/asterisk-chan-quectel"
-        DESCRIPTION "Asterisk channel driver for Quectel modules"
-        LANGUAGES NONE
-    )
-ENDIF()
+PROJECT(asterisk-chan-quectel
+    VERSION ${CHAN_VER_MAJOR}.${CHAN_VER_MINOR}.${CHAN_VER_PATCH}.${CHAN_VER_TWEAK}
+    HOMEPAGE_URL "http://github.com/RoEdAl/asterisk-chan-quectel"
+    DESCRIPTION "Asterisk channel driver for Quectel modules"
+    LANGUAGES NONE
+)
 
 IF(BUILD_CHAN_QUECTEL_BINARY)
+    ENABLE_LANGUAGE(C)
+    IF(IS_GIT_REPO)
+        INCLUDE(CTest)
+    ENDIF()
     IF(NOT DEFINED ASTERISK_VERSION_NUM)
         FIND_PACKAGE(PkgConfig)
         IF(${PKG_CONFIG_FOUND})

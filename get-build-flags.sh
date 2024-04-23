@@ -40,6 +40,13 @@ readonly JQ_DEB_SCRIPT='
             cleanFirst: true,
             targets: "package"
         }
+    ],
+    testPresets: [
+        {
+            name: "deb",
+            inherits: "default",
+            configurePreset: "deb"
+        }
     ]
 }'
 
@@ -92,7 +99,14 @@ readonly JQ_RPI_SCRIPT='
             cleanFirst: true,
             targets: "package"
         }
-    ]
+    ],
+    testPresets: [
+        {
+            name: "rpi",
+            inherits: "default",
+            configurePreset: "rpi"
+        }
+  ]
 }'
 
 # yum install rpm-build
@@ -137,7 +151,14 @@ readonly JQ_RPM_SCRIPT='
             cleanFirst: true,
             targets: "package"
         }
-    ]
+    ],
+    testPresets: [
+        {
+            name: "rpm",
+            inherits: "default",
+            configurePreset: "rpm"
+        }
+  ]
 }'
 
 case $1 in
