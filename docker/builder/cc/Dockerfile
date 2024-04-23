@@ -15,5 +15,5 @@ ARG CC_TOOLCHAIN
 USER nobody:nogroup
 RUN task -d /build/task.d/chan-quectel clone
 RUN --network=none task -d /build/task.d/chan-quectel configure
-RUN --network=none task -d /build/task.d/chan-quectel build
+RUN --network=none task -d /build/task.d/chan-quectel build test
 

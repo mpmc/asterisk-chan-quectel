@@ -48,3 +48,11 @@ tasks:
         {{if .CC_TOOLCHAIN}}--toolchain=cmake/toolchain/{{.CC_TOOLCHAIN}}.toolchain.cmake{{end}}
         {{if .ASTERISK_VERSION_NUM}}-DASTERISK_VERSION_NUM={{.ASTERISK_VERSION_NUM}}{{end}}
       - cmake --build --preset=package-{{.PRESET}}
+
+  test:
+    desc: Test chan_quectel library
+    preconditions:
+      - test -n "{{.PRESET}}"
+    dir: '{{.BUILD_DIR}}/chan-quectel'
+    cmds:
+      - ctest --preset={{.PRESET}}

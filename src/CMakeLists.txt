@@ -51,7 +51,7 @@ INSTALL(
 IF(IS_GIT_REPO)
     IF(DEFINED CMAKE_READELF)
         ADD_TEST(NAME "Load library" COMMAND ${CMAKE_READELF} -e $<TARGET_FILE:asterisk-chan-quectel>)
-        ADD_TEST(NAME "Show comment section" COMMAND ${CMAKE_READELF} -e $<TARGET_FILE:asterisk-chan-quectel>)
+        ADD_TEST(NAME "Show comment section" COMMAND ${CMAKE_READELF} -p .comment $<TARGET_FILE:asterisk-chan-quectel>)
     ELSE()
         MESSAGE(WARNING Cannot find readelf utility)
     ENDIF()
