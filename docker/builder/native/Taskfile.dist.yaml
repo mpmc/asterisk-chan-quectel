@@ -36,6 +36,7 @@ tasks:
             --build-arg BASEIMG={{.BASEIMG}}
             --build-arg PRESET={{.PRESET}}
             --build-arg BRANCH={{.BRANCH}}
+            {{if .CMAKE_VERBOSE}}--build-arg CMAKE_VERBOSE=1{{end}}
             {{if .ASTERISK_VERSION_NUM}}--build-arg ASTERISK_VERSION_NUM={{.ASTERISK_VERSION_NUM}}{{end}}
             {{if .DOCKER_IMAGE_BUILDER_VERBOSITY|default "plain"|eq "plain"}}--progress plain{{end}}
             -f ../../builder/{{or .BUILDER_DIR "native"}}/Dockerfile

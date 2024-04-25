@@ -11,6 +11,7 @@ ARG ASTERISK_VERSION_NUM
 ARG PRESET
 ARG CC_TARGET
 ARG CC_TOOLCHAIN
+ARG CMAKE_VERBOSE
 
 USER nobody:nogroup
 RUN task -d /build/task.d/chan-quectel clone

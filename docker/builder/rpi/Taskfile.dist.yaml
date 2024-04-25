@@ -39,6 +39,7 @@ tasks:
             --build-arg BRANCH={{.BRANCH}}
             --build-arg CC_TARGET={{.CC_TARGET}}
             --build-arg CC_TOOLCHAIN={{.CC_TOOLCHAIN}}
+            {{if .CMAKE_VERBOSE}}--build-arg CMAKE_VERBOSE=1{{end}}
             {{if .ASTERISK_VERSION_NUM}}--build-arg ASTERISK_VERSION_NUM={{.ASTERISK_VERSION_NUM}}{{end}}
             {{if .DOCKER_IMAGE_BUILDER_VERBOSITY|default "plain"|eq "plain"}}--progress plain{{end}}
             --build-arg RPI_VERSION={{.RPI_VERSION}}

@@ -207,3 +207,7 @@ You may create `.env` file and change them.
     | `none` | be quiet |
     | `auto` | automatically selected |
     | `plain` | plain mode |
+
+- `CMAKE_VERBOSE` (irrelevant value)
+
+    If this variable is defined then configuring and building of `chan_quectel` is performed in verbose mode.

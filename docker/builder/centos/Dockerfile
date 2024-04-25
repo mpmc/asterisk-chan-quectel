@@ -9,6 +9,7 @@ FROM ${BASEIMG}
 ARG BRANCH=master
 ARG ASTERISK_VERSION_NUM
 ARG PRESET=rpm
+ARG CMAKE_VERBOSE
 
 USER nobody:nobody
 RUN task -d /build/task.d/chan-quectel clone
