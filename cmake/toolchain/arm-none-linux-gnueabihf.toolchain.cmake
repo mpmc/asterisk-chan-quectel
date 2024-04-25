@@ -26,8 +26,8 @@ set(CMAKE_STRIP                     ${gccbase}/bin/${triple}-strip${CMAKE_EXECUT
 set(CMAKE_GCOV                      ${gccbase}/bin/${triple}-gcov${CMAKE_EXECUTABLE_SUFFIX} CACHE INTERNAL "")
 
 function(set_cxx_init_flags cflags)
-    set(CMAKE_C_FLAGS_INIT "${cflags}" CACHE INTERNAL "")
-    set(CMAKE_CXX_FLAGS_INIT "${cflags}" CACHE INTERNAL "")
+    set(CMAKE_C_FLAGS_INIT "${cflags} -static-libgcc" CACHE INTERNAL "")
+    set(CMAKE_CXX_FLAGS_INIT "${cflags} -static-libgcc" CACHE INTERNAL "")
 endfunction()
 
 function(set_rpi_cxx_init_flags rpi)
@@ -51,27 +51,18 @@ endfunction()
 if(DEFINED ENV{TOOLSET_TARGET_RPI})
     set_rpi_cxx_init_flags($ENV{TOOLSET_TARGET_RPI})
     set(rpidir /build/rpi)
-    set(CMAKE_FIND_ROOT_PATH ${rpidir})
+    set(CMAKE_SYSROOT ${rpidir})
+    set(CMAKE_STAGING_PREFIX ${rpidir})
 
+    # paths relative to SYSROOT
     foreach(i C CXX)
         set("CMAKE_${i}_STANDARD_INCLUDE_DIRECTORIES"
-            ${rpidir}/usr/include/${btriple}
-            ${rpidir}/usr/include
-            ${rpidir}/usr/local/include/${btriple}
-            ${rpidir}/usr/local/include
+            "=/include/${btriple}"
+            "=/include"
         )
     endforeach()
 
-    string(JOIN " " LINKER_FLAGS_INIT
-        -Wl,-L${rpidir}/usr/local/lib/${btriple}
-        -Wl,-L${rpidir}/usr/local/lib
-        -Wl,-L${rpidir}/usr/lib/${btriple}
-        -Wl,-L${rpidir}/usr/lib
-    )
-    foreach(i SHARED STATIC MODULE EXE)
-        set("CMAKE_${i}_LINKER_FLAGS_INIT" "${LINKER_FLAGS_INIT}")
-    endforeach()
-    set(CMAKE_CROSSCOMPILING_EMULATOR /usr/bin/qemu-arm-static;-L;${rpidir}/usr/lib/armhf-linux-gnu CACHE INTERNAL "")
+    set(CMAKE_CROSSCOMPILING_EMULATOR /usr/bin/qemu-arm-static;-L;${rpidir}/lib CACHE INTERNAL "")
 else()
     set_cxx_init_flags("-march=armv7-a+fp+neon -mfloat-abi=hard")
 
@@ -93,7 +84,7 @@ else()
     foreach(i SHARED STATIC MODULE EXE)
         set("CMAKE_${i}_LINKER_FLAGS_INIT" "${LINKER_FLAGS_INIT}")
     endforeach()
-    set(CMAKE_CROSSCOMPILING_EMULATOR /usr/bin/qemu-arm-static;-L;/usr/lib/armhf-linux-gnu CACHE INTERNAL "")
+    set(CMAKE_CROSSCOMPILING_EMULATOR /usr/bin/qemu-arm-static;-L;/usr/lib/${btriple} CACHE INTERNAL "")
 endif()
 
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)

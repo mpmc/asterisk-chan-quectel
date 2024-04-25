@@ -49,9 +49,21 @@ endfunction()
 
 if(DEFINED ENV{TOOLSET_TARGET_RPI})
     set_rpi_cxx_init_flags($ENV{TOOLSET_TARGET_RPI})
-    set(CMAKE_FIND_ROOT_PATH        /build/rpi)
+    set(rpidir /build/rpi)
+    set(CMAKE_SYSROOT ${rpidir})
+    set(CMAKE_STAGING_PREFIX ${rpidir})
+
+    # paths relative to SYSROOT
+    foreach(i C CXX)
+        set("CMAKE_${i}_STANDARD_INCLUDE_DIRECTORIES"
+            "=/include/${btriple}"
+            "=/include"
+        )
+    endforeach()
+    set(CMAKE_CROSSCOMPILING_EMULATOR /usr/bin/qemu-arm-static;-L;${rpidir}/lib CACHE INTERNAL "")
 else()
     set_cxx_init_flags("-march=armv7-a+fp+neon -mfloat-abi=hard")
+    set(CMAKE_CROSSCOMPILING_EMULATOR /usr/bin/qemu-arm-static;-L;/usr/lib/${triple} CACHE INTERNAL "")    
 endif()
 
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
@@ -60,4 +72,3 @@ set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 
 set(CPACK_PACKAGE_ARCHITECTURE armhf)
-set(CMAKE_CROSSCOMPILING_EMULATOR /usr/bin/qemu-arm-static;-L;/usr/lib/armhf-linux-gnu CACHE INTERNAL "")

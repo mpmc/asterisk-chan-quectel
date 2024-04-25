@@ -26,8 +26,8 @@ set(CMAKE_STRIP                     ${gccbase}/bin/${triple}-strip${CMAKE_EXECUT
 set(CMAKE_GCOV                      ${gccbase}/bin/${triple}-gcov${CMAKE_EXECUTABLE_SUFFIX} CACHE INTERNAL "")
 
 function(set_cxx_init_flags cflags)
-    set(CMAKE_C_FLAGS_INIT "${cflags}" CACHE INTERNAL "")
-    set(CMAKE_CXX_FLAGS_INIT "${cflags}" CACHE INTERNAL "")
+    set(CMAKE_C_FLAGS_INIT "${cflags} -static-libgcc" CACHE INTERNAL "")
+    set(CMAKE_CXX_FLAGS_INIT "${cflags} -static-libgcc" CACHE INTERNAL "")
 endfunction()
 
 set_cxx_init_flags("-march=armv8-a")
@@ -57,4 +57,4 @@ set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 
 set(CPACK_PACKAGE_ARCHITECTURE arm64)
-set(CMAKE_CROSSCOMPILING_EMULATOR /usr/bin/qemu-aarch64-static;-L;/usr/lib/aarch64-linux-gnu CACHE INTERNAL "")
+set(CMAKE_CROSSCOMPILING_EMULATOR /usr/bin/qemu-aarch64-static;-L;/usr/lib/${btriple} CACHE INTERNAL "")
