@@ -15,7 +15,7 @@ tasks:
           {{if .DOCKER_IMAGE_ENV_VERBOSITY|default "auto"|eq "none"}}-q{{end}}
           {{if .DOCKER_IMAGE_ENV_BUILD|default 0|int|eq 2}}--no-cache{{end}}
           {{if .DOCKER_PLATFORM}}--platform {{.DOCKER_PLATFORM}}{{end}}
-          --build-context task=../../task
+          --build-context task=../../task.d
           --target={{.TARGET}}
           {{if .DOCKER_IMAGE_ENV_VERBOSITY|default "auto"|eq "plain"}}--progress plain{{end}}
           -t {{.IMG_NAME}}
