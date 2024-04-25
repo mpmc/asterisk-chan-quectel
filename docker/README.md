@@ -4,11 +4,14 @@ In this directory you can find examples of building `chan_quectel` for various o
 
 Building is performed in two steps:
 
-- Building *Docker* image with full development environment.
+- Building *Docker* image with full *development environment*.
 
   Here all required tools (compiler, etc.) and files (libraries, header files, etc.) are collected (compiled).
 
-- Building `chan_quectel` itself using previously creaded development environment.
+- Building `chan_quectel` itself using previously creaded *development environment*.
+
+> [!CAUTION]
+> Building of *development environment* may take a long time.
 
 ## Supported operating systems
 
@@ -161,7 +164,9 @@ You may compile `chan_quectel` for specific board version:
 | `rpi5` | 5 |
 
 > [!NOTE]
-> Building for *Raspberry Pi* requires `qemu-user-static` package to be installed. This package is only used during creation of development environment. Compilation is performed by cross compiler.
+> Building module for *Raspberry Pi* requires `qemu-user-static` package to be installed.
+> It is used during creation of *development environment* only.
+> Compilation is performed by cross compiler.
 
 ## Environment variables
 
