@@ -26,8 +26,8 @@ set(CMAKE_STRIP                     ${gccbase}/bin/${triple}-strip${CMAKE_EXECUT
 set(CMAKE_GCOV                      ${gccbase}/bin/${triple}-gcov${CMAKE_EXECUTABLE_SUFFIX} CACHE INTERNAL "")
 
 function(set_cxx_init_flags cflags)
-    set(CMAKE_C_FLAGS_INIT "${cflags} -static-libgcc" CACHE INTERNAL "")
-    set(CMAKE_CXX_FLAGS_INIT "${cflags} -static-libgcc" CACHE INTERNAL "")
+    set(CMAKE_C_FLAGS_INIT "${cflags}" CACHE INTERNAL "")
+    set(CMAKE_CXX_FLAGS_INIT "${cflags}" CACHE INTERNAL "")
 endfunction()
 
 set_cxx_init_flags("-march=armv8-a")
@@ -46,6 +46,7 @@ string(JOIN " " LINKER_FLAGS_INIT
     -Wl,-L/usr/local/lib
     -Wl,-L/usr/lib/${btriple}
     -Wl,-L/usr/lib
+    -fuse-ld=gold
 )
 foreach(i SHARED STATIC MODULE EXE)
     set("CMAKE_${i}_LINKER_FLAGS_INIT" "${LINKER_FLAGS_INIT}")

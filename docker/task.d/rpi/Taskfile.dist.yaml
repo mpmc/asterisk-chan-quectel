@@ -1,0 +1,49 @@
+version: '3'
+
+output: prefixed
+
+vars:
+  BUILD_DIR: /build
+  SYSROOT: '{{.BUILD_DIR}}/rpi'
+  RPI_ROOT: '{{.BUILD_DIR}}/cache'
+
+tasks:
+  sysroot-lib:
+    internal: true
+    requires:
+      vars: [SYMLINK]
+    vars:
+      LINK_TARGET:
+        sh: readlink -n {{.SYMLINK}}
+    silent: true
+    cmds: 
+      - |
+        if [[ "{{.LINK_TARGET}}" = /lib/* ]]; then
+          echo {{base .SYMLINK}} ⟶ {{base .LINK_TARGET}}
+          ln -fsr {{.SYSROOT}}/usr{{.LINK_TARGET}} {{.SYMLINK}}
+        fi
+  
+  fix-lib-symlinks:
+    internal: true
+    vars:
+      SYMLIBS:
+        sh: find -P {{.SYSROOT}}/usr/lib -type l -name 'lib*.so*'
+    cmds:
+      - for: { var: SYMLIBS }
+        task: sysroot-lib
+        vars:
+          SYMLINK: '{{.ITEM}}'
+
+  sysroot:
+    desc: Prepare Raspberry Pi SysRoot
+    preconditions:
+      - test -d {{.RPI_ROOT}}
+    cmds:
+      - mkdir -p {{.SYSROOT}}/usr
+      - cp -a {{.RPI_ROOT}}/usr/lib/arm-linux-gnueabihf {{.SYSROOT}}/usr/
+      - mv {{.SYSROOT}}/usr/arm-linux-gnueabihf {{.SYSROOT}}/usr/lib
+      - cp -a {{.RPI_ROOT}}/usr/include {{.SYSROOT}}/usr/
+      - ln -sr {{.SYSROOT}}/usr/lib {{.SYSROOT}}/usr/lib/arm-linux-gnueabihf
+      - ln -sr {{.SYSROOT}}/usr/lib {{.SYSROOT}}/lib
+      - ln -sr {{.SYSROOT}}/usr/include {{.SYSROOT}}/include
+      - task: fix-lib-symlinks

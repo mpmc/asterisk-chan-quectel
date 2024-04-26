@@ -124,7 +124,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     libsqlite3-dev:${CC_TARGET} libasound2-dev:${CC_TARGET}
 
 FROM --platform=linux/arm/v6 balenalib/rpi-debian:bullseye-build AS rpi-debian
-
+ARG DEBIAN_FRONTEND
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked <<-EOF
 #!/bin/bash -e
@@ -141,7 +141,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     task -d /build/task.d/deb install-pkgs -- qemu-user-static \
     gcc-${CC_TOOLCHAIN} g++-${CC_TOOLCHAIN} binutils-${CC_TOOLCHAIN}
-COPY --from=rpi-debian --link . /build/rpi
+COPY --from=task rpi /build/task.d/rpi
+RUN --network=none --mount=type=bind,from=rpi-debian,target=/build/cache task -d /build/task.d/rpi sysroot
 
 FROM chan-quectel AS chan-quectel-cc-ext
 ARG CC_TARGET
@@ -161,4 +162,5 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     task -d /build/task.d/deb install-pkgs -- qemu-user-static
 COPY --from=arm-gnu-toolchain --link --chown=root:root /build/arm-gnu-toolchain/${CC_TOOLCHAIN} /build/arm-gnu-toolchain/${CC_TOOLCHAIN}
-COPY --from=rpi-debian --link . /build/rpi
+COPY --from=task rpi /build/task.d/rpi
+RUN --network=none --mount=type=bind,from=rpi-debian,target=/build/cache task -d /build/task.d/rpi sysroot
