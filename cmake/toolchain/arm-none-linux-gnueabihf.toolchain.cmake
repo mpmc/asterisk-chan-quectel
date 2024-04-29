@@ -69,7 +69,7 @@ if(DEFINED ENV{TOOLSET_TARGET_RPI})
         set("CMAKE_${i}_LINKER_FLAGS_INIT" "${LINKER_FLAGS_INIT}")
     endforeach()
 
-    set(CMAKE_CROSSCOMPILING_EMULATOR /usr/bin/qemu-arm-static;-L;${rpidir}/lib CACHE INTERNAL "")
+    set(CMAKE_CROSSCOMPILING_EMULATOR /usr/bin/qemu-arm-static;-L;${rpidir} CACHE INTERNAL "")
 else()
     set_cxx_init_flags("-march=armv7-a+fp+neon -mfloat-abi=hard")
 

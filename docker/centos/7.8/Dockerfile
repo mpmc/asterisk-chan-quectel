@@ -97,4 +97,5 @@ RUN --mount=type=cache,target=/var/cache/yum,sharing=locked \
 COPY --from=task chan-quectel /build/task.d/chan-quectel
 COPY --from=ninja-build --link --chown=root:root /build/install /
 COPY --from=cmake --link --chown=root:root /build/install /
-COPY --from=asterisk --link --chown=root:root /build/install /
+#COPY --from=asterisk --link --chown=root:root /build/install /
+COPY --from=asterisk --chown=root:root /build/install/usr/include /build/asterisk-headers/

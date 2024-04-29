@@ -24,7 +24,7 @@ ARG ASTERISK_VERSION_NUM
 ARG PRESET
 ARG CMAKE_VERBOSE
 
-COPY --from=chan-quectel-src --chown=nobody:nogroup / /build/chan-quectel
+COPY --from=chan-quectel-src --chown=nobody:nobody / /build/chan-quectel
 USER nobody:nobody
 RUN --network=none scl enable devtoolset-11 'task -d /build/task.d/chan-quectel configure'
 RUN --network=none scl enable devtoolset-11 'task -d /build/task.d/chan-quectel build test'

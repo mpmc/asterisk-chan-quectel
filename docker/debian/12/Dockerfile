@@ -77,13 +77,16 @@ USER nobody:nogroup
 RUN --mount=type=bind,from=dl-ninja-build,target=/build/cache task -d /build/task.d/ninja-build download2
 RUN --network=none task -d /build/task.d/ninja-build configure build install
 
-FROM base as chan-quectel
+FROM base as chan-quectel-base
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     task -d /build/task.d/deb install-pkgs -- git cmake libasound2-dev
 COPY --from=task chan-quectel /build/task.d/chan-quectel
-COPY --from=asterisk --chown=root:root /build/install/ /
 COPY --from=ninja-build --link --chown=root:root /build/install /
+
+FROM chan-quectel-base AS chan-quectel
+#COPY --from=asterisk --chown=root:root /build/install/ /
+COPY --from=asterisk --chown=root:root /build/install/usr/include /build/asterisk-headers/
 
 FROM chan-quectel AS chan-quectel-cc
 ARG CC_TARGET
@@ -91,7 +94,7 @@ ARG CC_TOOLCHAIN
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    task -d /build/task.d/deb install-pkgs-arch -- qemu-user-static \
+    task -d /build/task.d/deb install-pkgs-arch -- qemu-user-static libc6-${CC_TARGET}-cross \
     gcc-${CC_TOOLCHAIN} g++-${CC_TOOLCHAIN} binutils-${CC_TOOLCHAIN} \
     libsqlite3-dev:${CC_TARGET} libasound2-dev:${CC_TARGET}
 
@@ -105,16 +108,20 @@ apt-get -qq update -y
 apt-get -qq install -y --no-install-recommends libsqlite3-dev libasound2-dev asterisk-dev
 EOF
 
-FROM chan-quectel AS chan-quectel-rpi
+FROM chan-quectel-base AS chan-quectel-rpi-base
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    task -d /build/task.d/deb install-pkgs -- qemu-user-static
+COPY --from=task rpi /build/task.d/rpi
+RUN --network=none --mount=type=bind,from=rpi-debian,target=/build/cache task -d /build/task.d/rpi sysroot
+
+FROM chan-quectel-rpi-base AS chan-quectel-rpi
 ARG CC_TARGET
 ARG CC_TOOLCHAIN
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    task -d /build/task.d/deb install-pkgs -- qemu-user-static \
-    gcc-${CC_TOOLCHAIN} g++-${CC_TOOLCHAIN} binutils-${CC_TOOLCHAIN}
-COPY --from=task rpi /build/task.d/rpi
-RUN --network=none --mount=type=bind,from=rpi-debian,target=/build/cache task -d /build/task.d/rpi sysroot
+    task -d /build/task.d/deb install-pkgs -- gcc-${CC_TOOLCHAIN} g++-${CC_TOOLCHAIN} binutils-${CC_TOOLCHAIN}
 
 FROM chan-quectel AS chan-quectel-cc-ext
 ARG CC_TARGET
@@ -122,17 +129,12 @@ ARG CC_TOOLCHAIN
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    task -d /build/task.d/deb install-pkgs-arch -- qemu-user-static \
+    task -d /build/task.d/deb install-pkgs-arch -- qemu-user-static libc6-${CC_TARGET}-cross \
     libsqlite3-dev:${CC_TARGET} libasound2-dev:${CC_TARGET}
 COPY --from=arm-gnu-toolchain --link --chown=root:root /build/arm-gnu-toolchain/${CC_TOOLCHAIN} /build/arm-gnu-toolchain/${CC_TOOLCHAIN}
 
-FROM chan-quectel AS chan-quectel-rpi-ext
+FROM chan-quectel-rpi-base AS chan-quectel-rpi-ext
 ARG CC_TARGET
 ARG CC_TOOLCHAIN
 
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    task -d /build/task.d/deb install-pkgs -- qemu-user-static
 COPY --from=arm-gnu-toolchain --link --chown=root:root /build/arm-gnu-toolchain/${CC_TOOLCHAIN} /build/arm-gnu-toolchain/${CC_TOOLCHAIN}
-COPY --from=task rpi /build/task.d/rpi
-RUN --network=none --mount=type=bind,from=rpi-debian,target=/build/cache task -d /build/task.d/rpi sysroot

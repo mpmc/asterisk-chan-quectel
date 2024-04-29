@@ -41,12 +41,18 @@ tasks:
     vars:
       NINJA_BUILDER:
         sh: command -v ninja || true
+      AST_HEADER_DIR:
+        sh: |
+          if test -d {{.BUILD_DIR}}/asterisk-headers; then
+            echo '-DAST_HEADER_DIR={{.BUILD_DIR}}/asterisk-headers'
+          fi
     cmds:
       - >-
         cmake --preset={{.PRESET}} --log-level={{if .CMAKE_VERBOSE}}VERBOSE{{else}}STATUS{{end}}
         {{if .NINJA_BUILDER}}-G Ninja{{end}}
         {{if .CC_TOOLCHAIN}}--toolchain=cmake/toolchain/{{.CC_TOOLCHAIN}}.toolchain.cmake{{end}}
         {{if .ASTERISK_VERSION_NUM}}-DASTERISK_VERSION_NUM={{.ASTERISK_VERSION_NUM}}{{end}}
+        {{.AST_HEADER_DIR}}
       - cmake --build --preset=package-{{.PRESET}} {{if .CMAKE_VERBOSE}}-v{{end}}
 
   test:

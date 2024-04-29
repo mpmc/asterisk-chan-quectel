@@ -14,11 +14,11 @@ TARGET_INCLUDE_DIRECTORIES(asterisk-chan-quectel BEFORE PRIVATE ${CMAKE_BINARY_D
 
 TARGET_COMPILE_DEFINITIONS(asterisk-chan-quectel PRIVATE 
     _GNU_SOURCE
-    AST_MODULE_SELF_SYM=__internal_chan_quectel_self
     HAVE_CONFIG_H
 )
 
 TARGET_LINK_LIBRARIES(asterisk-chan-quectel PRIVATE
+    AsteriskModule
     Threads::Threads
     ALSA::ALSA
     SQLite::SQLite3
