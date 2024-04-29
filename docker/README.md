@@ -208,6 +208,15 @@ You may create `.env` file and change them.
     | `auto` | automatically selected |
     | `plain` | plain mode |
 
+- `SOURCE_LOCATION` (**`repo`**,`local`)
+
+    Location of `chan_quectel` sources:
+
+    | Value | Description |
+    | :---: | :---------- |
+    | `repo` | Use sources from GitHub repository (`git clone`) |
+    | `local` | Use sources from your working directory |
+
 - `CMAKE_VERBOSE` (irrelevant value)
 
     If this variable is defined then configuring and building of `chan_quectel` is performed in verbose mode.

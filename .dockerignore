@@ -1,0 +1,8 @@
+.vscode
+.task
+*.swp
+build
+install
+package
+CMakeUserPresets.json
+.env

@@ -31,7 +31,7 @@ tasks:
             {{if .RPI_VERSION}}echo 'TOOLSET_TARGET_RPI={{.RPI_VERSION}}'{{end}}
           } >> {{.BUILD_DIR}}/.env
         silent: true
-      - ./get-build-flags.sh {{.PRESET}}-env > CMakeUserPresets.json
+      - ./get-build-flags.sh {{.PRESET}}-env > CMakeUserPresets.json        
 
   build:
     desc: Build chan_quectel packages

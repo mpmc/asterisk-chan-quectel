@@ -264,6 +264,9 @@ IF(BUILD_CHAN_QUECTEL_BINARY)
     CONFIGURE_FILE(config.h.in include/config.h)
     CONFIGURE_FILE(src/ptime-config.h.in include/ptime-config.h)
 
+    FIND_PATH(AST_HEADERS_SUBDIR NAMES buildopts.h PATH_SUFFIXES asterisk NO_CACHE REQUIRED)
+    MESSAGE(STATUS "Asterisk headers: ${AST_HEADERS_SUBDIR}")
+
     INCLUDE(GNUInstallDirs)
     ADD_SUBDIRECTORY(src)
 

@@ -15,6 +15,8 @@ tasks:
         sh: mktemp -d --suffix={{randInt 0 10}}
       GIT_BRANCH:
         sh: git branch --show-current
+      REPO_DIR:
+        sh: git rev-parse --show-toplevel
       IMG_NAME: 'asterisk-dev/chan-quectel:{{.OSNAME}}'
     cmds:
     - task: native:build-img
@@ -22,13 +24,14 @@ tasks:
         TARGET: chan-quectel
         IMG_NAME: '{{.IMG_NAME}}'
         IID_FILE: '{{.TMP_DIR}}/img-base.id'
-    - task: native:build
+    - task: native:build-from-{{or .SOURCE_LOCATION "repo"}}
       vars:
         BASEIMG: '{{.IMG_NAME}}'
         PRESET: deb
         BRANCH: '{{.GIT_BRANCH}}'
         IID_FILE: '{{.TMP_DIR}}/img.id'
         ASTERISK_VERSION_NUM: '{{.ASTERISK_VERSION_NUM}}'
+        SOURCES_DIR: '{{.REPO_DIR}}'
     - task: copy-pkgs
       vars:
         DST_DIR: ''
@@ -46,6 +49,8 @@ tasks:
         sh: mktemp -d --suffix={{randInt 0 10}}
       GIT_BRANCH:
         sh: git branch --show-current
+      REPO_DIR:
+        sh: git rev-parse --show-toplevel        
       IMG_NAME: 'asterisk-dev/chan-quectel:{{.OSNAME}}'
     cmds:
     - task: native:build-img
@@ -54,7 +59,7 @@ tasks:
         IMG_NAME: '{{.IMG_NAME}}'
         IID_FILE: '{{.TMP_DIR}}/img-base.id'
         DOCKER_PLATFORM: '{{.DOCKER_PLATFORM}}'
-    - task: native:build
+    - task: native:build-from-{{or .SOURCE_LOCATION "repo"}}
       vars:
         BASEIMG: '{{.IMG_NAME}}'
         PRESET: deb
@@ -62,6 +67,7 @@ tasks:
         IID_FILE: '{{.TMP_DIR}}/img.id'
         ASTERISK_VERSION_NUM: '{{.ASTERISK_VERSION_NUM}}'
         DOCKER_PLATFORM: '{{.DOCKER_PLATFORM}}'
+        SOURCES_DIR: '{{.REPO_DIR}}'
     - task: copy-pkgs
       vars:
         DST_DIR: ''
@@ -80,6 +86,8 @@ tasks:
         sh: mktemp -d --suffix={{randInt 0 10}}
       GIT_BRANCH:
         sh: git branch --show-current
+      REPO_DIR:
+        sh: git rev-parse --show-toplevel        
       IMG_NAME: 'asterisk-dev/chan-quectel:{{.OSNAME}}'
     cmds:
     - task: native:build-img
@@ -87,7 +95,7 @@ tasks:
         TARGET: chan-quectel
         IMG_NAME: '{{.IMG_NAME}}'
         IID_FILE: '{{.TMP_DIR}}/img-base.id'
-    - task: native:build
+    - task: native:build-from-{{or .SOURCE_LOCATION "repo"}}
       vars:
         BASEIMG: '{{.IMG_NAME}}'
         BUILDER_DIR: centos
@@ -95,6 +103,7 @@ tasks:
         BRANCH: '{{.GIT_BRANCH}}'
         IID_FILE: '{{.TMP_DIR}}/img.id'
         ASTERISK_VERSION_NUM: '{{.ASTERISK_VERSION_NUM}}'
+        SOURCES_DIR: '{{.REPO_DIR}}'
     - task: copy-pkgs
       vars:
         DST_DIR: ''
@@ -112,6 +121,8 @@ tasks:
         sh: mktemp -d --suffix={{randInt 0 10}}
       GIT_BRANCH:
         sh: git branch --show-current
+      REPO_DIR:
+        sh: git rev-parse --show-toplevel        
       IMG_NAME: 'asterisk-dev/chan-quectel:{{.OSNAME}}.cc.armhf'
     cmds:
     - task: cc:build-img
@@ -121,7 +132,7 @@ tasks:
         IID_FILE: '{{.TMP_DIR}}/img-base.id'
         CC_TARGET: armhf
         CC_TOOLCHAIN: arm-linux-gnueabihf
-    - task: cc:build
+    - task: cc:build-from-{{or .SOURCE_LOCATION "repo"}}
       vars:
         BASEIMG: '{{.IMG_NAME}}'
         PRESET: deb
@@ -130,6 +141,7 @@ tasks:
         CC_TARGET: armhf
         CC_TOOLCHAIN: arm-linux-gnueabihf
         ASTERISK_VERSION_NUM: '{{.ASTERISK_VERSION_NUM}}'
+        SOURCES_DIR: '{{.REPO_DIR}}'
     - task: copy-pkgs
       vars:
         DST_DIR: armhf
@@ -147,6 +159,8 @@ tasks:
         sh: mktemp -d --suffix={{randInt 0 10}}
       GIT_BRANCH:
         sh: git branch --show-current
+      REPO_DIR:
+        sh: git rev-parse --show-toplevel        
       IMG_NAME: 'asterisk-dev/chan-quectel:{{.OSNAME}}.cc-ext.armhf'
     cmds:
     - task: cc:build-img
@@ -156,7 +170,7 @@ tasks:
         IID_FILE: '{{.TMP_DIR}}/img-base.id'
         CC_TARGET: armhf
         CC_TOOLCHAIN: arm-none-linux-gnueabihf
-    - task: cc:build
+    - task: cc:build-from-{{or .SOURCE_LOCATION "repo"}}
       vars:
         BASEIMG: '{{.IMG_NAME}}'
         PRESET: deb
@@ -165,6 +179,7 @@ tasks:
         CC_TARGET: armhf
         CC_TOOLCHAIN: arm-none-linux-gnueabihf
         ASTERISK_VERSION_NUM: '{{.ASTERISK_VERSION_NUM}}'
+        SOURCES_DIR: '{{.REPO_DIR}}'
     - task: copy-pkgs
       vars:
         DST_DIR: armhf
@@ -182,6 +197,8 @@ tasks:
         sh: mktemp -d --suffix={{randInt 0 10}}
       GIT_BRANCH:
         sh: git branch --show-current
+      REPO_DIR:
+        sh: git rev-parse --show-toplevel        
       IMG_NAME: 'asterisk-dev/chan-quectel:{{.OSNAME}}.cc.rpi'
     cmds:
     - task: rpi:build-img
@@ -191,7 +208,7 @@ tasks:
         IID_FILE: '{{.TMP_DIR}}/img-base.id'
         CC_TARGET: armhf
         CC_TOOLCHAIN: arm-linux-gnueabihf
-    - task: rpi:build
+    - task: rpi:build-from-{{or .SOURCE_LOCATION "repo"}}
       vars:
         BASEIMG: '{{.IMG_NAME}}'
         PRESET: rpi
@@ -200,6 +217,7 @@ tasks:
         CC_TARGET: armhf
         CC_TOOLCHAIN: arm-linux-gnueabihf
         ASTERISK_VERSION_NUM: '{{.ASTERISK_VERSION_NUM}}'
+        SOURCES_DIR: '{{.REPO_DIR}}'
         RPI_VERSION: '{{.RPI_VERSION}}'
     - task: copy-pkgs
       vars:
@@ -218,6 +236,8 @@ tasks:
         sh: mktemp -d --suffix={{randInt 0 10}}
       GIT_BRANCH:
         sh: git branch --show-current
+      REPO_DIR:
+        sh: git rev-parse --show-toplevel
       IMG_NAME: 'asterisk-dev/chan-quectel:{{.OSNAME}}.cc-ext.rpi'
     cmds:
     - task: rpi:build-img
@@ -227,7 +247,7 @@ tasks:
         IID_FILE: '{{.TMP_DIR}}/img-base.id'
         CC_TARGET: armhf
         CC_TOOLCHAIN: arm-none-linux-gnueabihf
-    - task: rpi:build
+    - task: rpi:build-from-{{or .SOURCE_LOCATION "repo"}}
       vars:
         BASEIMG: '{{.IMG_NAME}}'
         PRESET: rpi
@@ -236,6 +256,7 @@ tasks:
         CC_TARGET: armhf
         CC_TOOLCHAIN: arm-none-linux-gnueabihf
         ASTERISK_VERSION_NUM: '{{.ASTERISK_VERSION_NUM}}'
+        SOURCES_DIR: '{{.REPO_DIR}}'
         RPI_VERSION: '{{.RPI_VERSION}}'
     - task: copy-pkgs
       vars:
@@ -254,6 +275,8 @@ tasks:
         sh: mktemp -d --suffix={{randInt 0 10}}
       GIT_BRANCH:
         sh: git branch --show-current
+      REPO_DIR:
+        sh: git rev-parse --show-toplevel
       IMG_NAME: 'asterisk-dev/chan-quectel:{{.OSNAME}}.cc.arm64'
     cmds:
     - task: cc:build-img
@@ -263,7 +286,7 @@ tasks:
         IID_FILE: '{{.TMP_DIR}}/img-base.id'
         CC_TARGET: arm64
         CC_TOOLCHAIN: aarch64-linux-gnu
-    - task: cc:build
+    - task: cc:build-from-{{or .SOURCE_LOCATION "repo"}}
       vars:
         BASEIMG: '{{.IMG_NAME}}'
         PRESET: deb
@@ -272,6 +295,7 @@ tasks:
         CC_TARGET: arm64
         CC_TOOLCHAIN: aarch64-linux-gnu
         ASTERISK_VERSION_NUM: '{{.ASTERISK_VERSION_NUM}}'
+        SOURCES_DIR: '{{.REPO_DIR}}'
     - task: copy-pkgs
       vars:
         DST_DIR: arm64
@@ -289,6 +313,8 @@ tasks:
         sh: mktemp -d --suffix={{randInt 0 10}}
       GIT_BRANCH:
         sh: git branch --show-current
+      REPO_DIR:
+        sh: git rev-parse --show-toplevel
       IMG_NAME: 'asterisk-dev/chan-quectel:{{.OSNAME}}.cc-ext.arm64'
     cmds:
     - task: cc:build-img
@@ -298,7 +324,7 @@ tasks:
         IID_FILE: '{{.TMP_DIR}}/img-base.id'
         CC_TARGET: arm64
         CC_TOOLCHAIN: aarch64-none-linux-gnu
-    - task: cc:build
+    - task: cc:build-from-{{or .SOURCE_LOCATION "repo"}}
       vars:
         BASEIMG: '{{.IMG_NAME}}'
         PRESET: deb
@@ -307,6 +333,7 @@ tasks:
         CC_TARGET: arm64
         CC_TOOLCHAIN: aarch64-none-linux-gnu
         ASTERISK_VERSION_NUM: '{{.ASTERISK_VERSION_NUM}}'
+        SOURCES_DIR: '{{.REPO_DIR}}'
     - task: copy-pkgs
       vars:
         DST_DIR: arm64
