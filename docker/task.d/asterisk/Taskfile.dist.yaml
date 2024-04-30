@@ -13,6 +13,7 @@ tasks:
   configure:
     desc: Set Asterisk build options
     internal: true
+    dotenv: ['{{.BUILD_DIR}}/asterisk/.env']
     required:
       vars: [DISABLED_CONFS, MENU_ENABLE, MENU_DISABLE]
     dir: '{{.BUILD_DIR}}/asterisk'
@@ -372,7 +373,20 @@ tasks:
           EXTRA-SOUNDS-EN-WAV
           EXTRA-SOUNDS-EN-GSM
           EXTRA-SOUNDS-EN-G722
-      
+
+  source-date-epoch:
+    internal: true
+    vars:
+      SOURCE_DATE_EPOCH:
+        sh: date -u -r {{.BUILD_DIR}}/asterisk/configure +%s
+      SOURCE_DATE:
+        sh: date -u -r {{.BUILD_DIR}}/asterisk/configure '+%F %T'
+    cmds:
+      - cmd: echo 'SOURCE_DATE_EPOCH={{.SOURCE_DATE_EPOCH}}' > {{.BUILD_DIR}}/asterisk/.env
+        silent: true
+      - cmd: echo 'SOURCE_DATE_EPOCH={{.SOURCE_DATE_EPOCH}}' '#' '{{.SOURCE_DATE}}' 1>&2
+        silent: true
+
   extract-sources:
     desc: Extract Asterisk sources
     preconditions:
@@ -381,6 +395,7 @@ tasks:
     dir: '{{.BUILD_DIR}}/asterisk'
     cmds:
       - tar -xf {{.BUILD_DIR}}/download/asterisk-{{.ASTVER}}-current.tar.gz --strip-components=1
+      - task: source-date-epoch
 
   old-extract-sources:
     desc: Extract Asterisk sources (OLD)
@@ -390,12 +405,14 @@ tasks:
     dir: '{{.BUILD_DIR}}/asterisk'
     cmds:
       - tar -xf {{.BUILD_DIR}}/download/asterisk-{{.ASTVER}}.tar.gz --strip-components=1
+      - task: source-date-epoch
    
   build:
     desc: Build Asterisk
     dir: '{{.BUILD_DIR}}/asterisk'
     env:
       OPTIMIZE: '-fmerge-constants'
+    dotenv: ['{{.BUILD_DIR}}/asterisk/.env']
     cmds:
       - make -j$(nproc)
 
@@ -404,5 +421,8 @@ tasks:
     dir: '{{.BUILD_DIR}}/asterisk'
     env:
       DESTDIR: '{{.BUILD_DIR}}/install'
+    dotenv: ['{{.BUILD_DIR}}/asterisk/.env']      
     cmds:
       - make install-headers
+      - find {{.BUILD_DIR}}/install -mindepth 1 -type d -exec touch -c -d "@${SOURCE_DATE_EPOCH}" '{}' +
+      - find {{.BUILD_DIR}}/install -mindepth 1 -type f -exec touch -c -d "@${SOURCE_DATE_EPOCH}" '{}' +

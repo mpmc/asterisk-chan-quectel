@@ -28,7 +28,7 @@ tasks:
     cmds:
       - cmd: echo 'SOURCE_DATE_EPOCH={{.SOURCE_DATE_EPOCH}}' > {{.BUILD_DIR}}/ninja-build/.env
         silent: true
-      - cmd: echo 'SOURCE_DATE_EPOCH={{.SOURCE_DATE_EPOCH}} - {{.SOURCE_DATE}}' 1>&2
+      - cmd: echo 'SOURCE_DATE_EPOCH={{.SOURCE_DATE_EPOCH}}' '#' '{{.SOURCE_DATE}}' 1>&2
         silent: true
 
   download:
@@ -64,7 +64,7 @@ tasks:
           DOWNLOAD_URL: '{{.DOWNLOAD_URL}}'
       - cmd: echo 'SOURCE_DATE_EPOCH={{.SOURCE_DATE_EPOCH}}' > {{.BUILD_DIR}}/ninja-build/.env
         silent: true
-      - cmd: echo 'SOURCE_DATE_EPOCH={{.SOURCE_DATE_EPOCH}} - {{.SOURCE_DATE}}' 1>&2
+      - cmd: echo 'SOURCE_DATE_EPOCH={{.SOURCE_DATE_EPOCH}}' '#' '{{.SOURCE_DATE}}' 1>&2
         silent: true
   
   configure:
