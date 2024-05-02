@@ -11,7 +11,7 @@ make-ast-archive() {
         return 1
     fi
     echoerr Archiving headers from ${AST_DIR}
-    tar -I 'gzip --best' -cf asterisk-headers.tar.gz -C ${AST_DIR} asterisk.h asterisk/
+    tar -I 'gzip --best' --numeric-owner --owner=0 --group=0 --mode='og-w' -cf asterisk-headers.tar.gz -C ${AST_DIR} asterisk.h asterisk/
 }
 
 make-ast-archive $1
