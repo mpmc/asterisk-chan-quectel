@@ -133,7 +133,16 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 #!/bin/bash -e
 
 apt-get -qq update -y
-    apt-get -qq install -y --no-install-recommends libsqlite3-dev libasound2-dev asterisk-dev
+    apt-get -qq install -y --no-install-recommends libsqlite3-dev libasound2-dev
+EOF
+
+FROM rpi-debian AS rpi-debian-asterisk-dev
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked <<-EOF
+#!/bin/bash -e
+
+apt-get -qq update -y
+    apt-get -qq install -y --no-install-recommends asterisk-dev
 EOF
 
 FROM chan-quectel-base AS chan-quectel-rpi-base
@@ -141,6 +150,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     task -d /build/task.d/deb install-pkgs -- qemu-user-static
 COPY --from=task rpi /build/task.d/rpi
+RUN --network=none --mount=type=bind,from=rpi-debian-asterisk-dev,target=/build/cache task -d /build/task.d/rpi asterisk-headers
 RUN --network=none --mount=type=bind,from=rpi-debian,target=/build/cache task -d /build/task.d/rpi sysroot
 
 FROM chan-quectel-rpi-base AS chan-quectel-rpi

@@ -53,13 +53,30 @@ IF(IS_GIT_REPO)
         ADD_TEST(NAME "Load library" COMMAND ${CMAKE_READELF} -e $<TARGET_FILE:asterisk-chan-quectel>)
         ADD_TEST(NAME "Show library dependencies" COMMAND sh -c "${CMAKE_READELF} -d $<TARGET_FILE:asterisk-chan-quectel> | grep NEEDED")
         ADD_TEST(NAME "Show comment section" COMMAND ${CMAKE_READELF} -p .comment $<TARGET_FILE:asterisk-chan-quectel>)
+        SET_TESTS_PROPERTIES(
+            "Load library"
+            "Show library dependencies"
+            "Show comment section"
+            PROPERTIES
+                LABELS DLL
+                TIMEOUT 10
+                WORKING_DIRECTORY $<TARGET_FILE_DIR:asterisk-chan-quectel>
+        )
     ELSE()
         MESSAGE(WARNING Cannot find readelf utility)
     ENDIF()
+    ADD_TEST(NAME "Show AST_BUILDOPT_SUM" COMMAND grep -Eao "[0-9abcdef]{32}" $<TARGET_FILE:asterisk-chan-quectel>)
+    SET_TESTS_PROPERTIES(
+        "Show AST_BUILDOPT_SUM"
+        PROPERTIES
+            LABELS DLL
+            TIMEOUT 10
+            WORKING_DIRECTORY $<TARGET_FILE_DIR:asterisk-chan-quectel>
+    )
 ENDIF()
 
 # formatting targets
-IF(NOT CLANG_FORMAT OR "${CLANG_FORMAT}" STREQUAL CLANG_FORMAT-NOTFOUND)
+IF(NOT CLANG_FORMAT)
     MESSAGE(WARNING "Cannot create formatting targets - clang-format not found")
 ELSE()
     ADD_CUSTOM_TARGET(asterisk-chan-quectel-code-formatter

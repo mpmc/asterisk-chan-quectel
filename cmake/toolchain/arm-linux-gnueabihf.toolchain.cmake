@@ -49,9 +49,9 @@ endfunction()
 
 if(DEFINED ENV{TOOLSET_TARGET_RPI})
     set_rpi_cxx_init_flags($ENV{TOOLSET_TARGET_RPI})
-    set(rpidir /build/rpi)
-    set(CMAKE_SYSROOT ${rpidir})
-    set(CMAKE_STAGING_PREFIX ${rpidir})
+    set(sysroot /build/sysroot)
+    set(CMAKE_SYSROOT ${sysroot})
+    set(CMAKE_STAGING_PREFIX ${sysroot})
 
     # paths relative to SYSROOT
     foreach(i C CXX)
@@ -60,7 +60,7 @@ if(DEFINED ENV{TOOLSET_TARGET_RPI})
             "=/include"
         )
     endforeach()
-    set(CMAKE_CROSSCOMPILING_EMULATOR /usr/bin/qemu-arm-static;-L;${rpidir} CACHE INTERNAL "")
+    set(CMAKE_CROSSCOMPILING_EMULATOR /usr/bin/qemu-arm-static;-L;${sysroot} CACHE INTERNAL "")
 else()
     set_cxx_init_flags("-march=armv7-a+fp+neon -mfloat-abi=hard")
     set(CMAKE_CROSSCOMPILING_EMULATOR /usr/bin/qemu-arm-static;-L;/usr/lib/${triple} CACHE INTERNAL "")    

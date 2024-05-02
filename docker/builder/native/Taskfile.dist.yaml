@@ -40,6 +40,7 @@ tasks:
           --build-arg BRANCH={{.BRANCH}}
           {{if .CMAKE_VERBOSE}}--build-arg CMAKE_VERBOSE=1{{end}}
           {{if .ASTERISK_VERSION_NUM}}--build-arg ASTERISK_VERSION_NUM={{.ASTERISK_VERSION_NUM}}{{end}}
+          {{if .AST_HEADER_DIR}}--build-context asterisk-headers={{.AST_HEADER_DIR}}{{end}}          
           {{if .DOCKER_IMAGE_BUILDER_VERBOSITY|default "plain"|eq "plain"}}--progress plain{{end}}
           -f ../../builder/{{or .BUILDER_DIR "native"}}/Dockerfile
           --iidfile {{.IID_FILE}}
@@ -61,6 +62,7 @@ tasks:
           --build-arg PRESET={{.PRESET}}
           {{if .CMAKE_VERBOSE}}--build-arg CMAKE_VERBOSE=1{{end}}
           {{if .ASTERISK_VERSION_NUM}}--build-arg ASTERISK_VERSION_NUM={{.ASTERISK_VERSION_NUM}}{{end}}
+          {{if .AST_HEADER_DIR}}--build-context asterisk-headers={{.AST_HEADER_DIR}}{{end}}
           {{if .DOCKER_IMAGE_BUILDER_VERBOSITY|default "plain"|eq "plain"}}--progress plain{{end}}
           -f ../../builder/{{or .BUILDER_DIR "native"}}/Dockerfile
           --iidfile {{.IID_FILE}}

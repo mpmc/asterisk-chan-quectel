@@ -31,20 +31,24 @@ tasks:
             {{if .RPI_VERSION}}echo 'TOOLSET_TARGET_RPI={{.RPI_VERSION}}'{{end}}
           } >> {{.BUILD_DIR}}/.env
         silent: true
-      - ./get-build-flags.sh {{.PRESET}}-env > CMakeUserPresets.json        
+      - ./get-build-flags.sh {{.PRESET}}-env > CMakeUserPresets.json
 
   build:
     desc: Build chan_quectel packages
     preconditions:
       - test -n "{{.PRESET}}"
-    dir: '{{.BUILD_DIR}}/chan-quectel'
+    dir: '/build/chan-quectel' # bug - unable to set to '{{.BUILD_DIR}}/chan-quectel', templating is broken
     vars:
       NINJA_BUILDER:
-        sh: command -v ninja || true
+        sh: 'command -v ninja || true'
+      CACHE_DIR_EMPTY:
+        sh: find {{.BUILD_DIR}}/cache -maxdepth 0 -empty
       AST_HEADER_DIR:
         sh: |
-          if test -d {{.BUILD_DIR}}/asterisk-headers; then
-            echo '-DAST_HEADER_DIR={{.BUILD_DIR}}/asterisk-headers'
+          if test -z "{{.CACHE_DIR_EMPTY}}"; then
+            echo '{{.BUILD_DIR}}/cache'
+          elif test -s '{{.BUILD_DIR}}/asterisk-headers/asterisk.h'; then
+            echo '{{.BUILD_DIR}}/asterisk-headers'
           fi
     cmds:
       - >-
@@ -52,7 +56,7 @@ tasks:
         {{if .NINJA_BUILDER}}-G Ninja{{end}}
         {{if .CC_TOOLCHAIN}}--toolchain=cmake/toolchain/{{.CC_TOOLCHAIN}}.toolchain.cmake{{end}}
         {{if .ASTERISK_VERSION_NUM}}-DASTERISK_VERSION_NUM={{.ASTERISK_VERSION_NUM}}{{end}}
-        {{.AST_HEADER_DIR}}
+        {{if .AST_HEADER_DIR}}-DAST_HEADER_DIR={{.AST_HEADER_DIR}}{{end}}
       - cmake --build --preset=package-{{.PRESET}} {{if .CMAKE_VERBOSE}}-v{{end}}
 
   test:

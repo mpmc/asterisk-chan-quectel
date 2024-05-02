@@ -6,6 +6,17 @@ includes:
   rpi: rpi
 
 tasks:
+  copy-asterisk-headers:
+    internal: true
+    requires:
+      vars: [REPO_DIR, DEST_DIR]
+    cmds:
+      - mkdir -p {{.DEST_DIR}}
+      - cmd: cp {{.REPO_DIR}}/asterisk-headers.tar {{.DEST_DIR}}
+        ignore_error: true
+      - cmd: cp {{.REPO_DIR}}/asterisk-headers.tar.* {{.DEST_DIR}}
+        ignore_error: true
+
   native:
     desc: Build chan_quectel
     requires:
@@ -24,6 +35,10 @@ tasks:
         TARGET: chan-quectel
         IMG_NAME: '{{.IMG_NAME}}'
         IID_FILE: '{{.TMP_DIR}}/img-base.id'
+    - task: copy-asterisk-headers
+      vars:
+        REPO_DIR: '{{.REPO_DIR}}'
+        DEST_DIR: '{{.TMP_DIR}}/asterisk-headers'
     - task: native:build-from-{{or .SOURCE_LOCATION "repo"}}
       vars:
         BASEIMG: '{{.IMG_NAME}}'
@@ -32,6 +47,7 @@ tasks:
         IID_FILE: '{{.TMP_DIR}}/img.id'
         ASTERISK_VERSION_NUM: '{{.ASTERISK_VERSION_NUM}}'
         SOURCES_DIR: '{{.REPO_DIR}}'
+        AST_HEADER_DIR: '{{.TMP_DIR}}/asterisk-headers'
     - task: copy-pkgs
       vars:
         DST_DIR: ''
@@ -59,6 +75,10 @@ tasks:
         IMG_NAME: '{{.IMG_NAME}}'
         IID_FILE: '{{.TMP_DIR}}/img-base.id'
         DOCKER_PLATFORM: '{{.DOCKER_PLATFORM}}'
+    - task: copy-asterisk-headers
+      vars:
+        REPO_DIR: '{{.REPO_DIR}}'
+        DEST_DIR: '{{.TMP_DIR}}/asterisk-headers'
     - task: native:build-from-{{or .SOURCE_LOCATION "repo"}}
       vars:
         BASEIMG: '{{.IMG_NAME}}'
@@ -68,6 +88,7 @@ tasks:
         ASTERISK_VERSION_NUM: '{{.ASTERISK_VERSION_NUM}}'
         DOCKER_PLATFORM: '{{.DOCKER_PLATFORM}}'
         SOURCES_DIR: '{{.REPO_DIR}}'
+        AST_HEADER_DIR: '{{.TMP_DIR}}/asterisk-headers'
     - task: copy-pkgs
       vars:
         DST_DIR: ''
@@ -95,6 +116,10 @@ tasks:
         TARGET: chan-quectel
         IMG_NAME: '{{.IMG_NAME}}'
         IID_FILE: '{{.TMP_DIR}}/img-base.id'
+    - task: copy-asterisk-headers
+      vars:
+        REPO_DIR: '{{.REPO_DIR}}'
+        DEST_DIR: '{{.TMP_DIR}}/asterisk-headers'
     - task: native:build-from-{{or .SOURCE_LOCATION "repo"}}
       vars:
         BASEIMG: '{{.IMG_NAME}}'
@@ -104,6 +129,7 @@ tasks:
         IID_FILE: '{{.TMP_DIR}}/img.id'
         ASTERISK_VERSION_NUM: '{{.ASTERISK_VERSION_NUM}}'
         SOURCES_DIR: '{{.REPO_DIR}}'
+        AST_HEADER_DIR: '{{.TMP_DIR}}/asterisk-headers'
     - task: copy-pkgs
       vars:
         DST_DIR: ''
@@ -132,6 +158,10 @@ tasks:
         IID_FILE: '{{.TMP_DIR}}/img-base.id'
         CC_TARGET: armhf
         CC_TOOLCHAIN: arm-linux-gnueabihf
+    - task: copy-asterisk-headers
+      vars:
+        REPO_DIR: '{{.REPO_DIR}}'
+        DEST_DIR: '{{.TMP_DIR}}/asterisk-headers'
     - task: cc:build-from-{{or .SOURCE_LOCATION "repo"}}
       vars:
         BASEIMG: '{{.IMG_NAME}}'
@@ -142,6 +172,7 @@ tasks:
         CC_TOOLCHAIN: arm-linux-gnueabihf
         ASTERISK_VERSION_NUM: '{{.ASTERISK_VERSION_NUM}}'
         SOURCES_DIR: '{{.REPO_DIR}}'
+        AST_HEADER_DIR: '{{.TMP_DIR}}/asterisk-headers'
     - task: copy-pkgs
       vars:
         DST_DIR: armhf
@@ -170,6 +201,10 @@ tasks:
         IID_FILE: '{{.TMP_DIR}}/img-base.id'
         CC_TARGET: armhf
         CC_TOOLCHAIN: arm-none-linux-gnueabihf
+    - task: copy-asterisk-headers
+      vars:
+        REPO_DIR: '{{.REPO_DIR}}'
+        DEST_DIR: '{{.TMP_DIR}}/asterisk-headers'
     - task: cc:build-from-{{or .SOURCE_LOCATION "repo"}}
       vars:
         BASEIMG: '{{.IMG_NAME}}'
@@ -180,6 +215,7 @@ tasks:
         CC_TOOLCHAIN: arm-none-linux-gnueabihf
         ASTERISK_VERSION_NUM: '{{.ASTERISK_VERSION_NUM}}'
         SOURCES_DIR: '{{.REPO_DIR}}'
+        AST_HEADER_DIR: '{{.TMP_DIR}}/asterisk-headers'
     - task: copy-pkgs
       vars:
         DST_DIR: armhf
@@ -208,6 +244,10 @@ tasks:
         IID_FILE: '{{.TMP_DIR}}/img-base.id'
         CC_TARGET: armhf
         CC_TOOLCHAIN: arm-linux-gnueabihf
+    - task: copy-asterisk-headers
+      vars:
+        REPO_DIR: '{{.REPO_DIR}}'
+        DEST_DIR: '{{.TMP_DIR}}/asterisk-headers'
     - task: rpi:build-from-{{or .SOURCE_LOCATION "repo"}}
       vars:
         BASEIMG: '{{.IMG_NAME}}'
@@ -218,6 +258,7 @@ tasks:
         CC_TOOLCHAIN: arm-linux-gnueabihf
         ASTERISK_VERSION_NUM: '{{.ASTERISK_VERSION_NUM}}'
         SOURCES_DIR: '{{.REPO_DIR}}'
+        AST_HEADER_DIR: '{{.TMP_DIR}}/asterisk-headers'
         RPI_VERSION: '{{.RPI_VERSION}}'
     - task: copy-pkgs
       vars:
@@ -247,6 +288,10 @@ tasks:
         IID_FILE: '{{.TMP_DIR}}/img-base.id'
         CC_TARGET: armhf
         CC_TOOLCHAIN: arm-none-linux-gnueabihf
+    - task: copy-asterisk-headers
+      vars:
+        REPO_DIR: '{{.REPO_DIR}}'
+        DEST_DIR: '{{.TMP_DIR}}/asterisk-headers'
     - task: rpi:build-from-{{or .SOURCE_LOCATION "repo"}}
       vars:
         BASEIMG: '{{.IMG_NAME}}'
@@ -257,6 +302,7 @@ tasks:
         CC_TOOLCHAIN: arm-none-linux-gnueabihf
         ASTERISK_VERSION_NUM: '{{.ASTERISK_VERSION_NUM}}'
         SOURCES_DIR: '{{.REPO_DIR}}'
+        AST_HEADER_DIR: '{{.TMP_DIR}}/asterisk-headers'
         RPI_VERSION: '{{.RPI_VERSION}}'
     - task: copy-pkgs
       vars:
@@ -286,6 +332,10 @@ tasks:
         IID_FILE: '{{.TMP_DIR}}/img-base.id'
         CC_TARGET: arm64
         CC_TOOLCHAIN: aarch64-linux-gnu
+    - task: copy-asterisk-headers
+      vars:
+        REPO_DIR: '{{.REPO_DIR}}'
+        DEST_DIR: '{{.TMP_DIR}}/asterisk-headers'
     - task: cc:build-from-{{or .SOURCE_LOCATION "repo"}}
       vars:
         BASEIMG: '{{.IMG_NAME}}'
@@ -296,6 +346,7 @@ tasks:
         CC_TOOLCHAIN: aarch64-linux-gnu
         ASTERISK_VERSION_NUM: '{{.ASTERISK_VERSION_NUM}}'
         SOURCES_DIR: '{{.REPO_DIR}}'
+        AST_HEADER_DIR: '{{.TMP_DIR}}/asterisk-headers'
     - task: copy-pkgs
       vars:
         DST_DIR: arm64
@@ -324,6 +375,10 @@ tasks:
         IID_FILE: '{{.TMP_DIR}}/img-base.id'
         CC_TARGET: arm64
         CC_TOOLCHAIN: aarch64-none-linux-gnu
+    - task: copy-asterisk-headers
+      vars:
+        REPO_DIR: '{{.REPO_DIR}}'
+        DEST_DIR: '{{.TMP_DIR}}/asterisk-headers'
     - task: cc:build-from-{{or .SOURCE_LOCATION "repo"}}
       vars:
         BASEIMG: '{{.IMG_NAME}}'
@@ -334,6 +389,7 @@ tasks:
         CC_TOOLCHAIN: aarch64-none-linux-gnu
         ASTERISK_VERSION_NUM: '{{.ASTERISK_VERSION_NUM}}'
         SOURCES_DIR: '{{.REPO_DIR}}'
+        AST_HEADER_DIR: '{{.TMP_DIR}}/asterisk-headers'
     - task: copy-pkgs
       vars:
         DST_DIR: arm64

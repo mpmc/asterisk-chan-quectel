@@ -56,14 +56,32 @@ USER nobody:nogroup
 RUN --mount=type=bind,from=dl-ninja-build,target=/build/cache task -d /build/task.d/ninja-build download2
 RUN --network=none task -d /build/task.d/ninja-build configure build install
 
-FROM base AS chan-quectel
+FROM base AS asterisk-dev
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    task -d /build/task.d/deb install-pkgs -- git cmake libasound2-dev asterisk-dev
+    task -d /build/task.d/deb install-pkgs -- asterisk-dev
+
+FROM base AS asterisk-dev-cc
+ARG CC_TARGET
+
+COPY ubuntu.sources /etc/apt/sources.list.d/
+COPY sources-arm.list /etc/apt/sources.list.d/arm.list
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    task -d /build/task.d/deb install-pkgs-arch -- asterisk-dev:${CC_TARGET}
+
+FROM base AS chan-quectel-base
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    task -d /build/task.d/deb install-pkgs -- git cmake libasound2-dev
 COPY --from=ninja-build --link --chown=root:root /build/install /
 COPY --from=task chan-quectel /build/task.d/chan-quectel
+COPY --from=task ubuntu /build/task.d/ubuntu
 
-FROM chan-quectel AS chan-quectel-cc
+FROM chan-quectel-base AS chan-quectel
+RUN --network=none --mount=type=bind,from=asterisk-dev,target=/build/cache task -d /build/task.d/ubuntu asterisk-headers
+
+FROM chan-quectel-base AS chan-quectel-cc
 ARG CC_TARGET
 ARG CC_TOOLCHAIN
 
@@ -74,9 +92,10 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     task -d /build/task.d/deb install-pkgs-arch -- qemu-user-static \
     gcc-${CC_TOOLCHAIN} g++-${CC_TOOLCHAIN} binutils-${CC_TOOLCHAIN} \
-    libsqlite3-dev:${CC_TARGET} libasound2-dev:${CC_TARGET} asterisk-dev:${CC_TARGET}
+    libsqlite3-dev:${CC_TARGET} libasound2-dev:${CC_TARGET}
+RUN --network=none --mount=type=bind,from=asterisk-dev-cc,target=/build/cache task -d /build/task.d/ubuntu asterisk-headers
 
-FROM chan-quectel AS chan-quectel-cc-ext
+FROM chan-quectel-base AS chan-quectel-cc-ext
 ARG CC_TARGET
 ARG CC_TOOLCHAIN
 
@@ -86,5 +105,6 @@ COPY dpkg-buildflags-${CC_TARGET}.env /build/buildflags.env
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     task -d /build/task.d/deb install-pkgs-arch -- qemu-user-static \
-    libsqlite3-dev:${CC_TARGET} libasound2-dev:${CC_TARGET} asterisk-dev:${CC_TARGET}
+    libsqlite3-dev:${CC_TARGET} libasound2-dev:${CC_TARGET}
+RUN --network=none --mount=type=bind,from=asterisk-dev-cc,target=/build/cache task -d /build/task.d/ubuntu asterisk-headers
 COPY --from=arm-gnu-toolchain --link --chown=root:root /build/arm-gnu-toolchain/${CC_TOOLCHAIN} /build/arm-gnu-toolchain/${CC_TOOLCHAIN}

@@ -72,7 +72,7 @@ readonly JQ_RPI_SCRIPT='
                 },
                 "CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS": {
                     type: "STRING",
-                    value: "/build/rpi/usr/local/lib/arm-linux-gnueabihf;/build/rpi/usr/local/lib;/build/rpi/usr/lib/arm-linux-gnueabihf;/build/rpi/usr/lib"
+                    value: "/build/sysroot/usr/local/lib/arm-linux-gnueabihf;/build/sysroot/usr/local/lib;/build/sysroot/usr/lib/arm-linux-gnueabihf;/build/sysroot/usr/lib"
                 }
             },
             environment: {
