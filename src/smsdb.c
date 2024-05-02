@@ -44,16 +44,16 @@ static const size_t DBKEY_DEF_LEN = 32;
 DEFINE_SQL_STATEMENT(get_incomingmsg, "SELECT message FROM incoming_msg WHERE key = ? ORDER BY seqorder")
 DEFINE_SQL_STATEMENT(get_incomingmsg_cnt, "SELECT COUNT(seqorder) FROM incoming_msg WHERE key = ?")
 DEFINE_SQL_STATEMENT(put_incomingmsg,
-                     "INSERT OR REPLACE INTO incoming_msg (key, seqorder, expiration, message)"
-                     "VALUES (?, ?, unixepoch('now') + ?, ?)")
+                     "INSERT OR REPLACE INTO incoming_msg (key, seqorder, expiration, message) "
+                     "VALUES (?, ?, strftime('%s') + ?, ?)")
 DEFINE_SQL_STATEMENT(del_incomingmsg, "DELETE FROM incoming_msg WHERE key = ?")
 
 // OPER: outgoing_msg
-DEFINE_SQL_STATEMENT(put_outgoingmsg, "INSERT INTO outgoing_msg (dev, dst, message, cnt, expiration, srr) VALUES (?, ?, ?, ?, unixepoch('now') + ?, ?)")
+DEFINE_SQL_STATEMENT(put_outgoingmsg, "INSERT INTO outgoing_msg (dev, dst, message, cnt, expiration, srr) VALUES (?, ?, ?, ?, strftime('%s') + ?, ?)")
 DEFINE_SQL_STATEMENT(del_outgoingmsg, "DELETE FROM outgoing_msg WHERE uid = ?")
 DEFINE_SQL_STATEMENT(get_outgoingmsg_key, "SELECT dev, dst, srr FROM outgoing_msg WHERE uid = ?")
 DEFINE_SQL_STATEMENT(get_outgoingmsg, "SELECT dst, message FROM outgoing_msg WHERE uid = ?")
-DEFINE_SQL_STATEMENT(get_outgoingmsg_expired, "SELECT uid, dst, message FROM outgoing_msg WHERE expiration < unixepoch('now') LIMIT 1")
+DEFINE_SQL_STATEMENT(get_outgoingmsg_expired, "SELECT uid, dst, message FROM outgoing_msg WHERE expiration < strftime('%s') LIMIT 1")
 
 // OPER: outgoing_ref
 DEFINE_SQL_STATEMENT(put_outgoingref, "INSERT INTO outgoing_ref (key) VALUES (?)")
@@ -256,7 +256,7 @@ static int db_create(void)
     // TABLE: incoming_msg
     DEFINE_INTERNAL_SQL_STATEMENT(create_incomingmsg,
                                   "CREATE TABLE IF NOT EXISTS incoming_msg (key VARCHAR(256), seqorder INTEGER,"
-                                  "expiration TIMESTAMP DEFAULT (unixepoch('now')), message VARCHAR(256), PRIMARY KEY(key, seqorder))")
+                                  "expiration TIMESTAMP DEFAULT (strftime('%s')), message VARCHAR(256), PRIMARY KEY(key, seqorder))")
     DEFINE_INTERNAL_SQL_STATEMENT(create_incomingmsg_index, "CREATE INDEX IF NOT EXISTS incoming_key ON incoming_msg(key)")
 
     // TABLE: outgoing_msg(KEY: IMSI/DEST_ADDR)
