@@ -122,7 +122,7 @@ ARG CC_TOOLCHAIN
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    task -d /build/task.d/deb install-pkgs-arch -- qemu-user-static \
+    task -d /build/task.d/deb install-pkgs-arch -- qemu-user-static libc6-${CC_TARGET}-cross \
     gcc-${CC_TOOLCHAIN} g++-${CC_TOOLCHAIN} binutils-${CC_TOOLCHAIN} \
     libsqlite3-dev:${CC_TARGET} libasound2-dev:${CC_TARGET}
 
@@ -167,7 +167,7 @@ ARG CC_TOOLCHAIN
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    task -d /build/task.d/deb install-pkgs-arch -- qemu-user-static \
+    task -d /build/task.d/deb install-pkgs-arch -- qemu-user-static libc6-${CC_TARGET}-cross \
     libsqlite3-dev:${CC_TARGET} libasound2-dev:${CC_TARGET}
 COPY --from=arm-gnu-toolchain --link --chown=root:root /build/arm-gnu-toolchain/${CC_TOOLCHAIN} /build/arm-gnu-toolchain/${CC_TOOLCHAIN}
 
