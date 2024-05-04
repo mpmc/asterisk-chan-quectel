@@ -50,27 +50,40 @@ INSTALL(
 
 IF(IS_GIT_REPO)
     IF(DEFINED CMAKE_READELF)
-        ADD_TEST(NAME "Load library" COMMAND ${CMAKE_READELF} -e $<TARGET_FILE:asterisk-chan-quectel>)
-        ADD_TEST(NAME "Show library dependencies" COMMAND sh -c "${CMAKE_READELF} -d $<TARGET_FILE:asterisk-chan-quectel> | grep NEEDED")
-        ADD_TEST(NAME "Show comment section" COMMAND ${CMAKE_READELF} -p .comment $<TARGET_FILE:asterisk-chan-quectel>)
+        ADD_TEST(NAME "Load library" COMMAND ${CMAKE_READELF} -h -W $<TARGET_FILE:asterisk-chan-quectel>)
+        ADD_TEST(NAME "Check library dependencies" COMMAND ${CMAKE_COMMAND}
+            -P ${CMAKE_SOURCE_DIR}/cmake/test/needed-libs.cmake
+            ${CMAKE_READELF}
+            $<TARGET_FILE:asterisk-chan-quectel>
+        )
+        ADD_TEST(NAME "Check comment section" COMMAND ${CMAKE_COMMAND}
+            -P ${CMAKE_SOURCE_DIR}/cmake/test/comment-section.cmake
+            ${CMAKE_READELF}
+            $<TARGET_FILE:asterisk-chan-quectel>
+            ${CMAKE_C_COMPILER_VERSION}
+        )
         SET_TESTS_PROPERTIES(
             "Load library"
-            "Show library dependencies"
-            "Show comment section"
+            "Check library dependencies"
+            "Check comment section"
             PROPERTIES
-                LABELS DLL
-                TIMEOUT 10
+                LABELS "DLL;READELF"
+                TIMEOUT 20
                 WORKING_DIRECTORY $<TARGET_FILE_DIR:asterisk-chan-quectel>
         )
     ELSE()
         MESSAGE(WARNING Cannot find readelf utility)
     ENDIF()
-    ADD_TEST(NAME "Show AST_BUILDOPT_SUM" COMMAND grep -Eao "[0-9abcdef]{32}" $<TARGET_FILE:asterisk-chan-quectel>)
+    ADD_TEST(NAME "Check AST_BUILDOPT_SUM" COMMAND ${CMAKE_COMMAND}
+        -P ${CMAKE_SOURCE_DIR}/cmake/test/AST_BUILDOPT_SUM.cmake
+        $<TARGET_FILE:asterisk-chan-quectel>
+        ${AST_BUILDOPT_SUM}
+    )
     SET_TESTS_PROPERTIES(
-        "Show AST_BUILDOPT_SUM"
+        "Check AST_BUILDOPT_SUM"
         PROPERTIES
             LABELS DLL
-            TIMEOUT 10
+            TIMEOUT 20
             WORKING_DIRECTORY $<TARGET_FILE_DIR:asterisk-chan-quectel>
     )
 ENDIF()
