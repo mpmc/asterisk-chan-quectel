@@ -461,7 +461,7 @@ static char* cli_sms_list_received_unread(struct ast_cli_entry* e, int cmd, stru
             return NULL;
     }
 
-    if (a->argc < 5) {
+    if (a->argc < 6) {
         return CLI_SHOWUSAGE;
     }
 
@@ -483,7 +483,7 @@ static char* cli_sms_list_received_read(struct ast_cli_entry* e, int cmd, struct
             return NULL;
     }
 
-    if (a->argc < 5) {
+    if (a->argc < 6) {
         return CLI_SHOWUSAGE;
     }
 
@@ -505,7 +505,7 @@ static char* cli_sms_list_all(struct ast_cli_entry* e, int cmd, struct ast_cli_a
             return NULL;
     }
 
-    if (a->argc < 4) {
+    if (a->argc < 5) {
         return CLI_SHOWUSAGE;
     }
 
@@ -527,7 +527,7 @@ static char* cli_sms_delete_received_read(struct ast_cli_entry* e, int cmd, stru
             return NULL;
     }
 
-    if (a->argc < 5) {
+    if (a->argc < 6) {
         return CLI_SHOWUSAGE;
     }
 
@@ -549,7 +549,7 @@ static char* cli_sms_delete_all(struct ast_cli_entry* e, int cmd, struct ast_cli
             return NULL;
     }
 
-    if (a->argc < 4) {
+    if (a->argc < 5) {
         return CLI_SHOWUSAGE;
     }
 
@@ -599,7 +599,7 @@ static char* cli_sms_direct_on(struct ast_cli_entry* e, int cmd, struct ast_cli_
             return NULL;
     }
 
-    if (a->argc < 4) {
+    if (a->argc < 5) {
         return CLI_SHOWUSAGE;
     }
 
@@ -621,7 +621,7 @@ static char* cli_sms_direct_off(struct ast_cli_entry* e, int cmd, struct ast_cli
             return NULL;
     }
 
-    if (a->argc < 4) {
+    if (a->argc < 5) {
         return CLI_SHOWUSAGE;
     }
 
@@ -643,7 +643,7 @@ static char* cli_sms_direct_auto(struct ast_cli_entry* e, int cmd, struct ast_cl
             return NULL;
     }
 
-    if (a->argc < 4) {
+    if (a->argc < 5) {
         return CLI_SHOWUSAGE;
     }
 
