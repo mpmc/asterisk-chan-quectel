@@ -225,9 +225,11 @@ You may create `.env` file and change them.
 
 - [Dokcerfile Reference](https://docs.docker.com/reference/dockerfile/)
 - [Docker Blog: Dockerfiles now Support Multiple Build Contexts](https://www.docker.com/blog/dockerfiles-now-support-multiple-build-contexts/).
-- [Balena base images](https://docs.balena.io/reference/base-images/base-images/)
+- [*Balena* base images](https://docs.balena.io/reference/base-images/base-images/)
 - [ARM GNU Toolchain (previously known as *Linaro* Toolchain)](https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain)
-- [Baeldung: What Is a Sysroot?](https://www.baeldung.com/linux/sysroot)
-- [Baeldung: *gcc* Default include Directories in Linux](https://www.baeldung.com/linux/gcc-default-include-directories)
-- [Baeldung: Exploring *ld* Linker Search Paths](https://www.baeldung.com/linux/gnu-linker-search-paths)
+- [*Baeldung*: What Is a Sysroot?](https://www.baeldung.com/linux/sysroot)
+- [*Baeldung*: *gcc* Default include Directories in Linux](https://www.baeldung.com/linux/gcc-default-include-directories)
+- [*Baeldung*: Exploring *ld* Linker Search Paths](https://www.baeldung.com/linux/gnu-linker-search-paths)
 - [Library path in *gcc*](https://transang.me/library-path-in-gcc/)
+- [*Earthly*: Cross-Compiling for Raspberry Pi: Getting Started and Troubleshooting](https://earthly.dev/blog/cross-compiling-raspberry-pi)
+- [*Earthly*: Getting a Repeatable Build, Every Time](https://earthly.dev/blog/repeatable-builds-every-time/#tips-for-taming-bash-scripts)
