@@ -23,7 +23,7 @@ tasks:
       vars: [OSNAME, ASTERISK_VERSION_NUM]
     vars:
       TMP_DIR:
-        sh: mktemp -d --suffix={{randInt 0 10}}
+        sh: mktemp -d --suffix={{randInt 0 1000000}}
       GIT_BRANCH:
         sh: git branch --show-current
       REPO_DIR:
@@ -62,7 +62,7 @@ tasks:
       vars: [OSNAME, ASTERISK_VERSION_NUM, DOCKER_PLATFORM]
     vars:
       TMP_DIR:
-        sh: mktemp -d --suffix={{randInt 0 10}}
+        sh: mktemp -d --suffix={{randInt 0 1000000}}
       GIT_BRANCH:
         sh: git branch --show-current
       REPO_DIR:
@@ -104,7 +104,7 @@ tasks:
       vars: [OSNAME, ASTERISK_VERSION_NUM]
     vars:
       TMP_DIR:
-        sh: mktemp -d --suffix={{randInt 0 10}}
+        sh: mktemp -d --suffix={{randInt 0 1000000}}
       GIT_BRANCH:
         sh: git branch --show-current
       REPO_DIR:
@@ -144,7 +144,7 @@ tasks:
       vars: [OSNAME, ASTERISK_VERSION_NUM]
     vars:
       TMP_DIR:
-        sh: mktemp -d --suffix={{randInt 0 10}}
+        sh: mktemp -d --suffix={{randInt 0 1000000}}
       GIT_BRANCH:
         sh: git branch --show-current
       REPO_DIR:
@@ -187,7 +187,7 @@ tasks:
       vars: [OSNAME, ASTERISK_VERSION_NUM]
     vars:
       TMP_DIR:
-        sh: mktemp -d --suffix={{randInt 0 10}}
+        sh: mktemp -d --suffix={{randInt 0 1000000}}
       GIT_BRANCH:
         sh: git branch --show-current
       REPO_DIR:
@@ -230,7 +230,7 @@ tasks:
       vars: [OSNAME, ASTERISK_VERSION_NUM, RPI_VERSION]
     vars:
       TMP_DIR:
-        sh: mktemp -d --suffix={{randInt 0 10}}
+        sh: mktemp -d --suffix={{randInt 0 1000000}}
       GIT_BRANCH:
         sh: git branch --show-current
       REPO_DIR:
@@ -274,7 +274,7 @@ tasks:
       vars: [OSNAME, ASTERISK_VERSION_NUM, RPI_VERSION]
     vars:
       TMP_DIR:
-        sh: mktemp -d --suffix={{randInt 0 10}}
+        sh: mktemp -d --suffix={{randInt 0 1000000}}
       GIT_BRANCH:
         sh: git branch --show-current
       REPO_DIR:
@@ -318,7 +318,7 @@ tasks:
       vars: [OSNAME, ASTERISK_VERSION_NUM]
     vars:
       TMP_DIR:
-        sh: mktemp -d --suffix={{randInt 0 10}}
+        sh: mktemp -d --suffix={{randInt 0 1000000}}
       GIT_BRANCH:
         sh: git branch --show-current
       REPO_DIR:
@@ -361,7 +361,7 @@ tasks:
       vars: [OSNAME, ASTERISK_VERSION_NUM]
     vars:
       TMP_DIR:
-        sh: mktemp -d --suffix={{randInt 0 10}}
+        sh: mktemp -d --suffix={{randInt 0 1000000}}
       GIT_BRANCH:
         sh: git branch --show-current
       REPO_DIR:
