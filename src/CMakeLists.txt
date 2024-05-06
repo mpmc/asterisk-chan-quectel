@@ -50,17 +50,21 @@ INSTALL(
 
 IF(IS_GIT_REPO)
     IF(DEFINED CMAKE_READELF)
-        ADD_TEST(NAME "Load library" COMMAND ${CMAKE_READELF} -h -W $<TARGET_FILE:asterisk-chan-quectel>)
+        ADD_TEST(NAME "Load library" COMMAND ${CMAKE_COMMAND}
+            -DCMAKE_READELF=${CMAKE_READELF}
+            -DMODULE_PATH=$<TARGET_FILE:asterisk-chan-quectel>
+            -P ${CMAKE_SOURCE_DIR}/cmake/test/dump-header.cmake
+        )        
         ADD_TEST(NAME "Check library dependencies" COMMAND ${CMAKE_COMMAND}
+            -DCMAKE_READELF=${CMAKE_READELF}
+            -DMODULE_PATH=$<TARGET_FILE:asterisk-chan-quectel>
             -P ${CMAKE_SOURCE_DIR}/cmake/test/needed-libs.cmake
-            ${CMAKE_READELF}
-            $<TARGET_FILE:asterisk-chan-quectel>
         )
         ADD_TEST(NAME "Check comment section" COMMAND ${CMAKE_COMMAND}
+            -DCMAKE_READELF=${CMAKE_READELF}
+            -DMODULE_PATH=$<TARGET_FILE:asterisk-chan-quectel>
+            -DCOMPILER_VERSION=${CMAKE_C_COMPILER_VERSION}
             -P ${CMAKE_SOURCE_DIR}/cmake/test/comment-section.cmake
-            ${CMAKE_READELF}
-            $<TARGET_FILE:asterisk-chan-quectel>
-            ${CMAKE_C_COMPILER_VERSION}
         )
         SET_TESTS_PROPERTIES(
             "Load library"
@@ -71,13 +75,27 @@ IF(IS_GIT_REPO)
                 TIMEOUT 20
                 WORKING_DIRECTORY $<TARGET_FILE_DIR:asterisk-chan-quectel>
         )
+        IF(CMAKE_CROSSCOMPILING)
+            ADD_TEST(NAME "Check architecture-specific metadata" COMMAND ${CMAKE_COMMAND}
+                -DCMAKE_READELF=${CMAKE_READELF}
+                -DMODULE_PATH=$<TARGET_FILE:asterisk-chan-quectel>
+                -P ${CMAKE_SOURCE_DIR}/cmake/test/arch-specific.cmake
+            )
+            SET_TESTS_PROPERTIES(
+                "Check architecture-specific metadata"
+                PROPERTIES
+                    LABELS "DLL;READELF"
+                    TIMEOUT 20
+                    WORKING_DIRECTORY $<TARGET_FILE_DIR:asterisk-chan-quectel>
+            )
+        ENDIF()
     ELSE()
         MESSAGE(WARNING Cannot find readelf utility)
     ENDIF()
     ADD_TEST(NAME "Check AST_BUILDOPT_SUM" COMMAND ${CMAKE_COMMAND}
+        -DMODULE_PATH=$<TARGET_FILE:asterisk-chan-quectel>
+        -DAST_BUILDOPT_SUM=${AST_BUILDOPT_SUM}
         -P ${CMAKE_SOURCE_DIR}/cmake/test/AST_BUILDOPT_SUM.cmake
-        $<TARGET_FILE:asterisk-chan-quectel>
-        ${AST_BUILDOPT_SUM}
     )
     SET_TESTS_PROPERTIES(
         "Check AST_BUILDOPT_SUM"
