@@ -28,7 +28,7 @@ ARG ARM_GNU_TOOLCHAIN_VER
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    task -d /build/task.d/deb install-pkgs -- xz-utils
+    task -d /build/task.d/deb upgrade-and-install-pkgs -- xz-utils
 COPY --from=task arm-gnu-toolchain /build/task.d/arm-gnu-toolchain
 RUN --network=none task -d /build/task.d/arm-gnu-toolchain create-directory
 

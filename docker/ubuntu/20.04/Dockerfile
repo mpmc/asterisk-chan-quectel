@@ -38,7 +38,7 @@ RUN --network=none --mount=type=bind,from=dl-arm-gnu-toolchain,target=/build/dow
 FROM task-base AS base
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked -- \
-    task -d /build/task.d/deb install-pkgs -- file build-essential ca-certificates jq dpkg-dev libsqlite3-dev libssl1.1
+    task -d /build/task.d/deb upgrade-and-install-pkgs -- file build-essential ca-certificates jq dpkg-dev libsqlite3-dev libssl1.1
 RUN --network=none task -d /build create-build-directory && \
     task -d /build/task.d/deb create-dotenv && \
     task -d /build chown-build-directory -- nobody:nogroup

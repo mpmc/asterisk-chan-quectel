@@ -41,7 +41,7 @@ FROM task-base AS base
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    task -d /build/task.d/deb install-pkgs -- file build-essential dpkg-dev ca-certificates jq libsqlite3-dev libssl3
+    task -d /build/task.d/deb upgrade-and-install-pkgs -- file build-essential dpkg-dev ca-certificates jq libsqlite3-dev libssl3
 RUN --network=none task -d /build create-build-directory && \
     task -d /build/task.d/deb create-dotenv && \
     task -d /build chown-build-directory -- nobody:nogroup
@@ -114,6 +114,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 #!/bin/bash -e
 
 apt-get -qq update -y
+apt-get -qq upgrade -y --no-install-recommends
 apt-get -qq install -y --no-install-recommends asterisk-dev
 EOF
 
