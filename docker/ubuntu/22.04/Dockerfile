@@ -90,7 +90,7 @@ COPY sources-arm.list /etc/apt/sources.list.d/arm.list
 COPY dpkg-buildflags-${CC_TARGET}.env /build/buildflags.env
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    task -d /build/taks.d/deb install-pkgs-arch -- qemu-user-static libc6-${CC_TARGET}-cross \
+    task -d /build/task.d/deb install-pkgs-arch -- qemu-user-static libc6-${CC_TARGET}-cross \
     gcc-${CC_TOOLCHAIN} g++-${CC_TOOLCHAIN} binutils-${CC_TOOLCHAIN} \
     libsqlite3-dev:${CC_TARGET} libasound2-dev:${CC_TARGET}
 RUN --network=none --mount=type=bind,from=asterisk-dev-cc,target=/build/cache task -d /build/task.d/ubuntu asterisk-headers
