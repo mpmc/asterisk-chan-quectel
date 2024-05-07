@@ -35,6 +35,7 @@ tasks:
     deps:
     - 20.04:armhf
     - 22.04:armhf
+    - 24.04:armhf
 
   arm64:
     desc: Build chan_quectel for ARM64 on Ubuntu
