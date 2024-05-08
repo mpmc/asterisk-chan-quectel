@@ -63,7 +63,7 @@ struct discovery_cache {
 
 static const struct pdiscovery_device device_ids[] = {
     {0x12d1, 0x1001, {2, 1, /* 0 */}}, /* E1550 and generic */
-  //	{ 0x12d1, 0x1465, { 2, 1, /* 0 */ } },		/* K3520 */
+                                       //	{ 0x12d1, 0x1465, { 2, 1, /* 0 */ } },		/* K3520 */
     {0x12d1, 0x140c, {3, 2, /* 0 */}}, /* E17xx */
     {0x12d1, 0x14ac, {4, 3, /* 0 */}}, /* E153Du-1 : thanks mghadam */
     {0x12d1, 0x1436, {4, 3, /* 0 */}}, /* E1750 */
@@ -266,8 +266,10 @@ static void cache_fini(struct discovery_cache* cache)
 
     AST_RWLIST_WRLOCK(&cache->items);
     AST_LIST_TRAVERSE_SAFE_BEGIN(&cache->items, item, entry)
-        AST_LIST_REMOVE_CURRENT(entry);
-        cache_item_free(item);
+        {
+            AST_LIST_REMOVE_CURRENT(entry);
+            cache_item_free(item);
+        }
     AST_LIST_TRAVERSE_SAFE_END;
     AST_RWLIST_UNLOCK(&cache->items);
 
