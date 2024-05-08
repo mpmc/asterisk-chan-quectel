@@ -40,5 +40,6 @@ FROM base AS chan-quectel
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     task -d /build/task.d/deb install-pkgs -- cmake libasound2-dev asterisk-dev
+COPY --from=task chan-quectel /build/task.d/chan-quectel    
 COPY --from=task chan-quectel /build/task.d/chan-quectel
 COPY --from=ninja-build --link --chown=root:root /build/install /
