@@ -538,9 +538,7 @@ struct ast_str* escape_nstr(const char* buf, size_t cnt)
     // build null-terminated string
     struct ast_str* nbuf = ast_str_create(cnt + 1u);
     memcpy(ast_str_buffer(nbuf), buf, cnt);
-    *(ast_str_buffer(nbuf) + cnt) = '\000';
-    nbuf->used                    = cnt;
-    // ast_str_update(nbuf);
+    ast_str_truncate(nbuf, cnt);
 
     // unescape string
     struct ast_str* const ebuf = ast_str_create(get_esc_str_buffer_size(cnt));
@@ -561,9 +559,7 @@ const char* escape_nstr_ex(struct ast_str* ebuf, const char* buf, size_t cnt)
     // build null-terminated string
     struct ast_str* nbuf = ast_str_create(cnt + 1u);
     memcpy(ast_str_buffer(nbuf), buf, cnt);
-    *(ast_str_buffer(nbuf) + cnt) = '\000';
-    nbuf->used                    = cnt;
-    // ast_str_update(nbuf);
+    ast_str_truncate(nbuf, cnt);
 
     // unescape string
     const char* const res = escape_str_ex(ebuf, nbuf);
