@@ -83,6 +83,10 @@
           "type": "BOOL",
           "value": true
         },
+        "BUILD_TESTING": {
+          "type": "BOOL",
+          "value": false
+        },
         "BUILD_CHAN_QUECTEL_BINARY": {
           "type": "BOOL",
           "value": true

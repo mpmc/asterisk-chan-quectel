@@ -11,6 +11,10 @@ readonly JQ_DEB_SCRIPT='
             name: "deb-internal",
             hidden: true,
             cacheVariables: {
+                "BUILD_TESTING": {
+                  type: "BOOL",
+                  value: true
+                },
                 "CHECK_SOURCE_DATE_EPOCH": {
                     "type": "BOOL",
                     "value": true
@@ -58,6 +62,10 @@ readonly JQ_RPI_SCRIPT='
             name: "rpi-internal",
             hidden: true,
             cacheVariables: {
+                "BUILD_TESTING": {
+                  type: "BOOL",
+                  value: true
+                },                
                 "CHECK_SOURCE_DATE_EPOCH": {
                     "type": "BOOL",
                     "value": true
@@ -118,6 +126,10 @@ readonly JQ_RPM_SCRIPT='
             name: "rpm-internal",
             hidden: true,
             cacheVariables: {
+                "BUILD_TESTING": {
+                  type: "BOOL",
+                  value: true
+                },
                 "CHECK_SOURCE_DATE_EPOCH": {
                     "type": "BOOL",
                     "value": true
