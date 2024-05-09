@@ -54,14 +54,14 @@ static const int DST_DEF_LEN = 32;
 static const at_response_t at_responses_list[] = {
 
     AT_RESPONSES_TABLE(AT_RES_AS_STRUCTLIST)
-
-  /* The hackish way to define the duplicated responses in the meantime */
+/* clang-format off */
+    /* The hackish way to define the duplicated responses in the meantime */
 #define DEF_STR(str) str, STRLEN(str)
-        {RES_CNUM,  "+CNUM", DEF_STR("ERROR+CNUM:")          },
+    {RES_CNUM,  "+CNUM", DEF_STR("ERROR+CNUM:")          },
     {RES_ERROR, "ERROR", DEF_STR("COMMAND NOT SUPPORT\r")},
 #undef DEF_STR
+    /* clang-format on */
 };
-
 
 const at_responses_t at_responses = {at_responses_list, 3, ARRAY_LEN(at_responses_list), RES_MIN, RES_MAX};
 

@@ -335,33 +335,33 @@ static char pdu_code2digit(uint8_t code)
     }
 }
 
+static int div_up(unsigned int minutes, int divisor) { return (minutes + divisor - 1) / divisor; }
+
 #/* convert minutes to relative VP value */
 
 static int pdu_relative_validity(unsigned minutes)
 {
-#define DIV_UP(x, y) (((x) + (y)-1) / (y))
+    /* clang-format off */
     /*
-        0 ... 143  (vp + 1) * 5 minutes				   5  ...   720		m = (vp + 1) * 5		m / 5 - 1 = vp
-        144...167  12 hours + (vp - 143) * 30 minutes		 750  ...  1440		m = 720 + (vp - 143) * 30	(m - 720) /
-       30 + 143 = m / 30 + 119
-        168...196  (vp - 166) * 1 day				2880  ... 43200		m = (vp - 166) * 1440		(m / 1440) + 166
-        197...255  (vp - 192) * 1 week			       50400  ...635040		m = (vp - 192) * 10080		(m / 10080) +
-       192
+	    0 ... 143  (vp + 1) * 5 minutes				    5...720         m = (vp + 1) * 5            m / 5 - 1 = vp
+	    144...167  12 hours + (vp - 143) * 30 minutes   750...1440      m = 720 + (vp - 143) * 30   (m - 720) / 30 + 143 = m / 30 + 119
+	    168...196  (vp - 166) * 1 day                   2880...43200    m = (vp - 166) * 1440		(m / 1440) + 166
+	    197...255  (vp - 192) * 1 week                  50400...635040  m = (vp - 192) * 10080      (m / 10080) + 192
     */
+    /* clang-format on */
     int validity;
     if (minutes <= 720) {
-        validity = DIV_UP(minutes, 5) - 1;
+        validity = div_up(minutes, 5) - 1;
     } else if (minutes <= 1440) {
-        validity = DIV_UP(minutes, 30) + 119;
+        validity = div_up(minutes, 30) + 119;
     } else if (minutes <= 43200) {
-        validity = DIV_UP(minutes, 1440) + 166;
+        validity = div_up(minutes, 1440) + 166;
     } else if (minutes <= 635040) {
-        validity = DIV_UP(minutes, 10080) + 192;
+        validity = div_up(minutes, 10080) + 192;
     } else {
         validity = 0xFF;
     }
     return validity;
-#undef DIV_UP
 }
 
 /*!
