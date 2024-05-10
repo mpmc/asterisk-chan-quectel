@@ -27,12 +27,13 @@ FUNCTION(SetProjectVersion cmajor cminor cpatch ctweak cstatus)
 ENDFUNCTION()
 
 INCLUDE(cmake/asterisk-headers.cmake)
+INCLUDE(cmake/asterisk-version-num.cmake)
+INCLUDE(cmake/clang-format.cmake)
 
 #
 # clang-format executable
 # expected version: 18
 #
-INCLUDE(cmake/clang-format.cmake)
 SET(CLANG_FORMAT CLANG_FORMAT-NOTFOUND CACHE FILEPATH "C/C++/Java/JavaScript/JSON/Objective-C/Protobuf/C# code formatter")
 ClangFormatFindAndCheck(18)
 
@@ -121,6 +122,7 @@ OPTION(CHECK_SOURCE_DATE_EPOCH "Check existience of SOURCE_DATE_EPOCH environmen
 OPTION(BUILD_CHAN_QUECTEL_BINARY "Build chan_quectel binary" ON)
 OPTION(BUILD_OPENWRT_MAKEFILE "Build OpenWRT Makefile" OFF)
 SET(AST_HEADER_DIR CACHE PATH "Location of Asterisk headers")
+SET(ASTERISK_VERSION_NUM NOTFOUND CACHE STRING "Asterisk version")
 
 # BUILD_CHAN_QUECTEL_BINARY
 cmake_dependent_option(ICONV_CONST "iconv() const declaration of input buffer" OFF "BUILD_CHAN_QUECTEL_BINARY" OFF)
@@ -147,28 +149,10 @@ IF(BUILD_CHAN_QUECTEL_BINARY)
         INCLUDE(CTest)
     ENDIF()
 
-    IF(NOT DEFINED ASTERISK_VERSION_NUM)
-        FIND_PACKAGE(PkgConfig)
-        IF(${PKG_CONFIG_FOUND})
-            MESSAGE(DEBUG "Obtaining Asterisk version from pkg-info")
-            pkg_check_modules(AST QUIET asterisk)
-            IF(${AST_FOUND})
-                MESSAGE(DEBUG "pkg-info: asterisk module found")
-                pkg_get_variable(ASTERISK_VERSION_NUM asterisk version_number)
-                MESSAGE(VERBOSE "Asterisk version (from pkg-info): ${ASTERISK_VERSION_NUM}")
-            ENDIF()
-        ENDIF()
-    ENDIF()
-
-    IF(NOT DEFINED ASTERISK_VERSION_NUM)
-        MESSAGE(WARNING "ASTERISK_VERSION_NUM variable not defined, using default value")
-        SET(ASTERISK_VERSION_NUM 180000 CACHE STRING "Asterisk version")
-    ENDIF()
+    CheckAsteriskVersion()
 
     SET(ICONV_T iconv_t CACHE STRING "iconv type")
     SET(AST_MODULE chan_quectel)
-
-    MESSAGE(STATUS "Asterisk version: ${ASTERISK_VERSION_NUM}")
 
     INCLUDE(CheckIncludeFile)
     INCLUDE(CheckIncludeFiles)
