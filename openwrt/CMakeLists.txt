@@ -79,6 +79,7 @@ IF(BUILD_OPENWRT_MAKEFILE_STANDALONE)
       PATTERN "install" EXCLUDE
       PATTERN "package" EXCLUDE
       PATTERN "docker" EXCLUDE
+      PATTERN "cmake/toolchain" EXCLUDE
       PATTERN "etc" EXCLUDE
       PATTERN "uac" EXCLUDE
       PATTERN "doc" EXCLUDE
@@ -86,12 +87,12 @@ IF(BUILD_OPENWRT_MAKEFILE_STANDALONE)
       PATTERN ".git" EXCLUDE
       PATTERN ".github" EXCLUDE
       PATTERN ".vscode" EXCLUDE
+      PATTERN ".devcontainer" EXCLUDE
       PATTERN "configure-*.cmake" EXCLUDE
       PATTERN "make-*.cmake" EXCLUDE
       PATTERN "install-*.cmake" EXCLUDE
       PATTERN "build-*.cmake" EXCLUDE
-      PATTERN "clang-*.cmake" EXCLUDE
-      PATTERN "format-*.cmake" EXCLUDE
+      PATTERN "*.toolchain.cmake" EXCLUDE
       PATTERN ".clang-format" EXCLUDE
       PATTERN "diffconfig.in" EXCLUDE
       PATTERN "get-build-flags.sh" EXCLUDE
