@@ -55,14 +55,18 @@ function(init_linker_search_paths)
     set_linker_init_flags(${lopts})
 endfunction()
 
-set_cxx_init_flags(-march=armv8-a)
+set_cxx_init_flags(-march=armv8-a -mabi=lp64)
 set_cxx_standard_include_directories(
+    /usr/${btriple}/include
     /usr/local/include/${btriple}
     /usr/local/include
     /usr/include/${btriple}
     /usr/include
 )
+file(GLOB GCC_CROSS LIST_DIRECTORIES true /usr/lib/gcc-cross/${btriple}/*)
 init_linker_search_paths(
+    /usr/${btriple}/lib
+    ${GCC_CROSS}
     /usr/local/lib/${btriple}
     /usr/local/lib
     /usr/lib/${btriple}

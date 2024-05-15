@@ -38,7 +38,7 @@ RUN --network=none --mount=type=bind,from=dl-arm-gnu-toolchain,target=/build/dow
 FROM task-base AS base
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked -- \
-    task -d /build/task.d/deb upgrade-and-install-pkgs -- file build-essential ca-certificates jq dpkg-dev libsqlite3-dev libssl1.1
+    task -d /build/task.d/deb upgrade-and-install-pkgs -- file ca-certificates jq dpkg-dev libssl1.1
 RUN --network=none task -d /build create-build-directory && \
     task -d /build/task.d/deb create-dotenv && \
     task -d /build chown-build-directory -- nobody:nogroup
@@ -50,7 +50,7 @@ FROM base as cmake
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    task -d /build/task.d/deb install-pkgs -- libssl-dev curl
+    task -d /build/task.d/deb install-pkgs -- build-essential curl libssl-dev
 COPY --from=task cmake /build/task.d/cmake
 
 USER nobody:nogroup
@@ -63,7 +63,7 @@ ADD --chmod=444 https://api.github.com/repos/ninja-build/ninja/releases/latest n
 FROM base AS ninja-build
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    task -d /build/task.d/deb install-pkgs -- curl libgtest-dev
+    task -d /build/task.d/deb install-pkgs -- build-essential curl libgtest-dev
 COPY --from=task ninja-build /build/task.d/ninja-build
 COPY --from=cmake --link --chown=root:root /build/install/ /
 
@@ -88,13 +88,16 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 FROM base AS chan-quectel-base
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    task -d /build/task.d/deb install-pkgs -- git libasound2-dev
+    task -d /build/task.d/deb install-pkgs -- git
 COPY --from=cmake --link --chown=root:root /build/install/ /
 COPY --from=ninja-build --link --chown=root:root /build/install /
 COPY --from=task chan-quectel /build/task.d/chan-quectel
 COPY --from=task ubuntu /build/task.d/ubuntu
 
 FROM chan-quectel-base AS chan-quectel
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    task -d /build/task.d/deb install-pkgs -- build-essential libsqlite3-dev libasound2-dev
 RUN --network=none --mount=type=bind,from=asterisk-dev,target=/build/cache task -d /build/task.d/ubuntu asterisk-headers
 
 FROM chan-quectel-base AS chan-quectel-cc
@@ -106,7 +109,7 @@ COPY sources-arm.list /etc/apt/sources.list.d/arm.list
 COPY dpkg-buildflags-${CC_TARGET}.env /build/buildflags.env
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    task -d /build/task.d/deb install-pkgs-arch -- qemu-user-static libc6-${CC_TARGET}-cross \
+    task -d /build/task.d/deb install-pkgs-arch -- qemu-user-static libc6-dev-${CC_TARGET}-cross \
     gcc-${CC_TOOLCHAIN} g++-${CC_TOOLCHAIN} binutils-${CC_TOOLCHAIN} \
     libsqlite3-dev:${CC_TARGET} libasound2-dev:${CC_TARGET}
 RUN --network=none --mount=type=bind,from=asterisk-dev-cc,target=/build/cache task -d /build/task.d/ubuntu asterisk-headers
@@ -120,7 +123,10 @@ COPY sources-arm.list /etc/apt/sources.list.d/arm.list
 COPY dpkg-buildflags-${CC_TARGET}.env /build/buildflags.env
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    task -d /build/task.d/deb install-pkgs-arch -- qemu-user-static libc6-${CC_TARGET}-cross \
+    task -d /build/task.d/deb install-pkgs-arch -- qemu-user-static libc6-dev-${CC_TARGET}-cross libgcc-9-dev-${CC_TARGET}-cross \
     libsqlite3-dev:${CC_TARGET} libasound2-dev:${CC_TARGET}
+COPY --from=task arm-gnu-toolchain /build/task.d/arm-gnu-toolchain
 RUN --network=none --mount=type=bind,from=asterisk-dev-cc,target=/build/cache task -d /build/task.d/ubuntu asterisk-headers    
 COPY --from=arm-gnu-toolchain --link --chown=root:root /build/arm-gnu-toolchain/${CC_TOOLCHAIN} /build/arm-gnu-toolchain/${CC_TOOLCHAIN}
+
+RUN --network=none task -d /build/task.d/arm-gnu-toolchain ext-cross-compiliing-${CC_TOOLCHAIN} fix-ext-crt-startup-${CC_TOOLCHAIN}

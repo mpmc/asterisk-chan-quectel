@@ -35,6 +35,11 @@ TARGET_COMPILE_OPTIONS(asterisk-chan-quectel PRIVATE
     $<$<AND:$<C_COMPILER_ID:GNU>,$<VERSION_GREATER_EQUAL:$<C_COMPILER_VERSION>,4>>:-Wall>
 )
 
+TARGET_LINK_OPTIONS(asterisk-chan-quectel PRIVATE
+    $<$<BOOL:${LINKER_VERBOSE}>:-Wl,--verbose>
+    $<$<BOOL:${LINKER_TRACE}>:-Wl,--trace>
+)
+
 INSTALL(
     TARGETS asterisk-chan-quectel
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/asterisk/modules

@@ -123,6 +123,8 @@ OPTION(BUILD_CHAN_QUECTEL_BINARY "Build chan_quectel binary" ON)
 OPTION(BUILD_OPENWRT_MAKEFILE "Build OpenWRT Makefile" OFF)
 SET(AST_HEADER_DIR CACHE PATH "Location of Asterisk headers")
 SET(ASTERISK_VERSION_NUM NOTFOUND CACHE STRING "Asterisk version")
+OPTION(LINKER_VERBOSE "Linker - be verbose (--verbose option)" OFF)
+OPTION(LINKER_TRACE "Linker - trace used objects and liraries (--trace option)" OFF)
 
 # BUILD_CHAN_QUECTEL_BINARY
 cmake_dependent_option(ICONV_CONST "iconv() const declaration of input buffer" OFF "BUILD_CHAN_QUECTEL_BINARY" OFF)

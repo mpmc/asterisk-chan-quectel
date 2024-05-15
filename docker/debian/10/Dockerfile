@@ -41,7 +41,7 @@ FROM task-base AS base
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    task -d /build/task.d/deb upgrade-and-install-pkgs -- file build-essential dpkg-dev ca-certificates jq libsqlite3-dev libssl1.1
+    task -d /build/task.d/deb upgrade-and-install-pkgs -- file dpkg-dev ca-certificates jq libssl1.1
 RUN --network=none task -d /build create-build-directory && \
     task -d /build/task.d/deb create-dotenv && \
     task -d /build chown-build-directory -- nobody:nogroup
@@ -52,7 +52,7 @@ ADD --chmod=444 https://api.github.com/repos/Kitware/CMake/releases/latest cmake
 FROM base as cmake
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    task -d /build/task.d/deb install-pkgs -- libssl-dev curl
+    task -d /build/task.d/deb install-pkgs -- build-essential libssl-dev curl
 COPY --from=task cmake /build/task.d/cmake
 
 USER nobody:nogroup
@@ -68,7 +68,7 @@ ARG ASTVER
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    task -d /build/task.d/deb install-pkgs -- wget libssl-dev libedit-dev uuid-dev libxml2-dev
+    task -d /build/task.d/deb install-pkgs -- wget build-essential libsqlite3-dev libssl-dev libedit-dev uuid-dev libxml2-dev
 COPY --from=task asterisk /build/task.d/asterisk
 
 USER nobody:nogroup
@@ -82,7 +82,7 @@ ADD --chmod=444 https://api.github.com/repos/google/googletest/releases/latest g
 
 FROM base AS googletest
 RUN --mount=type=cache,target=/var/cache/yum,sharing=locked \
-    task -d /build/task.d/deb install-pkgs -- curl
+    task -d /build/task.d/deb install-pkgs -- build-essential curl
 COPY --from=task googletest /build/task.d/googletest
 COPY --from=cmake --link --chown=root:root /build/install/ /
 
@@ -96,7 +96,7 @@ ADD --chmod=444 https://api.github.com/repos/ninja-build/ninja/releases/latest n
 FROM base AS ninja-build
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    task -d /build/task.d/deb install-pkgs -- curl
+    task -d /build/task.d/deb install-pkgs -- build-essential curl
 COPY --from=cmake --link --chown=root:root /build/install/ /
 COPY --from=task ninja-build /build/task.d/ninja-build
 COPY --from=googletest --link --chown=root:root /build/install/ /
@@ -108,23 +108,26 @@ RUN --network=none task -d /build/task.d/ninja-build configure build install
 FROM base as chan-quectel-base
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    task -d /build/task.d/deb install-pkgs -- git libasound2-dev
+    task -d /build/task.d/deb install-pkgs -- git
 
 COPY --from=task chan-quectel /build/task.d/chan-quectel
 COPY --from=cmake --link --chown=root:root /build/install/ /
 COPY --from=ninja-build --link --chown=root:root /build/install /
 
 FROM chan-quectel-base AS chan-quectel
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    task -d /build/task.d/deb install-pkgs -- build-essential libsqlite3-dev libasound2-dev
 #COPY --from=asterisk --chown=root:root /build/install/ /
 COPY --from=asterisk --chown=root:root /build/install/usr/include /build/asterisk-headers/
 
-FROM chan-quectel AS chan-quectel-cc
+FROM chan-quectel-base AS chan-quectel-cc
 ARG CC_TARGET
 ARG CC_TOOLCHAIN
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    task -d /build/task.d/deb install-pkgs-arch -- qemu-user-static libc6-${CC_TARGET}-cross \
+    task -d /build/task.d/deb install-pkgs-arch -- qemu-user-static libc6-dev-${CC_TARGET}-cross \
     gcc-${CC_TOOLCHAIN} g++-${CC_TOOLCHAIN} binutils-${CC_TOOLCHAIN} \
     libsqlite3-dev:${CC_TARGET} libasound2-dev:${CC_TARGET}
 
@@ -165,17 +168,24 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     task -d /build/task.d/deb install-pkgs -- gcc-${CC_TOOLCHAIN} g++-${CC_TOOLCHAIN} binutils-${CC_TOOLCHAIN}
 
-FROM chan-quectel AS chan-quectel-cc-ext
+RUN --network=none task -d /build/task.d/rpi fix-crt-startup-${CC_TOOLCHAIN}    
+
+FROM chan-quectel-base AS chan-quectel-cc-ext
 ARG CC_TARGET
 ARG CC_TOOLCHAIN
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    task -d /build/task.d/deb install-pkgs-arch -- qemu-user-static libc6-${CC_TARGET}-cross \
+    task -d /build/task.d/deb install-pkgs-arch -- qemu-user-static libc6-dev-${CC_TARGET}-cross libgcc-8-dev-${CC_TARGET}-cross \
     libsqlite3-dev:${CC_TARGET} libasound2-dev:${CC_TARGET}
+COPY --from=task arm-gnu-toolchain /build/task.d/arm-gnu-toolchain    
 COPY --from=arm-gnu-toolchain --link --chown=root:root /build/arm-gnu-toolchain/${CC_TOOLCHAIN} /build/arm-gnu-toolchain/${CC_TOOLCHAIN}
+
+RUN --network=none task -d /build/task.d/arm-gnu-toolchain ext-cross-compiliing-${CC_TOOLCHAIN} fix-ext-crt-startup-${CC_TOOLCHAIN}
 
 FROM chan-quectel-rpi-base AS chan-quectel-rpi-ext
 ARG CC_TARGET
 ARG CC_TOOLCHAIN
 COPY --from=arm-gnu-toolchain --link --chown=root:root /build/arm-gnu-toolchain/${CC_TOOLCHAIN} /build/arm-gnu-toolchain/${CC_TOOLCHAIN}
+
+RUN --network=none task -d /build/task.d/rpi fix-ext-crt-startup-${CC_TOOLCHAIN}

@@ -11,14 +11,14 @@ tasks:
         test "{{if .DOCKER_IMAGE_ENV_BUILD|default 0|int|ge 0}}true{{end}}" == "true"
     cmds:
       - cmd: >-
-          docker image build
+          docker buildx build
           {{if .DOCKER_IMAGE_ENV_VERBOSITY|default "auto"|eq "none"}}-q{{end}}
           {{if .DOCKER_IMAGE_ENV_BUILD|default 0|int|eq 2}}--no-cache{{end}}
           {{if .DOCKER_PLATFORM}}--platform {{.DOCKER_PLATFORM}}{{end}}
           --build-context task=../../task.d
           --target={{.TARGET}}
           {{if .DOCKER_IMAGE_ENV_VERBOSITY|default "auto"|eq "plain"}}--progress plain{{end}}
-          -t {{.IMG_NAME}}
+          -t {{.IMG_NAME}} --load
           --iidfile {{.IID_FILE}}
           .
           {{if .DOCKER_IMAGE_ENV_VERBOSITY|default "auto"|eq "none"}}> /dev/null{{end}}
@@ -30,7 +30,7 @@ tasks:
       vars: [BASEIMG, PRESET, BRANCH, IID_FILE]
     cmds:
       - cmd: >-
-          docker image build
+          docker buildx build
           {{if .DOCKER_IMAGE_BUILDER_VERBOSITY|default "plain"|eq "none"}}-q{{end}}
           {{if .DOCKER_PLATFORM}}--platform {{.DOCKER_PLATFORM}}{{end}}
           --no-cache
@@ -53,7 +53,7 @@ tasks:
       vars: [BASEIMG, PRESET, IID_FILE, SOURCES_DIR]
     cmds:
       - cmd: >-
-          docker image build
+          docker buildx build
           {{if .DOCKER_IMAGE_BUILDER_VERBOSITY|default "plain"|eq "none"}}-q{{end}}
           {{if .DOCKER_PLATFORM}}--platform {{.DOCKER_PLATFORM}}{{end}}
           --no-cache

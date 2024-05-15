@@ -24,17 +24,21 @@ function(set_cxx_init_flags)
     set(CMAKE_CXX_FLAGS_INIT "${C_FLAGS_INIT}" CACHE INTERNAL "")    
 endfunction()
 
+function(internal_set_rpi_cxx_init_flags)
+    set_cxx_init_flags(${ARGV} -mtls-dialect=gnu)
+endfunction()
+
 function(set_rpi_cxx_init_flags rpi)
     if (${rpi} EQUAL 1)
-        set_cxx_init_flags(-marm -march=armv6+fp -mfpu=vfp -mfloat-abi=hard -mtune=arm1176jzf-s)
+        internal_set_rpi_cxx_init_flags(-marm -march=armv6+fp -mfpu=vfp -mfloat-abi=hard -mtune=arm1176jzf-s)
     elseif(${rpi} EQUAL 2)
-        set_cxx_init_flags(-march=armv7-a+fp+neon-vfpv4 -mfloat-abi=hard -mtune=cortex-a7)
+        internal_set_rpi_cxx_init_flags(-march=armv7-a+fp+neon-vfpv4 -mfloat-abi=hard -mtune=cortex-a7)
     elseif(${rpi} EQUAL 3)
-        set_cxx_init_flags(-march=armv8-a+crc -mfloat-abi=hard -mfpu=crypto-neon-fp-armv8 -mtune=cortex-a53)
+        internal_set_rpi_cxx_init_flags(-march=armv8-a+crc -mfloat-abi=hard -mfpu=crypto-neon-fp-armv8 -mtune=cortex-a53)
     elseif(${rpi} EQUAL 4)
-        set_cxx_init_flags(-march=armv8-a+crc -mfloat-abi=hard -mfpu=crypto-neon-fp-armv8 -mtune=cortex-a72)
+        internal_set_rpi_cxx_init_flags(-march=armv8-a+crc -mfloat-abi=hard -mfpu=crypto-neon-fp-armv8 -mtune=cortex-a72)
     elseif(${rpi} EQUAL 5)
-        set_cxx_init_flags(-march=armv8-a+crc+crypto -mfloat-abi=hard -mfpu=crypto-neon-fp-armv8 -mtune=cortex-a76)
+        internal_set_rpi_cxx_init_flags(-march=armv8-a+crc+crypto -mfloat-abi=hard -mfpu=crypto-neon-fp-armv8 -mtune=cortex-a76)
     elseif(${rpi} GREATER 5)
         message(FATAL_ERROR "Version ${rpi} of Raspberry Pi is not supported.")
     else()
@@ -97,11 +101,10 @@ if(DEFINED ENV{TOOLSET_TARGET_RPI})
         /include
     )
     init_sysroot_linker_search_paths(
-        /usr/local/lib/${btriple}
         /usr/local/lib
-        /usr/lib/${btriple}
         /usr/lib
-        /lib/${btriple}
+        /usr/lib/gcc
+        /lib
     )
     set(CMAKE_CROSSCOMPILING_EMULATOR /usr/bin/qemu-arm-static -L ${sysroot} CACHE INTERNAL "")
 else()
