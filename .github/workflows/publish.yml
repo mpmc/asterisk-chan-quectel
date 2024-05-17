@@ -184,6 +184,9 @@ jobs:
           - target: ramips-mt7620
             arch: mipsel
             cpu-type: 24kc
+          - target: ath79-nand
+            arch: mips
+            cpu-type: 24kc
           - target: bcm47xx-generic
             arch: mipsel
             cpu-type: mips32
