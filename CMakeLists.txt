@@ -31,13 +31,6 @@ INCLUDE(cmake/asterisk-version-num.cmake)
 INCLUDE(cmake/clang-format.cmake)
 
 #
-# clang-format executable
-# expected version: 18
-#
-SET(CLANG_FORMAT CLANG_FORMAT-NOTFOUND CACHE FILEPATH "C/C++/Java/JavaScript/JSON/Objective-C/Protobuf/C# code formatter")
-ClangFormatFindAndCheck(18)
-
-#
 #
 # CHAN_SOURCE_VERSION = git hash
 # CHAN_SOURCE_TS = timestamp of ${CHAN_SOURCE_VERSION}
@@ -93,6 +86,15 @@ ELSE()
     IF(EXISTS ${CMAKE_SOURCE_DIR}/pkg-vars.cmake)
         INCLUDE(${CMAKE_SOURCE_DIR}/pkg-vars.cmake)
     ENDIF()
+ENDIF()
+
+#
+# clang-format executable
+# expected version: 18
+#
+IF(IS_GIT_REPO)
+    SET(CLANG_FORMAT CLANG_FORMAT-NOTFOUND CACHE FILEPATH "C/C++/Java/JavaScript/JSON/Objective-C/Protobuf/C# code formatter")
+    ClangFormatFindAndCheck(18)
 ENDIF()
 
 IF(NOT(DEFINED CHAN_VER_MAJOR AND DEFINED CHAN_VER_MINOR AND DEFINED CHAN_VER_PATCH AND DEFINED CHAN_VER_TWEAK))
@@ -205,7 +207,9 @@ IF(BUILD_CHAN_QUECTEL_BINARY)
     ELSE()
         FIND_PATH(AST_HEADERS_SUBDIR NAMES buildopts.h PATH_SUFFIXES asterisk NO_CACHE REQUIRED)
     ENDIF()
-    ShowAstBuildOptSum(${AST_HEADERS_SUBDIR})
+    IF(IS_GIT_REPO)
+        ShowAstBuildOptSum(${AST_HEADERS_SUBDIR})
+    ENDIF()
 
     CHECK_INCLUDE_FILES("stdarg.h;asterisk.h;asterisk/frame.h" HAVE_ASTERISK_FRAME_H)
     CHECK_SYMBOL_EXISTS(AST_CONTROL_SRCCHANGE "stdarg.h;asterisk.h;asterisk/frame.h" HAVE_AST_CONTROL_SRCCHANGE)
