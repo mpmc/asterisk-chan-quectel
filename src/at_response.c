@@ -1713,7 +1713,7 @@ static int at_response_msg(struct pvt* const pvt, const struct ast_str* const re
             RAII_VAR(struct ast_str*, fullmsg, ast_str_create(MSG_DEF_LEN), ast_free);
             if (udh.parts > 1) {
                 ast_verb(2, "[%s][SMS:%d PART:%d/%d TS:%s] Got message part from %s: [%s]\n", PVT_ID(pvt), (int)udh.ref, (int)udh.order, (int)udh.parts, scts,
-                         ast_str_buffer(oa), tmp_esc_str(msg));
+                         ast_str_buffer(oa), ast_str_buffer(msg));
                 int csms_cnt = smsdb_put(pvt->imsi, ast_str_buffer(oa), udh.ref, udh.parts, udh.order, ast_str_buffer(msg), &fullmsg);
                 if (csms_cnt <= 0) {
                     ast_log(LOG_ERROR, "[%s][SMS:%d PART:%d/%d TS:%s] Error putting message part to database\n", PVT_ID(pvt), (int)udh.ref, (int)udh.order,
@@ -1737,7 +1737,7 @@ receive_as_is:
                 msg_ack      = TRIBOOL_TRUE;
                 msg_ack_uid  = (int)udh.ref;
                 msg_complete = 1;
-                ast_verb(2, "[%s][SMS:%d TS:%s] Got message part from %s: [%s]\n", PVT_ID(pvt), (int)udh.ref, scts, ast_str_buffer(oa), tmp_esc_str(msg));
+                ast_verb(2, "[%s][SMS:%d TS:%s] Got message part from %s: [%s]\n", PVT_ID(pvt), (int)udh.ref, scts, ast_str_buffer(oa), ast_str_buffer(msg));
                 ast_str_copy_string(&fullmsg, msg);
             }
 
@@ -1753,7 +1753,7 @@ receive_as_is:
 
             if (ast_str_strlen(fullmsg)) {
                 ast_verb(1, "[%s][SMS:%d PARTS:%d TS:%s] Got message from %s: [%s]\n", PVT_ID(pvt), (int)udh.ref, (int)udh.parts, scts, ast_str_buffer(oa),
-                         tmp_esc_str(fullmsg));
+                         ast_str_buffer(fullmsg));
 
                 ast_json_object_set(sms, "msg", ast_json_string_create(ast_str_buffer(fullmsg)));
             } else {
