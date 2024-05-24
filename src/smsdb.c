@@ -202,19 +202,22 @@ static void commit_transaction(int res)
     RAII_VAR(int, varname, begin_transaction(), commit_transaction); \
     if (varname != SQLITE_OK) return -1;
 
-static void stmt_begin(sqlite3_stmt* stmt)
+static sqlite3_stmt* stmt_begin(int level, const char* file, int line, const char* function, sqlite3_stmt* const stmt)
 {
     if (!stmt) {
-        return;
+        ast_log(level, file, line, function, "Trying to begin uninitialized statement\n");
+        return NULL;
     }
 
     const int res = sqlite3_clear_bindings(stmt);
     if (res != SQLITE_OK) {
-        ast_log(LOG_WARNING, "Fail to clear bindings: [%d] %s\n", res, sqlite3_errmsg(smsdb));
+        ast_log(level, file, line, function, "Fail to clear bindings: [%d] %s\n", res, sqlite3_errmsg(smsdb));
     }
+
+    return stmt;
 }
 
-static void stmt_end(sqlite3_stmt* stmt)
+static void stmt_end(int level, const char* file, int line, const char* function, sqlite3_stmt* const stmt)
 {
     if (!stmt) {
         return;
@@ -222,11 +225,14 @@ static void stmt_end(sqlite3_stmt* stmt)
 
     const int res = sqlite3_reset(stmt);
     if (res != SQLITE_OK) {
-        ast_log(LOG_ERROR, "Fail to reset statement: [%d] %s\n", res, sqlite3_errmsg(smsdb));
+        ast_log(level, file, line, function, "Fail to reset statement: [%d] %s\n", res, sqlite3_errmsg(smsdb));
     }
 }
 
-#define SCOPED_STMT(s) SCOPED_LOCK(s, s##_stmt, stmt_begin, stmt_end)
+#define SCOPED_STMT(s)                                                       \
+    auto void _stmt_dtor_##s(sqlite3_stmt* const*);                          \
+    void _stmt_dtor_##s(sqlite3_stmt* const* s) { stmt_end(LOG_ERROR, *s); } \
+    sqlite3_stmt* const s __attribute__((cleanup(_stmt_dtor_##s))) = stmt_begin(LOG_WARNING, s##_stmt)
 
 static sqlite3_mutex* db_lock(sqlite3* db)
 {
@@ -534,8 +540,10 @@ int smsdb_put(const char* id, const char* addr, int ref, int parts, int order, c
         return res;
     }
 
-    if (get_incmsg_cnt(fullkey) == parts) {
-        if ((res = get_incmsg(fullkey, out)) >= 0) {
+    if ((res = get_incmsg_cnt(fullkey)) == parts) {
+        if (get_incmsg(fullkey, out)) {
+            ast_str_reset(*out);
+        } else {
             del_incmsg(fullkey);
         }
     }
