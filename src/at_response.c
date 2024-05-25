@@ -312,6 +312,7 @@ static int at_response_ok(struct pvt* const pvt, const at_res_t at_res, const at
             break;
 
         case CMD_AT_CREG:
+        case CMD_AT_CEREG:
             at_ok_response_dbg(1, pvt, ecmd, "Registration query sent");
             break;
 
@@ -2188,12 +2189,19 @@ static int at_response_creg(struct pvt* const pvt, const struct ast_str* const r
             }
         }
         // #endif
-        pvt->gsm_registered = 1;
-        ast_string_field_set(pvt, location_area_code, lac);
-        ast_string_field_set(pvt, cell_id, ci);
 
-        ast_verb(1, "[%s] Location area code: %s\n", PVT_ID(pvt), S_OR(lac, ""));
-        ast_verb(1, "[%s] Cell ID: %s\n", PVT_ID(pvt), S_OR(ci, ""));
+        pvt->gsm_registered = 1;
+        if (pvt->is_simcom && act >= 0) {
+            pvt_set_act(pvt, act);
+        }
+        if (lac) {
+            ast_string_field_set(pvt, location_area_code, lac);
+            ast_verb(1, "[%s] Location area code: %s\n", PVT_ID(pvt), S_OR(lac, ""));
+        }
+        if (ci) {
+            ast_string_field_set(pvt, cell_id, ci);
+            ast_verb(1, "[%s] Cell ID: %s\n", PVT_ID(pvt), S_OR(ci, ""));
+        }
     } else {
         pvt->gsm_registered = 0;
         ast_string_field_set(pvt, location_area_code, NULL);
@@ -2836,11 +2844,9 @@ int at_response(struct pvt* const pvt, const struct ast_str* const response, con
 #endif
 
         case RES_CREG:
+        case RES_CEREG:
             /* An error here is not fatal. Just keep going. */
             at_response_creg(pvt, response);
-            return 0;
-
-        case RES_CEREG:
             return 0;
 
         case RES_COPS:

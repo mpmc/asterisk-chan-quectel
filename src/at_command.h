@@ -57,7 +57,7 @@
     _(AT_CREG, "AT+CREG?")                          \
     _(AT_CREG_INIT, "AT+CREG=")                     \
     _(AT_CEREG, "AT+CEREG?")                        \
-    _(AT_CEREG_INIT, "AT+CREG=")                    \
+    _(AT_CEREG_INIT, "AT+CEREG=")                   \
     _(AT_CSCS, "AT+CSCS")                           \
     _(AT_CSQ, "AT+CSQ")                             \
     _(AT_AUTOCSQ_INIT, "AT+AUTOCSQ=")               \

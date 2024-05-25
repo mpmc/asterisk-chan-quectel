@@ -352,7 +352,8 @@ int at_enqueue_initialization_simcom(struct cpvt* cpvt)
     DECLARE_AT_CMD(cpcmreg, "+CPCMREG?");
     DECLARE_AT_CMD(clcc_1, "+CLCC=1");
     DECLARE_AT_CMD(cnsmod_1, "+CNSMOD=1");
-    DECLARE_AT_CMD(creg_init, "+CREG=2");
+    DECLARE_AT_CMD(cereg_init, "+CEREG=2");
+    DECLARE_AT_CMD(cereg_query, "+CEREG?");
     DECLARE_AT_CMD(autocsq_init, "+AUTOCSQ=1,1");
     DECLARE_AT_CMD(exunsol_init, "+EXUNSOL=\"SQ\",1");
     DECLARE_AT_CMD(clts_init, "+CLTS=1");
@@ -373,7 +374,8 @@ int at_enqueue_initialization_simcom(struct cpvt* cpvt)
         ATQ_CMD_DECLARE_STI(CMD_AT_CICCID, ciccid),
         ATQ_CMD_DECLARE_STI(CMD_AT_CPCMREG, cpcmreg),
         ATQ_CMD_DECLARE_ST(CMD_AT_CLCC, clcc_1),
-        ATQ_CMD_DECLARE_ST(CMD_AT_CREG_INIT, creg_init),
+        ATQ_CMD_DECLARE_STI(CMD_AT_CEREG_INIT, cereg_init),
+        ATQ_CMD_DECLARE_STI(CMD_AT_CEREG, cereg_query),
         ATQ_CMD_DECLARE_STI(CMD_AT_CNSMOD_1, cnsmod_1),
         ATQ_CMD_DECLARE_STI(CMD_AT_AUTOCSQ_INIT, autocsq_init),
         ATQ_CMD_DECLARE_STI(CMD_AT_EXUNSOL_INIT, exunsol_init),
