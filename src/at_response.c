@@ -363,7 +363,7 @@ static int at_response_ok(struct pvt* const pvt, const at_res_t at_res, const at
             break;
 
         case CMD_AT_CSSN:
-            at_ok_response_dbg(1, pvt, ecmd, "Supplementary Service Notification enabled");
+            at_ok_response_dbg(1, pvt, ecmd, "Supplementary Service Notification disabled");
             break;
 
         case CMD_AT_CMGF:

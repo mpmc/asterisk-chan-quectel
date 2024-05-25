@@ -158,7 +158,7 @@ int at_enqueue_initialization(struct cpvt* cpvt)
     DECLARE_AT_CMD(creg, "+CREG?");
     DECLARE_AT_CMD(cnum, "+CNUM");
 
-    DECLARE_AT_CMD(cssn, "+CSSN=1,1");
+    DECLARE_AT_CMD(cssn, "+CSSN=0,0");
     DECLARE_AT_CMD(cmgf, "+CMGF=0");
     DECLARE_AT_CMD(cscs, "+CSCS=\"UCS2\"");
 
