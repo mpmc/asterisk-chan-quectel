@@ -374,13 +374,8 @@ static int db_open_url(const char* url)
 {
     //
     // sqlite3_open_v2 function have been introduced in version 3.5.0 (2007-09-04) of SQLite
-    // SQLITE_OPEN_NOFOLLOW flag have been introduced in version 3.31.0 (2020-01-22) of SQLite
     //
-#if SQLITE_VERSION_NUMBER >= 3031000
-    const int res = sqlite3_open_v2(url, &smsdb, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_NOFOLLOW, NULL);
-#else
     const int res = sqlite3_open_v2(url, &smsdb, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX, NULL);
-#endif
     if (res != SQLITE_OK) {
         ast_log(LOG_WARNING, "Unable to open database '%s': [%d] %s\n", url, res, sqlite3_errmsg(smsdb));
         sqlite3_close(smsdb);
