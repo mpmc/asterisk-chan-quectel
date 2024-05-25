@@ -571,7 +571,7 @@ static char* cli_sms_delete(struct ast_cli_entry* e, int cmd, struct ast_cli_arg
             return NULL;
     }
 
-    if (a->argc < 4) {
+    if (a->argc < 5) {
         return CLI_SHOWUSAGE;
     }
 
