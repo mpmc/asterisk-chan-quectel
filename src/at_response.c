@@ -143,73 +143,6 @@ static void request_clcc(struct pvt* pvt)
 
 static int at_response_cmgs_error(struct pvt*, const at_queue_task_t* const);
 
-#ifdef HANDLE_RCEND
-static int at_response_rcend(struct pvt* pvt)
-{
-    int call_index        = 0;
-    unsigned int duration = 0;
-    int end_status        = 0;
-    int cc_cause          = 0;
-    struct cpvt* cpvt;
-
-    cpvt = active_cpvt(pvt);
-    if (cpvt) {
-        if (CPVT_IS_SOUND_SOURCE(cpvt)) {
-            at_enqueue_cpcmreg(&pvt->sys_chan, 0);
-        }
-        call_index = cpvt->call_idx;
-        ast_debug(1, "[%s] CEND: call_index %d duration %d end_status %d cc_cause %d Line disconnected\n", PVT_ID(pvt), call_index, duration, end_status,
-                  cc_cause);
-        CPVT_RESET_FLAG(cpvt, CALL_FLAG_NEED_HANGUP);
-        PVT_STAT(pvt, calls_duration[cpvt->dir]) += duration;
-        change_channel_state(cpvt, CALL_STATE_RELEASED, cc_cause);
-    }
-
-    return 0;
-}
-#endif
-
-#ifdef HANDLE_CEND
-static int at_response_cend(struct pvt* const pvt, const char* str)
-{
-    int call_index = 0;
-    int duration   = 0;
-    int end_status = 0;
-    int cc_cause   = 0;
-    struct cpvt* cpvt;
-
-    request_clcc(pvt);
-
-    /*
-     * parse CEND info in the following format:
-     * ^CEND:<call_index>,<duration>,<end_status>[,<cc_cause>]
-     */
-
-    if (sscanf(str, "VOICE CALL: END: %d", &duration) != 1) {
-        ast_debug(1, "[%s] Could not parse all CEND parameters\n", PVT_ID(pvt));
-        return 0;
-    }
-
-    ast_debug(1, "[%s] CEND: call_index %d duration %d end_status %d cc_cause %d Line disconnected\n", PVT_ID(pvt), call_index, duration, end_status, cc_cause);
-
-
-    cpvt = active_cpvt(pvt);
-    if (cpvt) {
-        at_enqueue_cpcmreg(&pvt->sys_chan, 0);
-        call_index = cpvt->call_idx;
-        ast_debug(1, "[%s] CEND: call_index %d duration %d end_status %d cc_cause %d Line disconnected\n", PVT_ID(pvt), call_index, duration, end_status,
-                  cc_cause);
-        CPVT_RESET_FLAG(cpvt, CALL_FLAG_NEED_HANGUP);
-        PVT_STAT(pvt, calls_duration[cpvt->dir]) += duration;
-        change_channel_state(cpvt, CALL_STATE_RELEASED, cc_cause);
-    } else {
-        ast_log(LOG_ERROR, "[%s] CEND event for unknown call idx '%d'\n", PVT_ID(pvt), call_index);
-    }
-
-    return 0;
-}
-#endif
-
 static void __attribute__((format(printf, 7, 8))) at_ok_response_log(int level, const char* file, int line, const char* function, const struct pvt* const pvt,
                                                                      const at_queue_cmd_t* const ecmd, const char* const fmt, ...)
 {
@@ -2810,6 +2743,8 @@ int at_response(struct pvt* const pvt, const struct ast_str* const response, con
         case RES_CPMS:
         case RES_CONF:
         case RES_DST:
+        case RES_VOICE_CALL:
+        case RES_RCEND:
             return 0;
 
         case RES_OK:
@@ -2828,20 +2763,6 @@ int at_response(struct pvt* const pvt, const struct ast_str* const response, con
 
         case RES_DSCI:
             return at_response_dsci(pvt, response);
-
-        case RES_CEND:
-#ifdef HANDLE_CEND
-            return at_response_cend(pvt, str);
-#else
-            return 0;
-#endif
-
-        case RES_RCEND:
-#ifdef HANDLE_RCEND
-            return at_response_rcend(pvt);
-#else
-            return 0;
-#endif
 
         case RES_CREG:
         case RES_CEREG:

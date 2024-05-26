@@ -36,7 +36,7 @@ struct iovec;
     /* and "ERROR+CNUM:", hacked later on */           \
                                                        \
     _(DSCI, "^DSCI", "^DSCI:")                         \
-    _(CEND, "^CEND", "VOICE CALL:")                    \
+    _(VOICE_CALL, "VOICE CALL", "VOICE CALL:")         \
     _(CPIN, "+CPIN", "+CPIN:")                         \
                                                        \
     _(CREG, "+CREG", "+CREG:")                         \
