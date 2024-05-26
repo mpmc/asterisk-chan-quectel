@@ -9,6 +9,7 @@
    bg <bg_one@mail.ru>
 */
 #include <alsa/global.h>
+#include <alsa/version.h>
 #include <sqlite3.h>
 
 #include "ast_config.h"
@@ -366,8 +367,10 @@ static char* cli_show_version(struct ast_cli_entry* e, int cmd, struct ast_cli_a
         return CLI_SHOWUSAGE;
     }
 
-    ast_cli(a->fd, "\n%s: %s, Version %s, Revision %s\nProject Home: %s\nBug Reporting: %s\nALSA version: %s, SQLite version: %s\n\n", AST_MODULE,
-            MODULE_DESCRIPTION, MODULE_VERSION, PACKAGE_REVISION, MODULE_URL, MODULE_BUGREPORT, snd_asoundlib_version(), sqlite3_libversion());
+    ast_cli(a->fd,
+            "\n" AST_MODULE ": " MODULE_DESCRIPTION ", Version " MODULE_VERSION ", Revision " PACKAGE_REVISION "\nProject Home: " MODULE_URL
+            "\nBug Reporting: " MODULE_BUGREPORT "\nALSA version: %s [" SND_LIB_VERSION_STR "], SQLite version: %s [" SQLITE_VERSION "]\n\n",
+            snd_asoundlib_version(), sqlite3_libversion());
 
     return CLI_SUCCESS;
 }
