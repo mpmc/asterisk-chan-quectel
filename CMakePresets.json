@@ -43,6 +43,10 @@
           "type": "STRING",
           "value": "Undefined"
         },
+        "CPACK_PACKAGE_MAINTAINER": {
+          "type": "STRING",
+          "value": "Edmunt Pienkowsky"
+        },
         "CPACK_SET_DESTDIR": {
           "type": "BOOL",
           "value": true
