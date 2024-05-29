@@ -158,11 +158,17 @@ IF(BUILD_CHAN_QUECTEL_BINARY)
     SET(ICONV_T iconv_t CACHE STRING "iconv type")
     SET(AST_MODULE chan_quectel)
 
+    INCLUDE(CheckPIESupported)
     INCLUDE(CheckIncludeFile)
     INCLUDE(CheckIncludeFiles)
     INCLUDE(CheckSymbolExists)
 
     SET(CMAKE_REQUIRED_DEFINITIONS "-DAST_MODULE_SELF_SYM=__internal_chan_quectel_self")
+
+    CHECK_PIE_SUPPORTED(OUTPUT_VARIABLE PIE_DETAILS LANGUAGES C)
+    IF(NOT CMAKE_C_LINK_PIE_SUPPORTED)
+        MESSAGE(WARNING "PIE is not supported at link time: ${PIE_DETAILS}")
+    ENDIF()
 
     ADD_LIBRARY(AsteriskModule INTERFACE)
     TARGET_COMPILE_DEFINITIONS(AsteriskModule INTERFACE "AST_MODULE_SELF_SYM=__internal_chan_quectel_self")
@@ -305,7 +311,11 @@ IF(BUILD_CHAN_QUECTEL_BINARY)
         SET(CPACK_DEBIAN_PACKAGE_SECTION comm)
         SET(CPACK_DEBIAN_PACKAGE_PRIORITY optional)
         SET(CPACK_DEBIAN_PACKAGE_RECOMMENDS "usb-modeswitch")
-        SET(CPACK_DEBIAN_PACKAGE_ENHANCES "asterisk")
+        IF(${ASTERISK_VERSION_NUM} LESS 170000)
+            SET(CPACK_DEBIAN_PACKAGE_ENHANCES "asterisk16")
+        ELSE()
+            SET(CPACK_DEBIAN_PACKAGE_ENHANCES "asterisk")
+        ENDIF()
 
         FILE(COPY cpack/deb DESTINATION cpack
             FILE_PERMISSIONS OWNER_WRITE OWNER_READ GROUP_READ WORLD_READ

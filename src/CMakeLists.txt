@@ -28,6 +28,7 @@ TARGET_LINK_LIBRARIES(asterisk-chan-quectel PRIVATE
 SET_TARGET_PROPERTIES(asterisk-chan-quectel PROPERTIES
     LIBRARY_OUTPUT_NAME ${AST_MODULE}
     PREFIX ""
+    POSITION_INDEPENDENT_CODE ON
 )
 
 TARGET_COMPILE_OPTIONS(asterisk-chan-quectel PRIVATE
@@ -40,11 +41,20 @@ TARGET_LINK_OPTIONS(asterisk-chan-quectel PRIVATE
     $<$<BOOL:${LINKER_TRACE}>:-Wl,--trace>
 )
 
-INSTALL(
-    TARGETS asterisk-chan-quectel
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/asterisk/modules
-    COMPONENT chan-quectel
-)
+IF(CMAKE_LIBRARY_ARCHITECTURE)
+    MESSAGE(STATUS "Installing module on architecture-specific directory - lib/${CMAKE_LIBRARY_ARCHITECTURE}/asterisk/modules")
+    INSTALL(
+        TARGETS asterisk-chan-quectel
+        DESTINATION lib/${CMAKE_LIBRARY_ARCHITECTURE}/asterisk/modules
+        COMPONENT chan-quectel
+    )
+ELSE()
+    INSTALL(
+        TARGETS asterisk-chan-quectel
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/asterisk/modules
+        COMPONENT chan-quectel
+    )
+ENDIF()
 
 # install configuration file
 INSTALL(
