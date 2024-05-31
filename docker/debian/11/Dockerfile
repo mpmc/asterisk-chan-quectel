@@ -107,7 +107,7 @@ RUN --network=none task -d /build/task.d/ninja-build configure build install
 FROM base as chan-quectel-base
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    task -d /build/task.d/deb install-pkgs -- git
+    task -d /build/task.d/deb install-pkgs -- git lintian
 COPY --from=task chan-quectel /build/task.d/chan-quectel
 COPY --from=cmake --link --chown=root:root /build/install/ /
 COPY --from=ninja-build --link --chown=root:root /build/install /
@@ -151,9 +151,13 @@ apt-get -qq install -y --no-install-recommends asterisk-dev
 EOF
 
 FROM chan-quectel-base AS chan-quectel-rpi-base
+ARG CC_TARGET
+ARG CC_TOOLCHAIN
+
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    task -d /build/task.d/deb install-pkgs -- qemu-user-static
+    task -d /build/task.d/deb install-pkgs-arch -- qemu-user-static \
+    libsqlite3-dev:${CC_TARGET} libasound2-dev:${CC_TARGET}
 COPY --from=task rpi /build/task.d/rpi
 RUN --network=none --mount=type=bind,from=rpi-debian-asterisk-dev,target=/build/cache task -d /build/task.d/rpi asterisk-headers
 RUN --network=none --mount=type=bind,from=rpi-debian,target=/build/cache task -d /build/task.d/rpi sysroot

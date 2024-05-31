@@ -88,7 +88,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 FROM base AS chan-quectel-base
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    task -d /build/task.d/deb install-pkgs -- git
+    task -d /build/task.d/deb install-pkgs -- git lintian
 COPY --from=cmake --link --chown=root:root /build/install/ /
 COPY --from=ninja-build --link --chown=root:root /build/install /
 COPY --from=task chan-quectel /build/task.d/chan-quectel

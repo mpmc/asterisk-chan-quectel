@@ -301,7 +301,8 @@ IF(BUILD_CHAN_QUECTEL_BINARY)
         SET(CPACK_STRIP_FILES ON)
         SET(CPACK_THREADS 0)
         SET(CPACK_ARCHIVE_THREADS 0)
-        SET(CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS_POLICY ">=")
+        LIST(APPEND CPACK_POST_BUILD_SCRIPTS "${CMAKE_CURRENT_SOURCE_DIR}/cpack/post-build-deb-info.cmake")
+        LIST(APPEND CPACK_POST_BUILD_SCRIPTS "${CMAKE_CURRENT_SOURCE_DIR}/cpack/post-build-lintian.cmake")
 
         IF(NOT DEFINED CPACK_GENERATOR)
             SET(CPACK_GENERATOR TGZ DEB)
@@ -314,15 +315,17 @@ IF(BUILD_CHAN_QUECTEL_BINARY)
             SET(CPACK_DEBIAN_PACKAGE_MAINTAINER "${CPACK_PACKAGE_VENDOR} <${CPACK_PACKAGE_CONTACT}>")
         ENDIF()
         SET(CPACK_DEBIAN_PACKAGE_CONTROL_STRICT_PERMISSION ON)
-        SET(CPACK_DEBIAN_PACKAGE_DEPENDS "libasound2, libsqlite3-0, asterisk")
         SET(CPACK_DEBIAN_PACKAGE_SECTION comm)
         SET(CPACK_DEBIAN_PACKAGE_PRIORITY optional)
         SET(CPACK_DEBIAN_PACKAGE_RECOMMENDS "usb-modeswitch")
         IF(${ASTERISK_VERSION_NUM} LESS 170000)
-            SET(CPACK_DEBIAN_PACKAGE_ENHANCES "asterisk16")
+            SET(CPACK_DEBIAN_PACKAGE_DEPENDS asterisk16)
+            SET(CPACK_DEBIAN_PACKAGE_ENHANCES asterisk16)
         ELSE()
-            SET(CPACK_DEBIAN_PACKAGE_ENHANCES "asterisk")
+            SET(CPACK_DEBIAN_PACKAGE_DEPENDS asterisk)
+            SET(CPACK_DEBIAN_PACKAGE_ENHANCES asterisk)
         ENDIF()
+        SET(CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS_POLICY ">=")
 
         FILE(COPY cpack/deb DESTINATION cpack
             FILE_PERMISSIONS OWNER_WRITE OWNER_READ GROUP_READ WORLD_READ
@@ -334,7 +337,17 @@ IF(BUILD_CHAN_QUECTEL_BINARY)
             SET(CPACK_SOURCE_GENERATOR TGZ)
         ENDIF()
         SET(CPACK_SOURCE_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}_${CHAN_VER_FSTR}_src")
-        SET(CPACK_SOURCE_IGNORE_FILES "/build/;/install/;/package/;/test/;/tools/;/\.vscode/;/\.git/;/\.gitignore;/\.gitattributes")
+        SET(CPACK_SOURCE_IGNORE_FILES
+            "/build/"
+            "/install/"
+            "/package/"
+            "/test/"
+            "/tools/"
+            "/\.vscode/"
+            "/\.git/"
+            "/\.gitignore"
+            "/\.gitattributes"
+        )
 
         INCLUDE(CPack)
     ENDIF()
