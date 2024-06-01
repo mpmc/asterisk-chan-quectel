@@ -40,7 +40,7 @@ DECLARE_AT_CMD(chld2, "+CHLD=2");
  * \return a string describing the given command
  */
 
-const char* attribute_const at_cmd2str(at_cmd_t cmd)
+const char* at_cmd2str(at_cmd_t cmd)
 {
     static const char* const cmds[] = {AT_COMMANDS_TABLE(AT_CMD_AS_STRING)};
 
@@ -1218,7 +1218,7 @@ static int at_enqueue_msg_ack_n(struct cpvt *cpvt, int n, int uid)
 }
 #endif
 
-static int attribute_const map_hangup_cause(int hangup_cause)
+static int map_hangup_cause(int hangup_cause)
 {
     switch (hangup_cause) {
         // list of supported cause codes

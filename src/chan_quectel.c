@@ -70,9 +70,9 @@ static const char* const dev_state_strs[4] = {"stop", "restart", "remove", "star
 
 public_state_t* gpublic;
 
-const char* attribute_const dev_state2str(dev_state_t state) { return enum2str(state, dev_state_strs, ARRAY_LEN(dev_state_strs)); }
+const char* dev_state2str(dev_state_t state) { return enum2str(state, dev_state_strs, ARRAY_LEN(dev_state_strs)); }
 
-dev_state_t attribute_const str2dev_state(const char* str)
+dev_state_t str2dev_state(const char* str)
 {
     if (!str) {
         return DEV_STATE_STOPPED;
@@ -86,7 +86,7 @@ dev_state_t attribute_const str2dev_state(const char* str)
     }
 }
 
-const char* attribute_const dev_state2str_msg(dev_state_t state)
+const char* dev_state2str_msg(dev_state_t state)
 {
     static const char* const states[] = {"Stop scheduled", "Restart scheduled", "Removal scheduled", "Start scheduled"};
     return enum2str(state, states, ARRAY_LEN(states));
@@ -1377,7 +1377,7 @@ const struct ast_format* pvt_get_audio_format(const struct pvt* const pvt)
     }
 }
 
-static attribute_const size_t pvt_get_audio_frame_size_r(unsigned int ptime, const unsigned int sr)
+static size_t pvt_get_audio_frame_size_r(unsigned int ptime, const unsigned int sr)
 {
     size_t res  = ptime;
     res        *= sr / 1000;

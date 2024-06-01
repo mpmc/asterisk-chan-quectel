@@ -36,17 +36,17 @@ typedef enum {
     MESSAGE_STORAGE_SR,
 } message_storage_t;
 
-const char* attribute_const dc_cw_setting2str(call_waiting_t);
+const char* dc_cw_setting2str(call_waiting_t);
 
-tristate_bool_t attribute_const dc_str23stbool(const char*);
-int attribute_const dc_str23stbool_ex(const char*, tristate_bool_t*, const char*);
+tristate_bool_t dc_str23stbool(const char*);
+int dc_str23stbool_ex(const char*, tristate_bool_t*, const char*);
 
-const char* attribute_const dc_3stbool2str(int);
-const char* attribute_const dc_3stbool2str_ex(int, const char*);
-const char* attribute_const dc_3stbool2str_capitalized(int);
+const char* dc_3stbool2str(int);
+const char* dc_3stbool2str_ex(int, const char*);
+const char* dc_3stbool2str_capitalized(int);
 
-message_storage_t attribute_const dc_str2msgstor(const char*);
-const char* attribute_const dc_msgstor2str(message_storage_t);
+message_storage_t dc_str2msgstor(const char*);
+const char* dc_msgstor2str(message_storage_t);
 
 /*
  Config API

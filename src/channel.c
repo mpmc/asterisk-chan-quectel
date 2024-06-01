@@ -183,7 +183,7 @@ static struct ast_channel* channel_request(attribute_unused const char* type, st
     return channel;
 }
 
-static int attribute_const get_at_clir_value(const int clir)
+static int get_at_clir_value(const int clir)
 {
     int res = 0;
 
@@ -369,7 +369,7 @@ static int channel_digit_begin(struct ast_channel* channel, char digit)
 
 static int channel_digit_end(attribute_unused struct ast_channel* channel, attribute_unused char digit, attribute_unused unsigned int duration) { return 0; }
 
-static ssize_t attribute_const get_iov_total_len(const struct iovec* const iov, int iovcnt)
+static ssize_t get_iov_total_len(const struct iovec* const iov, int iovcnt)
 {
     ssize_t len = 0;
 

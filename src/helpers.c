@@ -525,7 +525,7 @@ static char* escape_c(char* dest, const char* s, size_t size)
     return dest;
 }
 
-size_t attribute_const get_esc_str_buffer_size(size_t len) { return (len * 2u) + 1u; }
+size_t get_esc_str_buffer_size(size_t len) { return (len * 2u) + 1u; }
 
 struct ast_str* escape_nstr(const char* buf, size_t cnt)
 {
@@ -596,7 +596,7 @@ const char* escape_str_ex(struct ast_str* ebuf, const struct ast_str* const str)
 
 #/* */
 
-const char* attribute_const gsm_regstate2str(int gsm_reg_status)
+const char* gsm_regstate2str(int gsm_reg_status)
 {
     static const char* const gsm_states[] = {
         "Not registered, not searching", "Registered, home network", "Not registered, but searching", "Registration denied", "Unknown", "Registered, roaming",
@@ -604,7 +604,7 @@ const char* attribute_const gsm_regstate2str(int gsm_reg_status)
     return enum2str_def(gsm_reg_status, gsm_states, ARRAY_LEN(gsm_states), "Unknown");
 }
 
-const char* attribute_const gsm_regstate2str_json(int gsm_reg_status)
+const char* gsm_regstate2str_json(int gsm_reg_status)
 {
     static const char* const gsm_states[] = {
         "not_registered_not_searching", "registered", "not_registered_searching", "registration_denied", "unknown", "registered_roaming",
@@ -614,7 +614,7 @@ const char* attribute_const gsm_regstate2str_json(int gsm_reg_status)
 
 #/* */
 
-const char* attribute_const sys_act2str(int act)
+const char* sys_act2str(int act)
 {
     static const char* const sys_acts[] = {
         "No service",

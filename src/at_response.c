@@ -1173,7 +1173,7 @@ static int at_response_clcc(struct pvt* const pvt, const struct ast_str* const r
     return 0;
 }
 
-static attribute_const unsigned int map_dsci(const unsigned int dsci)
+static unsigned int map_dsci(const unsigned int dsci)
 {
     switch (dsci) {
         case 3u:  // connect
@@ -2388,7 +2388,7 @@ static void at_response_dtmf(struct pvt* const pvt, const struct ast_str* const 
     send_dtmf_frame(pvt, c);
 }
 
-static const char* attribute_const qpcmv2str(int qpcmv)
+static const char* qpcmv2str(int qpcmv)
 {
     const char* const names[3] = {"USB NMEA port", "Debug UART", "USB sound card"};
     return enum2str_def((unsigned)qpcmv, names, ARRAY_LEN(names), "Unknown");

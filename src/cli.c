@@ -737,7 +737,7 @@ CLI_ALIASES(cli_reset, "reset", "reset <device>", "Reset <device>")
 static const char* const a_choices[]  = {"now", "gracefully", "when", NULL};
 static const char* const a_choices2[] = {"convenient", NULL};
 
-static const char* attribute_const restate2str_msg(restate_time_t when)
+static const char* restate2str_msg(restate_time_t when)
 {
     static const char* const choices[] = {"now", "gracefully", "when convenient"};
     return enum2str(when, choices, ARRAY_LEN(choices));

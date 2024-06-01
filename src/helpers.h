@@ -37,7 +37,7 @@ struct ast_str* const gain2str(int);
 int str2gain_simcom(const char*, int*);
 struct ast_str* const gain2str_simcom(int);
 
-size_t attribute_const get_esc_str_buffer_size(size_t);
+size_t get_esc_str_buffer_size(size_t);
 struct ast_str* escape_nstr(const char*, size_t);
 struct ast_str* escape_str(const struct ast_str* const);
 
@@ -62,9 +62,9 @@ const char* escape_str_ex(struct ast_str*, const struct ast_str* const);
     if (s && ast_str_strlen(s)) ast_json_object_set(j, #s, ast_json_string_create(ast_str_buffer(s)));
 
 
-const char* attribute_const gsm_regstate2str(int gsm_reg_status);
-const char* attribute_const gsm_regstate2str_json(int gsm_reg_status);
-const char* attribute_const sys_act2str(int sys_submode);
+const char* gsm_regstate2str(int gsm_reg_status);
+const char* gsm_regstate2str_json(int gsm_reg_status);
+const char* sys_act2str(int sys_submode);
 struct ast_str* rssi2dBm(int rssi);
 
 size_t fd_write_all(int fd, const char* buf, size_t count);

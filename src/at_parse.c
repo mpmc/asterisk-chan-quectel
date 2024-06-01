@@ -59,7 +59,7 @@ static char* trim_blanks(char* str)
     return str;
 }
 
-const char* attribute_const at_qind2str(qind_t qind)
+const char* at_qind2str(qind_t qind)
 {
     static const char* qind_names[] = {"NONE", "CSQ", "ACT", "CCINFO"};
     return enum2str_def(qind, qind_names, ARRAY_LEN(qind_names), "UNK");
@@ -199,7 +199,7 @@ int at_parse_cspn(char* str, char** spn)
     return -1;
 }
 
-static int attribute_const act2int(const char* act)
+static int act2int(const char* act)
 {
     static const struct {
         const char* act;

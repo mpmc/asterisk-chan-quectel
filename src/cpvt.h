@@ -32,7 +32,7 @@ typedef enum {
 
 #define CALL_STATES_NUMBER (CALL_STATE_MAX - CALL_STATE_MIN + 1)
 
-const char* attribute_const call_state2str(call_state_t state);
+const char* call_state2str(call_state_t state);
 
 typedef enum {
     CALL_FLAG_NONE             = 0,

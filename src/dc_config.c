@@ -16,13 +16,13 @@ static const int DEFAULT_CSMS_TTL         = 600;
 
 const static long DEF_DTMF_DURATION = 120;
 
-const char* attribute_const dc_cw_setting2str(call_waiting_t cw)
+const char* dc_cw_setting2str(call_waiting_t cw)
 {
     static const char* const options[] = {"disabled", "allowed", "auto"};
     return enum2str(cw, options, ARRAY_LEN(options));
 }
 
-tristate_bool_t attribute_const dc_str23stbool(const char* str)
+tristate_bool_t dc_str23stbool(const char* str)
 {
     if (!str) {
         return TRIBOOL_NONE;
@@ -37,7 +37,7 @@ tristate_bool_t attribute_const dc_str23stbool(const char* str)
     }
 }
 
-int attribute_const dc_str23stbool_ex(const char* str, tristate_bool_t* res, const char* none_val)
+int dc_str23stbool_ex(const char* str, tristate_bool_t* res, const char* none_val)
 {
     if (!str) {
         return -1;
@@ -63,7 +63,7 @@ int attribute_const dc_str23stbool_ex(const char* str, tristate_bool_t* res, con
     }
 }
 
-static unsigned int attribute_const int23statebool(int v)
+static unsigned int int23statebool(int v)
 {
     if (!v) {
         return 1;
@@ -72,7 +72,7 @@ static unsigned int attribute_const int23statebool(int v)
     }
 }
 
-const char* attribute_const dc_3stbool2str(int v)
+const char* dc_3stbool2str(int v)
 {
     static const char* const strs[] = {"off", "none", "on"};
 
@@ -80,7 +80,7 @@ const char* attribute_const dc_3stbool2str(int v)
     return enum2str_def(b, strs, ARRAY_LEN(strs), "none");
 }
 
-const char* attribute_const dc_3stbool2str_ex(int v, const char* none_val)
+const char* dc_3stbool2str_ex(int v, const char* none_val)
 {
     const char* const strs[] = {"off", S_OR(none_val, "none"), "on"};
 
@@ -88,7 +88,7 @@ const char* attribute_const dc_3stbool2str_ex(int v, const char* none_val)
     return enum2str_def(b, strs, ARRAY_LEN(strs), S_OR(none_val, "none"));
 }
 
-const char* attribute_const dc_3stbool2str_capitalized(int v)
+const char* dc_3stbool2str_capitalized(int v)
 {
     static const char* const strs[] = {"Off", "None", "On"};
 
@@ -114,7 +114,7 @@ static unsigned int parse_on_off(const char* const name, const char* const value
 
 static const char* const msgstor_strs[] = {"AUTO", "SM", "ME", "MT", "SR"};
 
-message_storage_t attribute_const dc_str2msgstor(const char* stor)
+message_storage_t dc_str2msgstor(const char* stor)
 {
     const int res = str2enum(stor, msgstor_strs, ARRAY_LEN(msgstor_strs));
     if (res < 0) {
@@ -123,7 +123,7 @@ message_storage_t attribute_const dc_str2msgstor(const char* stor)
     return (message_storage_t)res;
 }
 
-const char* attribute_const dc_msgstor2str(message_storage_t stor) { return enum2str_def(stor, msgstor_strs, ARRAY_LEN(msgstor_strs), "AUTO"); }
+const char* dc_msgstor2str(message_storage_t stor) { return enum2str_def(stor, msgstor_strs, ARRAY_LEN(msgstor_strs), "AUTO"); }
 
 #/* assume config is zerofill */
 
