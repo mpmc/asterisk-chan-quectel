@@ -308,7 +308,7 @@ int at_parse_qnwinfo(char* str, int* act, int* oper, char** band, int* channel)
  * \retval  0 success
  * \retval -1 parse error
  */
-int at_parse_creg(char* str, int* gsm_reg, int* gsm_reg_status, char** lac, char** ci, int* act)
+int at_parse_creg(char* str, int cereg, int* gsm_reg, int* gsm_reg_status, char** lac, char** ci, int* act)
 {
     char* gsm_reg_str = NULL;
 
@@ -348,12 +348,12 @@ int at_parse_creg(char* str, int* gsm_reg, int* gsm_reg_status, char** lac, char
             marks[1][0] = '\000';
             marks[2][0] = '\000';
             marks[3][0] = '\000';
-            if (marks[1][1] == '"') {
+            if (cereg || marks[1][1] == '"') {
+                act_str     = marks[3] + 1;
                 *ci         = strip_quoted(marks[2] + 1);
                 *lac        = strip_quoted(marks[1] + 1);
                 gsm_reg_str = strip_quoted(marks[0] + 1);
             } else {
-                act_str     = marks[3] + 1;
                 *ci         = strip_quoted(marks[3] + 1);
                 *lac        = strip_quoted(marks[2] + 1);
                 gsm_reg_str = strip_quoted(marks[1] + 1);

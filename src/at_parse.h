@@ -23,7 +23,7 @@ char* at_parse_cops(char* str);
 int at_parse_qspn(char* str, char** fnn, char** snn, char** spn);
 int at_parse_cspn(char*, char**);
 int at_parse_qnwinfo(char* str, int* act, int* oper, char** band, int* channel);
-int at_parse_creg(char* str, int* gsm_reg, int* gsm_reg_status, char** lac, char** ci, int* act);
+int at_parse_creg(char* str, int cereg, int* gsm_reg, int* gsm_reg_status, char** lac, char** ci, int* act);
 int at_parse_cmti(const char* str, int* idx);
 int at_parse_cdsi(const char* str, int* idx);
 int at_parse_cmgr(char* str, size_t len, int* tpdu_type, char* sca, size_t sca_len, char* oa, size_t oa_len, char* scts, int* mr, int* st, char* dt, char* msg,

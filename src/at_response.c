@@ -2091,14 +2091,14 @@ static int at_response_qnwinfo(struct pvt* const pvt, const struct ast_str* cons
  * \retval -1 error
  */
 
-static int at_response_creg(struct pvt* const pvt, const struct ast_str* const response)
+static int at_response_creg(struct pvt* const pvt, int cereg, const struct ast_str* const response)
 {
     int gsm_reg;
     char* lac;
     char* ci;
     int act;
 
-    if (at_parse_creg(ast_str_buffer(response), &gsm_reg, &pvt->gsm_reg_status, &lac, &ci, &act)) {
+    if (at_parse_creg(ast_str_buffer(response), cereg, &gsm_reg, &pvt->gsm_reg_status, &lac, &ci, &act)) {
         ast_log(LOG_ERROR, "[%s] Error parsing CREG: '%s'\n", PVT_ID(pvt), ast_str_buffer(response));
         return 0;
     }
@@ -2765,9 +2765,13 @@ int at_response(struct pvt* const pvt, const struct ast_str* const response, con
             return at_response_dsci(pvt, response);
 
         case RES_CREG:
+            /* An error here is not fatal. Just keep going. */
+            at_response_creg(pvt, 0, response);
+            return 0;
+
         case RES_CEREG:
             /* An error here is not fatal. Just keep going. */
-            at_response_creg(pvt, response);
+            at_response_creg(pvt, 1, response);
             return 0;
 
         case RES_COPS:
