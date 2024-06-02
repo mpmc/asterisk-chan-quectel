@@ -6,8 +6,6 @@
 
 #include <sys/types.h> /* size_t */
 
-#include "char_conv.h" /* str_encoding_t */
-
 /* Message Type Indicator Parameter */
 #define PDUTYPE_MTI_SHIFT 0
 #define PDUTYPE_MTI_SMS_DELIVER (0x00 << PDUTYPE_MTI_SHIFT)
