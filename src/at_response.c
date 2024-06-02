@@ -2979,6 +2979,9 @@ int at_response(struct pvt* const pvt, const struct ast_str* const response, con
                         ast_debug(2, "[%s] Got ICCID number\n", PVT_ID(pvt));
                         return at_response_ccid(pvt, response);
 
+                    case CMD_USER:
+                        return 0;
+
                     default:
                         break;
                 }
