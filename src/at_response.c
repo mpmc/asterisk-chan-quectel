@@ -2011,16 +2011,29 @@ static int at_response_cnum(struct pvt* const pvt, const struct ast_str* const r
 
 static int at_response_cops(struct pvt* const pvt, const struct ast_str* const response)
 {
-    const char* const network_name = at_parse_cops(ast_str_buffer(response));
+    char* network_name;
+    int act;
+
+    if (at_parse_cops(ast_str_buffer(response), &network_name, &act)) {
+        return -1;
+    }
 
     if (ast_strlen_zero(network_name)) {
         ast_string_field_set(pvt, network_name, "NONE");
         ast_verb(2, "[%s] Operator: %s\n", PVT_ID(pvt), pvt->network_name);
-        return -1;
+    } else {
+        ast_string_field_set(pvt, network_name, network_name);
+        ast_verb(1, "[%s] Operator: %s\n", PVT_ID(pvt), pvt->network_name);
     }
 
-    ast_string_field_set(pvt, network_name, network_name);
-    ast_verb(1, "[%s] Operator: %s\n", PVT_ID(pvt), pvt->network_name);
+    if (act >= 0) {
+        const int mact = map_creg_act(act);
+        if (mact >= 0) {
+            ast_verb(1, "[%s] Access technology: %s [%d]\n", PVT_ID(pvt), sys_act2str(mact), act);
+            pvt_set_act(pvt, mact);
+        }
+    }
+
     return 0;
 }
 
@@ -2124,9 +2137,14 @@ static int at_response_creg(struct pvt* const pvt, int cereg, const struct ast_s
         // #endif
 
         pvt->gsm_registered = 1;
-        if (pvt->is_simcom && act >= 0) {
-            pvt_set_act(pvt, act);
+        if (act >= 0) {
+            const int mact = map_creg_act(act);
+            if (mact >= 0) {
+                ast_verb(1, "[%s] Access technology: %s [%d]\n", PVT_ID(pvt), sys_act2str(mact), act);
+                pvt_set_act(pvt, mact);
+            }
         }
+
         if (lac) {
             ast_string_field_set(pvt, location_area_code, lac);
             ast_verb(1, "[%s] Location area code: %s\n", PVT_ID(pvt), S_OR(lac, ""));
@@ -2137,6 +2155,7 @@ static int at_response_creg(struct pvt* const pvt, int cereg, const struct ast_s
         }
     } else {
         pvt->gsm_registered = 0;
+        pvt_set_act(pvt, 0);
         ast_string_field_set(pvt, location_area_code, NULL);
         ast_string_field_set(pvt, cell_id, NULL);
     }

@@ -95,49 +95,54 @@ char* at_parse_cnum(char* str)
     return strip_quoted(marks[1] + 1);
 }
 
-/*!
- * \brief Parse a COPS response
- * \param str -- string to parse (null terminated)
- * \param len -- string lenght
- * @note str will be modified when the COPS message is parsed
- * \return NULL on error (parse error) or a pointer to the provider name
- */
-char* at_parse_cops(char* str)
+int at_parse_cops(char* str, char** oper, int* act)
 {
+    *oper               = NULL;
+    *act                = -1;
+    const char* act_str = NULL;
+
     /*
      * parse COPS response in the following format:
-     * +COPS: <mode>[,<format>,<oper>,<?>]
+     * +COPS: <mode>[,<format>,<oper>,<Act>]
      *
      * example
      *  +COPS: 0,0,"TELE2",0
      *  +COPS: 0,0,"POL"
      */
 
-    static const char delimiters[]     = ":,,,";
-    static const size_t delimiters_no  = STRLEN(delimiters);
-    static const size_t delimiters_no1 = delimiters_no - 1u;
+    static const char delimiters[]    = ":,,,";
+    static const size_t delimiters_no = STRLEN(delimiters);
 
     char* marks[delimiters_no];
 
     /* parse URC only here */
     const unsigned int marks_no = mark_line(str, delimiters, marks);
-    if (marks_no >= delimiters_no1) {
-        if (marks_no > 3) {
+    switch (marks_no) {
+        case 3:
+            *oper = strip_quoted(marks[2] + 1);
+            break;
+
+        case 4:
             marks[3][0] = '\000';
-        }
-        char* res = strip_quoted(marks[2] + 1);
-        /* Sometimes there is trailing garbage here;
-         * e.g. "Tele2@" or "Tele2<U+FFFD>" instead of "Tele2".
-         * Unsure why it happens (provider? quectel?), but it causes
-         * trouble later on too (at pbx_builtin_setvar_helper which
-         * is not encoding agnostic anymore, now that it uses json
-         * for messaging). See wdoekes/asterisk-chan-quectel
-         * GitHub issues #39 and #69. */
-        res = trim_blanks(res);
-        return res;
+            act_str     = strip_quoted(marks[3] + 1);
+            *oper       = strip_quoted(marks[2] + 1);
+            break;
+
+        default:
+            return 1;
     }
 
-    return NULL;
+    if (act_str) {
+        errno          = 0;
+        const int lact = (int)strtol(act_str, (char**)NULL, 10);
+        if (errno == EINVAL) {
+            *act = -1;
+        } else {
+            *act = lact;
+        }
+    }
+
+    return 0;
 }
 
 int at_parse_qspn(char* str, char** fnn, char** snn, char** spn)

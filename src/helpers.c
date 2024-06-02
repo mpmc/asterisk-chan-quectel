@@ -614,6 +614,24 @@ const char* gsm_regstate2str_json(int gsm_reg_status)
 
 #/* */
 
+int map_creg_act(int act)
+{
+    switch (act) {
+        case 0:  // GSM
+        case 1:  // GSM Compact
+        case 2:  // UTRAN
+        case 3:  // GSM w/EGPRS
+        case 4:  // UTRAN w/HSDPA
+        case 5:  // UTRAN w/HSUPA
+        case 6:  // UTRAN w/HSDPA and HSUPA
+        case 7:  // E-UTRAN
+            return act + 1;
+
+        default:
+            return -1;
+    }
+}
+
 const char* sys_act2str(int act)
 {
     static const char* const sys_acts[] = {

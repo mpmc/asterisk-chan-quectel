@@ -19,7 +19,7 @@ typedef enum { CCWA_VARIANT_PRESENTATION_FLAG, CCWA_VARIANT_STATUS_AND_CLASS, CC
 const char* at_qind2str(qind_t);
 
 char* at_parse_cnum(char* str);
-char* at_parse_cops(char* str);
+int at_parse_cops(char* str, char** oper, int* act);
 int at_parse_qspn(char* str, char** fnn, char** snn, char** spn);
 int at_parse_cspn(char*, char**);
 int at_parse_qnwinfo(char* str, int* act, int* oper, char** band, int* channel);
