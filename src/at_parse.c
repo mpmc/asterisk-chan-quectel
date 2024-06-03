@@ -119,13 +119,13 @@ int at_parse_cops(char* str, char** oper, int* act)
     const unsigned int marks_no = mark_line(str, delimiters, marks);
     switch (marks_no) {
         case 3:
-            *oper = strip_quoted(marks[2] + 1);
+            *oper = trim_blanks(strip_quoted(marks[2] + 1));
             break;
 
         case 4:
             marks[3][0] = '\000';
             act_str     = strip_quoted(marks[3] + 1);
-            *oper       = strip_quoted(marks[2] + 1);
+            *oper       = trim_blanks(strip_quoted(marks[2] + 1));
             break;
 
         default:
@@ -313,11 +313,10 @@ int at_parse_qnwinfo(char* str, int* act, int* oper, char** band, int* channel)
  * \retval  0 success
  * \retval -1 parse error
  */
-int at_parse_creg(char* str, int cereg, int* gsm_reg, int* gsm_reg_status, char** lac, char** ci, int* act)
+int at_parse_creg(char* str, int cereg, int* gsm_reg_status, char** lac, char** ci, int* act)
 {
     char* gsm_reg_str = NULL;
 
-    *gsm_reg            = 0;
     *gsm_reg_status     = -1;
     *lac                = NULL;
     *ci                 = NULL;
@@ -392,11 +391,6 @@ int at_parse_creg(char* str, int cereg, int* gsm_reg, int* gsm_reg_status, char*
         }
 
         *gsm_reg_status = status;
-        if (status == 1 || status == 5) {
-            *gsm_reg = 1;
-        } else {
-            *gsm_reg = status;
-        }
     }
 
     if (act_str) {

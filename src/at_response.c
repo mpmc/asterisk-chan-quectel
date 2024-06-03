@@ -716,7 +716,7 @@ static int at_response_error(struct pvt* const pvt, const at_res_t at_res, const
             /* fall through */
         case CMD_AT_D:
             at_err_response_err(pvt, ecmd, "Dial failed");
-            cpvt_control(task->cpvt, AST_CONTROL_CONGESTION);
+            cpvt_change_state(task->cpvt, CALL_STATE_RELEASED, AST_CAUSE_NORMAL_TEMPORARY_FAILURE);
             break;
 
         case CMD_AT_CPCMREG1:
@@ -2106,25 +2106,20 @@ static int at_response_qnwinfo(struct pvt* const pvt, const struct ast_str* cons
 
 static int at_response_creg(struct pvt* const pvt, int cereg, const struct ast_str* const response)
 {
-    int gsm_reg;
+    int reg_status;
     char* lac;
     char* ci;
     int act;
 
-    if (at_parse_creg(ast_str_buffer(response), cereg, &gsm_reg, &pvt->gsm_reg_status, &lac, &ci, &act)) {
-        ast_log(LOG_ERROR, "[%s] Error parsing CREG: '%s'\n", PVT_ID(pvt), ast_str_buffer(response));
+    if (at_parse_creg(ast_str_buffer(response), cereg, &reg_status, &lac, &ci, &act)) {
+        ast_log(LOG_ERROR, "[%s] Error parsing %s: '%s'\n", PVT_ID(pvt), S_COR(cereg, "CEREG", "CREG"), ast_str_buffer(response));
         return 0;
     }
 
-    if (gsm_reg) {
-        if (pvt->is_simcom) {
-            if (at_enqueue_cspn_cops(&pvt->sys_chan)) {
-                ast_log(LOG_WARNING, "[%s] Error sending query for provider name\n", PVT_ID(pvt));
-            }
-        } else {
-            if (at_enqueue_qspn_qnwinfo(&pvt->sys_chan)) {
-                ast_log(LOG_WARNING, "[%s] Error sending query for provider name\n", PVT_ID(pvt));
-            }
+    if (gsm_is_registered(reg_status)) {
+        int (*const query_provider_name_fn)(struct cpvt*) = pvt->is_simcom ? &at_enqueue_cspn_cops : &at_enqueue_qspn_qnwinfo;
+        if ((*query_provider_name_fn)(&pvt->sys_chan)) {
+            ast_log(LOG_WARNING, "[%s] Error sending query for provider name\n", PVT_ID(pvt));
         }
 
         // #ifdef ISSUE_CCWA_STATUS_CHECK
@@ -2137,13 +2132,7 @@ static int at_response_creg(struct pvt* const pvt, int cereg, const struct ast_s
         // #endif
 
         pvt->gsm_registered = 1;
-        if (act >= 0) {
-            const int mact = map_creg_act(act);
-            if (mact >= 0) {
-                ast_verb(1, "[%s] Access technology: %s [%d]\n", PVT_ID(pvt), sys_act2str(mact), act);
-                pvt_set_act(pvt, mact);
-            }
-        }
+        pvt->gsm_reg_status = reg_status;
 
         if (lac) {
             ast_string_field_set(pvt, location_area_code, lac);
@@ -2152,6 +2141,13 @@ static int at_response_creg(struct pvt* const pvt, int cereg, const struct ast_s
         if (ci) {
             ast_string_field_set(pvt, cell_id, ci);
             ast_verb(1, "[%s] Cell ID: %s\n", PVT_ID(pvt), S_OR(ci, ""));
+        }
+        if (act >= 0) {
+            const int mact = map_creg_act(act);
+            if (mact >= 0) {
+                ast_verb(1, "[%s] Access technology: %s [%d]\n", PVT_ID(pvt), sys_act2str(mact), act);
+                pvt_set_act(pvt, mact);
+            }
         }
     } else {
         pvt->gsm_registered = 0;

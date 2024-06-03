@@ -596,19 +596,46 @@ const char* escape_str_ex(struct ast_str* ebuf, const struct ast_str* const str)
 
 #/* */
 
+int gsm_is_registered(int stat)
+{
+    switch (stat) {
+        case 0:  // not registered, MT is not currently searching an operator to register to
+        case 2:  // not registered, but MT is currently trying to attach or searching an operator to register to
+        case 3:  // registration denied
+            return 0;
+
+        case 1:  // registered, home network
+        case 4:  // unknown (e.g. out of E-UTRAN coverage)
+        case 5:  // registered, roaming
+        case 6:  // registered for "SMS only", home network (not applicable)
+        case 7:  // registered for "SMS only", roaming (not applicable)
+        case 8:  // attached for emergency bearer services only
+            return 1;
+
+        default:
+            return 0;
+    }
+}
+
 const char* gsm_regstate2str(int gsm_reg_status)
 {
-    static const char* const gsm_states[] = {
-        "Not registered, not searching", "Registered, home network", "Not registered, but searching", "Registration denied", "Unknown", "Registered, roaming",
-    };
+    static const char* const gsm_states[] = {"Not registered, not searching",
+                                             "Registered, home network",
+                                             "Not registered, but searching",
+                                             "Registration denied",
+                                             "Unknown",
+                                             "Registered, roaming",
+                                             "Registered for<SMS only, home network",
+                                             "Registered for “SMS only”, roaming",
+                                             "Attached for emergency bearer services only"};
     return enum2str_def(gsm_reg_status, gsm_states, ARRAY_LEN(gsm_states), "Unknown");
 }
 
 const char* gsm_regstate2str_json(int gsm_reg_status)
 {
     static const char* const gsm_states[] = {
-        "not_registered_not_searching", "registered", "not_registered_searching", "registration_denied", "unknown", "registered_roaming",
-    };
+        "not_registered_not_searching", "registered", "not_registered_searching", "registration_denied", "unknown", "registered_roaming", "registered_sms_only",
+        "registered_sms_only_roaming",  "emergency"};
     return enum2str_def(gsm_reg_status, gsm_states, ARRAY_LEN(gsm_states), "unknown");
 }
 
