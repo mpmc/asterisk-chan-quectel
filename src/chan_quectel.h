@@ -239,10 +239,16 @@ static inline struct pvt* pvt_find(const char* name) { return pvt_find_ex(gpubli
 
 struct pvt* pvt_find_by_ext(const char* name);
 struct pvt* pvt_find_by_resource_ex(struct public_state* state, const char* resource, unsigned int opts, const struct ast_channel* requestor, int* exists);
+struct pvt* pvt_msg_find_by_resource_ex(struct public_state* state, const char* resource, unsigned int opts, const struct ast_channel* requestor, int* exists);
 
 static inline struct pvt* pvt_find_by_resource(const char* resource, unsigned int opts, const struct ast_channel* requestor, int* exists)
 {
     return pvt_find_by_resource_ex(gpublic, resource, opts, requestor, exists);
+}
+
+static inline struct pvt* pvt_msg_find_by_resource(const char* resource, unsigned int opts, const struct ast_channel* requestor, int* exists)
+{
+    return pvt_msg_find_by_resource_ex(gpublic, resource, opts, requestor, exists);
 }
 
 struct cpvt* pvt_channel_find_by_call_idx(struct pvt* pvt, int call_idx);

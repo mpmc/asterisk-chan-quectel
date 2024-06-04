@@ -455,7 +455,7 @@ static char* cli_sms_send(struct ast_cli_entry* e, int cmd, struct ast_cli_args*
     return CLI_SUCCESS;
 }
 
-CLI_ALIASES(cli_sms_send, "sms send", "sms send <device> <number> <message>", "Send a SMS to <number> with the <message> from <device>")
+CLI_ALIASES(cli_sms_send, "sms send", "sms send <resource> <number> <message>", "Send a SMS to <number> with the <message> from device <resource>")
 
 static char* cli_sms_list_received_unread(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {

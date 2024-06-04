@@ -626,22 +626,23 @@ int pvt_ready4voice_call(const struct pvt* pvt, const struct cpvt* current_cpvt,
 
 #/* */
 
-static int can_dial(struct pvt* pvt, unsigned int opts, const struct ast_channel* requestor)
+static int can_dial(struct pvt* pvt, unsigned int opts)
 {
     /* not allow hold requester channel :) */
     /* FIXME: requestor may be just proxy/masquerade for real channel */
     //	use ast_bridged_channel(chan) ?
     //	use requestor->tech->get_base_channel() ?
 
-    if (opts & CALL_FLAG_INTERNAL_REQUEST) {
-        return 1;
-    }
+    return pvt_ready4voice_call(pvt, NULL, opts);
+}
 
-    if ((opts & CALL_FLAG_HOLD_OTHER) == CALL_FLAG_HOLD_OTHER && channel_self_request(pvt, requestor)) {
+static int can_send_message(struct pvt* pvt, attribute_unused unsigned int opts)
+{
+    if (!pvt->connected || !pvt->initialized || !pvt->has_sms || !pvt->gsm_registered || !pvt_enabled(pvt)) {
         return 0;
     }
 
-    return pvt_ready4voice_call(pvt, NULL, opts);
+    return 1;
 }
 
 void pvt_unlock(struct pvt* const pvt)
@@ -733,10 +734,22 @@ struct pvt* pvt_find_by_ext(const char* name)
     return pvt;
 }
 
-#/* like find_device but for resource spec; return locked! pvt or NULL */
-
-struct pvt* pvt_find_by_resource_ex(struct public_state* state, const char* resource, unsigned int opts, const struct ast_channel* requestor, int* exists)
+static struct pvt* pvt_find_by_resource_fn(struct public_state* state, const char* resource, unsigned int opts, int (*pvt_test_fn)(struct pvt*, unsigned int),
+                                           const struct ast_channel* requestor, int* exists)
 {
+    auto int test_fn(struct pvt * pvt)
+    {
+        if (opts & CALL_FLAG_INTERNAL_REQUEST) {
+            return 1;
+        }
+
+        if ((opts & CALL_FLAG_HOLD_OTHER) == CALL_FLAG_HOLD_OTHER && channel_self_request(pvt, requestor)) {
+            return 0;
+        }
+
+        return (*pvt_test_fn)(pvt, opts);
+    }
+
     int group;
     size_t i;
     size_t j;
@@ -759,7 +772,7 @@ struct pvt* pvt_find_by_resource_ex(struct public_state* state, const char* reso
 
                 if (CONF_SHARED(pvt, group) == group) {
                     *exists = 1;
-                    if (can_dial(pvt, opts, requestor)) {
+                    if (test_fn(pvt)) {
                         found = pvt;
                         break;
                     }
@@ -802,7 +815,7 @@ struct pvt* pvt_find_by_resource_ex(struct public_state* state, const char* reso
                 *exists = 1;
 
                 ast_mutex_lock(&pvt->lock);
-                if (can_dial(pvt, opts, requestor)) {
+                if (test_fn(pvt)) {
                     pvt->group_last_used = 1;
                     found                = pvt;
                     break;
@@ -842,7 +855,7 @@ struct pvt* pvt_find_by_resource_ex(struct public_state* state, const char* reso
             *exists = 1;
 
             ast_mutex_lock(&pvt->lock);
-            if (can_dial(pvt, opts, requestor)) {
+            if (test_fn(pvt)) {
                 pvt->prov_last_used = 1;
                 found               = pvt;
                 break;
@@ -883,7 +896,7 @@ struct pvt* pvt_find_by_resource_ex(struct public_state* state, const char* reso
             *exists = 1;
 
             ast_mutex_lock(&pvt->lock);
-            if (can_dial(pvt, opts, requestor)) {
+            if (test_fn(pvt)) {
                 pvt->sim_last_used = 1;
                 found              = pvt;
                 break;
@@ -895,7 +908,7 @@ struct pvt* pvt_find_by_resource_ex(struct public_state* state, const char* reso
             ast_mutex_lock(&pvt->lock);
             if (!strcmp(pvt->imei, &resource[2])) {
                 *exists = 1;
-                if (can_dial(pvt, opts, requestor)) {
+                if (test_fn(pvt)) {
                     found = pvt;
                     break;
                 }
@@ -907,7 +920,7 @@ struct pvt* pvt_find_by_resource_ex(struct public_state* state, const char* reso
             ast_mutex_lock(&pvt->lock);
             if (!strcmp(pvt->iccid, &resource[2])) {
                 *exists = 1;
-                if (can_dial(pvt, opts, requestor)) {
+                if (test_fn(pvt)) {
                     found = pvt;
                     break;
                 }
@@ -919,7 +932,7 @@ struct pvt* pvt_find_by_resource_ex(struct public_state* state, const char* reso
             ast_mutex_lock(&pvt->lock);
             if (!strcmp(PVT_ID(pvt), resource)) {
                 *exists = 1;
-                if (can_dial(pvt, opts, requestor)) {
+                if (test_fn(pvt)) {
                     found = pvt;
                     break;
                 }
@@ -930,6 +943,16 @@ struct pvt* pvt_find_by_resource_ex(struct public_state* state, const char* reso
 
     AST_RWLIST_UNLOCK(&state->devices);
     return found;
+}
+
+struct pvt* pvt_find_by_resource_ex(struct public_state* state, const char* resource, unsigned int opts, const struct ast_channel* requestor, int* exists)
+{
+    return pvt_find_by_resource_fn(state, resource, opts, &can_dial, requestor, exists);
+}
+
+struct pvt* pvt_msg_find_by_resource_ex(struct public_state* state, const char* resource, unsigned int opts, const struct ast_channel* requestor, int* exists)
+{
+    return pvt_find_by_resource_fn(state, resource, opts, &can_send_message, requestor, exists);
 }
 
 struct cpvt* pvt_channel_find_by_call_idx(struct pvt* pvt, int call_idx)

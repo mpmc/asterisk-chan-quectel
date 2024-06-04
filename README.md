@@ -83,6 +83,9 @@ Supported modules:
         ```
 
     * `QuectelSendSms` application renamed to `QUECTEL_SEND_SMS` one.
+
+        The first parameter of this function may be a *resource string* e.g. `QUECTEL_SEND_SMS(g0,...)`.
+
     * `QuectelSendUssd` application renamed to `QUECTEL_SEND_USSD` one.
 
 ## Configuration

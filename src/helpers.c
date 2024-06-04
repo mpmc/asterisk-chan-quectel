@@ -53,12 +53,26 @@ static struct pvt* get_pvt(const char* dev_name, int online)
     struct pvt* const pvt = pvt_find_by_ext(dev_name);
 
     if (!pvt) {
-        chan_quectel_err = E_DEVICE_DISCONNECTED;
+        chan_quectel_err = E_DEVICE_NOT_FOUND;
         return NULL;
     }
 
     if (!pvt->connected || (online && !(pvt->initialized && pvt->gsm_registered))) {
         ast_mutex_unlock(&pvt->lock);
+        chan_quectel_err = E_DEVICE_DISABLED;
+        return NULL;
+    }
+
+    return pvt;
+}
+
+static struct pvt* get_msg_pvt(const char* resource)
+{
+    int exists;
+    struct pvt* const pvt = pvt_msg_find_by_resource(resource, 0, NULL, &exists);
+
+    if (!pvt) {
+        chan_quectel_err = E_DEVICE_NOT_FOUND;
         return NULL;
     }
 
@@ -86,14 +100,14 @@ int send_ussd(const char* dev_name, const char* ussd)
 
 #/* */
 
-int send_sms(const char* const dev_name, const char* const number, const char* const message, int validity, int report)
+int send_sms(const char* const resource, const char* const number, const char* const message, int validity, int report)
 {
     if (!is_valid_phone_number(number)) {
         chan_quectel_err = E_INVALID_PHONE_NUMBER;
         return -1;
     }
 
-    RAII_VAR(struct pvt* const, pvt, get_pvt(dev_name, 1), pvt_unlock);
+    RAII_VAR(struct pvt* const, pvt, get_msg_pvt(resource), pvt_unlock);
 
     if (!pvt) {
         return -1;

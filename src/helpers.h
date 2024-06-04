@@ -11,7 +11,7 @@
 
 /* return status string of sending, status arg is optional */
 int send_ussd(const char* dev_name, const char* ussd);
-int send_sms(const char* const dev_name, const char* const number, const char* const message, int validity, int report);
+int send_sms(const char* const resource, const char* const number, const char* const message, int validity, int report);
 int list_sms(const char* const dev_name, enum msg_status_t stat);
 int delete_sms(const char* const dev_name, unsigned int idx, int delflag);
 int sms_direct(const char* const dev_name, int directflag);
