@@ -477,7 +477,7 @@ static void pdus_clear(at_queue_cmd_t* cmds, ssize_t idx)
     }
 }
 
-static int pdus_build(pdu_part_t* const pdus, const char* msg, int csmsref, const char* destination, unsigned validity, int report_req)
+static int pdus_build(pdu_part_t* const pdus, const char* sca, const char* msg, int csmsref, const char* destination, unsigned validity, int report_req)
 {
     if (!pdus) {
         chan_quectel_err = E_BUILD_PDU;
@@ -499,7 +499,7 @@ static int pdus_build(pdu_part_t* const pdus, const char* msg, int csmsref, cons
         return msg_ucs2_len;
     }
 
-    const int res = pdu_build_mult(pdus, "", destination, msg_ucs2, msg_ucs2_len, validity, report_req, csmsref);
+    const int res = pdu_build_mult(pdus, sca, destination, msg_ucs2, msg_ucs2_len, validity, report_req, csmsref);
     return res;
 }
 
@@ -541,7 +541,7 @@ static int pdus_enqueue(struct cpvt* const cpvt, const pdu_part_t* const pdus, s
  * \param number -- the destination of the message
  * \param msg -- utf-8 encoded message
  */
-int at_enqueue_sms(struct cpvt* cpvt, const char* destination, const char* msg, unsigned validity_minutes, int report_req)
+int at_enqueue_sms(struct cpvt* cpvt, const char* sca, const char* destination, const char* msg, unsigned validity_minutes, int report_req)
 {
     struct pvt* const pvt = cpvt->pvt;
 
@@ -557,7 +557,7 @@ int at_enqueue_sms(struct cpvt* cpvt, const char* destination, const char* msg, 
     }
 
     RAII_VAR(pdu_part_t*, pdus, ast_calloc(sizeof(pdu_part_t), 255), ast_free);
-    const int pdus_len = pdus_build(pdus, msg, csmsref, destination, validity_minutes, !!report_req);
+    const int pdus_len = pdus_build(pdus, sca, msg, csmsref, destination, validity_minutes, !!report_req);
     if (pdus_len <= 0) {
         return pdus_len;
     }

@@ -60,6 +60,7 @@
 #include "error.h"
 #include "helpers.h"
 #include "monitor_thread.h"
+#include "msg_tech.h"
 #include "mutils.h" /* ARRAY_LEN() */
 #include "pcm.h"
 #include "pdiscovery.h" /* pdiscovery_lookup() pdiscovery_init() pdiscovery_fini() */
@@ -1524,8 +1525,12 @@ static int public_state_init(struct public_state* state)
                 ast_log(LOG_ERROR, "Unable to register channel class %s\n", channel_tech.type);
             } else {
                 smsdb_init();
-#ifdef BUILD_APPLICATIONS
+#ifdef WITH_APPLICATIONS
                 app_register();
+#endif
+
+#ifdef WITH_MSG_TECH
+                msg_tech_register();
 #endif
                 cli_register();
 
@@ -1556,7 +1561,11 @@ static void public_state_fini(struct public_state* state)
     /* Unregister the CLI */
     cli_unregister();
 
-#ifdef BUILD_APPLICATIONS
+#ifdef WITH_MSG_TECH
+    msg_tech_unregister();
+#endif
+
+#ifdef WITH_APPLICATIONS
     app_unregister();
 #endif
 

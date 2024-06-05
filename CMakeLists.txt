@@ -130,8 +130,10 @@ OPTION(LINKER_TRACE "Linker - trace used objects and liraries (--trace option)" 
 
 # BUILD_CHAN_QUECTEL_BINARY
 cmake_dependent_option(ICONV_CONST "iconv() const declaration of input buffer" OFF "BUILD_CHAN_QUECTEL_BINARY" OFF)
-cmake_dependent_option(BUILD_APPLICATIONS "Build applications" ON "BUILD_CHAN_QUECTEL_BINARY" OFF)
 cmake_dependent_option(PTIME_USE_DEFAULT "Use default framing" ON "BUILD_CHAN_QUECTEL_BINARY" OFF)
+
+cmake_dependent_option(WITH_APPLICATIONS "Build applications" ON "BUILD_CHAN_QUECTEL_BINARY" OFF)
+cmake_dependent_option(WITH_MSG_TECH "Build with message handler" ON "BUILD_CHAN_QUECTEL_BINARY" OFF)
 
 # BUILD_OPENWRT_MAKEFILE
 cmake_dependent_option(BUILD_OPENWRT_MAKEFILE_STANDALONE "Build standalone OpenWRT Makefile" ON "BUILD_OPENWRT_MAKEFILE;OPENWRT_PACKAGE" OFF)

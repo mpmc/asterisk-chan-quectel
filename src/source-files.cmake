@@ -26,6 +26,7 @@ SET(SOURCES
     monitor_thread.c
     tty.c
     pcm.c
+    msg_tech.c
 )
 
 SET(HEADERS
@@ -55,4 +56,5 @@ SET(HEADERS
     monitor_thread.h
     tty.h
     pcm.h
+    msg_tech.h
 )

@@ -4,15 +4,14 @@
 
 #include "ast_config.h"
 
-#ifdef BUILD_APPLICATIONS
-
 #include <asterisk/app.h> /* AST_DECLARE_APP_ARGS() ... */
 #include <asterisk/json.h>
 #include <asterisk/module.h> /* ast_register_application2() ast_unregister_application() */
 #include <asterisk/pbx.h>    /* pbx_builtin_setvar_helper() */
 #include <asterisk/strings.h>
 
-#include "app.h"          /* app_register() app_unregister() */
+#include "app.h" /* app_register() app_unregister() */
+
 #include "chan_quectel.h" /* struct pvt */
 #include "error.h"
 #include "helpers.h" /* send_sms() ITEMS_OF() */
@@ -231,7 +230,7 @@ static int app_send_sms_exec(attribute_unused struct ast_channel* channel, const
         return -1;
     }
 
-    if (send_sms(args.resource, args.number, args.message, parse_validity(args.validity), parse_report_flag(args.report))) {
+    if (send_sms(args.resource, "", args.number, args.message, parse_validity(args.validity), parse_report_flag(args.report))) {
         ast_log(LOG_ERROR, "[%s] %s\n", args.resource, error2str(chan_quectel_err));
         return -1;
     }
@@ -316,5 +315,3 @@ void app_unregister()
     ast_custom_function_unregister(&status_ex_function);
     ast_custom_function_unregister(&status_function);
 }
-
-#endif /* BUILD_APPLICATIONS */
