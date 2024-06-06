@@ -23,8 +23,7 @@
 
 #include "chan_quectel.h" /* devices */
 #include "error.h"
-#include "helpers.h"    /* ARRAY_LEN() send_ccwa_set() send_reset() send_sms() send_ussd() */
-#include "pdiscovery.h" /* pdiscovery_list_begin() pdiscovery_list_next() pdiscovery_list_end() */
+#include "helpers.h" /* ARRAY_LEN() send_ccwa_set() send_reset() send_sms() send_ussd() */
 
 #define CLI_ALIASES(fn, cmdd, usage1, usage2)                                           \
     static char* fn##_quectel(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a) \
@@ -50,8 +49,6 @@
 
 #define CLI_DEF_ENTRIES(fn, desc) AST_CLI_DEFINE(fn##_quectel, desc), AST_CLI_DEFINE(fn##_simcom, desc),
 
-static const char* restate2str_msg(restate_time_t when);
-
 static char* complete_device(const char* word, int state)
 {
     struct pvt* pvt;
@@ -76,7 +73,7 @@ static char* cli_show_devices(struct ast_cli_entry* e, int cmd, struct ast_cli_a
 {
     struct pvt* pvt;
 
-    static const char FORMAT1[] = "%-12.12s %-5.5s %-10.10s %-4.4s %-4.4s %-7.7s %-14.14s %-17.17s %-16.16s %-16.16s %-14.14s\n";
+    static const char FORMAT1[] = "%-12.12s %-5.5s %-10.10s %-4.4s %-4.4s %-7.7s %-14.14s %-17.17s %-14.14s\n";
     static const char FORMAT2[] = "%-12.12s %-5d %-10.10s %-4d %-4d %-7s %-14.14s %-17.17s %-16.16s %-16.16s %-14.14s\n";
 
     switch (cmd) {
@@ -88,7 +85,7 @@ static char* cli_show_devices(struct ast_cli_entry* e, int cmd, struct ast_cli_a
         return CLI_SHOWUSAGE;
     }
 
-    ast_cli(a->fd, FORMAT1, "ID", "Group", "State", "RSSI", "Mode", "Provider Name", "Model", "Firmware", "IMEI", "IMSI", "Number");
+    ast_cli(a->fd, FORMAT1, "ID", "Group", "State", "RSSI", "Mode", "Provider Name", "Model", "Firmware", "Number");
 
     AST_RWLIST_RDLOCK(&gpublic->devices);
     AST_RWLIST_TRAVERSE(&gpublic->devices, pvt, entry) {
@@ -132,8 +129,6 @@ static char* cli_show_device_settings(struct ast_cli_entry* e, int cmd, struct a
         }
         ast_cli(a->fd, "  Audio format            : %s\n", codec_name);
         ast_cli(a->fd, "  Data                    : %s\n", CONF_UNIQ(pvt, data_tty));
-        ast_cli(a->fd, "  IMEI                    : %s\n", CONF_UNIQ(pvt, imei));
-        ast_cli(a->fd, "  IMSI                    : %s\n", CONF_UNIQ(pvt, imsi));
         ast_cli(a->fd, "  Channel Language        : %s\n", CONF_SHARED(pvt, language));
         ast_cli(a->fd, "  Context                 : %s\n", CONF_SHARED(pvt, context));
         ast_cli(a->fd, "  Exten                   : %s\n", CONF_SHARED(pvt, exten));
@@ -156,7 +151,7 @@ static char* cli_show_device_settings(struct ast_cli_entry* e, int cmd, struct a
         ast_cli(a->fd, "  DTMF Duration           : %ld\n", CONF_SHARED(pvt, dtmf_duration));
         ast_cli(a->fd, "  Hold/Unhold Action      : %s\n", S_COR(CONF_SHARED(pvt, dtmf), "MOH", "Mute"));
         ast_cli(a->fd, "  Query Time              : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, query_time)));
-        ast_cli(a->fd, "  Initial Device State    : %s\n", dev_state2str(CONF_SHARED(pvt, initstate)));
+        ast_cli(a->fd, "  Initial Device State    : %s\n", dev_state2str_capitalized(CONF_SHARED(pvt, initstate)));
         ast_cli(a->fd, "  Use QHUP Command        : %s\n\n", AST_CLI_YESNO(CONF_SHARED(pvt, qhup)));
     } else {
         ast_cli(a->fd, "Device %s not found\n", a->argv[4]);
@@ -193,9 +188,9 @@ static char* cli_show_device_state(struct ast_cli_entry* e, int cmd, struct ast_
         if (CONF_UNIQ(pvt, uac) > TRIBOOL_FALSE) {
             ast_cli(a->fd, "  Audio UAC               : %s\n", CONF_UNIQ(pvt, alsadev));
         } else {
-            ast_cli(a->fd, "  Audio                   : %s\n", PVT_STATE(pvt, audio_tty));
+            ast_cli(a->fd, "  Audio                   : %s\n", CONF_UNIQ(pvt, audio_tty));
         }
-        ast_cli(a->fd, "  Data                    : %s\n", PVT_STATE(pvt, data_tty));
+        ast_cli(a->fd, "  Data                    : %s\n", CONF_UNIQ(pvt, data_tty));
         ast_cli(a->fd, "  Voice                   : %s\n", AST_CLI_YESNO(pvt->has_voice));
         ast_cli(a->fd, "  SMS                     : %s\n", AST_CLI_YESNO(pvt->has_sms));
         ast_cli(a->fd, "  Manufacturer            : %s\n", pvt->manufacturer);
@@ -222,8 +217,8 @@ static char* cli_show_device_state(struct ast_cli_entry* e, int cmd, struct ast_
         ast_cli(a->fd, "  Tasks in queue          : %u\n", PVT_STATE(pvt, at_tasks));
         ast_cli(a->fd, "  Commands in queue       : %u\n", PVT_STATE(pvt, at_cmds));
         ast_cli(a->fd, "  Call Waiting            : %s\n", AST_CLI_ONOFF(pvt->has_call_waiting));
-        ast_cli(a->fd, "  Current device state    : %s\n", dev_state2str(pvt->current_state));
-        ast_cli(a->fd, "  Desired device state    : %s\n", dev_state2str(pvt->desired_state));
+        ast_cli(a->fd, "  Current device state    : %s\n", dev_state2str_capitalized(pvt->current_state));
+        ast_cli(a->fd, "  Desired device state    : %s\n", dev_state2str_capitalized(pvt->desired_state));
         ast_cli(a->fd, "  When change state       : %s\n", restate2str_msg(pvt->restart_time));
 
         ast_cli(a->fd, "  Calls/Channels          : %u\n", PVT_STATE(pvt, chansno));
@@ -737,12 +732,6 @@ CLI_ALIASES(cli_reset, "reset", "reset <device>", "Reset <device>")
 static const char* const a_choices[]  = {"now", "gracefully", "when", NULL};
 static const char* const a_choices2[] = {"convenient", NULL};
 
-static const char* restate2str_msg(restate_time_t when)
-{
-    static const char* const choices[] = {"now", "gracefully", "when convenient"};
-    return enum2str(when, choices, ARRAY_LEN(choices));
-}
-
 #/* */
 
 static char* cli_restart_event(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a, dev_state_t event)
@@ -907,79 +896,6 @@ static char* cli_uac_apply(struct ast_cli_entry* e, int cmd, struct ast_cli_args
 
     return CLI_SUCCESS;
 }
-
-#/* */
-
-static char* cli_discovery(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
-{
-    const struct pdiscovery_cache_item* item;
-    const struct pdiscovery_result* res;
-
-    switch (cmd) {
-        case CLI_GENERATE:
-            return NULL;
-    }
-
-    if (a->argc != 2) {
-        return CLI_SHOWUSAGE;
-    }
-
-    AST_RWLIST_RDLOCK(&gpublic->devices);
-    for (res = pdiscovery_list_begin(&item); res; res = pdiscovery_list_next(&item)) {
-        struct pvt* pvt;
-        AST_RWLIST_TRAVERSE(&gpublic->devices, pvt, entry) {
-            SCOPED_MUTEX(pvt_lock, &pvt->lock);
-            if (!strcmp(PVT_STATE(pvt, data_tty), res->ports.ports[INTERFACE_TYPE_DATA])) {
-                break;
-            }
-        }
-        if (pvt) {
-            /*
-                        ast_cli(a->fd, "; existing device\n");
-                        ast_cli(a->fd, "[%s](defaults)\n", PVT_ID(pvt));
-
-                        if(CONF_UNIQ(pvt, audio_tty)[0])
-                            ast_cli(a->fd, "audio=%s\n", CONF_UNIQ(pvt, audio_tty));
-                        else
-                            ast_cli(a->fd, ";audio=%s\n", PVT_STATE(pvt, audio_tty));
-
-                        if(CONF_UNIQ(pvt, data_tty)[0])
-                            ast_cli(a->fd, "data=%s\n", CONF_UNIQ(pvt, data_tty));
-                        else
-                            ast_cli(a->fd, ";data=%s\n", PVT_STATE(pvt, data_tty));
-
-                        if(CONF_UNIQ(pvt, imei)[0])
-                            ast_cli(a->fd, "imei=%s\n", CONF_UNIQ(pvt, imei));
-                        else
-                            ast_cli(a->fd, ";imei=%s\n", pvt->imei);
-
-                        if(CONF_UNIQ(pvt, imsi)[0])
-                            ast_cli(a->fd, "imsi=%s\n\n", CONF_UNIQ(pvt, imsi));
-                        else
-                            ast_cli(a->fd, ";imsi=%s\n\n", pvt->imsi);
-            */
-        } else {
-            const char* const imei = S_OR(res->imei, "");
-            const char* const imsi = S_OR(res->imsi, "");
-
-            const size_t imeilen = strlen(imei);
-            const size_t imsilen = strlen(imsi);
-
-            ast_cli(a->fd, "; discovered device\n");
-            ast_cli(a->fd, "[dc_%s_%s](defaults)\n", imei + imeilen - MIN(imeilen, 4), imsi + imsilen - MIN(imsilen, 4));
-            ast_cli(a->fd, ";audio=%s\n", res->ports.ports[INTERFACE_TYPE_VOICE]);
-            ast_cli(a->fd, ";data=%s\n", res->ports.ports[INTERFACE_TYPE_DATA]);
-            ast_cli(a->fd, "imei=%s\n", imei);
-            ast_cli(a->fd, "imsi=%s\n\n", imsi);
-        }
-    }
-    pdiscovery_list_end();
-    AST_RWLIST_UNLOCK(&gpublic->devices);
-
-    return CLI_SUCCESS;
-}
-
-CLI_ALIASES(cli_discovery, "discovery", "discovery", "Discovery devices and create config")
 
 static char* cli_audio_loop(struct ast_cli_entry* e, int cmd, struct ast_cli_args* a)
 {
@@ -1184,7 +1100,6 @@ static struct ast_cli_entry cli[] = {
     AST_CLI_DEFINE(cli_uac_apply,               "Apply UAC mode"),
 
 	CLI_DEF_ENTRIES(cli_start,					"Start channel")
-	CLI_DEF_ENTRIES(cli_discovery,				"Discovery devices and create config")
 
 	CLI_DEF_ENTRIES(cli_audio_loop,				"Query/enable/disable audio loop test")
 	CLI_DEF_ENTRIES(cli_audio_mode,				"Query/set audio mode")

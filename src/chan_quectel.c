@@ -63,35 +63,8 @@
 #include "msg_tech.h"
 #include "mutils.h" /* ARRAY_LEN() */
 #include "pcm.h"
-#include "pdiscovery.h" /* pdiscovery_lookup() pdiscovery_init() pdiscovery_fini() */
 #include "smsdb.h"
 #include "tty.h"
-
-static const char* const dev_state_strs[4] = {"stop", "restart", "remove", "start"};
-
-public_state_t* gpublic;
-
-const char* dev_state2str(dev_state_t state) { return enum2str(state, dev_state_strs, ARRAY_LEN(dev_state_strs)); }
-
-dev_state_t str2dev_state(const char* str)
-{
-    if (!str) {
-        return DEV_STATE_STOPPED;
-    }
-
-    const int res = str2enum(str, dev_state_strs, ARRAY_LEN(dev_state_strs));
-    if (res < 0) {
-        return DEV_STATE_STOPPED;
-    } else {
-        return (dev_state_t)res;
-    }
-}
-
-const char* dev_state2str_msg(dev_state_t state)
-{
-    static const char* const states[] = {"Stop scheduled", "Restart scheduled", "Removal scheduled", "Start scheduled"};
-    return enum2str(state, states, ARRAY_LEN(states));
-}
 
 static int soundcard_init(struct pvt* pvt)
 {
@@ -165,10 +138,10 @@ void pvt_disconnect(struct pvt* pvt)
             pvt->ocard_channels = 0;
         }
     } else {
-        tty_close(PVT_STATE(pvt, audio_tty), pvt->audio_fd);
+        tty_close(CONF_UNIQ(pvt, audio_tty), pvt->audio_fd);
     }
 
-    tty_close(PVT_STATE(pvt, data_tty), pvt->data_fd);
+    tty_close(CONF_UNIQ(pvt, data_tty), pvt->data_fd);
 
     pvt->data_fd  = -1;
     pvt->audio_fd = -1;
@@ -223,57 +196,12 @@ void pvt_disconnect(struct pvt* pvt)
     /* clear statictics */
     memset(&pvt->stat, 0, sizeof(pvt->stat));
 
-    ast_copy_string(PVT_STATE(pvt, data_tty), CONF_UNIQ(pvt, data_tty), sizeof(PVT_STATE(pvt, data_tty)));
-    ast_copy_string(PVT_STATE(pvt, audio_tty), CONF_UNIQ(pvt, audio_tty), sizeof(PVT_STATE(pvt, audio_tty)));
-
     if (pvt->local_format_cap) {
         ao2_cleanup(pvt->local_format_cap);
         pvt->local_format_cap = NULL;
     }
 
     ast_verb(3, "[%s] Disconnected\n", PVT_ID(pvt));
-}
-
-#/* called with pvt lock hold */
-
-static int pvt_discovery(struct pvt* pvt)
-{
-    char devname[DEVNAMELEN];
-    char imei[IMEI_SIZE + 1];
-    char imsi[IMSI_SIZE + 1];
-
-    int resolved;
-    if (CONF_UNIQ(pvt, data_tty)[0] == 0 && CONF_UNIQ(pvt, audio_tty)[0] == 0) {
-        char* data_tty;
-        char* audio_tty;
-
-        ast_copy_string(devname, PVT_ID(pvt), sizeof(devname));
-        ast_copy_string(imei, CONF_UNIQ(pvt, imei), sizeof(imei));
-        ast_copy_string(imsi, CONF_UNIQ(pvt, imsi), sizeof(imsi));
-
-        ast_debug(3, "[%s] Trying ports discovery for%s%s%s%s\n", PVT_ID(pvt), imei[0] == 0 ? "" : " IMEI ", imei, imsi[0] == 0 ? "" : " IMSI ", imsi);
-        ast_mutex_unlock(&pvt->lock);
-        // sleep(10); // test
-        resolved = pdiscovery_lookup(devname, imei, imsi, &data_tty, &audio_tty);
-        ast_mutex_lock(&pvt->lock);
-
-        if (resolved) {
-            ast_copy_string(PVT_STATE(pvt, data_tty), data_tty, sizeof(PVT_STATE(pvt, data_tty)));
-            ast_copy_string(PVT_STATE(pvt, audio_tty), audio_tty, sizeof(PVT_STATE(pvt, audio_tty)));
-
-            ast_free(audio_tty);
-            ast_free(data_tty);
-            ast_verb(3, "[%s]%s%s%s%s found on data_tty=%s audio_tty=%s\n", PVT_ID(pvt), imei[0] == 0 ? "" : " IMEI ", imei, imsi[0] == 0 ? "" : " IMSI ", imsi,
-                     PVT_STATE(pvt, data_tty), PVT_STATE(pvt, audio_tty));
-        } else {
-            ast_debug(3, "[%s] Not found ports for%s%s%s%s\n", PVT_ID(pvt), imei[0] == 0 ? "" : " IMEI ", imei, imsi[0] == 0 ? "" : " IMSI ", imsi);
-        }
-    } else {
-        ast_copy_string(PVT_STATE(pvt, data_tty), CONF_UNIQ(pvt, data_tty), sizeof(PVT_STATE(pvt, data_tty)));
-        ast_copy_string(PVT_STATE(pvt, audio_tty), CONF_UNIQ(pvt, audio_tty), sizeof(PVT_STATE(pvt, audio_tty)));
-        resolved = 1;
-    }
-    return !resolved;
 }
 
 static void fd_set_nonblock(const int fd)
@@ -293,13 +221,8 @@ static void pvt_start(struct pvt* const pvt)
 
     pvt_monitor_stop(pvt);
 
-    if (pvt_discovery(pvt)) {
-        return;
-    }
-
-    ast_verb(3, "[%s] Trying to connect on %s...\n", PVT_ID(pvt), PVT_STATE(pvt, data_tty));
-
-    pvt->data_fd = tty_open(PVT_STATE(pvt, data_tty), (CONF_UNIQ(pvt, uac) == TRIBOOL_NONE) ? 2 : 0);
+    ast_verb(3, "[%s] Trying to connect data port %s...\n", PVT_ID(pvt), CONF_UNIQ(pvt, alsadev));
+    pvt->data_fd = tty_open(CONF_UNIQ(pvt, data_tty), (CONF_UNIQ(pvt, uac) == TRIBOOL_NONE) ? 2 : 0);
     if (pvt->data_fd < 0) {
         return;
     }
@@ -311,7 +234,8 @@ static void pvt_start(struct pvt* const pvt)
         }
     } else {
         // TODO: delay until device activate voice call or at pvt_on_create_1st_channel()
-        pvt->audio_fd = tty_open(PVT_STATE(pvt, audio_tty), pvt->is_simcom);
+        ast_verb(3, "[%s] Trying to open audio port %s...\n", PVT_ID(pvt), CONF_UNIQ(pvt, audio_tty));
+        pvt->audio_fd = tty_open(CONF_UNIQ(pvt, audio_tty), pvt->is_simcom);
         if (pvt->audio_fd < 0) {
             goto cleanup_datafd;
         }
@@ -350,11 +274,11 @@ static void pvt_start(struct pvt* const pvt)
 
 cleanup_audiofd:
     if (pvt->audio_fd > 0) {
-        tty_close(PVT_STATE(pvt, audio_tty), pvt->audio_fd);
+        tty_close(CONF_UNIQ(pvt, audio_tty), pvt->audio_fd);
     }
 
 cleanup_datafd:
-    tty_close(PVT_STATE(pvt, data_tty), pvt->data_fd);
+    tty_close(CONF_UNIQ(pvt, data_tty), pvt->data_fd);
 }
 
 #/* */
@@ -1229,7 +1153,6 @@ static int pvt_reconfigure(struct pvt* pvt, const pvt_config_t* settings, restat
 
         /* check what config changes require restaring */
         else if (strcmp(UCONFIG(settings, audio_tty), CONF_UNIQ(pvt, audio_tty)) || strcmp(UCONFIG(settings, data_tty), CONF_UNIQ(pvt, data_tty)) ||
-                 strcmp(UCONFIG(settings, imei), CONF_UNIQ(pvt, imei)) || strcmp(UCONFIG(settings, imsi), CONF_UNIQ(pvt, imsi)) ||
                  SCONFIG(settings, resetquectel) != CONF_SHARED(pvt, resetquectel) || SCONFIG(settings, callwaiting) != CONF_SHARED(pvt, callwaiting)) {
             /* TODO: schedule restart */
             pvt->desired_state = DEV_STATE_RESTARTED;
@@ -1467,7 +1390,6 @@ static int load_module()
         gpublic = NULL;
     }
 
-    pdiscovery_init();
     return rv;
 }
 
@@ -1581,7 +1503,6 @@ static void public_state_fini(struct public_state* state)
 
 static int unload_module()
 {
-    pdiscovery_fini();
     public_state_fini(gpublic);
     ast_free(gpublic);
     gpublic = NULL;

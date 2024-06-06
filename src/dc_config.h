@@ -12,8 +12,6 @@
 
 #define CONFIG_FILE "quectel.conf"
 #define DEVNAMELEN 31
-#define IMEI_SIZE 15
-#define IMSI_SIZE 15
 #define PATHLEN 256
 #define DEVPATHLEN 256
 
@@ -109,8 +107,6 @@ typedef struct dc_uconfig {
     char id[DEVNAMELEN];        /*!< id from quectel.conf */
     char audio_tty[DEVPATHLEN]; /*!< tty for audio connection */
     char data_tty[DEVPATHLEN];  /*!< tty for AT commands */
-    char imei[IMEI_SIZE + 1];   /*!< search device by imei */
-    char imsi[IMSI_SIZE + 1];   /*!< search device by imsi */
     char alsadev[DEVNAMELEN];   /*!< ALSA audio device name */
     tristate_bool_t uac;        /*!< handle audio by audio device (UAC) */
     unsigned int slin16:1;      /*!< SLIN16 audio format */

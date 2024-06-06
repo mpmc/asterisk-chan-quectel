@@ -135,20 +135,8 @@ static int dc_uconfig_fill(struct ast_config* cfg, const char* cat, struct dc_uc
     const char* const audio_tty  = ast_variable_retrieve(cfg, cat, "audio");
     const char* const data_tty   = ast_variable_retrieve(cfg, cat, "data");
     const char* const alsadev    = ast_variable_retrieve(cfg, cat, "alsadev");
-    const char* imei             = ast_variable_retrieve(cfg, cat, "imei");
-    const char* imsi             = ast_variable_retrieve(cfg, cat, "imsi");
     const char* const uac_str    = ast_variable_retrieve(cfg, cat, "uac");
     const char* const slin16_str = ast_variable_retrieve(cfg, cat, "slin16");
-
-    if (imei && strlen(imei) != IMEI_SIZE) {
-        ast_log(LOG_WARNING, "[%s] Ignore invalid IMEI value '%s'\n", cat, imei);
-        imei = NULL;
-    }
-
-    if (imsi && strlen(imsi) != IMSI_SIZE) {
-        ast_log(LOG_WARNING, "[%s] Ignore invalid IMSI value '%s'\n", cat, imsi);
-        imsi = NULL;
-    }
 
     if (uac_str) {
         if (dc_str23stbool_ex(uac_str, &uac, "ext")) {
@@ -161,7 +149,7 @@ static int dc_uconfig_fill(struct ast_config* cfg, const char* cat, struct dc_uc
         slin16 = parse_on_off("slin16", slin16_str, 0u);
     }
 
-    if (!data_tty && !imei && !imsi) {
+    if (!data_tty) {
         ast_log(LOG_ERROR, "Skipping device %s. Missing required data_tty setting\n", cat);
         return 1;
     }
@@ -169,8 +157,6 @@ static int dc_uconfig_fill(struct ast_config* cfg, const char* cat, struct dc_uc
     ast_copy_string(config->id, cat, sizeof(config->id));
     ast_copy_string(config->data_tty, S_OR(data_tty, ""), sizeof(config->data_tty));
     ast_copy_string(config->audio_tty, S_OR(audio_tty, ""), sizeof(config->audio_tty));
-    ast_copy_string(config->imei, S_OR(imei, ""), sizeof(config->imei));
-    ast_copy_string(config->imsi, S_OR(imsi, ""), sizeof(config->imsi));
     config->uac = uac;
     switch (uac) {
         case TRIBOOL_FALSE:

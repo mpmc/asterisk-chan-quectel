@@ -69,6 +69,13 @@ int map_creg_act(int act);
 const char* sys_act2str(int sys_submode);
 struct ast_str* rssi2dBm(int rssi);
 
+const char* dev_state2str(dev_state_t state);
+const char* dev_state2str_capitalized(dev_state_t state);
+dev_state_t str2dev_state(const char* str);
+const char* dev_state2str_msg(dev_state_t state);
+
+const char* restate2str_msg(restate_time_t when);
+
 size_t fd_write_all(int fd, const char* buf, size_t count);
 
 #endif /* CHAN_QUECTEL_HELPERS_H_INCLUDED */

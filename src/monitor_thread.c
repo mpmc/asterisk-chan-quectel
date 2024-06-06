@@ -98,8 +98,8 @@ static int cmd_timeout_taskproc(void* tpdata) { return PVT_TASKPROC_TRYLOCK_AND_
 
 static int reopen_audio_port(struct pvt* pvt)
 {
-    tty_close_lck(PVT_STATE(pvt, audio_tty), pvt->audio_fd, 0, 0);
-    pvt->audio_fd = tty_open(PVT_STATE(pvt, audio_tty), pvt->is_simcom);
+    tty_close_lck(CONF_UNIQ(pvt, audio_tty), pvt->audio_fd, 0, 0);
+    pvt->audio_fd = tty_open(CONF_UNIQ(pvt, audio_tty), pvt->is_simcom);
 
     if (!PVT_NO_CHANS(pvt)) {
         struct cpvt* cpvt;

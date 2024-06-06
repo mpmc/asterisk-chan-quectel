@@ -33,6 +33,7 @@
 #define MAXQUECTELDEVICES 128
 
 const char* dev_state2str(dev_state_t state);
+const char* dev_state2str_capitalized(dev_state_t state);
 dev_state_t str2dev_state(const char*);
 const char* dev_state2str_msg(dev_state_t state);
 
@@ -44,9 +45,6 @@ typedef enum {
 
 /* state */
 typedef struct pvt_state {
-    char audio_tty[DEVPATHLEN]; /*!< tty for audio connection */
-    char data_tty[DEVPATHLEN];  /*!< tty for AT commands */
-
     uint32_t at_tasks;                      /*!< number of active tasks in at_queue */
     uint32_t at_cmds;                       /*!< number of active commands in at_queue */
     uint32_t chansno;                       /*!< number of channels in channels list */

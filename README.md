@@ -88,6 +88,21 @@ Supported modules:
 
     * `QuectelSendUssd` application renamed to `QUECTEL_SEND_USSD` one.
 
+  * Standard `MessageSend` funcion (application) may be used to send SMS-es:
+
+      Use `mobile` techonlogy. `MESSAGE(from)` field is ignored.
+
+      ```ini
+      same => n,Set(MESSAGE(body)=This is a short message)
+      same => n,Set(MESSAGE(to)=XXXXXXXXX)
+      same => n,MessageSend(mobile:quectel0)
+      ```
+
+  * Removed autodiscovery feature.
+
+      If you want to access device via `IMEI` or `IMSI` then *udev* rules is a better approach.
+      An example you may find in [tools/udev](tools/udev) folder.
+
 ## Configuration
 
 * `quectel_uac` option renamed to `uac` and it's a on/**off**/ext switch now.
@@ -195,6 +210,10 @@ Supported modules:
 * New `smsdb_backup` option in `[general]` section.
 
     Path to backup of SMS database created via `quectel sms db backup` command (see below).
+
+* Removed `imsi` and `imei` options.
+
+    Autodiscovery feature was removed (see above),
 
 ## Commands
 

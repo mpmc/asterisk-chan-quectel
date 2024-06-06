@@ -754,3 +754,38 @@ size_t fd_write_all(int fd, const char* buf, size_t count)
 
     return total;
 }
+
+static const char* const dev_state_strs[4]             = {"stop", "restart", "remove", "start"};
+static const char* const dev_state_strs_capitalized[4] = {"Stop", "Restart", "Remove", "Start"};
+
+public_state_t* gpublic;
+
+const char* dev_state2str(dev_state_t state) { return enum2str(state, dev_state_strs, ARRAY_LEN(dev_state_strs)); }
+
+const char* dev_state2str_capitalized(dev_state_t state) { return enum2str(state, dev_state_strs_capitalized, ARRAY_LEN(dev_state_strs_capitalized)); }
+
+dev_state_t str2dev_state(const char* str)
+{
+    if (!str) {
+        return DEV_STATE_STOPPED;
+    }
+
+    const int res = str2enum(str, dev_state_strs, ARRAY_LEN(dev_state_strs));
+    if (res < 0) {
+        return DEV_STATE_STOPPED;
+    } else {
+        return (dev_state_t)res;
+    }
+}
+
+const char* dev_state2str_msg(dev_state_t state)
+{
+    static const char* const states[] = {"Stop scheduled", "Restart scheduled", "Removal scheduled", "Start scheduled"};
+    return enum2str(state, states, ARRAY_LEN(states));
+}
+
+const char* restate2str_msg(restate_time_t when)
+{
+    static const char* const choices[] = {"Now", "Gracefully", "When convenient"};
+    return enum2str(when, choices, ARRAY_LEN(choices));
+}
