@@ -211,21 +211,20 @@ ssize_t gsm7_unpack_decode(const char* in, size_t in_nibbles, uint16_t* out, siz
         if (i & 1) {
             c >>= 4;
         }
-        const uint8_t n  = c & 0xf;
+        const uint8_t n  = c & 0x0f;
         value           |= n << in_padding;
         in_padding      += 4;
 
         while (in_padding >= 7 * 2) {
             in_padding  -= 7;
             value      >>= 7;
-            {
-                const uint16_t val = (esc ? LUT_GSM7_SS16 : LUT_GSM7_LS16)[esc ? ss : ls][value & 0x7f];
-                if (val == 0x1b) {
-                    esc = 1;
-                } else {
-                    esc      = 0;
-                    out[x++] = ((val & 0xff) << 8) | (val >> 8);
-                }
+
+            const uint16_t val = (esc ? LUT_GSM7_SS16 : LUT_GSM7_LS16)[esc ? ss : ls][value & 0x7f];
+            if (val == 0x1b) {
+                esc = 1;
+            } else {
+                esc      = 0;
+                out[x++] = big_endian_16(val);
             }
         }
     }
