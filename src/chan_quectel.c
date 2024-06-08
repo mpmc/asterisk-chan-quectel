@@ -34,6 +34,7 @@
  */
 
 #include <signal.h>
+#include <sys/eventfd.h>
 
 #include "ast_config.h"
 
@@ -301,11 +302,66 @@ static void pvt_destroy(struct pvt* const pvt)
     pvt_free(pvt);
 }
 
-static void* do_discovery(void* arg)
+static void get_public_state_event(struct public_state* const state, int* discovery_interval, int* fd)
 {
-    struct public_state* state = (struct public_state*)arg;
+    SCOPED_MUTEX(dev_manager_lock, &state->dev_manager_lock);
+    *discovery_interval = SCONF_GLOBAL(state, discovery_interval);
+    fd[0]               = state->dev_manager_stop_event;
+    fd[1]               = state->dev_manager_restart_event;
+}
 
-    while (!state->unloading_flag) {
+static int waitfor_n_fd(int* fd, int* ms)
+{
+    int exception;
+
+    const int outfd = ast_waitfor_n_fd(fd, 2, ms, &exception);
+
+    if (outfd < 0) {
+        return 0;
+    }
+
+    return outfd;
+}
+
+static int reset_event(int fd)
+{
+    // eventfd uses 64bit integers for signalling
+    uint64_t dummy = 0;
+    ssize_t l      = read(fd, &dummy, sizeof(dummy));
+    if (l < 0 && errno != EAGAIN) {
+        return -1;
+    }
+    // EAGAIN is non-fatal here since that just means that
+    // the event was already reset when we were called,
+    // which is ok
+    return 0;
+}
+
+static void dev_manager_threadproc_state(struct public_state* const state)
+{
+    int discovery_interval;
+    int fd[2];
+
+    auto int ev_wait()
+    {
+        int t = discovery_interval;
+        return waitfor_n_fd(fd, &t);
+    }
+
+    get_public_state_event(state, &discovery_interval, fd);
+
+    while (1) {
+        const int waitfd = ev_wait();
+        if (waitfd == fd[0]) {  // exit
+            ast_log(LOG_NOTICE, "Got device manager exit event\n");
+            break;
+        } else if (waitfd == fd[1]) {  // reload
+            ast_log(LOG_NOTICE, "Got device manager reload event\n");
+            get_public_state_event(state, &discovery_interval, fd);
+            reset_event(fd[1]);
+            continue;
+        }
+        // timeout
         struct pvt* pvt;
         /* read lock for avoid deadlock when IMEI/IMSI discovery */
         AST_RWLIST_RDLOCK(&state->devices);
@@ -357,59 +413,83 @@ static void* do_discovery(void* arg)
             }
         AST_RWLIST_TRAVERSE_SAFE_END;
         AST_RWLIST_UNLOCK(&state->devices);
-
-        /* Go to sleep (only if we are not unloading) */
-        if (!state->unloading_flag) {
-            sleep(SCONF_GLOBAL(state, discovery_interval));
-        }
     }
+}
 
+static void* dev_manager_threadproc(void* arg)
+{
+    struct public_state* const state = (struct public_state* const)arg;
+    dev_manager_threadproc_state(state);
     return NULL;
 }
 
-#/* */
-
-static int discovery_restart(public_state_t* state)
+static int dev_manager_start(struct public_state* const state)
 {
-    SCOPED_MUTEX(state_discovery_lock, &state->discovery_lock);
+    SCOPED_MUTEX(device_manager_lock, &state->dev_manager_lock);
 
-    if (state->discovery_thread == AST_PTHREADT_STOP) {
-        return 0;
-    }
-
-    if (state->discovery_thread == pthread_self()) {
-        ast_log(LOG_WARNING, "Cannot kill myself\n");
+    if (ast_pthread_create_background(&state->dev_manager_thread, NULL, dev_manager_threadproc, state) < 0) {
+        ast_log(LOG_ERROR, "Unable to start discovery thread\n");
+        state->dev_manager_thread = AST_PTHREADT_NULL;
         return -1;
     }
 
-    if (state->discovery_thread != AST_PTHREADT_NULL) {
-        /* Wake up the thread */
-        pthread_kill(state->discovery_thread, SIGURG);
-    } else {
-        /* Start a new monitor */
-        if (ast_pthread_create_background(&state->discovery_thread, NULL, do_discovery, state) < 0) {
-            ast_log(LOG_ERROR, "Unable to start discovery thread\n");
-            return -1;
-        }
+    return 0;
+}
+
+static int set_event(int fd)
+{
+    // eventfd uses 64bit integers for signalling
+    uint64_t dummy = 1;
+    ssize_t l      = write(fd, &dummy, sizeof(dummy));
+    if (l < 0) {
+        return -1;
     }
     return 0;
 }
 
-#/* */
-
-static void discovery_stop(public_state_t* state)
+static void get_dev_manager_restart_event(struct public_state* const state, int* dev_manager_restart_event)
 {
-    /* signal for discovery unloading */
-    state->unloading_flag = 1;
+    SCOPED_MUTEX(dev_manager_lock, &state->dev_manager_lock);
+    *dev_manager_restart_event = state->dev_manager_restart_event;
+}
 
-    SCOPED_MUTEX(state_discovery_lock, &state->discovery_lock);
-    if (state->discovery_thread && (state->discovery_thread != AST_PTHREADT_STOP) && (state->discovery_thread != AST_PTHREADT_NULL)) {
-        //		pthread_cancel(state->discovery_thread);
-        pthread_kill(state->discovery_thread, SIGURG);
-        pthread_join(state->discovery_thread, NULL);
+static void dev_manager_restart(struct public_state* const state)
+{
+    int fd;
+    get_dev_manager_restart_event(state, &fd);
+    if (set_event(fd)) {
+        ast_log(LOG_ERROR, "Unable to signal device manager thread\n");
+    }
+}
+
+static void get_dev_manager_thread_handle(struct public_state* const state, pthread_t* dev_manager_thread, int* dev_manager_stop_event)
+{
+    SCOPED_MUTEX(dev_manager_lock, &state->dev_manager_lock);
+    *dev_manager_thread     = state->dev_manager_thread;
+    *dev_manager_stop_event = state->dev_manager_stop_event;
+}
+
+static void clear_dev_manager_thread_handle(struct public_state* const state)
+{
+    SCOPED_MUTEX(dev_manager_lock, &state->dev_manager_lock);
+    state->dev_manager_thread = AST_PTHREADT_NULL;
+}
+
+static void dev_manager_stop(struct public_state* const state)
+{
+    pthread_t dev_manager_thread;
+    int dev_manager_stop_event;
+
+    get_dev_manager_thread_handle(state, &dev_manager_thread, &dev_manager_stop_event);
+    if (set_event(dev_manager_stop_event)) {
+        ast_log(LOG_ERROR, "Unable to signal device manager thread\n");
     }
 
-    state->discovery_thread = AST_PTHREADT_STOP;
+    if (dev_manager_thread && (dev_manager_thread != AST_PTHREADT_STOP) && (dev_manager_thread != AST_PTHREADT_NULL)) {
+        pthread_join(dev_manager_thread, NULL);
+    }
+
+    clear_dev_manager_thread_handle(state);
 }
 
 #/* */
@@ -1129,7 +1209,7 @@ void pvt_try_restate(struct pvt* pvt)
 {
     if (pvt_time4restate(pvt)) {
         pvt->restart_time = RESTATE_TIME_NOW;
-        discovery_restart(gpublic);
+        dev_manager_restart(gpublic);
     }
 }
 
@@ -1413,6 +1493,7 @@ static unsigned int get_default_framing() { return PTIME_CAPTURE }
 
 #endif
 
+static int create_event() { return eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK); }
 
 static int public_state_init(struct public_state* state)
 {
@@ -1423,57 +1504,75 @@ static int public_state_init(struct public_state* state)
         return rv;
     }
 
+    ast_mutex_init(&state->dev_manager_lock);
+    state->dev_manager_restart_event = create_event();
+    state->dev_manager_stop_event    = create_event();
+    state->dev_manager_thread        = AST_PTHREADT_NULL;
+
     AST_RWLIST_HEAD_INIT(&state->devices);
-    SCOPED_LOCK(state_discovery_lock, &state->discovery_lock, ast_mutex_init, ast_mutex_destroy);
 
-    state->discovery_thread = AST_PTHREADT_NULL;
+    if (reload_config(state, 0, RESTATE_TIME_NOW, NULL)) {
+        ast_log(LOG_ERROR, "Errors reading config file " CONFIG_FILE ", Not loading module\n");
+        AST_RWLIST_HEAD_DESTROY(&state->devices);
+        return rv;
+    }
 
-    if (!reload_config(state, 0, RESTATE_TIME_NOW, NULL)) {
+    rv = AST_MODULE_LOAD_FAILURE;
+
+    if (!dev_manager_start(state)) {
+        ast_log(LOG_ERROR, "Unable to create discovery thread\n");
+        devices_destroy(state);
+        AST_RWLIST_HEAD_DESTROY(&state->devices);
+        return rv;
+    }
+
+    /* set preferred capabilities */
+    if (!(channel_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
         rv = AST_MODULE_LOAD_FAILURE;
-        if (!discovery_restart(state)) {
-            /* set preferred capabilities */
-            if (!(channel_tech.capabilities = ast_format_cap_alloc(AST_FORMAT_CAP_FLAG_DEFAULT))) {
-                return AST_MODULE_LOAD_FAILURE;
-            }
-            append_fmt(channel_tech.capabilities, ast_format_slin);
-            append_fmt(channel_tech.capabilities, ast_format_slin16);
-            append_fmt(channel_tech.capabilities, ast_format_slin48);
-            ast_format_cap_set_framing(channel_tech.capabilities, get_default_framing());
+        ast_log(LOG_ERROR, "Unable to create channel capabilities\n");
+        dev_manager_stop(state);
+        devices_destroy(state);
+        AST_RWLIST_HEAD_DESTROY(&state->devices);
+        return rv;
+    }
 
-            /* register our channel type */
-            if (ast_channel_register(&channel_tech)) {
-                ao2_cleanup(channel_tech.capabilities);
-                channel_tech.capabilities = NULL;
-                ast_log(LOG_ERROR, "Unable to register channel class %s\n", channel_tech.type);
-            } else {
-                smsdb_init();
+    append_fmt(channel_tech.capabilities, ast_format_slin);
+    append_fmt(channel_tech.capabilities, ast_format_slin16);
+    append_fmt(channel_tech.capabilities, ast_format_slin48);
+    ast_format_cap_set_framing(channel_tech.capabilities, get_default_framing());
+
+    if (ast_channel_register(&channel_tech)) {
+        ast_log(LOG_ERROR, "Unable to register channel class %s\n", channel_tech.type);
+        ao2_cleanup(channel_tech.capabilities);
+        channel_tech.capabilities = NULL;
+        dev_manager_stop(state);
+        devices_destroy(state);
+        AST_RWLIST_HEAD_DESTROY(&state->devices);
+        return rv;
+    }
+
+    smsdb_init();
 #ifdef WITH_APPLICATIONS
-                app_register();
+    app_register();
 #endif
 
 #ifdef WITH_MSG_TECH
-                msg_tech_register();
+    msg_tech_register();
 #endif
-                cli_register();
+    cli_register();
 
-                return AST_MODULE_LOAD_SUCCESS;
-            }
-            discovery_stop(state);
-        } else {
-            ast_log(LOG_ERROR, "Unable to create discovery thread\n");
-        }
-        devices_destroy(state);
-    } else {
-        ast_log(LOG_ERROR, "Errors reading config file " CONFIG_FILE ", Not loading module\n");
-    }
-
-    AST_RWLIST_HEAD_DESTROY(&state->devices);
-    return rv;
+    return AST_MODULE_LOAD_SUCCESS;
 }
 
 #/* */
 
-static void public_state_fini(struct public_state* state)
+void close_event(int* fd)
+{
+    close(*fd);
+    *fd = -1;
+}
+
+static void public_state_fini(struct public_state* const state)
 {
     /* First, take us out of the channel loop */
     ast_channel_unregister(&channel_tech);
@@ -1491,14 +1590,17 @@ static void public_state_fini(struct public_state* state)
     app_unregister();
 #endif
 
-    discovery_stop(state);
+    smsdb_atexit();
+
+    dev_manager_stop(state);
     devices_destroy(state);
 
-    ast_mutex_destroy(&state->discovery_lock);
+    ast_mutex_destroy(&state->dev_manager_lock);
+    close_event(&state->dev_manager_restart_event);
+    close_event(&state->dev_manager_stop_event);
     AST_RWLIST_HEAD_DESTROY(&state->devices);
 
     ast_threadpool_shutdown(gpublic->threadpool);
-    smsdb_atexit();
 }
 
 static int unload_module()
@@ -1517,7 +1619,7 @@ void pvt_reload(restate_time_t when)
 
     reload_config(gpublic, 1, when, &dev_reload);
     if (dev_reload > 0) {
-        discovery_restart(gpublic);
+        dev_manager_restart(gpublic);
     }
 }
 

@@ -194,10 +194,10 @@ typedef struct pvt {
 typedef struct public_state {
     AST_RWLIST_HEAD(devices, pvt) devices;
     struct ast_threadpool* threadpool;
-    ast_mutex_t discovery_lock;
-    pthread_t discovery_thread;  /* The discovery thread handler */
-    volatile int unloading_flag; /* no need mutex or other locking for protect this variable because no concurent r/w
-                                    and set non-0 atomically */
+    ast_mutex_t dev_manager_lock;
+    pthread_t dev_manager_thread;
+    int dev_manager_restart_event;
+    int dev_manager_stop_event;
     struct dc_gconfig global_settings;
 } public_state_t;
 
