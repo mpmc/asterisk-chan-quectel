@@ -314,7 +314,7 @@ void dc_gconfig_fill(struct ast_config* cfg, const char* cat, struct dc_gconfig*
         errno          = 0;
         const long tmp = strtol(smsttl, (char**)NULL, 10);
         if (!tmp && errno == EINVAL) {
-            ast_log(LOG_NOTICE, "Error parsing 'csmsttl' in general section, using default value %d\n", config->sms_ttl);
+            ast_log(LOG_NOTICE, "Error parsing 'smsttl' in general section, using default value %d\n", config->sms_ttl);
         } else {
             config->sms_ttl = tmp;
         }
@@ -329,7 +329,7 @@ int dc_config_fill(struct ast_config* cfg, const char* cat, const struct dc_scon
     int err = dc_uconfig_fill(cfg, cat, &config->unique);
     if (!err) {
         /* inherit from parent */
-        memcpy(&config->shared, parent, sizeof(config->shared));
+        config->shared = *parent;
 
         /* overwrite local */
         dc_sconfig_fill(cfg, cat, &config->shared);
@@ -340,43 +340,19 @@ int dc_config_fill(struct ast_config* cfg, const char* cat, const struct dc_scon
 
 static int dc_sconfig_compare(const struct dc_sconfig* const cfg1, const struct dc_sconfig* const cfg2)
 {
-    if (strcmp(cfg1->context, cfg2->context) || strcmp(cfg1->exten, cfg2->exten) || strcmp(cfg1->language, cfg2->language)) {
-        return 1;
-    }
-
-    if (cfg1->group != cfg2->group || cfg1->rxgain != cfg2->rxgain || cfg1->txgain != cfg2->txgain || cfg1->callingpres != cfg2->callingpres) {
-        return 1;
-    }
-
-    if (cfg1->usecallingpres != cfg2->usecallingpres || cfg1->autodeletesms != cfg2->autodeletesms || cfg1->resetquectel != cfg2->resetquectel ||
-        cfg1->multiparty != cfg2->multiparty || cfg1->dtmf != cfg2->dtmf || cfg1->moh != cfg2->moh || cfg1->query_time != cfg2->query_time ||
-        cfg1->dsci != cfg2->dsci || cfg1->qhup != cfg2->qhup) {
-        return 1;
-    }
-
-    if (cfg1->dtmf_duration != cfg2->dtmf_duration || cfg1->initstate != cfg2->initstate || cfg1->callwaiting != cfg2->callwaiting) {
-        return 1;
-    }
-
-    if (cfg1->msg_service != cfg2->msg_service || cfg1->msg_direct != cfg2->msg_direct || cfg1->msg_storage != cfg2->msg_storage) {
-        return 1;
-    }
-
-    return 0;
+    return strcmp(cfg1->context, cfg2->context) || strcmp(cfg1->exten, cfg2->exten) || strcmp(cfg1->language, cfg2->language) || cfg1->group != cfg2->group ||
+           cfg1->rxgain != cfg2->rxgain || cfg1->txgain != cfg2->txgain || cfg1->callingpres != cfg2->callingpres ||
+           cfg1->usecallingpres != cfg2->usecallingpres || cfg1->autodeletesms != cfg2->autodeletesms || cfg1->resetquectel != cfg2->resetquectel ||
+           cfg1->multiparty != cfg2->multiparty || cfg1->dtmf != cfg2->dtmf || cfg1->moh != cfg2->moh || cfg1->query_time != cfg2->query_time ||
+           cfg1->dsci != cfg2->dsci || cfg1->qhup != cfg2->qhup || cfg1->dtmf_duration != cfg2->dtmf_duration || cfg1->initstate != cfg2->initstate ||
+           cfg1->callwaiting != cfg2->callwaiting || cfg1->msg_service != cfg2->msg_service || cfg1->msg_direct != cfg2->msg_direct ||
+           cfg1->msg_storage != cfg2->msg_storage;
 }
 
 static int dc_uconfig_compare(const struct dc_uconfig* const cfg1, const struct dc_uconfig* const cfg2)
 {
-    if (strcmp(cfg1->id, cfg2->id) || strcmp(cfg1->audio_tty, cfg2->audio_tty) || strcmp(cfg1->data_tty, cfg2->data_tty) ||
-        strcmp(cfg1->alsadev, cfg2->alsadev)) {
-        return 1;
-    }
-
-    if (cfg1->uac != cfg2->uac || cfg1->slin16 != cfg2->slin16) {
-        return 1;
-    }
-
-    return 0;
+    return strcmp(cfg1->id, cfg2->id) || strcmp(cfg1->audio_tty, cfg2->audio_tty) || strcmp(cfg1->data_tty, cfg2->data_tty) ||
+           strcmp(cfg1->alsadev, cfg2->alsadev) || cfg1->uac != cfg2->uac || cfg1->slin16 != cfg2->slin16;
 }
 
 int pvt_config_compare(const struct pvt_config* const cfg1, const struct pvt_config* const cfg2)
@@ -384,5 +360,5 @@ int pvt_config_compare(const struct pvt_config* const cfg1, const struct pvt_con
     if (!(cfg1 && cfg2)) {
         return -1;
     }
-    return dc_sconfig_compare(&cfg1->shared, &cfg2->shared) && dc_uconfig_compare(&cfg1->unique, &cfg2->unique);
+    return dc_sconfig_compare(&cfg1->shared, &cfg2->shared) || dc_uconfig_compare(&cfg1->unique, &cfg2->unique);
 }
