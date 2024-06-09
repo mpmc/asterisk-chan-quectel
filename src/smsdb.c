@@ -416,7 +416,7 @@ static int db_init()
 static int put_incmsg(const struct ast_str* const fullkey, int order, const char* msg)
 {
     int res;
-    const int ttl = CONF_GLOBAL(csms_ttl);
+    const int ttl = CONF_GLOBAL(sms_ttl);
 
     SCOPED_DB(smsdb);
     SCOPED_STMT(put_incomingmsg);

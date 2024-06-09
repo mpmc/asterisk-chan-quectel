@@ -95,10 +95,10 @@ typedef struct dc_sconfig {
 
 /* Global settings */
 typedef struct dc_gconfig {
-    int discovery_interval; /*!< The device discovery interval */
+    int manager_interval; /*!< The device discovery interval */
     char sms_db[PATHLEN];
     char sms_backup_db[PATHLEN];
-    int csms_ttl;
+    int sms_ttl;
 } dc_gconfig_t;
 
 /* Local required (unique) settings */
@@ -125,6 +125,6 @@ void dc_sconfig_fill_defaults(struct dc_sconfig* config);
 void dc_sconfig_fill(struct ast_config* cfg, const char* cat, struct dc_sconfig* config);
 void dc_gconfig_fill(struct ast_config* cfg, const char* cat, struct dc_gconfig* config);
 int dc_config_fill(struct ast_config* cfg, const char* cat, const struct dc_sconfig* parent, struct pvt_config* config);
-
+int pvt_config_compare(const struct pvt_config* const cfg1, const struct pvt_config* const cfg2);
 
 #endif /* CHAN_QUECTEL_DC_CONFIG_H_INCLUDED */

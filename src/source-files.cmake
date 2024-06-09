@@ -26,6 +26,7 @@ SET(SOURCES
     tty.c
     pcm.c
     msg_tech.c
+    eventfd.c
 )
 
 SET(HEADERS
@@ -55,4 +56,5 @@ SET(HEADERS
     tty.h
     pcm.h
     msg_tech.h
+    eventfd.h
 )

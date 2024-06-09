@@ -194,10 +194,9 @@ typedef struct pvt {
 typedef struct public_state {
     AST_RWLIST_HEAD(devices, pvt) devices;
     struct ast_threadpool* threadpool;
-    ast_mutex_t dev_manager_lock;
     pthread_t dev_manager_thread;
-    int dev_manager_restart_event;
-    int dev_manager_stop_event;
+    int dev_manager_event_signal;
+    int dev_manager_event_stop;
     struct dc_gconfig global_settings;
 } public_state_t;
 
