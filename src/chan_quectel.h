@@ -195,8 +195,7 @@ typedef struct public_state {
     AST_RWLIST_HEAD(devices, pvt) devices;
     struct ast_threadpool* threadpool;
     pthread_t dev_manager_thread;
-    int dev_manager_event_signal;
-    int dev_manager_event_stop;
+    int dev_manager_event;
     struct dc_gconfig global_settings;
 } public_state_t;
 

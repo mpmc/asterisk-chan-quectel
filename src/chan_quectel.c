@@ -302,40 +302,42 @@ static void pvt_destroy(struct pvt* const pvt)
     pvt_free(pvt);
 }
 
-static int waitfor_n_fd(int* fd, int* ms)
-{
-    int exception;
+// device manager
 
-    const int outfd = ast_waitfor_n_fd(fd, 2, ms, &exception);
-
-    if (outfd < 0) {
-        return 0;
-    }
-
-    return outfd;
-}
+static const eventfd_t DEV_MANAGER_CMD_SCAN = 1;
+static const eventfd_t DEV_MANAGER_CMD_STOP = 2;
 
 static void dev_manager_threadproc_state(struct public_state* const state)
 {
     int manager_interval = SCONF_GLOBAL(state, manager_interval);
-    int fd[2]            = {state->dev_manager_event_stop, state->dev_manager_event_signal};
+    const int fd         = state->dev_manager_event;
 
     auto int ev_wait()
     {
         int t = manager_interval;
-        return waitfor_n_fd(fd, &t);
+        return at_wait(fd, &t);
     }
 
     while (1) {
-        const int waitfd = ev_wait();
-        if (waitfd == fd[0]) {  // exit
-            ast_debug(3, "[dev-manager] Got exit event\n");
-            break;
-        } else if (waitfd == fd[1]) {  // reload
-            ast_debug(3, "[dev-manager] Got signal\n");
-            manager_interval = SCONF_GLOBAL(state, manager_interval);
-            eventfd_reset(fd[1]);
+        if (ev_wait() == fd) {
+            eventfd_t val = 0;
+            if (eventfd_read(fd, &val)) {
+                ast_log(LOG_ERROR, "[dev-manager] Fail to read command - exiting\n");
+                break;
+            }
+
+            if (val == DEV_MANAGER_CMD_SCAN) {
+                ast_debug(3, "[dev-manager] Got scan event\n");
+                manager_interval = SCONF_GLOBAL(state, manager_interval);
+            } else if (val == DEV_MANAGER_CMD_STOP) {
+                ast_debug(3, "[dev-manager] Got exit event\n");
+                break;
+            } else {
+                ast_log(LOG_WARNING, "[dev-manager] Unknown command: %d - exiting\n", (int)val);
+                continue;
+            }
         }
+
         // timeout
         struct pvt* pvt;
         /* read lock for avoid deadlock when IMEI/IMSI discovery */
@@ -422,16 +424,16 @@ static int dev_manager_start(struct public_state* const state)
     return 0;
 }
 
-static void dev_manager_signal(const struct public_state* const state)
+static void dev_manager_scan(const struct public_state* const state)
 {
-    if (eventfd_set(state->dev_manager_event_signal)) {
+    if (eventfd_write(state->dev_manager_event, DEV_MANAGER_CMD_SCAN)) {
         ast_log(LOG_ERROR, "Unable to signal device manager thread\n");
     }
 }
 
 static void dev_manager_stop(struct public_state* const state)
 {
-    if (eventfd_set(state->dev_manager_event_stop)) {
+    if (eventfd_write(state->dev_manager_event, DEV_MANAGER_CMD_STOP)) {
         ast_log(LOG_ERROR, "Unable to signal device manager thread\n");
     }
 
@@ -1159,7 +1161,7 @@ void pvt_try_restate(struct pvt* pvt)
 {
     if (pvt_time4restate(pvt)) {
         pvt->restart_time = RESTATE_TIME_NOW;
-        dev_manager_signal(gpublic);
+        dev_manager_scan(gpublic);
     }
 }
 
@@ -1451,9 +1453,8 @@ static int public_state_init(struct public_state* state)
         return rv;
     }
 
-    state->dev_manager_event_signal = eventfd_create();
-    state->dev_manager_event_stop   = eventfd_create();
-    state->dev_manager_thread       = AST_PTHREADT_NULL;
+    state->dev_manager_event  = eventfd_create();
+    state->dev_manager_thread = AST_PTHREADT_NULL;
 
     AST_RWLIST_HEAD_INIT(&state->devices);
 
@@ -1535,8 +1536,7 @@ static void public_state_fini(struct public_state* const state)
     dev_manager_stop(state);
     devices_destroy(state);
 
-    eventfd_close(&state->dev_manager_event_signal);
-    eventfd_close(&state->dev_manager_event_stop);
+    eventfd_close(&state->dev_manager_event);
     AST_RWLIST_HEAD_DESTROY(&state->devices);
 
     ast_threadpool_shutdown(gpublic->threadpool);
@@ -1558,7 +1558,7 @@ void pvt_reload(restate_time_t when)
 
     reload_config(gpublic, 1, when, &dev_reload);
     if (dev_reload > 0) {
-        dev_manager_signal(gpublic);
+        dev_manager_scan(gpublic);
     }
 }
 

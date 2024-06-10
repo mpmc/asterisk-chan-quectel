@@ -3,14 +3,13 @@
 */
 
 #include <errno.h>
-#include <sys/eventfd.h>
 #include <unistd.h>
 
 #include "eventfd.h"
 
 int eventfd_create() { return eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK); }
 
-int eventfd_set(int fd) { return eventfd_write(fd, 1); }
+int eventfd_signal(int fd) { return eventfd_write(fd, 1); }
 
 int eventfd_reset(int fd)
 {
