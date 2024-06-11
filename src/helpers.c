@@ -789,3 +789,28 @@ const char* restate2str_msg(restate_time_t when)
     static const char* const choices[] = {"Now", "Gracefully", "When convenient"};
     return enum2str(when, choices, ARRAY_LEN(choices));
 }
+
+int format_ast_tm(const struct ast_tm* const tm, struct ast_str* str)
+{
+    static char AST_TM_FMT[]  = "%FT%T%z";
+    static char AST_TM_FMTZ[] = "%FT%TZ";
+    const int res             = ast_strftime(ast_str_buffer(str), ast_str_size(str), tm->tm_gmtoff ? AST_TM_FMT : AST_TM_FMTZ, tm);
+    if (res >= 0) {
+        ast_str_truncate(str, res);
+        return 0;
+    } else {
+        ast_str_reset(str);
+        return -1;
+    }
+}
+
+struct ast_tm* ast_tm_normalize(struct ast_tm* const tm)
+{
+    const long gmtoff    = tm->tm_gmtoff;
+    struct timeval tmval = ast_mktime(tm, "UTC");
+
+    tmval.tv_sec -= gmtoff;
+    ast_localtime(&tmval, tm, "UTC");
+    tm->tm_gmtoff = gmtoff;
+    return tm;
+}

@@ -447,8 +447,8 @@ int at_parse_cdsi(const char* str, int* idx)
     return 0;
 }
 
-static int parse_pdu(const char* str, size_t len, int* tpdu_type, char* sca, size_t sca_len, char* oa, size_t oa_len, char* scts, int* mr, int* st, char* dt,
-                     char* msg, size_t* msg_len, pdu_udh_t* udh)
+static int parse_pdu(const char* str, size_t len, int* tpdu_type, char* sca, size_t sca_len, char* oa, size_t oa_len, struct ast_tm* scts, int* mr, int* st,
+                     struct ast_tm* dt, char* msg, size_t* msg_len, pdu_udh_t* udh)
 {
     uint16_t msg16_tmp[256];
 
@@ -517,8 +517,8 @@ static int parse_pdu(const char* str, size_t len, int* tpdu_type, char* sca, siz
  * \retval -1 parse error
  */
 
-int at_parse_cmgr(char* str, size_t len, int* tpdu_type, char* sca, size_t sca_len, char* oa, size_t oa_len, char* scts, int* mr, int* st, char* dt, char* msg,
-                  size_t* msg_len, pdu_udh_t* udh)
+int at_parse_cmgr(char* str, size_t len, int* tpdu_type, char* sca, size_t sca_len, char* oa, size_t oa_len, struct ast_tm* scts, int* mr, int* st,
+                  struct ast_tm* dt, char* msg, size_t* msg_len, pdu_udh_t* udh)
 {
     /* skip "+CMGR:" */
     while (len > 0 && *str != ':') {
@@ -577,8 +577,8 @@ int at_parse_cmgr(char* str, size_t len, int* tpdu_type, char* sca, size_t sca_l
     return parse_pdu(marks[2] + 1, tpdu_length, tpdu_type, sca, sca_len, oa, oa_len, scts, mr, st, dt, msg, msg_len, udh);
 }
 
-int at_parse_cmt(char* str, size_t len, int* tpdu_type, char* sca, size_t sca_len, char* oa, size_t oa_len, char* scts, int* mr, int* st, char* dt, char* msg,
-                 size_t* msg_len, pdu_udh_t* udh)
+int at_parse_cmt(char* str, size_t len, int* tpdu_type, char* sca, size_t sca_len, char* oa, size_t oa_len, struct ast_tm* scts, int* mr, int* st,
+                 struct ast_tm* dt, char* msg, size_t* msg_len, pdu_udh_t* udh)
 {
     /* skip "+CMT:" */
     str += 5;
@@ -619,8 +619,8 @@ int at_parse_cmt(char* str, size_t len, int* tpdu_type, char* sca, size_t sca_le
     return parse_pdu(marks[1] + 1, tpdu_length, tpdu_type, sca, sca_len, oa, oa_len, scts, mr, st, dt, msg, msg_len, udh);
 }
 
-int at_parse_cbm(char* str, size_t len, int* tpdu_type, char* sca, size_t sca_len, char* oa, size_t oa_len, char* scts, int* mr, int* st, char* dt, char* msg,
-                 size_t* msg_len, pdu_udh_t* udh)
+int at_parse_cbm(char* str, size_t len, int* tpdu_type, char* sca, size_t sca_len, char* oa, size_t oa_len, struct ast_tm* scts, int* mr, int* st,
+                 struct ast_tm* dt, char* msg, size_t* msg_len, pdu_udh_t* udh)
 {
     /* skip "+CBM:" */
     str += 5;
@@ -665,8 +665,8 @@ int at_parse_cbm(char* str, size_t len, int* tpdu_type, char* sca, size_t sca_le
     return parse_pdu(marks[0] + 1, tpdu_length, tpdu_type, sca, sca_len, oa, oa_len, scts, mr, st, dt, msg, msg_len, udh);
 }
 
-int at_parse_cds(char* str, size_t len, int* tpdu_type, char* sca, size_t sca_len, char* oa, size_t oa_len, char* scts, int* mr, int* st, char* dt, char* msg,
-                 size_t* msg_len, pdu_udh_t* udh)
+int at_parse_cds(char* str, size_t len, int* tpdu_type, char* sca, size_t sca_len, char* oa, size_t oa_len, struct ast_tm* scts, int* mr, int* st,
+                 struct ast_tm* dt, char* msg, size_t* msg_len, pdu_udh_t* udh)
 {
     /* skip "+CDS:" */
     str += 5;
@@ -711,8 +711,8 @@ int at_parse_cds(char* str, size_t len, int* tpdu_type, char* sca, size_t sca_le
     return parse_pdu(marks[0] + 1, tpdu_length, tpdu_type, sca, sca_len, oa, oa_len, scts, mr, st, dt, msg, msg_len, udh);
 }
 
-int at_parse_cmgl(char* str, size_t len, int* idx, int* tpdu_type, char* sca, size_t sca_len, char* oa, size_t oa_len, char* scts, int* mr, int* st, char* dt,
-                  char* msg, size_t* msg_len, pdu_udh_t* udh)
+int at_parse_cmgl(char* str, size_t len, int* idx, int* tpdu_type, char* sca, size_t sca_len, char* oa, size_t oa_len, struct ast_tm* scts, int* mr, int* st,
+                  struct ast_tm* dt, char* msg, size_t* msg_len, pdu_udh_t* udh)
 {
     /* skip "+CMGL:" */
     str += 6;

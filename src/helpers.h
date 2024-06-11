@@ -4,6 +4,7 @@
 #ifndef CHAN_QUECTEL_HELPERS_H_INCLUDED
 #define CHAN_QUECTEL_HELPERS_H_INCLUDED
 
+#include <asterisk/localtime.h>
 #include <asterisk/strings.h>
 
 #include "chan_quectel.h" /* restate_time_t */
@@ -75,6 +76,9 @@ dev_state_t str2dev_state(const char* str);
 const char* dev_state2str_msg(dev_state_t state);
 
 const char* restate2str_msg(restate_time_t when);
+
+int format_ast_tm(const struct ast_tm* const tm, struct ast_str* str);
+struct ast_tm* ast_tm_normalize(struct ast_tm* const tm);
 
 size_t fd_write_all(int fd, const char* buf, size_t count);
 

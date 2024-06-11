@@ -1554,10 +1554,11 @@ static int at_response_cdsi(struct pvt* const pvt, const struct ast_str* const r
 
 static int at_response_msg(struct pvt* const pvt, const struct ast_str* const response, at_res_t cmd)
 {
-    static const ssize_t MSG_DEF_LEN = 64;
-    static const ssize_t MSG_MAX_LEN = 4096;
+    static const ssize_t MSG_DEF_LEN   = 64;
+    static const ssize_t MSG_MAX_LEN   = 4096;
+    static const size_t AST_TM_MAX_LEN = 64;
 
-    char scts[64], dt[64];
+    struct ast_tm scts, dt;
     int mr, st;
     int res;
     int tpdu_type, idx;
@@ -1568,7 +1569,9 @@ static int at_response_msg(struct pvt* const pvt, const struct ast_str* const re
 
     pdu_udh_init(&udh);
 
-    scts[0] = dt[0] = '\000';
+    memset(&scts, 0, sizeof(scts));
+    memset(&dt, 0, sizeof(dt));
+
     RAII_VAR(struct ast_str*, msg, ast_str_create(MSG_MAX_LEN), ast_free);
     RAII_VAR(struct ast_str*, oa, ast_str_create(512), ast_free);
     RAII_VAR(struct ast_str*, sca, ast_str_create(512), ast_free);
@@ -1578,27 +1581,27 @@ static int at_response_msg(struct pvt* const pvt, const struct ast_str* const re
         case RES_CMGR:
         case RES_CLASS0:
             res = at_parse_cmgr(ast_str_buffer(response), ast_str_strlen(response), &tpdu_type, ast_str_buffer(sca), ast_str_size(sca), ast_str_buffer(oa),
-                                ast_str_size(oa), scts, &mr, &st, dt, ast_str_buffer(msg), &msg_len, &udh);
+                                ast_str_size(oa), &scts, &mr, &st, &dt, ast_str_buffer(msg), &msg_len, &udh);
             break;
 
         case RES_CMGL:
             res = at_parse_cmgl(ast_str_buffer(response), ast_str_strlen(response), &idx, &tpdu_type, ast_str_buffer(sca), ast_str_size(sca),
-                                ast_str_buffer(oa), ast_str_size(oa), scts, &mr, &st, dt, ast_str_buffer(msg), &msg_len, &udh);
+                                ast_str_buffer(oa), ast_str_size(oa), &scts, &mr, &st, &dt, ast_str_buffer(msg), &msg_len, &udh);
             break;
 
         case RES_CMT:
             res = at_parse_cmt(ast_str_buffer(response), ast_str_strlen(response), &tpdu_type, ast_str_buffer(sca), ast_str_size(sca), ast_str_buffer(oa),
-                               ast_str_size(oa), scts, &mr, &st, dt, ast_str_buffer(msg), &msg_len, &udh);
+                               ast_str_size(oa), &scts, &mr, &st, &dt, ast_str_buffer(msg), &msg_len, &udh);
             break;
 
         case RES_CBM:
             res = at_parse_cbm(ast_str_buffer(response), ast_str_strlen(response), &tpdu_type, ast_str_buffer(sca), ast_str_size(sca), ast_str_buffer(oa),
-                               ast_str_size(oa), scts, &mr, &st, dt, ast_str_buffer(msg), &msg_len, &udh);
+                               ast_str_size(oa), &scts, &mr, &st, &dt, ast_str_buffer(msg), &msg_len, &udh);
             break;
 
         case RES_CDS:
             res = at_parse_cds(ast_str_buffer(response), ast_str_strlen(response), &tpdu_type, ast_str_buffer(sca), ast_str_size(sca), ast_str_buffer(oa),
-                               ast_str_size(oa), scts, &mr, &st, dt, ast_str_buffer(msg), &msg_len, &udh);
+                               ast_str_size(oa), &scts, &mr, &st, &dt, ast_str_buffer(msg), &msg_len, &udh);
             break;
 
         default:
@@ -1637,7 +1640,7 @@ static int at_response_msg(struct pvt* const pvt, const struct ast_str* const re
                 msg_ack      = TRIBOOL_TRUE;
                 msg_ack_uid  = mr;
                 msg_complete = 1;
-                channel_start_local_report(pvt, "sms", LOCAL_REPORT_DIRECTION_INCOMING, ast_str_buffer(oa), scts, dt, success, report);
+                channel_start_local_report(pvt, "sms", LOCAL_REPORT_DIRECTION_INCOMING, ast_str_buffer(oa), &scts, &dt, success, report);
             }
 
             break;
@@ -1645,13 +1648,16 @@ static int at_response_msg(struct pvt* const pvt, const struct ast_str* const re
 
         case PDUTYPE_MTI_SMS_DELIVER: {
             RAII_VAR(struct ast_str*, fullmsg, ast_str_create(MSG_DEF_LEN), ast_free);
+            struct ast_str* scts_str = ast_str_alloca(AST_TM_MAX_LEN);
+            format_ast_tm(&scts, scts_str);
+
             if (udh.parts > 1) {
-                ast_verb(2, "[%s][SMS:%d PART:%d/%d TS:%s] Got message part from %s: [%s]\n", PVT_ID(pvt), (int)udh.ref, (int)udh.order, (int)udh.parts, scts,
-                         ast_str_buffer(oa), ast_str_buffer(msg));
+                ast_verb(2, "[%s][SMS:%d PART:%d/%d TS:%s] Got message part from %s: [%s]\n", PVT_ID(pvt), (int)udh.ref, (int)udh.order, (int)udh.parts,
+                         ast_str_buffer(scts_str), ast_str_buffer(oa), ast_str_buffer(msg));
                 int csms_cnt = smsdb_put(pvt->imsi, ast_str_buffer(oa), udh.ref, udh.parts, udh.order, ast_str_buffer(msg), &fullmsg);
                 if (csms_cnt <= 0) {
                     ast_log(LOG_ERROR, "[%s][SMS:%d PART:%d/%d TS:%s] Error putting message part to database\n", PVT_ID(pvt), (int)udh.ref, (int)udh.order,
-                            (int)udh.parts, scts);
+                            (int)udh.parts, ast_str_buffer(scts_str));
                     goto receive_as_is;
                 }
                 ast_str_update(fullmsg);
@@ -1662,7 +1668,7 @@ static int at_response_msg(struct pvt* const pvt, const struct ast_str* const re
                 if (!msg_complete) {
                     if ((int)udh.order == (int)udh.parts) {
                         ast_debug(1, "[%s][SMS:%d PART:%d/%d TS:%s] Incomplete message, got %d parts\n", PVT_ID(pvt), (int)udh.ref, (int)udh.order,
-                                  (int)udh.parts, scts, csms_cnt);
+                                  (int)udh.parts, ast_str_buffer(scts_str), csms_cnt);
                     }
                     goto msg_done;
                 }
@@ -1671,12 +1677,13 @@ receive_as_is:
                 msg_ack      = TRIBOOL_TRUE;
                 msg_ack_uid  = (int)udh.ref;
                 msg_complete = 1;
-                ast_verb(2, "[%s][SMS:%d TS:%s] Got message part from %s: [%s]\n", PVT_ID(pvt), (int)udh.ref, scts, ast_str_buffer(oa), ast_str_buffer(msg));
+                ast_verb(2, "[%s][SMS:%d TS:%s] Got message part from %s: [%s]\n", PVT_ID(pvt), (int)udh.ref, ast_str_buffer(scts_str), ast_str_buffer(oa),
+                         ast_str_buffer(msg));
                 ast_str_copy_string(&fullmsg, msg);
             }
 
             RAII_VAR(struct ast_json*, sms, ast_json_object_create(), ast_json_unref);
-            ast_json_object_set(sms, "ts", ast_json_string_create(scts));
+            ast_json_object_set(sms, "ts", ast_json_string_create(ast_str_buffer(scts_str)));
             if (udh.ref) {
                 ast_json_object_set(sms, "ref", ast_json_integer_create((int)udh.ref));
             }
@@ -1686,12 +1693,13 @@ receive_as_is:
             ast_json_object_set(sms, "from", ast_json_string_create(ast_str_buffer(oa)));
 
             if (ast_str_strlen(fullmsg)) {
-                ast_verb(1, "[%s][SMS:%d PARTS:%d TS:%s] Got message from %s: [%s]\n", PVT_ID(pvt), (int)udh.ref, (int)udh.parts, scts, ast_str_buffer(oa),
-                         ast_str_buffer(fullmsg));
+                ast_verb(1, "[%s][SMS:%d PARTS:%d TS:%s] Got message from %s: [%s]\n", PVT_ID(pvt), (int)udh.ref, (int)udh.parts, ast_str_buffer(scts_str),
+                         ast_str_buffer(oa), ast_str_buffer(fullmsg));
 
                 ast_json_object_set(sms, "msg", ast_json_string_create(ast_str_buffer(fullmsg)));
             } else {
-                ast_verb(1, "[%s][SMS:%d PARTS:%d TS:%s] Got empty message from %s\n", PVT_ID(pvt), (int)udh.ref, (int)udh.parts, scts, ast_str_buffer(oa));
+                ast_verb(1, "[%s][SMS:%d PARTS:%d TS:%s] Got empty message from %s\n", PVT_ID(pvt), (int)udh.ref, (int)udh.parts, ast_str_buffer(scts_str),
+                         ast_str_buffer(oa));
             }
 
             channel_start_local_json(pvt, "sms", ast_str_buffer(oa), "SMS", sms);

@@ -1080,9 +1080,11 @@ int channel_enqueue_hangup(struct ast_channel* channel, int hangupcause)
     return ast_queue_hangup(channel);
 }
 
-void channel_start_local_report(struct pvt* pvt, const char* subject, local_report_direction direction, const char* number, const char* ts, const char* dt,
-                                int success, struct ast_json* const report)
+void channel_start_local_report(struct pvt* pvt, const char* subject, local_report_direction direction, const char* number, const struct ast_tm* ts,
+                                const struct ast_tm* dt, int success, struct ast_json* const report)
 {
+    static const size_t AST_TM_MAX_LEN = 64;
+
     RAII_VAR(struct ast_json*, rprt, ast_json_object_create(), ast_json_unref);
     ast_json_object_set(rprt, "subject", ast_json_string_create(subject));
     switch (direction) {
@@ -1098,12 +1100,16 @@ void channel_start_local_report(struct pvt* pvt, const char* subject, local_repo
             break;
     }
 
-    if (!ast_strlen_zero(ts)) {
-        ast_json_object_set(rprt, "ts", ast_json_string_create(ts));
+    if (ts && ts->tm_year) {
+        struct ast_str* buf = ast_str_alloca(AST_TM_MAX_LEN);
+        format_ast_tm(ts, buf);
+        ast_json_object_set(rprt, "ts", ast_json_string_create(ast_str_buffer(buf)));
     }
 
-    if (!ast_strlen_zero(dt)) {
-        ast_json_object_set(rprt, "dt", ast_json_string_create(dt));
+    if (dt && dt->tm_year) {
+        struct ast_str* buf = ast_str_alloca(AST_TM_MAX_LEN);
+        format_ast_tm(dt, buf);
+        ast_json_object_set(rprt, "dt", ast_json_string_create(ast_str_buffer(buf)));
     }
 
     // ast_json_object_set(rprt, "success", ast_json_boolean(success));
