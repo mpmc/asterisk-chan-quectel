@@ -314,7 +314,7 @@ static void dev_manager_threadproc_state(struct public_state* const state)
 
     auto int ev_wait()
     {
-        int t = manager_interval;
+        int t = manager_interval * 1000;
         return at_wait(fd, &t);
     }
 
