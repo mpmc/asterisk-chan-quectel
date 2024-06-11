@@ -18,6 +18,7 @@
 
 #include <asterisk/json.h>
 #include <asterisk/linkedlists.h>
+#include <asterisk/localtime.h>
 #include <asterisk/lock.h>
 #include <asterisk/strings.h>
 #include <asterisk/threadpool.h>
@@ -124,6 +125,8 @@ typedef struct pvt {
     /* SMS support */
     int incoming_sms_index;
 
+    struct ast_tm module_time;
+
     // clang-format off
 	/* string fields */
 	AST_DECLARE_STRING_FIELDS(
@@ -141,7 +144,6 @@ typedef struct pvt {
 		AST_STRING_FIELD(band);
 		AST_STRING_FIELD(sms_scenter);
 		AST_STRING_FIELD(subscriber_number);
-		AST_STRING_FIELD(module_time);
 	);
     // clang-format on
 

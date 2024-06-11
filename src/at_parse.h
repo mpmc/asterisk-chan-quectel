@@ -53,8 +53,8 @@ int at_parse_ccwa(char* str, ccwa_variant_t* variant, unsigned int*, unsigned in
 int at_parse_qtonedet(const char* str, int* dtmf);
 int at_parse_dtmf(char* str, char* dtmf);
 int at_parse_qpcmv(char* str, int* enabled, int* mode);
-int at_parse_qlts(char* str, char** ts);
-int at_parse_cclk(char* str, char** ts);
+int at_parse_qlts(char* str, struct ast_tm* const ts);
+int at_parse_cclk(char* str, struct ast_tm* ts);
 int at_parse_qrxgain(const char* str, int* gain);
 int at_parse_qmic(const char* str, int* gain, int* dgain);
 int at_parse_cxxxgain(const char* str, int* gain);

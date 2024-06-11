@@ -157,6 +157,8 @@ void pvt_disconnect(struct pvt* pvt)
     pvt->act            = 0;
     pvt->operator= 0;
 
+    memset(&pvt->module_time, 0, sizeof(pvt->module_time));
+
     ast_string_field_set(pvt, manufacturer, NULL);
     ast_string_field_set(pvt, model, NULL);
     ast_string_field_set(pvt, firmware, NULL);
@@ -171,7 +173,6 @@ void pvt_disconnect(struct pvt* pvt)
     ast_string_field_set(pvt, cell_id, NULL);
     ast_string_field_set(pvt, sms_scenter, NULL);
     ast_string_field_set(pvt, subscriber_number, NULL);
-    ast_string_field_set(pvt, module_time, NULL);
 
     pvt->has_subscriber_number = 0;
 

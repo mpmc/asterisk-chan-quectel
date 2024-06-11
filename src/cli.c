@@ -211,8 +211,10 @@ static char* cli_show_device_state(struct ast_cli_entry* e, int cmd, struct ast_
         ast_cli(a->fd, "  Cell ID                 : %s\n", pvt->cell_id);
         ast_cli(a->fd, "  Subscriber Number       : %s\n", S_OR(pvt->subscriber_number, "Unknown"));
         ast_cli(a->fd, "  SMS Service Center      : %s\n", pvt->sms_scenter);
-        if (CONF_SHARED(pvt, query_time)) {
-            ast_cli(a->fd, "  Module time             : %s\n", pvt->module_time);
+        if (CONF_SHARED(pvt, query_time) && pvt->module_time.tm_year) {
+            struct ast_str* mt = ast_str_alloca(64);
+            format_ast_tm(&pvt->module_time, mt);
+            ast_cli(a->fd, "  Module time             : %s\n", ast_str_buffer(mt));
         }
         ast_cli(a->fd, "  Tasks in queue          : %u\n", PVT_STATE(pvt, at_tasks));
         ast_cli(a->fd, "  Commands in queue       : %u\n", PVT_STATE(pvt, at_cmds));

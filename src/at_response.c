@@ -47,7 +47,8 @@ static const unsigned int CLCC_CALL_TYPE_FAX = 2;
 static const char MANUFACTURER_QUECTEL[] = "Quectel";
 static const char MANUFACTURER_SIMCOM[]  = "SimCom";
 
-static const int DST_DEF_LEN = 32;
+static const int DST_DEF_LEN       = 32;
+static const size_t AST_TM_MAX_LEN = 64;
 
 // ================================================================
 
@@ -1554,9 +1555,8 @@ static int at_response_cdsi(struct pvt* const pvt, const struct ast_str* const r
 
 static int at_response_msg(struct pvt* const pvt, const struct ast_str* const response, at_res_t cmd)
 {
-    static const ssize_t MSG_DEF_LEN   = 64;
-    static const ssize_t MSG_MAX_LEN   = 4096;
-    static const size_t AST_TM_MAX_LEN = 64;
+    static const ssize_t MSG_DEF_LEN = 64;
+    static const ssize_t MSG_MAX_LEN = 4096;
 
     struct ast_tm scts, dt;
     int mr, st;
@@ -2430,30 +2430,32 @@ static void at_response_qpcmv(struct pvt* const pvt, const struct ast_str* const
     ast_debug(1, "[%s] Voice configuration: %s [%s]\n", PVT_ID(pvt), qpcmv2str(mode), S_COR(enabled, "enabled", "disabled"));
 }
 
+static void show_module_time(struct pvt* const pvt)
+{
+    struct ast_str* ts_str = ast_str_alloca(AST_TM_MAX_LEN);
+    format_ast_tm(&pvt->module_time, ts_str);
+    ast_verb(3, "[%s] Module time: %s\n", PVT_ID(pvt), ast_str_buffer(ts_str));
+}
+
 static void at_response_qlts(struct pvt* const pvt, const struct ast_str* const response)
 {
-    char* ts;
-
-    if (at_parse_qlts(ast_str_buffer(response), &ts)) {
+    if (at_parse_qlts(ast_str_buffer(response), &pvt->module_time)) {
         ast_log(LOG_ERROR, "[%s] Error parsing '%s'\n", PVT_ID(pvt), ast_str_buffer(response));
         return;
     }
 
-    ast_string_field_set(pvt, module_time, ts);
-    ast_verb(3, "[%s] Module time: %s\n", PVT_ID(pvt), pvt->module_time);
+    show_module_time(pvt);
 }
 
 static void at_response_cclk(struct pvt* const pvt, const struct ast_str* const response)
 {
-    char* ts;
-
-    if (at_parse_cclk(ast_str_buffer(response), &ts)) {
+    if (at_parse_cclk(ast_str_buffer(response), &pvt->module_time)) {
         ast_log(LOG_ERROR, "[%s] Error parsing '%s'\n", PVT_ID(pvt), ast_str_buffer(response));
         return;
     }
 
-    ast_string_field_set(pvt, module_time, ts);
-    ast_verb(3, "[%s] Module time: %s\n", PVT_ID(pvt), pvt->module_time);
+    ast_tm_normalize(&pvt->module_time);
+    show_module_time(pvt);
 }
 
 static void at_response_qrxgain(struct pvt* const pvt, const struct ast_str* const response)
@@ -2674,20 +2676,20 @@ static int at_response_ciev(struct pvt* const pvt, const struct ast_str* const r
 
 static int at_response_psuttz(struct pvt* const pvt, const struct ast_str* const response)
 {
-    static const ssize_t MODULE_TIME_DEF_SIZE = 50;
+    int time_zone;
+    struct ast_tm ts;
 
-    int year, month, day, hour, min, sec, dst, time_zone;
+    memset(&ts, 0, sizeof(ts));
 
-    if (at_parse_psuttz(ast_str_buffer(response), &year, &month, &day, &hour, &min, &sec, &time_zone, &dst)) {
+    if (at_parse_psuttz(ast_str_buffer(response), &ts.tm_year, &ts.tm_mon, &ts.tm_mday, &ts.tm_hour, &ts.tm_min, &ts.tm_sec, &time_zone, &ts.tm_isdst)) {
         ast_log(LOG_ERROR, "[%s] Error parsing '%s'\n", PVT_ID(pvt), ast_str_buffer(response));
         return -1;
     }
 
-    RAII_VAR(struct ast_str*, module_time, ast_str_create(MODULE_TIME_DEF_SIZE), ast_free);
-    ast_str_set(&module_time, 0, "%02d/%02d/%02d,%02d:%02d:%02d%+d", year % 100, month, day, hour, min, sec, time_zone);
-    ast_string_field_set(pvt, module_time, ast_str_buffer(module_time));
+    ts.tm_gmtoff     = 15 * 60 * time_zone;
+    pvt->module_time = *ast_tm_normalize(&ts);
 
-    ast_verb(3, "[%s] Module time: %s\n", PVT_ID(pvt), pvt->module_time);
+    show_module_time(pvt);
     return 0;
 }
 

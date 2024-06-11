@@ -1217,24 +1217,78 @@ int at_parse_qpcmv(char* str, int* enabled, int* mode)
     return 0;
 }
 
-int at_parse_qlts(char* str, char** ts)
+static int find_dst(char* const ts, int* dst)
+{
+    char* s = strrchr(ts, ',');
+    if (!s) {
+        return -1;
+    }
+    *s++         = '\000';
+    errno        = 0;
+    const long d = strtol(s, (char**)NULL, 10);
+    if (errno == EINVAL) {
+        return -1;
+    }
+    *dst = (int)d;
+    return 0;
+}
+
+static int find_offset(char* const ts, int* offset)
+{
+    int sgn = 1;
+    char* s = strrchr(ts, '+');
+    if (!s) {
+        sgn = -1;
+        s   = strrchr(ts, '-');
+    }
+    if (!s) {
+        return -1;
+    }
+    *s++ = '\000';
+
+    errno        = 0;
+    const long o = strtol(s, (char**)NULL, 10);
+    if (errno == EINVAL) {
+        return -1;
+    }
+    *offset = (int)(o * sgn);
+    return 0;
+}
+
+int at_parse_qlts(char* str, struct ast_tm* const ts)
 {
     /*
         +QLTS: "2017/10/13,03:40:48+32,0"
+        +QLTS: "2024/06/11,08:37:38+08,1"
     */
 
     static const char delimiters[] = ":";
     char* marks[STRLEN(delimiters)];
 
-    if (mark_line(str, delimiters, marks) == 1) {
-        *ts = strip_quoted(marks[0] + 1);
-        return 0;
+    if (mark_line(str, delimiters, marks) != 1) {
+        return -1;
     }
 
-    return -1;
+    char* const tstr = strip_quoted(marks[0] + 1);
+    if (ast_strlen_zero(tstr)) {
+        return -1;
+    }
+
+    int dst, offset;
+    if (find_dst(tstr, &dst) || find_offset(tstr, &offset)) {
+        return -1;
+    }
+
+    struct ast_tm t;
+    ast_strptime(tstr, "%Y/%m/%e,%H:%M:%S", &t);
+    t.tm_isdst  = dst;
+    t.tm_gmtoff = 15 * 60 * offset;
+
+    *ts = t;
+    return 0;
 }
 
-int at_parse_cclk(char* str, char** ts)
+int at_parse_cclk(char* str, struct ast_tm* ts)
 {
     /*
         +CCLK: “08/11/26,10:15:02+32”
@@ -1243,12 +1297,27 @@ int at_parse_cclk(char* str, char** ts)
     static const char delimiters[] = ":";
     char* marks[STRLEN(delimiters)];
 
-    if (mark_line(str, delimiters, marks) == 1) {
-        *ts = strip_quoted(marks[0] + 1);
-        return 0;
+    if (mark_line(str, delimiters, marks) != 1) {
+        return -1;
     }
 
-    return -1;
+    char* const tstr = strip_quoted(marks[0] + 1);
+    if (ast_strlen_zero(tstr)) {
+        return -1;
+    }
+
+    int offset;
+    if (find_offset(tstr, &offset)) {
+        return -1;
+    }
+
+    struct ast_tm t;
+    ast_strptime(tstr, "%y/%m/%e,%H:%M:%S", &t);
+    t.tm_isdst  = 0;
+    t.tm_gmtoff = 15 * 60 * offset;
+
+    *ts = t;
+    return 0;
 }
 
 int at_parse_qrxgain(const char* str, int* gain)
@@ -1561,12 +1630,12 @@ int at_parse_psuttz(char* str, int* year, int* month, int* day, int* hour, int* 
         return -1;
     }
 
-    *tz = (int)strtoul(tz_str, NULL, 10);
+    *tz = (int)strtol(tz_str, NULL, 10);
     if (errno == ERANGE) {
         return -1;
     }
 
-    *dst = (int)strtoul(dst_str, NULL, 10);
+    *dst = (int)strtol(dst_str, NULL, 10);
     if (errno == ERANGE) {
         return -1;
     }
