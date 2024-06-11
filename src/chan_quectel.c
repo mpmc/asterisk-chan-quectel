@@ -177,7 +177,7 @@ void pvt_disconnect(struct pvt* pvt)
     pvt->has_subscriber_number = 0;
 
     pvt->gsm_registered   = 0;
-    pvt->has_sms          = 0;
+    pvt->has_sms          = CONF_SHARED(pvt, msg_direct) ? 0 : 1;
     pvt->has_voice        = 0;
     pvt->has_call_waiting = 0;
 
@@ -1129,6 +1129,7 @@ static struct pvt* pvt_create(const pvt_config_t* settings)
     pvt->audio_fd           = -1;
     pvt->data_fd            = -1;
     pvt->gsm_reg_status     = -1;
+    pvt->has_sms            = SCONFIG(settings, msg_direct) ? 0 : 1;
     pvt->incoming_sms_index = -1;
     pvt->desired_state      = SCONFIG(settings, initstate);
 

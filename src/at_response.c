@@ -313,11 +313,10 @@ static int at_response_ok(struct pvt* const pvt, const at_res_t at_res, const at
             break;
 
         case CMD_AT_CNMI:
+            pvt->has_sms = 1;
             if (!pvt->initialized) {
                 ast_debug(1, "[%s] SMS supported\n", PVT_ID(pvt));
                 at_ok_response_dbg(2, pvt, ecmd, "SMS indication mode configured");
-
-                pvt->has_sms = 1;
             } else {
                 at_ok_response_dbg(2, pvt, ecmd, "SMS indication mode configured");
                 ast_verb(2, "[%s] Message indication mode configured\n", PVT_ID(pvt));
