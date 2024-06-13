@@ -2765,7 +2765,7 @@ int at_response(struct pvt* const pvt, const struct ast_str* const response, con
         case RES_SRVST:
         case RES_CVOICE:
         case RES_CPMS:
-        case RES_CONF:
+        case RES_MISSED_CALL:
         case RES_DST:
         case RES_VOICE_CALL:
         case RES_RCEND:
