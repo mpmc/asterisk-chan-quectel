@@ -137,21 +137,21 @@ static char* cli_show_device_settings(struct ast_cli_entry* e, int cmd, struct a
         ast_cli(a->fd, "  16kHz audio             : %s\n", AST_CLI_YESNO(CONF_UNIQ(pvt, slin16)));
         ast_cli(a->fd, "  RX gain                 : %d\n", CONF_SHARED(pvt, rxgain));
         ast_cli(a->fd, "  TX gain                 : %d\n", CONF_SHARED(pvt, txgain));
-        ast_cli(a->fd, "  Use CallingPres         : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, usecallingpres)));
+        ast_cli(a->fd, "  Use CallingPres         : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, use_calling_pres)));
         ast_cli(a->fd, "  Default CallingPres     : %s\n",
-                S_COR(CONF_SHARED(pvt, callingpres) < 0, "<Not set>", ast_describe_caller_presentation(CONF_SHARED(pvt, callingpres))));
+                S_COR(CONF_SHARED(pvt, calling_pres) < 0, "<Not set>", ast_describe_caller_presentation(CONF_SHARED(pvt, calling_pres))));
         ast_cli(a->fd, "  Message Service         : %d\n", CONF_SHARED(pvt, msg_service));
         ast_cli(a->fd, "  Message Storage         : %s\n", dc_msgstor2str(CONF_SHARED(pvt, msg_storage)));
         ast_cli(a->fd, "  Direct Message          : %s\n", dc_3stbool2str_capitalized(CONF_SHARED(pvt, msg_direct)));
-        ast_cli(a->fd, "  Auto Delete SMS         : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, autodeletesms)));
-        ast_cli(a->fd, "  Reset Modem             : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, resetquectel)));
-        ast_cli(a->fd, "  Call Waiting            : %s\n", dc_cw_setting2str(CONF_SHARED(pvt, callwaiting)));
+        ast_cli(a->fd, "  Auto Delete SMS         : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, sms_autodelete)));
+        ast_cli(a->fd, "  Reset Modem             : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, reset_modem)));
+        ast_cli(a->fd, "  Call Waiting            : %s\n", dc_cw_setting2str(CONF_SHARED(pvt, call_waiting)));
         ast_cli(a->fd, "  Multiparty Calls        : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, multiparty)));
         ast_cli(a->fd, "  DTMF Detection          : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, dtmf)));
         ast_cli(a->fd, "  DTMF Duration           : %ld\n", CONF_SHARED(pvt, dtmf_duration));
         ast_cli(a->fd, "  Hold/Unhold Action      : %s\n", S_COR(CONF_SHARED(pvt, dtmf), "MOH", "Mute"));
         ast_cli(a->fd, "  Query Time              : %s\n", AST_CLI_YESNO(CONF_SHARED(pvt, query_time)));
-        ast_cli(a->fd, "  Initial Device State    : %s\n", dev_state2str_capitalized(CONF_SHARED(pvt, initstate)));
+        ast_cli(a->fd, "  Initial Device State    : %s\n", dev_state2str_capitalized(CONF_SHARED(pvt, init_state)));
         ast_cli(a->fd, "  Use QHUP Command        : %s\n\n", AST_CLI_YESNO(CONF_SHARED(pvt, qhup)));
     } else {
         ast_cli(a->fd, "Device %s not found\n", a->argv[4]);

@@ -252,11 +252,11 @@ static int channel_call(struct ast_channel* channel, const char* dest, attribute
 
     int clir = 0;
 
-    if (CONF_SHARED(pvt, usecallingpres)) {
-        if (CONF_SHARED(pvt, callingpres) < 0) {
+    if (CONF_SHARED(pvt, use_calling_pres)) {
+        if (CONF_SHARED(pvt, calling_pres) < 0) {
             clir = ast_channel_connected(channel)->id.number.presentation;
         } else {
-            clir = CONF_SHARED(pvt, callingpres);
+            clir = CONF_SHARED(pvt, calling_pres);
         }
 
         ast_debug(4, "[%s] Caller presentation: %s [%d]\n", PVT_ID(pvt), ast_describe_caller_presentation(clir), clir);

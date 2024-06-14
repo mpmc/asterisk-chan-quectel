@@ -46,47 +46,30 @@ const char* dc_3stbool2str_capitalized(int);
 message_storage_t dc_str2msgstor(const char*);
 const char* dc_msgstor2str(message_storage_t);
 
-/*
- Config API
- Operations
-    convert from string to native
-    convent from native to string
-    get native value
-    get alternative presentation
-
-    set native value ?
-
-    types:
-        string of limited length
-        integer with limits
-        enum
-        boolean
-*/
-
 /* Global inherited (shared) settings */
 typedef struct dc_sconfig {
     char context[AST_MAX_CONTEXT]; /*!< the context for incoming calls; 'default '*/
     char exten[AST_MAX_EXTENSION]; /*!< exten, not overwrite valid subscriber_number */
     char language[MAX_LANGUAGE];   /*!< default language 'en' */
 
-    int group;       /*!< group number for group dialling 0 */
-    int rxgain;      /*!< increase the incoming volume 0 */
-    int txgain;      /*!< increase the outgoint volume 0 */
-    int callingpres; /*!< calling presentation */
+    int group;        /*!< group number for group dialling 0 */
+    int rxgain;       /*!< increase the incoming volume 0 */
+    int txgain;       /*!< increase the outgoint volume 0 */
+    int calling_pres; /*!< calling presentation */
 
-    unsigned int usecallingpres:1; /*! -1 */
-    unsigned int autodeletesms :1; /*! 0 */
-    unsigned int resetquectel  :1; /*! 1 */
-    unsigned int multiparty    :1; /*! 0 */
-    unsigned int dtmf          :1; /*! 0 */
-    unsigned int moh           :1; /*! 0 */
-    unsigned int query_time    :1; /*! 0 */
-    unsigned int dsci          :1; /*!< use ^DSCI call state notifications */
-    unsigned int qhup          :1; /*!< use QHUP command */
+    unsigned int use_calling_pres:1; /*! -1 */
+    unsigned int sms_autodelete  :1; /*! 0 */
+    unsigned int reset_modem     :1; /*! 1 */
+    unsigned int multiparty      :1; /*! 0 */
+    unsigned int dtmf            :1; /*! 0 */
+    unsigned int moh             :1; /*! 0 */
+    unsigned int query_time      :1; /*! 0 */
+    unsigned int dsci            :1; /*!< use ^DSCI call state notifications */
+    unsigned int qhup            :1; /*!< use QHUP command */
 
-    long dtmf_duration;         /*! duration of DTMF in miliseconds */
-    dev_state_t initstate;      /*! DEV_STATE_STARTED */
-    call_waiting_t callwaiting; /*!< enable/disable/auto call waiting CALL_WAITING_AUTO */
+    long dtmf_duration;          /*! duration of DTMF in miliseconds */
+    dev_state_t init_state;      /*! DEV_STATE_STARTED */
+    call_waiting_t call_waiting; /*!< enable/disable/auto call waiting CALL_WAITING_AUTO */
 
     int msg_service;
     tristate_bool_t msg_direct;

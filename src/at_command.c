@@ -201,7 +201,7 @@ int at_enqueue_initialization(struct cpvt* cpvt)
 
     /* customize list */
     for (in = out = 0; in < ARRAY_LEN(st_cmds); ++in) {
-        if (st_cmds[in].cmd == CMD_AT_Z && !CONF_SHARED(pvt, resetquectel)) {
+        if (st_cmds[in].cmd == CMD_AT_Z && !CONF_SHARED(pvt, reset_modem)) {
             continue;
         }
 
@@ -229,9 +229,9 @@ int at_enqueue_initialization(struct cpvt* cpvt)
                 }
 
                 if (CONF_SHARED(pvt, msg_direct) > 0) {
-                    err = at_fill_generic_cmd(&dyn_cmd, "AT+CNMI=2,2,2,0,%d\r", CONF_SHARED(pvt, resetquectel) ? 1 : 0);
+                    err = at_fill_generic_cmd(&dyn_cmd, "AT+CNMI=2,2,2,0,%d\r", CONF_SHARED(pvt, reset_modem) ? 1 : 0);
                 } else {
-                    err = at_fill_generic_cmd(&dyn_cmd, "AT+CNMI=2,1,0,2,%d\r", CONF_SHARED(pvt, resetquectel) ? 1 : 0);
+                    err = at_fill_generic_cmd(&dyn_cmd, "AT+CNMI=2,1,0,2,%d\r", CONF_SHARED(pvt, reset_modem) ? 1 : 0);
                 }
 
                 if (err) {
@@ -760,7 +760,7 @@ int at_enqueue_set_ccwa(struct cpvt* cpvt, unsigned call_waiting)
         return -1;
     }
 
-    CONF_SHARED(cpvt->pvt, callwaiting) = cw;
+    CONF_SHARED(cpvt->pvt, call_waiting) = cw;
     return 0;
 }
 
@@ -989,7 +989,7 @@ void at_sms_retrieved(struct cpvt* cpvt, int confirm)
     struct pvt* const pvt = cpvt->pvt;
 
     if (pvt->incoming_sms_index >= 0) {
-        if (CONF_SHARED(pvt, autodeletesms)) {
+        if (CONF_SHARED(pvt, sms_autodelete)) {
             at_enqueue_delete_sms(cpvt, pvt->incoming_sms_index, TRIBOOL_NONE);
         }
         if (confirm) {

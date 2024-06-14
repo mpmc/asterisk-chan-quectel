@@ -1708,7 +1708,7 @@ receive_as_is:
 
 msg_done:
 
-    if (CONF_SHARED(pvt, autodeletesms) && msg_complete) {
+    if (CONF_SHARED(pvt, sms_autodelete) && msg_complete) {
         switch (cmd) {
             case RES_CMGL:
                 at_enqueue_delete_sms(&pvt->sys_chan, idx, TRIBOOL_NONE);
@@ -2131,8 +2131,8 @@ static int at_response_creg(struct pvt* const pvt, int cereg, const struct ast_s
 
         // #ifdef ISSUE_CCWA_STATUS_CHECK
         /* only if gsm_registered 0 -> 1 ? */
-        if (!pvt->gsm_registered && CONF_SHARED(pvt, callwaiting) != CALL_WAITING_AUTO) {
-            if (at_enqueue_set_ccwa(&pvt->sys_chan, CONF_SHARED(pvt, callwaiting))) {
+        if (!pvt->gsm_registered && CONF_SHARED(pvt, call_waiting) != CALL_WAITING_AUTO) {
+            if (at_enqueue_set_ccwa(&pvt->sys_chan, CONF_SHARED(pvt, call_waiting))) {
                 ast_log(LOG_WARNING, "[%s] Error setting call waiting mode\n", PVT_ID(pvt));
             }
         }

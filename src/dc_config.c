@@ -187,10 +187,10 @@ void dc_sconfig_fill_defaults(struct dc_sconfig* config)
     ast_copy_string(config->exten, "", sizeof(config->exten));
     ast_copy_string(config->language, DEFAULT_LANGUAGE, sizeof(config->language));
 
-    config->resetquectel  = 1;
-    config->callingpres   = -1;
-    config->initstate     = DEV_STATE_STARTED;
-    config->callwaiting   = CALL_WAITING_AUTO;
+    config->reset_modem   = 1;
+    config->calling_pres  = -1;
+    config->init_state    = DEV_STATE_STARTED;
+    config->call_waiting  = CALL_WAITING_AUTO;
     config->moh           = 1;
     config->rxgain        = -1;
     config->txgain        = -1;
@@ -224,33 +224,33 @@ void dc_sconfig_fill(struct ast_config* cfg, const char* cat, struct dc_sconfig*
                 config->txgain = -1;
             }
         } else if (!strcasecmp(v->name, "callingpres")) {
-            config->callingpres = ast_parse_caller_presentation(v->value);
-            if (config->callingpres == -1) {
-                errno               = 0;
-                config->callingpres = (int)strtol(v->value, (char**)NULL, 10); /* callingpres is set to -1 if invalid */
-                if (!config->callingpres && errno == EINVAL) {
-                    config->callingpres = -1;
+            config->calling_pres = ast_parse_caller_presentation(v->value);
+            if (config->calling_pres == -1) {
+                errno                = 0;
+                config->calling_pres = (int)strtol(v->value, (char**)NULL, 10); /* callingpres is set to -1 if invalid */
+                if (!config->calling_pres && errno == EINVAL) {
+                    config->calling_pres = -1;
                 }
             }
         } else if (!strcasecmp(v->name, "usecallingpres")) {
-            config->usecallingpres = parse_on_off(v->name, v->value, 0u); /* usecallingpres is set to 0 if invalid */
+            config->use_calling_pres = parse_on_off(v->name, v->value, 0u); /* usecallingpres is set to 0 if invalid */
         } else if (!strcasecmp(v->name, "autodeletesms")) {
-            config->autodeletesms = parse_on_off(v->name, v->value, 0u); /* autodeletesms is set to 0 if invalid */
-        } else if (!strcasecmp(v->name, "resetquectel")) {
-            config->resetquectel = parse_on_off(v->name, v->value, 0u); /* resetquectel is set to 0 if invalid */
+            config->sms_autodelete = parse_on_off(v->name, v->value, 0u); /* autodeletesms is set to 0 if invalid */
+        } else if (!strcasecmp(v->name, "resetmodem")) {
+            config->reset_modem = parse_on_off(v->name, v->value, 0u); /* resetmodem is set to 0 if invalid */
         } else if (!strcasecmp(v->name, "disable")) {
             const unsigned int is = parse_on_off(v->name, v->value, 0u);
-            config->initstate     = is ? DEV_STATE_REMOVED : DEV_STATE_STARTED;
+            config->init_state    = is ? DEV_STATE_REMOVED : DEV_STATE_STARTED;
         } else if (!strcasecmp(v->name, "initstate")) {
             const dev_state_t val = str2dev_state(v->value);
             if (val == DEV_STATE_STOPPED || val == DEV_STATE_STARTED || val == DEV_STATE_REMOVED) {
-                config->initstate = val;
+                config->init_state = val;
             } else {
                 ast_log(LOG_ERROR, "Invalid value for 'initstate': '%s', must be one of 'stop' 'start' 'remove' default is 'start'\n", v->value);
             }
         } else if (!strcasecmp(v->name, "callwaiting")) {
             if (strcasecmp(v->value, "auto")) {
-                config->callwaiting = parse_on_off(v->name, v->value, 0u);
+                config->call_waiting = parse_on_off(v->name, v->value, 0u);
             }
         } else if (!strcasecmp(v->name, "multiparty")) {
             config->multiparty = parse_on_off(v->name, v->value, 0u);
@@ -341,11 +341,11 @@ int dc_config_fill(struct ast_config* cfg, const char* cat, const struct dc_scon
 static int dc_sconfig_compare(const struct dc_sconfig* const cfg1, const struct dc_sconfig* const cfg2)
 {
     return strcmp(cfg1->context, cfg2->context) || strcmp(cfg1->exten, cfg2->exten) || strcmp(cfg1->language, cfg2->language) || cfg1->group != cfg2->group ||
-           cfg1->rxgain != cfg2->rxgain || cfg1->txgain != cfg2->txgain || cfg1->callingpres != cfg2->callingpres ||
-           cfg1->usecallingpres != cfg2->usecallingpres || cfg1->autodeletesms != cfg2->autodeletesms || cfg1->resetquectel != cfg2->resetquectel ||
+           cfg1->rxgain != cfg2->rxgain || cfg1->txgain != cfg2->txgain || cfg1->calling_pres != cfg2->calling_pres ||
+           cfg1->use_calling_pres != cfg2->use_calling_pres || cfg1->sms_autodelete != cfg2->sms_autodelete || cfg1->reset_modem != cfg2->reset_modem ||
            cfg1->multiparty != cfg2->multiparty || cfg1->dtmf != cfg2->dtmf || cfg1->moh != cfg2->moh || cfg1->query_time != cfg2->query_time ||
-           cfg1->dsci != cfg2->dsci || cfg1->qhup != cfg2->qhup || cfg1->dtmf_duration != cfg2->dtmf_duration || cfg1->initstate != cfg2->initstate ||
-           cfg1->callwaiting != cfg2->callwaiting || cfg1->msg_service != cfg2->msg_service || cfg1->msg_direct != cfg2->msg_direct ||
+           cfg1->dsci != cfg2->dsci || cfg1->qhup != cfg2->qhup || cfg1->dtmf_duration != cfg2->dtmf_duration || cfg1->init_state != cfg2->init_state ||
+           cfg1->call_waiting != cfg2->call_waiting || cfg1->msg_service != cfg2->msg_service || cfg1->msg_direct != cfg2->msg_direct ||
            cfg1->msg_storage != cfg2->msg_storage;
 }
 

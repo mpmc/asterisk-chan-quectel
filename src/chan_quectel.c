@@ -1131,7 +1131,7 @@ static struct pvt* pvt_create(const pvt_config_t* settings)
     pvt->gsm_reg_status     = -1;
     pvt->has_sms            = SCONFIG(settings, msg_direct) ? 0 : 1;
     pvt->incoming_sms_index = -1;
-    pvt->desired_state      = SCONFIG(settings, initstate);
+    pvt->desired_state      = SCONFIG(settings, init_state);
 
     ast_string_field_init(pvt, 15);
     ast_string_field_set(pvt, provider_name, "NONE");
@@ -1173,13 +1173,13 @@ static int pvt_reconfigure(struct pvt* pvt, const pvt_config_t* settings, restat
 {
     int rv = 0;
 
-    if (SCONFIG(settings, initstate) == DEV_STATE_REMOVED) {
+    if (SCONFIG(settings, init_state) == DEV_STATE_REMOVED) {
         /* handle later, in one place */
         pvt->must_remove = 1;
     } else {
         /* check what changes require starting or stopping */
-        if (pvt->desired_state != SCONFIG(settings, initstate)) {
-            pvt->desired_state = SCONFIG(settings, initstate);
+        if (pvt->desired_state != SCONFIG(settings, init_state)) {
+            pvt->desired_state = SCONFIG(settings, init_state);
 
             rv                = pvt_time4restate(pvt);
             pvt->restart_time = rv ? RESTATE_TIME_NOW : when;
@@ -1294,7 +1294,7 @@ static int reload_config(public_state_t* state, int recofigure, restate_time_t w
             }
 
             /* new device */
-            if (SCONFIG(&settings, initstate) == DEV_STATE_REMOVED) {
+            if (SCONFIG(&settings, init_state) == DEV_STATE_REMOVED) {
                 ast_log(LOG_NOTICE, "Skipping device %s as disabled\n", cat);
                 continue;
             }
