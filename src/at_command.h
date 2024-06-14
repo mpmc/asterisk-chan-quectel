@@ -150,7 +150,7 @@ int at_enqueue_dial(struct cpvt* cpvt, const char* number, int clir);
 int at_enqueue_answer(struct cpvt* cpvt);
 int at_enqueue_user_cmd(struct cpvt* cpvt, const char* input);
 int at_enqueue_list_messages(struct cpvt* cpvt, enum msg_status_t stat);
-int at_enqueue_retrieve_sms(struct cpvt* cpvt, int idx);
+int at_enqueue_retrieve_sms(struct cpvt* cpvt, int idx, int sms_type);
 void at_sms_retrieved(struct cpvt* cpvt, int confirm);
 int at_enqueue_cmgd(struct cpvt* cpvt, unsigned int index, int delflag);
 int at_enqueue_delete_sms(struct cpvt* cpvt, int idx, tristate_bool_t ack);

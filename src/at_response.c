@@ -1500,7 +1500,7 @@ static int at_response_cmti(struct pvt* const pvt, const struct ast_str* const r
 
     ast_debug(1, "[%s][SMS:%d] New message\n", PVT_ID(pvt), idx);
 
-    if (at_enqueue_retrieve_sms(&pvt->sys_chan, idx)) {
+    if (at_enqueue_retrieve_sms(&pvt->sys_chan, idx, RES_CMTI)) {
         ast_log(LOG_ERROR, "[%s][SMS:%d] Could not read message\n", PVT_ID(pvt), idx);
         return -1;
     }
@@ -1533,9 +1533,9 @@ static int at_response_cdsi(struct pvt* const pvt, const struct ast_str* const r
         return 0;
     }
 
-    ast_debug(1, "[%s][SMS:%d] New message\n", PVT_ID(pvt), idx);
+    ast_debug(1, "[%s][SMS:%d] Message status report\n", PVT_ID(pvt), idx);
 
-    if (at_enqueue_retrieve_sms(&pvt->sys_chan, idx)) {
+    if (at_enqueue_retrieve_sms(&pvt->sys_chan, idx, RES_CDSI)) {
         ast_log(LOG_ERROR, "[%s][SMS:%d] Could not read message\n", PVT_ID(pvt), idx);
         return -1;
     }

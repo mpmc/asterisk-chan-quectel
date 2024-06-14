@@ -124,6 +124,7 @@ typedef struct pvt {
 
     /* SMS support */
     int incoming_sms_index;
+    int incoming_sms_type;
 
     struct ast_tm module_time;
 

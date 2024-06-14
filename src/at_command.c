@@ -993,11 +993,19 @@ void at_sms_retrieved(struct cpvt* cpvt, int confirm)
             at_enqueue_delete_sms(cpvt, pvt->incoming_sms_index, TRIBOOL_NONE);
         }
         if (confirm) {
-            ast_log(LOG_WARNING, "[%s][SMS:%d] Message not retrieved\n", PVT_ID(pvt), pvt->incoming_sms_index);
+            switch (pvt->incoming_sms_type) {
+                case RES_CDSI:
+                    break;
+
+                default:
+                    ast_log(LOG_WARNING, "[%s][SMS:%d] Message not retrieved\n", PVT_ID(pvt), pvt->incoming_sms_index);
+                    break;
+            }
         }
     }
 
     pvt->incoming_sms_index = -1;
+    pvt->incoming_sms_type  = RES_UNKNOWN;
 }
 
 int at_enqueue_list_messages(struct cpvt* cpvt, enum msg_status_t stat)
@@ -1025,7 +1033,7 @@ int at_enqueue_list_messages(struct cpvt* cpvt, enum msg_status_t stat)
  * \param index -- index of message in store
  * \return 0 on success
  */
-int at_enqueue_retrieve_sms(struct cpvt* cpvt, int idx)
+int at_enqueue_retrieve_sms(struct cpvt* cpvt, int idx, int sms_type)
 {
     DECLARE_AT_CMDNT(cmgr, "+CMGR=%d");
 
@@ -1039,6 +1047,7 @@ int at_enqueue_retrieve_sms(struct cpvt* cpvt, int idx)
     }
 
     pvt->incoming_sms_index = idx;
+    pvt->incoming_sms_type  = sms_type;
 
     if (at_fill_generic_cmd(&cmd, AT_CMD(cmgr), idx)) {
         chan_quectel_err = E_CMD_FORMAT;
@@ -1056,6 +1065,7 @@ error:
     ast_log(LOG_WARNING, "[%s] Unable to read message %d\n", PVT_ID(pvt), idx);
 
     pvt->incoming_sms_index = -1;
+    pvt->incoming_sms_type  = RES_UNKNOWN;
     return -1;
 }
 

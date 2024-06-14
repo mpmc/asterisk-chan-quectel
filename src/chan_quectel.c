@@ -191,6 +191,7 @@ void pvt_disconnect(struct pvt* pvt)
     pvt->cwaiting           = 0;
     pvt->outgoing_sms       = 0;
     pvt->incoming_sms_index = -1;
+    pvt->incoming_sms_type  = RES_UNKNOWN;
     pvt->volume_sync_step   = VOLUME_SYNC_BEGIN;
 
     pvt->current_state = DEV_STATE_STOPPED;
@@ -1131,6 +1132,7 @@ static struct pvt* pvt_create(const pvt_config_t* settings)
     pvt->gsm_reg_status     = -1;
     pvt->has_sms            = SCONFIG(settings, msg_direct) ? 0 : 1;
     pvt->incoming_sms_index = -1;
+    pvt->incoming_sms_type  = RES_UNKNOWN;
     pvt->desired_state      = SCONFIG(settings, init_state);
 
     ast_string_field_init(pvt, 15);
