@@ -30,6 +30,7 @@
 
 #include "at_command.h"
 #include "at_queue.h" /* write_all() TODO: move out */
+#include "at_read.h"
 #include "chan_quectel.h"
 #include "helpers.h" /* get_at_clir_value()  */
 
@@ -369,21 +370,11 @@ static int channel_digit_begin(struct ast_channel* channel, char digit)
 
 static int channel_digit_end(attribute_unused struct ast_channel* channel, attribute_unused char digit, attribute_unused unsigned int duration) { return 0; }
 
-static ssize_t get_iov_total_len(const struct iovec* const iov, int iovcnt)
-{
-    ssize_t len = 0;
-
-    for (int i = 0; i < iovcnt; ++i) {
-        len += iov[i].iov_len;
-    }
-    return len;
-}
-
 #/* ARCH: move to cpvt level */
 
 static ssize_t iov_write(struct pvt* pvt, int fd, const struct iovec* const iov, int iovcnt)
 {
-    const ssize_t len = get_iov_total_len(iov, iovcnt);
+    const ssize_t len = (ssize_t)at_get_iov_size_n(iov, iovcnt);
     const ssize_t w   = writev(fd, iov, iovcnt);
 
     if (w < 0) {
@@ -566,6 +557,15 @@ static struct ast_frame* channel_read_uac(struct cpvt* cpvt, struct pvt* pvt, si
         default:
             ast_log(LOG_ERROR, "[%s][ALSA][CAPTURE] Device state: %s\n", PVT_ID(pvt), snd_pcm_state_name(state));
             return NULL;
+    }
+
+    const snd_pcm_sframes_t avail_frames = snd_pcm_avail_update(pvt->icard);
+    if (avail_frames < 0) {
+        ast_log(LOG_ERROR, "[%s][ALSA][CAPTURE] Cannot determine available samples: %s\n", PVT_ID(pvt), snd_strerror((int)avail_frames));
+        return NULL;
+    } else if (frames < (size_t)avail_frames) {
+        ast_log(LOG_WARNING, "[%s][ALSA][CAPTURE] Not enough samples: %d/%d\n", PVT_ID(pvt), (int)avail_frames, (int)frames);
+        return NULL;
     }
 
     char* const buf = cpvt->read_buf + AST_FRIENDLY_OFFSET;
