@@ -563,7 +563,7 @@ static struct ast_frame* channel_read_uac(struct cpvt* cpvt, struct pvt* pvt, si
     if (avail_frames < 0) {
         ast_log(LOG_ERROR, "[%s][ALSA][CAPTURE] Cannot determine available samples: %s\n", PVT_ID(pvt), snd_strerror((int)avail_frames));
         return NULL;
-    } else if (frames < (size_t)avail_frames) {
+    } else if (frames > (size_t)avail_frames) {
         ast_log(LOG_WARNING, "[%s][ALSA][CAPTURE] Not enough samples: %d/%d\n", PVT_ID(pvt), (int)avail_frames, (int)frames);
         return NULL;
     }
@@ -732,8 +732,15 @@ static int channel_write_tty(struct ast_channel* channel, struct ast_frame* f, s
         iov.iov_base = f->data.ptr;
         iov.iov_len  = f->datalen;
 
-        if (iov_write(pvt, pvt->audio_fd, &iov, 1) >= 0) {
-            PVT_STAT(pvt, write_frames)++;
+        ssize_t res = iov_write(pvt, pvt->audio_fd, &iov, 1);
+
+        if (res >= 0) {
+            PVT_STAT(pvt, write_frames)  += 1;
+            PVT_STAT(pvt, a_write_bytes) += res;
+            if (res != f->datalen) {
+                PVT_STAT(pvt, write_tframes)++;
+                ast_log(LOG_WARNING, "[%s][TTY][PLAYBACK] Write: %d/%d\n", PVT_ID(pvt), (int)res, f->datalen);
+            }
         }
     }
 
@@ -799,12 +806,11 @@ static int channel_write_uac(struct ast_channel* attribute_unused(channel), stru
 
         default:
             if (res >= 0) {
+                PVT_STAT(pvt, write_frames)  += 1;
+                PVT_STAT(pvt, a_write_bytes) += res * sizeof(short);
                 if (res != samples) {
-                    PVT_STAT(pvt, write_frames)++;
-                    PVT_STAT(pvt, write_sframes)++;
+                    PVT_STAT(pvt, write_tframes)++;
                     ast_log(LOG_WARNING, "[%s][ALSA][PLAYBACK] Write: %d/%d\n", PVT_ID(pvt), res, samples);
-                } else {
-                    PVT_STAT(pvt, write_frames)++;
                 }
             }
             break;
