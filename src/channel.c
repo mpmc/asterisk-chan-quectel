@@ -466,33 +466,9 @@ static void write_conference(struct pvt* pvt, const char* const buffer, size_t l
     }
 }
 
-static struct ast_frame* prepare_voice_frame(struct cpvt* const cpvt, void* const buf, int samples, const struct ast_format* const fmt)
-{
-    struct ast_frame* const f = &cpvt->read_frame;
-
-    memset(f, 0, sizeof(struct ast_frame));
-
-    f->frametype       = AST_FRAME_VOICE;
-    f->subclass.format = (struct ast_format*)fmt;
-    f->samples         = samples;
-    f->datalen         = samples * sizeof(short);
-    f->data.ptr        = buf;
-    f->offset          = AST_FRIENDLY_OFFSET;
-    f->src             = AST_MODULE;
-
-    ast_frame_byteswap_le(f);
-
-    return f;
-}
-
-static struct ast_frame* prepare_silence_voice_frame(struct cpvt* const cpvt, int samples, const struct ast_format* const fmt)
-{
-    return prepare_voice_frame(cpvt, pvt_get_silence_buffer(cpvt->pvt), samples, fmt);
-}
-
 static struct ast_frame* channel_read_tty(struct cpvt* cpvt, struct pvt* pvt, size_t frame_size, const struct ast_format* const fmt)
 {
-    char* const buf = cpvt->read_buf + AST_FRIENDLY_OFFSET;
+    void* const buf = cpvt_get_buffer(cpvt);
     const int fd    = CPVT_IS_MASTER(cpvt) ? pvt->audio_fd : cpvt->rd_pipe[PIPE_READ];
 
     if (fd < 0) {
@@ -524,8 +500,7 @@ static struct ast_frame* channel_read_tty(struct cpvt* cpvt, struct pvt* pvt, si
         }
     }
 
-    struct ast_frame* const f = prepare_voice_frame(cpvt, buf, res / 2, fmt);
-    return f;
+    return cpvt_prepare_voice_frame(cpvt, buf, res / 2, fmt);
 }
 
 static struct ast_frame* channel_read_uac(struct cpvt* cpvt, struct pvt* pvt, size_t frames, const struct ast_format* const fmt)
@@ -568,7 +543,7 @@ static struct ast_frame* channel_read_uac(struct cpvt* cpvt, struct pvt* pvt, si
         return NULL;
     }
 
-    char* const buf = cpvt->read_buf + AST_FRIENDLY_OFFSET;
+    void* const buf = cpvt_get_buffer(cpvt);
     const int res   = snd_pcm_mmap_readi(pvt->icard, buf, frames);
 
     switch (res) {
@@ -598,7 +573,7 @@ static struct ast_frame* channel_read_uac(struct cpvt* cpvt, struct pvt* pvt, si
                     ast_log(LOG_WARNING, "[%s][ALSA][CAPTURE] Short frame: %d/%d\n", PVT_ID(pvt), res, (int)frames);
                 }
 
-                return prepare_voice_frame(cpvt, buf, res, fmt);
+                return cpvt_prepare_voice_frame(cpvt, buf, res, fmt);
             } else if (res < 0) {
                 ast_log(LOG_ERROR, "[%s][ALSA][CAPTURE] Read error: %s\n", PVT_ID(pvt), snd_strerror(res));
             }
@@ -658,7 +633,7 @@ f_ret:
         const int fd = ast_channel_fd(channel, 0);
         ast_debug(5, "[%s] Read - idx:%d state:%s audio:%d:%d - returning SILENCE frame\n", PVT_ID(pvt), cpvt->call_idx, call_state2str(cpvt->state), fd,
                   pvt->audio_fd);
-        return prepare_silence_voice_frame(cpvt, frame_size / sizeof(short), fmt);
+        return cpvt_prepare_silence_voice_frame(cpvt, frame_size / sizeof(short), fmt);
     } else {
         ast_debug(8, "[%s] Read - idx:%d state:%s samples:%d\n", PVT_ID(pvt), cpvt->call_idx, call_state2str(cpvt->state), f->samples);
         return f;
@@ -726,20 +701,16 @@ static int channel_write_tty(struct ast_channel* channel, struct ast_frame* f, s
            cpvt->used, pvt->a_write_rb.write, pvt->a_write_rb.used);
         */
     } else if (CPVT_IS_ACTIVE(cpvt)) {  // direct write
-        struct iovec iov;
-
         ast_frame_byteswap_le(f);
-        iov.iov_base = f->data.ptr;
-        iov.iov_len  = f->datalen;
 
-        ssize_t res = iov_write(pvt, pvt->audio_fd, &iov, 1);
+        struct iovec const iov = {.iov_base = f->data.ptr, .iov_len = f->datalen};
+        const ssize_t res      = iov_write(pvt, pvt->audio_fd, &iov, 1);
 
         if (res >= 0) {
             PVT_STAT(pvt, write_frames)  += 1;
             PVT_STAT(pvt, a_write_bytes) += res;
             if (res != f->datalen) {
                 PVT_STAT(pvt, write_tframes)++;
-                ast_log(LOG_WARNING, "[%s][TTY][PLAYBACK] Write: %d/%d\n", PVT_ID(pvt), (int)res, f->datalen);
             }
         }
     }

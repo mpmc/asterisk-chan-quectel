@@ -72,8 +72,8 @@ typedef struct cpvt {
 
     struct mixstream mixstream; /*!< mix stream */
 
-    void* read_buf;              /*!< audio read buffer */
-    struct ast_frame read_frame; /*!< voice frame */
+    void* buffer;           /*!< audio read buffer */
+    struct ast_frame frame; /*!< voice frame */
 } cpvt_t;
 
 #define CPVT_SET_FLAG(cpvt, flag) ast_set2_flag(cpvt, 1, flag)
@@ -111,5 +111,9 @@ int cpvt_change_state(struct cpvt* const cpvt, call_state_t newstate, int cause)
 
 #define SCOPED_CPVT(varname, lock) SCOPED_LOCK(varname, lock, cpvt_lock, cpvt_unlock)
 #define SCOPED_CPVT_TL(varname, lock) SCOPED_LOCK(varname, lock, cpvt_try_lock, cpvt_unlock)
+
+void* cpvt_get_buffer(struct cpvt* const cpvt);
+struct ast_frame* cpvt_prepare_voice_frame(struct cpvt* const cpvt, void* const buf, int samples, const struct ast_format* const fmt);
+struct ast_frame* cpvt_prepare_silence_voice_frame(struct cpvt* const cpvt, int samples, const struct ast_format* const fmt);
 
 #endif /* CHAN_QUECTEL_CPVT_H_INCLUDED */
