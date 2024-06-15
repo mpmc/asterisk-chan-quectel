@@ -418,7 +418,7 @@ struct ast_frame* cpvt_prepare_voice_frame(struct cpvt* const cpvt, void* const 
     f->frametype       = AST_FRAME_VOICE;
     f->subclass.format = (struct ast_format*)fmt;
     f->samples         = samples;
-    f->datalen         = samples * sizeof(short);
+    f->datalen         = samples * sizeof(int16_t);
     f->data.ptr        = buf;
     f->offset          = AST_FRIENDLY_OFFSET;
     f->src             = AST_MODULE;

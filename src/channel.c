@@ -562,7 +562,7 @@ static struct ast_frame* channel_read_uac(struct cpvt* cpvt, struct pvt* pvt, si
                         write_conference(pvt, buf, res);
                     }
 
-                    PVT_STAT(pvt, a_read_bytes) += res * sizeof(short);
+                    PVT_STAT(pvt, a_read_bytes) += res * sizeof(int16_t);
                     PVT_STAT(pvt, read_frames)++;
                     if (res < frames) {
                         PVT_STAT(pvt, read_sframes)++;
@@ -623,7 +623,7 @@ static struct ast_frame* channel_read(struct ast_channel* channel)
     }
 
     if (CONF_UNIQ(pvt, uac) > TRIBOOL_FALSE && CPVT_IS_MASTER(cpvt)) {
-        f = channel_read_uac(cpvt, pvt, frame_size / sizeof(short), fmt);
+        f = channel_read_uac(cpvt, pvt, frame_size / sizeof(int16_t), fmt);
     } else {
         f = channel_read_tty(cpvt, pvt, frame_size, fmt);
     }
@@ -633,7 +633,7 @@ f_ret:
         const int fd = ast_channel_fd(channel, 0);
         ast_debug(5, "[%s] Read - idx:%d state:%s audio:%d:%d - returning SILENCE frame\n", PVT_ID(pvt), cpvt->call_idx, call_state2str(cpvt->state), fd,
                   pvt->audio_fd);
-        return cpvt_prepare_silence_voice_frame(cpvt, frame_size / sizeof(short), fmt);
+        return cpvt_prepare_silence_voice_frame(cpvt, frame_size / sizeof(int16_t), fmt);
     } else {
         ast_debug(8, "[%s] Read - idx:%d state:%s samples:%d\n", PVT_ID(pvt), cpvt->call_idx, call_state2str(cpvt->state), f->samples);
         return f;
@@ -778,7 +778,7 @@ static int channel_write_uac(struct ast_channel* attribute_unused(channel), stru
         default:
             if (res >= 0) {
                 PVT_STAT(pvt, write_frames)  += 1;
-                PVT_STAT(pvt, a_write_bytes) += res * sizeof(short);
+                PVT_STAT(pvt, a_write_bytes) += res * sizeof(int16_t);
                 if (res != samples) {
                     PVT_STAT(pvt, write_tframes)++;
                     ast_log(LOG_WARNING, "[%s][ALSA][PLAYBACK] Write: %d/%d\n", PVT_ID(pvt), res, samples);

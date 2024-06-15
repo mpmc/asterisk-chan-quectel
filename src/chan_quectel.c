@@ -1363,7 +1363,7 @@ static size_t pvt_get_audio_frame_size_r(unsigned int ptime, const unsigned int 
 {
     size_t res  = ptime;
     res        *= sr / 1000;
-    res        *= sizeof(short);
+    res        *= sizeof(int16_t);
 
     return res;
 }
